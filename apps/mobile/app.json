@@ -12,7 +12,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#2563EB"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "gr.staffnow.app",
@@ -38,12 +40,14 @@
       "typedRoutes": true
     },
     "extra": {
+      "EXPO_PUBLIC_API_URL": "https://staffnow-api-production.siteinside53.workers.dev",
       "router": {
         "origin": false
       },
       "eas": {
-        "projectId": "YOUR_EAS_PROJECT_ID"
+        "projectId": "13a99d29-0029-45f4-bca5-6b3c9f057a23"
       }
-    }
+    },
+    "owner": "eugene_afs"
   }
 }
