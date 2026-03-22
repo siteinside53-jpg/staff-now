@@ -27,11 +27,19 @@ jobs.get('/', requireAuth, async (c) => {
   const housingProvided = c.req.query('housingProvided');
   const search = c.req.query('search');
 
-  const conditions: string[] = ["j.status = 'published'"];
+  const conditions: string[] = [];
   const params: (string | number)[] = [];
 
-  // Workers: exclude jobs they already swiped on
-  if (user.role === 'worker') {
+  if (user.role === 'business') {
+    // Business sees their own jobs (all statuses)
+    const bp = await db.prepare('SELECT id FROM business_profiles WHERE user_id = ?').bind(user.id).first<{ id: string }>();
+    if (bp) {
+      conditions.push('j.business_id = ?');
+      params.push(bp.id);
+    }
+  } else {
+    // Workers see only published jobs, excluding swiped
+    conditions.push("j.status = 'published'");
     conditions.push(
       `j.id NOT IN (SELECT target_id FROM swipes WHERE swiper_id = ? AND target_type = 'job')`
     );
@@ -139,34 +147,38 @@ jobs.post(
     const db = c.env.DB;
     const body = c.req.valid('json');
     const now = new Date().toISOString();
-    const jobId = generateId();
+    const jobId = generateId('jl');
+
+    // Get business profile ID
+    const bp = await db
+      .prepare('SELECT id FROM business_profiles WHERE user_id = ?')
+      .bind(user.id)
+      .first<{ id: string }>();
+
+    if (!bp) {
+      return error(c, 'Δεν βρέθηκε προφίλ επιχείρησης', 404);
+    }
 
     await db
       .prepare(
-        `INSERT INTO job_listings (id, business_id, title, description, region, city, country,
-         employment_type, min_salary, max_salary, salary_currency, housing_provided,
-         housing_details, requirements, benefits, positions_available, start_date,
+        `INSERT INTO job_listings (id, business_id, title, description, region, city,
+         employment_type, salary_min, salary_max, salary_type, housing_provided, meals_provided,
          status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published', ?, ?)`
       )
       .bind(
         jobId,
-        user.id,
+        bp.id,
         body.title,
-        body.description || null,
+        body.description || '',
         body.region || null,
         body.city || null,
-        body.country || null,
-        body.employmentType || null,
-        body.minSalary || null,
-        body.maxSalary || null,
-        body.salaryCurrency || 'EUR',
-        body.housingProvided ? 1 : 0,
-        body.housingDetails || null,
-        body.requirements || null,
-        body.benefits || null,
-        body.positionsAvailable || 1,
-        body.startDate || null,
+        body.employment_type || body.employmentType || 'seasonal',
+        body.salary_min || body.minSalary || null,
+        body.salary_max || body.maxSalary || null,
+        'monthly',
+        body.housing_provided || body.housingProvided ? 1 : 0,
+        body.meals_provided || body.mealsProvided ? 1 : 0,
         now,
         now
       )
