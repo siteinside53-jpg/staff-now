@@ -56,7 +56,7 @@ export default function DashboardLayout({
     return null;
   }
 
-  const navItems = profile?.role === 'business' ? businessNavItems : workerNavItems;
+  const navItems = user.role === 'business' ? businessNavItems : workerNavItems;
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -109,7 +109,7 @@ export default function DashboardLayout({
                 {profile?.name || user.email}
               </p>
               <p className="truncate text-xs text-gray-500">
-                {profile?.role === 'business' ? 'Επιχείρηση' : 'Εργαζόμενος'}
+                {user.role === 'business' ? 'Επιχείρηση' : 'Εργαζόμενος'}
               </p>
             </div>
           </div>
