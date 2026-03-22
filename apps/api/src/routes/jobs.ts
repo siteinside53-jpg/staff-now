@@ -1,0 +1,575 @@
+import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
+import { createJobSchema, updateJobSchema } from '@staffnow/validation';
+import type { Env, AuthUser } from '../types';
+import { requireAuth, requireRole } from '../middleware/auth';
+import { checkSwipeLimit } from '../middleware/subscription';
+import { success, error, paginated } from '../lib/response';
+import { generateId } from '../lib/id';
+
+const jobs = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
+
+// GET / — list published jobs with filters
+jobs.get('/', requireAuth, async (c) => {
+  const user = c.get('user');
+  const db = c.env.DB;
+
+  const page = parseInt(c.req.query('page') || '1', 10);
+  const limit = Math.min(parseInt(c.req.query('limit') || '20', 10), 50);
+  const offset = (page - 1) * limit;
+
+  // Filters
+  const region = c.req.query('region');
+  const role = c.req.query('role');
+  const employmentType = c.req.query('employmentType');
+  const minSalary = c.req.query('minSalary');
+  const maxSalary = c.req.query('maxSalary');
+  const housingProvided = c.req.query('housingProvided');
+  const search = c.req.query('search');
+
+  const conditions: string[] = ["j.status = 'published'"];
+  const params: (string | number)[] = [];
+
+  // Workers: exclude jobs they already swiped on
+  if (user.role === 'worker') {
+    conditions.push(
+      `j.id NOT IN (SELECT target_id FROM swipes WHERE swiper_id = ? AND target_type = 'job')`
+    );
+    params.push(user.id);
+  }
+
+  if (region) {
+    conditions.push('j.region = ?');
+    params.push(region);
+  }
+
+  if (employmentType) {
+    conditions.push('j.employment_type = ?');
+    params.push(employmentType);
+  }
+
+  if (minSalary) {
+    conditions.push('j.max_salary >= ?');
+    params.push(parseInt(minSalary, 10));
+  }
+
+  if (maxSalary) {
+    conditions.push('j.min_salary <= ?');
+    params.push(parseInt(maxSalary, 10));
+  }
+
+  if (housingProvided) {
+    conditions.push('j.housing_provided = ?');
+    params.push(housingProvided === 'true' ? 1 : 0);
+  }
+
+  if (search) {
+    conditions.push("(j.title LIKE ? OR j.description LIKE ?)");
+    params.push(`%${search}%`, `%${search}%`);
+  }
+
+  let roleJoin = '';
+  if (role) {
+    roleJoin = 'JOIN job_roles jr ON jr.job_id = j.id';
+    conditions.push('jr.role_name = ?');
+    params.push(role);
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  // Count total
+  const countResult = await db
+    .prepare(
+      `SELECT COUNT(DISTINCT j.id) as total
+       FROM jobs j
+       ${roleJoin}
+       ${whereClause}`
+    )
+    .bind(...params)
+    .first<{ total: number }>();
+
+  const total = countResult?.total || 0;
+
+  // Get jobs
+  const results = await db
+    .prepare(
+      `SELECT DISTINCT j.*, bp.company_name, bp.logo_url, bp.verified as business_verified,
+         CASE WHEN sub.plan_id IN ('professional', 'enterprise') THEN 1 ELSE 0 END as is_premium
+       FROM jobs j
+       JOIN business_profiles bp ON bp.user_id = j.business_id
+       LEFT JOIN subscriptions sub ON sub.user_id = j.business_id AND sub.status = 'active'
+       ${roleJoin}
+       ${whereClause}
+       ORDER BY is_premium DESC, j.created_at DESC
+       LIMIT ? OFFSET ?`
+    )
+    .bind(...params, limit, offset)
+    .all();
+
+  // Fetch roles for each job
+  const jobsWithRoles = await Promise.all(
+    results.results.map(async (job: Record<string, unknown>) => {
+      const jobRoles = await db
+        .prepare('SELECT role_name FROM job_roles WHERE job_id = ?')
+        .bind(job.id as string)
+        .all();
+
+      return {
+        ...job,
+        roles: jobRoles.results.map((r: { role_name: string }) => r.role_name),
+      };
+    })
+  );
+
+  return paginated(c, jobsWithRoles, total, page, limit);
+});
+
+// POST / — create a new job (business only)
+jobs.post(
+  '/',
+  requireAuth,
+  requireRole('business'),
+  zValidator('json', createJobSchema, (result, c) => {
+    if (!result.success) {
+      return error(c, 'Μη έγκυρα δεδομένα αγγελίας', 400, result.error.flatten().fieldErrors);
+    }
+  }),
+  async (c) => {
+    const user = c.get('user');
+    const db = c.env.DB;
+    const body = c.req.valid('json');
+    const now = new Date().toISOString();
+    const jobId = generateId();
+
+    await db
+      .prepare(
+        `INSERT INTO jobs (id, business_id, title, description, region, city, country,
+         employment_type, min_salary, max_salary, salary_currency, housing_provided,
+         housing_details, requirements, benefits, positions_available, start_date,
+         status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?)`
+      )
+      .bind(
+        jobId,
+        user.id,
+        body.title,
+        body.description || null,
+        body.region || null,
+        body.city || null,
+        body.country || null,
+        body.employmentType || null,
+        body.minSalary || null,
+        body.maxSalary || null,
+        body.salaryCurrency || 'EUR',
+        body.housingProvided ? 1 : 0,
+        body.housingDetails || null,
+        body.requirements || null,
+        body.benefits || null,
+        body.positionsAvailable || 1,
+        body.startDate || null,
+        now,
+        now
+      )
+      .run();
+
+    // Insert job roles
+    if (body.roles && Array.isArray(body.roles)) {
+      for (const roleName of body.roles) {
+        await db
+          .prepare(
+            'INSERT INTO job_roles (id, job_id, role_name, created_at) VALUES (?, ?, ?, ?)'
+          )
+          .bind(generateId(), jobId, roleName, now)
+          .run();
+      }
+    }
+
+    const job = await db
+      .prepare('SELECT * FROM jobs WHERE id = ?')
+      .bind(jobId)
+      .first();
+
+    const jobRoles = await db
+      .prepare('SELECT role_name FROM job_roles WHERE job_id = ?')
+      .bind(jobId)
+      .all();
+
+    return success(
+      c,
+      {
+        job,
+        roles: jobRoles.results.map((r: { role_name: string }) => r.role_name),
+      },
+      201
+    );
+  }
+);
+
+// GET /:id — get job by ID
+jobs.get('/:id', requireAuth, async (c) => {
+  const jobId = c.req.param('id');
+  const db = c.env.DB;
+
+  const job = await db
+    .prepare(
+      `SELECT j.*, bp.company_name, bp.logo_url, bp.verified as business_verified,
+         bp.region as business_region, bp.description as business_description
+       FROM jobs j
+       JOIN business_profiles bp ON bp.user_id = j.business_id
+       WHERE j.id = ?`
+    )
+    .bind(jobId)
+    .first();
+
+  if (!job) {
+    return error(c, 'Η αγγελία δεν βρέθηκε', 404);
+  }
+
+  const roles = await db
+    .prepare('SELECT role_name FROM job_roles WHERE job_id = ?')
+    .bind(jobId)
+    .all();
+
+  return success(c, {
+    job,
+    roles: roles.results.map((r: { role_name: string }) => r.role_name),
+  });
+});
+
+// PATCH /:id — update job (verify ownership)
+jobs.patch(
+  '/:id',
+  requireAuth,
+  requireRole('business'),
+  zValidator('json', updateJobSchema, (result, c) => {
+    if (!result.success) {
+      return error(c, 'Μη έγκυρα δεδομένα αγγελίας', 400, result.error.flatten().fieldErrors);
+    }
+  }),
+  async (c) => {
+    const user = c.get('user');
+    const jobId = c.req.param('id');
+    const db = c.env.DB;
+    const body = c.req.valid('json');
+
+    // Verify ownership
+    const job = await db
+      .prepare('SELECT id, business_id, status FROM jobs WHERE id = ?')
+      .bind(jobId)
+      .first<{ id: string; business_id: string; status: string }>();
+
+    if (!job) {
+      return error(c, 'Η αγγελία δεν βρέθηκε', 404);
+    }
+
+    if (job.business_id !== user.id) {
+      return error(c, 'Δεν έχετε δικαίωμα επεξεργασίας αυτής της αγγελίας', 403);
+    }
+
+    const now = new Date().toISOString();
+    const updateFields: string[] = [];
+    const updateValues: (string | number | null)[] = [];
+
+    const allowedFields = [
+      'title',
+      'description',
+      'region',
+      'city',
+      'country',
+      'employment_type',
+      'min_salary',
+      'max_salary',
+      'salary_currency',
+      'housing_provided',
+      'housing_details',
+      'requirements',
+      'benefits',
+      'positions_available',
+      'start_date',
+    ];
+
+    const fieldMap: Record<string, string> = {
+      employmentType: 'employment_type',
+      minSalary: 'min_salary',
+      maxSalary: 'max_salary',
+      salaryCurrency: 'salary_currency',
+      housingProvided: 'housing_provided',
+      housingDetails: 'housing_details',
+      positionsAvailable: 'positions_available',
+      startDate: 'start_date',
+    };
+
+    for (const [key, value] of Object.entries(body)) {
+      if (key === 'roles') continue;
+      const dbField = fieldMap[key] || key;
+      if (allowedFields.includes(dbField) && value !== undefined) {
+        if (dbField === 'housing_provided') {
+          updateFields.push(`${dbField} = ?`);
+          updateValues.push(value ? 1 : 0);
+        } else {
+          updateFields.push(`${dbField} = ?`);
+          updateValues.push(value as string | number | null);
+        }
+      }
+    }
+
+    // Update roles if provided
+    if (body.roles && Array.isArray(body.roles)) {
+      await db
+        .prepare('DELETE FROM job_roles WHERE job_id = ?')
+        .bind(jobId)
+        .run();
+
+      for (const roleName of body.roles) {
+        await db
+          .prepare(
+            'INSERT INTO job_roles (id, job_id, role_name, created_at) VALUES (?, ?, ?, ?)'
+          )
+          .bind(generateId(), jobId, roleName, now)
+          .run();
+      }
+    }
+
+    updateFields.push('updated_at = ?');
+    updateValues.push(now);
+
+    if (updateFields.length > 0) {
+      updateValues.push(jobId);
+      await db
+        .prepare(`UPDATE jobs SET ${updateFields.join(', ')} WHERE id = ?`)
+        .bind(...updateValues)
+        .run();
+    }
+
+    const updated = await db
+      .prepare('SELECT * FROM jobs WHERE id = ?')
+      .bind(jobId)
+      .first();
+
+    const updatedRoles = await db
+      .prepare('SELECT role_name FROM job_roles WHERE job_id = ?')
+      .bind(jobId)
+      .all();
+
+    return success(c, {
+      job: updated,
+      roles: updatedRoles.results.map((r: { role_name: string }) => r.role_name),
+    });
+  }
+);
+
+// POST /:id/publish — publish a draft job
+jobs.post('/:id/publish', requireAuth, requireRole('business'), async (c) => {
+  const user = c.get('user');
+  const jobId = c.req.param('id');
+  const db = c.env.DB;
+
+  const job = await db
+    .prepare('SELECT id, business_id, status, title FROM jobs WHERE id = ?')
+    .bind(jobId)
+    .first<{ id: string; business_id: string; status: string; title: string }>();
+
+  if (!job) {
+    return error(c, 'Η αγγελία δεν βρέθηκε', 404);
+  }
+
+  if (job.business_id !== user.id) {
+    return error(c, 'Δεν έχετε δικαίωμα δημοσίευσης αυτής της αγγελίας', 403);
+  }
+
+  if (job.status === 'published') {
+    return error(c, 'Η αγγελία είναι ήδη δημοσιευμένη', 400);
+  }
+
+  if (job.status === 'archived') {
+    return error(c, 'Δεν μπορείτε να δημοσιεύσετε μια αρχειοθετημένη αγγελία', 400);
+  }
+
+  const now = new Date().toISOString();
+  await db
+    .prepare("UPDATE jobs SET status = 'published', published_at = ?, updated_at = ? WHERE id = ?")
+    .bind(now, now, jobId)
+    .run();
+
+  return success(c, { published: true, jobId });
+});
+
+// POST /:id/archive — archive a job
+jobs.post('/:id/archive', requireAuth, requireRole('business'), async (c) => {
+  const user = c.get('user');
+  const jobId = c.req.param('id');
+  const db = c.env.DB;
+
+  const job = await db
+    .prepare('SELECT id, business_id, status FROM jobs WHERE id = ?')
+    .bind(jobId)
+    .first<{ id: string; business_id: string; status: string }>();
+
+  if (!job) {
+    return error(c, 'Η αγγελία δεν βρέθηκε', 404);
+  }
+
+  if (job.business_id !== user.id) {
+    return error(c, 'Δεν έχετε δικαίωμα αρχειοθέτησης αυτής της αγγελίας', 403);
+  }
+
+  if (job.status === 'archived') {
+    return error(c, 'Η αγγελία είναι ήδη αρχειοθετημένη', 400);
+  }
+
+  const now = new Date().toISOString();
+  await db
+    .prepare("UPDATE jobs SET status = 'archived', updated_at = ? WHERE id = ?")
+    .bind(now, jobId)
+    .run();
+
+  return success(c, { archived: true, jobId });
+});
+
+// POST /:id/like — worker likes a job (mutual matching with business)
+jobs.post('/:id/like', requireAuth, requireRole('worker'), checkSwipeLimit, async (c) => {
+  const user = c.get('user');
+  const jobId = c.req.param('id');
+  const db = c.env.DB;
+  const now = new Date().toISOString();
+
+  // Get job and verify it's published
+  const job = await db
+    .prepare("SELECT id, business_id, title FROM jobs WHERE id = ? AND status = 'published'")
+    .bind(jobId)
+    .first<{ id: string; business_id: string; title: string }>();
+
+  if (!job) {
+    return error(c, 'Η αγγελία δεν βρέθηκε', 404);
+  }
+
+  // Check duplicate swipe
+  const existingSwipe = await db
+    .prepare(
+      "SELECT id FROM swipes WHERE swiper_id = ? AND target_id = ? AND target_type = 'job'"
+    )
+    .bind(user.id, jobId)
+    .first();
+
+  if (existingSwipe) {
+    return error(c, 'Έχετε ήδη κάνει swipe σε αυτή την αγγελία', 409);
+  }
+
+  // Create swipe
+  await db
+    .prepare(
+      `INSERT INTO swipes (id, swiper_id, target_id, target_type, direction, created_at)
+       VALUES (?, ?, ?, 'job', 'like', ?)`
+    )
+    .bind(generateId(), user.id, jobId, now)
+    .run();
+
+  // Check for mutual match: business liked this worker
+  const mutualSwipe = await db
+    .prepare(
+      "SELECT id FROM swipes WHERE swiper_id = ? AND target_id = ? AND target_type = 'worker' AND direction = 'like'"
+    )
+    .bind(job.business_id, user.id)
+    .first();
+
+  let matched = false;
+  let matchId: string | null = null;
+
+  if (mutualSwipe) {
+    matched = true;
+    matchId = generateId();
+    const conversationId = generateId();
+
+    await db
+      .prepare(
+        `INSERT INTO matches (id, worker_id, business_id, job_id, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, 'active', ?, ?)`
+      )
+      .bind(matchId, user.id, job.business_id, jobId, now, now)
+      .run();
+
+    await db
+      .prepare(
+        `INSERT INTO conversations (id, match_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?)`
+      )
+      .bind(conversationId, matchId, now, now)
+      .run();
+
+    // Notify worker
+    await db
+      .prepare(
+        `INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at, updated_at)
+         VALUES (?, ?, 'match', ?, ?, ?, 0, ?, ?)`
+      )
+      .bind(
+        generateId(),
+        user.id,
+        'Νέο ταίριασμα!',
+        `Ταιριάξατε με μια αγγελία: ${job.title}`,
+        JSON.stringify({ matchId, conversationId, jobId }),
+        now,
+        now
+      )
+      .run();
+
+    // Notify business
+    await db
+      .prepare(
+        `INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at, updated_at)
+         VALUES (?, ?, 'match', ?, ?, ?, 0, ?, ?)`
+      )
+      .bind(
+        generateId(),
+        job.business_id,
+        'Νέο ταίριασμα!',
+        `Ένας εργαζόμενος ταίριαξε με την αγγελία σας: ${job.title}`,
+        JSON.stringify({ matchId, conversationId, jobId }),
+        now,
+        now
+      )
+      .run();
+  }
+
+  return success(c, { swiped: true, matched, matchId }, matched ? 201 : 200);
+});
+
+// POST /:id/skip — worker skips a job
+jobs.post('/:id/skip', requireAuth, requireRole('worker'), async (c) => {
+  const user = c.get('user');
+  const jobId = c.req.param('id');
+  const db = c.env.DB;
+  const now = new Date().toISOString();
+
+  const job = await db
+    .prepare("SELECT id FROM jobs WHERE id = ? AND status = 'published'")
+    .bind(jobId)
+    .first();
+
+  if (!job) {
+    return error(c, 'Η αγγελία δεν βρέθηκε', 404);
+  }
+
+  const existing = await db
+    .prepare(
+      "SELECT id FROM swipes WHERE swiper_id = ? AND target_id = ? AND target_type = 'job'"
+    )
+    .bind(user.id, jobId)
+    .first();
+
+  if (existing) {
+    return error(c, 'Έχετε ήδη κάνει swipe σε αυτή την αγγελία', 409);
+  }
+
+  await db
+    .prepare(
+      `INSERT INTO swipes (id, swiper_id, target_id, target_type, direction, created_at)
+       VALUES (?, ?, ?, 'job', 'skip', ?)`
+    )
+    .bind(generateId(), user.id, jobId, now)
+    .run();
+
+  return success(c, { skipped: true });
+});
+
+export default jobs;

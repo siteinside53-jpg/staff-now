@@ -1,0 +1,33 @@
+{
+  "name": "@staffnow/api",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "wrangler deploy --dry-run",
+    "deploy": "wrangler deploy",
+    "deploy:staging": "wrangler deploy --env staging",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo 'lint ok'",
+    "test": "echo 'no tests yet'",
+    "db:migrate": "for f in migrations/*.sql; do npx wrangler d1 execute staffnow-db --local --file=\"$f\"; done",
+    "db:migrate:remote": "for f in migrations/*.sql; do npx wrangler d1 execute staffnow-db --remote --file=\"$f\"; done",
+    "db:seed": "npx wrangler d1 execute staffnow-db --local --file=./src/db/seed.sql",
+    "db:seed:remote": "npx wrangler d1 execute staffnow-db --remote --file=./src/db/seed.sql",
+    "db:reset": "pnpm db:migrate && pnpm db:seed",
+    "clean": "rm -rf dist .wrangler"
+  },
+  "dependencies": {
+    "@hono/zod-validator": "^0.7.6",
+    "@staffnow/config": "workspace:*",
+    "@staffnow/types": "workspace:*",
+    "@staffnow/validation": "workspace:*",
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0",
+    "wrangler": "^3.93.0"
+  }
+}
