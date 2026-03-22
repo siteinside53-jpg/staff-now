@@ -386,7 +386,7 @@ workers.get('/:id', requireAuth, async (c) => {
 });
 
 // POST /:id/like — business likes a worker
-workers.post('/:id/like', requireAuth, requireRole('business'), checkSwipeLimit, async (c) => {
+workers.post('/:id/like', requireAuth, requireRole('business'), async (c) => {
   const user = c.get('user');
   const targetId = c.req.param('id');
   const db = c.env.DB;
@@ -443,10 +443,10 @@ workers.post('/:id/like', requireAuth, requireRole('business'), checkSwipeLimit,
     // Create match
     await db
       .prepare(
-        `INSERT INTO matches (id, worker_id, business_id, status, created_at, updated_at)
-         VALUES (?, ?, ?, 'active', ?, ?)`
+        `INSERT INTO matches (id, worker_id, business_id, status, matched_at)
+         VALUES (?, ?, ?, 'active', ?)`
       )
-      .bind(matchId, targetId, user.id, now, now)
+      .bind(matchId, targetId, user.id, now)
       .run();
 
     // Create conversation
@@ -461,16 +461,15 @@ workers.post('/:id/like', requireAuth, requireRole('business'), checkSwipeLimit,
     // Notify worker
     await db
       .prepare(
-        `INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at, updated_at)
-         VALUES (?, ?, 'match', ?, ?, ?, 0, ?, ?)`
+        `INSERT INTO notifications (id, user_id, type, title, body, data, created_at)
+         VALUES (?, ?, 'new_match', ?, ?, ?, ?)`
       )
       .bind(
         generateId(),
         targetId,
         'Νέο ταίριασμα!',
-        'Έχετε ένα νέο ταίριασμα με μια επιχείρηση. Ξεκινήστε τη συνομιλία!',
+        'Έχετε ένα νέο ταίριασμα με μια επιχείρηση!',
         JSON.stringify({ matchId, conversationId }),
-        now,
         now
       )
       .run();
@@ -478,16 +477,15 @@ workers.post('/:id/like', requireAuth, requireRole('business'), checkSwipeLimit,
     // Notify business
     await db
       .prepare(
-        `INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at, updated_at)
-         VALUES (?, ?, 'match', ?, ?, ?, 0, ?, ?)`
+        `INSERT INTO notifications (id, user_id, type, title, body, data, created_at)
+         VALUES (?, ?, 'new_match', ?, ?, ?, ?)`
       )
       .bind(
         generateId(),
         user.id,
         'Νέο ταίριασμα!',
-        'Έχετε ένα νέο ταίριασμα με έναν εργαζόμενο. Ξεκινήστε τη συνομιλία!',
+        'Έχετε ένα νέο ταίριασμα με έναν εργαζόμενο!',
         JSON.stringify({ matchId, conversationId }),
-        now,
         now
       )
       .run();

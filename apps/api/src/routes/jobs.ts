@@ -439,7 +439,7 @@ jobs.post('/:id/archive', requireAuth, requireRole('business'), async (c) => {
 });
 
 // POST /:id/like — worker likes a job (mutual matching with business)
-jobs.post('/:id/like', requireAuth, requireRole('worker'), checkSwipeLimit, async (c) => {
+jobs.post('/:id/like', requireAuth, requireRole('worker'), async (c) => {
   const user = c.get('user');
   const jobId = c.req.param('id');
   const db = c.env.DB;
@@ -476,12 +476,20 @@ jobs.post('/:id/like', requireAuth, requireRole('worker'), checkSwipeLimit, asyn
     .bind(generateId(), user.id, jobId, now)
     .run();
 
+  // Get business user_id from business_profile
+  const bizProfile = await db
+    .prepare('SELECT user_id FROM business_profiles WHERE id = ?')
+    .bind(job.business_id)
+    .first<{ user_id: string }>();
+
+  const bizUserId = bizProfile?.user_id || job.business_id;
+
   // Check for mutual match: business liked this worker
   const mutualSwipe = await db
     .prepare(
       "SELECT id FROM swipes WHERE swiper_id = ? AND target_id = ? AND target_type = 'worker' AND direction = 'like'"
     )
-    .bind(job.business_id, user.id)
+    .bind(bizUserId, user.id)
     .first();
 
   let matched = false;
@@ -494,10 +502,10 @@ jobs.post('/:id/like', requireAuth, requireRole('worker'), checkSwipeLimit, asyn
 
     await db
       .prepare(
-        `INSERT INTO matches (id, worker_id, business_id, job_id, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 'active', ?, ?)`
+        `INSERT INTO matches (id, worker_id, business_id, job_id, status, matched_at)
+         VALUES (?, ?, ?, ?, 'active', ?)`
       )
-      .bind(matchId, user.id, job.business_id, jobId, now, now)
+      .bind(matchId, user.id, bizUserId, jobId, now)
       .run();
 
     await db
@@ -511,8 +519,8 @@ jobs.post('/:id/like', requireAuth, requireRole('worker'), checkSwipeLimit, asyn
     // Notify worker
     await db
       .prepare(
-        `INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at, updated_at)
-         VALUES (?, ?, 'match', ?, ?, ?, 0, ?, ?)`
+        `INSERT INTO notifications (id, user_id, type, title, body, data, created_at)
+         VALUES (?, ?, 'new_match', ?, ?, ?, ?)`
       )
       .bind(
         generateId(),
@@ -520,7 +528,6 @@ jobs.post('/:id/like', requireAuth, requireRole('worker'), checkSwipeLimit, asyn
         'Νέο ταίριασμα!',
         `Ταιριάξατε με μια αγγελία: ${job.title}`,
         JSON.stringify({ matchId, conversationId, jobId }),
-        now,
         now
       )
       .run();
@@ -528,16 +535,15 @@ jobs.post('/:id/like', requireAuth, requireRole('worker'), checkSwipeLimit, asyn
     // Notify business
     await db
       .prepare(
-        `INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at, updated_at)
-         VALUES (?, ?, 'match', ?, ?, ?, 0, ?, ?)`
+        `INSERT INTO notifications (id, user_id, type, title, body, data, created_at)
+         VALUES (?, ?, 'new_match', ?, ?, ?, ?)`
       )
       .bind(
         generateId(),
-        job.business_id,
+        bizUserId,
         'Νέο ταίριασμα!',
         `Ένας εργαζόμενος ταίριαξε με την αγγελία σας: ${job.title}`,
         JSON.stringify({ matchId, conversationId, jobId }),
-        now,
         now
       )
       .run();

@@ -40,19 +40,19 @@ matches.get('/', requireAuth, async (c) => {
   const results = await db
     .prepare(
       `SELECT m.*,
-         wp.first_name as worker_first_name, wp.last_name as worker_last_name,
-         wp.avatar_url as worker_avatar, wp.region as worker_region,
-         bp.company_name as business_name, bp.logo_url as business_logo,
-         bp.region as business_region,
-         j.title as job_title, j.id as job_id,
+         wp.full_name as worker_name,
+         wp.photo_url as worker_avatar, wp.region as worker_region,
+         bp.company_name as business_name, bp.description as business_logo,
+         bp.business_type as business_region,
+         j.title as job_title, j.id as linked_job_id,
          conv.id as conversation_id
        FROM matches m
        LEFT JOIN worker_profiles wp ON wp.user_id = m.worker_id
        LEFT JOIN business_profiles bp ON bp.user_id = m.business_id
-       LEFT JOIN jobs j ON j.id = m.job_id
+       LEFT JOIN job_listings j ON j.id = m.job_id
        LEFT JOIN conversations conv ON conv.match_id = m.id
        ${whereClause}
-       ORDER BY m.created_at DESC
+       ORDER BY m.matched_at DESC
        LIMIT ? OFFSET ?`
     )
     .bind(...params, limit, offset)
@@ -114,14 +114,14 @@ matches.get('/:id', requireAuth, async (c) => {
          u_business.email as business_email,
          j.title as job_title, j.description as job_description,
          j.region as job_region, j.employment_type as job_employment_type,
-         j.min_salary as job_min_salary, j.max_salary as job_max_salary,
+         j.salary_min as job_min_salary, j.salary_max as job_max_salary,
          conv.id as conversation_id
        FROM matches m
        JOIN worker_profiles wp ON wp.user_id = m.worker_id
        JOIN users u_worker ON u_worker.id = m.worker_id
        JOIN business_profiles bp ON bp.user_id = m.business_id
        JOIN users u_business ON u_business.id = m.business_id
-       LEFT JOIN jobs j ON j.id = m.job_id
+       LEFT JOIN job_listings j ON j.id = m.job_id
        LEFT JOIN conversations conv ON conv.match_id = m.id
        WHERE m.id = ?`
     )
@@ -142,13 +142,12 @@ matches.get('/:id', requireAuth, async (c) => {
   // Build worker info
   const workerInfo: Record<string, unknown> = {
     id: m.worker_id,
-    firstName: m.first_name,
-    lastName: m.last_name,
-    avatar: m.worker_avatar || m.avatar_url,
+    name: m.full_name,
+    avatar: m.photo_url,
     region: m.worker_region || m.region,
     bio: m.bio,
-    yearsExperience: m.years_experience,
-    employmentType: m.employment_type,
+    yearsExperience: m.years_of_experience,
+    availability: m.availability,
     profileCompleteness: m.profile_completeness,
   };
 
