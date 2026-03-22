@@ -9,7 +9,10 @@ const apiClient = new ApiClient({
   onUnauthorized: () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('staffnow_token');
-      window.location.href = '/auth/login';
+      // Only redirect to login if on a protected route (dashboard)
+      if (window.location.pathname.startsWith('/dashboard')) {
+        window.location.href = '/auth/login';
+      }
     }
   },
 });
