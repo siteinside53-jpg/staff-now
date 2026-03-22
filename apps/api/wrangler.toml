@@ -38,7 +38,7 @@ binding = "KV"
 id = "YOUR_STAGING_KV_NAMESPACE_ID"
 
 [env.production]
-vars = { ENVIRONMENT = "production", CORS_ORIGIN = "https://staffnow.pages.dev", API_URL = "https://staffnow-api.siteinside53-gmail-com.workers.dev" }
+vars = { ENVIRONMENT = "production", CORS_ORIGIN = "https://staffnow.gr,https://www.staffnow.gr,https://staffnow.pages.dev", API_URL = "https://api.staffnow.gr" }
 
 [[env.production.d1_databases]]
 binding = "DB"
