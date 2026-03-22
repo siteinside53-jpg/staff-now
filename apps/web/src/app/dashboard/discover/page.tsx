@@ -85,14 +85,37 @@ export default function DiscoverPage() {
     if (!currentCandidate || actionLoading) return;
     setActionLoading(true);
     try {
-      // Move to next
+      // Call like/skip API
+      if (action === 'like') {
+        if (isWorker) {
+          const res = await api.jobs.like(currentCandidate.id) as any;
+          if (res?.data?.matched) {
+            toast.success('🎉 Match! Μπορείτε τώρα να ξεκινήσετε συνομιλία!');
+          } else {
+            toast.success('❤️ Ενδιαφέρον καταχωρήθηκε!');
+          }
+        } else {
+          const res = await api.workers.like(currentCandidate.id) as any;
+          if (res?.data?.matched) {
+            toast.success('🎉 Match! Μπορείτε τώρα να ξεκινήσετε συνομιλία!');
+          } else {
+            toast.success('❤️ Ενδιαφέρον καταχωρήθηκε!');
+          }
+        }
+      }
+      // Move to next card
       if (currentIndex < candidates.length - 1) {
         setCurrentIndex((prev) => prev + 1);
       } else {
         await fetchCandidates();
       }
-    } catch {
-      toast.error('Κάτι πήγε στραβά.');
+    } catch (err: any) {
+      if (err?.status === 409) {
+        // Already swiped, just move on
+        setCurrentIndex((prev) => prev + 1);
+      } else {
+        toast.error('Κάτι πήγε στραβά.');
+      }
     } finally {
       setActionLoading(false);
     }

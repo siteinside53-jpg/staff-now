@@ -22,7 +22,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (isWorker && profile) {
       setFormData({
-        full_name: (profile as any).full_name || '',
+        fullName: (profile as any).full_name || '',
         bio: (profile as any).bio || '',
         city: (profile as any).city || '',
         region: (profile as any).region || '',
@@ -78,7 +78,7 @@ export default function ProfilePage() {
             <>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">Ονοματεπώνυμο</label>
-                <Input value={formData.full_name || ''} onChange={(e) => handleChange('full_name', e.target.value)} placeholder="π.χ. Γιώργος Παπαδόπουλος" />
+                <Input value={formData.fullName || ''} onChange={(e) => handleChange('fullName', e.target.value)} placeholder="π.χ. Γιώργος Παπαδόπουλος" />
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">Περιγραφή</label>
