@@ -38,13 +38,12 @@ binding = "KV"
 id = "YOUR_STAGING_KV_NAMESPACE_ID"
 
 [env.production]
-vars = { ENVIRONMENT = "production", CORS_ORIGIN = "https://staffnow.gr", API_URL = "https://api.staffnow.gr" }
-routes = [{ pattern = "api.staffnow.gr", custom_domain = true }]
+vars = { ENVIRONMENT = "production", CORS_ORIGIN = "https://staffnow.pages.dev", API_URL = "https://staffnow-api.siteinside53-gmail-com.workers.dev" }
 
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "staffnow-db-prod"
-database_id = "YOUR_PROD_D1_DATABASE_ID"
+database_id = "3d2a719f-5899-4e44-97bf-f4d76f18cd81"
 
 [[env.production.r2_buckets]]
 binding = "R2"
@@ -52,4 +51,4 @@ bucket_name = "staffnow-uploads-prod"
 
 [[env.production.kv_namespaces]]
 binding = "KV"
-id = "YOUR_PROD_KV_NAMESPACE_ID"
+id = "817d9666ea2e46288a31b02d6a914a10"

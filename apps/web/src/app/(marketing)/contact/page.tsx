@@ -19,7 +19,7 @@ const contactSchema = z.object({
 
 type ContactFormData = z.infer<typeof contactSchema>;
 
-export default function ContactPage() {
+export default function ContactPage(): React.JSX.Element {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -32,7 +32,7 @@ export default function ContactPage() {
     resolver: zodResolver(contactSchema),
   });
 
-  const onSubmit = async (data: ContactFormData) => {
+  const onSubmit = async (_data: ContactFormData) => {
     setIsSubmitting(true);
     try {
       // TODO: Integrate with API
