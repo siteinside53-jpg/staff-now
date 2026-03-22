@@ -29,7 +29,7 @@ workers.get('/me', requireAuth, requireRole('worker'), async (c) => {
     .all();
 
   const languages = await db
-    .prepare('SELECT language, level FROM worker_profile_languages WHERE worker_profile_id = ?')
+    .prepare('SELECT language FROM worker_profile_languages WHERE worker_profile_id = ?')
     .bind((profile as { id: string }).id)
     .all();
 
@@ -130,9 +130,9 @@ workers.patch(
       for (const lang of body.languages) {
         await db
           .prepare(
-            'INSERT INTO worker_profile_languages (id, worker_profile_id, language, level, created_at) VALUES (?, ?, ?, ?, ?)'
+            'INSERT INTO worker_profile_languages (id, worker_profile_id, language) VALUES (?, ?, ?)'
           )
-          .bind(generateId(), profile.id, lang.language, lang.level, now)
+          .bind(generateId(), profile.id, typeof lang === 'string' ? lang : lang.language)
           .run();
       }
     }
@@ -199,7 +199,7 @@ workers.patch(
       .all();
 
     const updatedLangs = await db
-      .prepare('SELECT language, level FROM worker_profile_languages WHERE worker_profile_id = ?')
+      .prepare('SELECT language FROM worker_profile_languages WHERE worker_profile_id = ?')
       .bind(profile.id)
       .all();
 
@@ -256,23 +256,18 @@ workers.get('/discover', requireAuth, requireRole('business'), async (c) => {
   }
 
   if (employmentType) {
-    conditions.push('wp.employment_type = ?');
+    conditions.push('wp.availability = ?');
     params.push(employmentType);
   }
 
   if (minExperience) {
-    conditions.push('wp.years_experience >= ?');
+    conditions.push('wp.years_of_experience >= ?');
     params.push(parseInt(minExperience, 10));
   }
 
   if (maxSalary) {
-    conditions.push('wp.min_salary <= ?');
+    conditions.push('wp.expected_monthly_salary <= ?');
     params.push(parseInt(maxSalary, 10));
-  }
-
-  if (housingRequired) {
-    conditions.push('wp.housing_required = ?');
-    params.push(housingRequired === 'true' ? 1 : 0);
   }
 
   let roleJoin = '';
@@ -339,7 +334,7 @@ workers.get('/discover', requireAuth, requireRole('business'), async (c) => {
         .all();
 
       const languages = await db
-        .prepare('SELECT language, level FROM worker_profile_languages WHERE worker_profile_id = ?')
+        .prepare('SELECT language FROM worker_profile_languages WHERE worker_profile_id = ?')
         .bind(worker.id as string)
         .all();
 
@@ -379,7 +374,7 @@ workers.get('/:id', requireAuth, async (c) => {
     .all();
 
   const languages = await db
-    .prepare('SELECT language, level FROM worker_profile_languages WHERE worker_profile_id = ?')
+    .prepare('SELECT language FROM worker_profile_languages WHERE worker_profile_id = ?')
     .bind((profile as { id: string }).id)
     .all();
 
