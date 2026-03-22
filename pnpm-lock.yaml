@@ -54,6 +54,9 @@ importers:
 
   apps/mobile:
     dependencies:
+      '@babel/runtime':
+        specifier: ^7.29.2
+        version: 7.29.2
       '@staffnow/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
