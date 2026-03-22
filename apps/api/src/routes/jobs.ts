@@ -49,12 +49,12 @@ jobs.get('/', requireAuth, async (c) => {
   }
 
   if (minSalary) {
-    conditions.push('j.max_salary >= ?');
+    conditions.push('j.salary_max >= ?');
     params.push(parseInt(minSalary, 10));
   }
 
   if (maxSalary) {
-    conditions.push('j.min_salary <= ?');
+    conditions.push('j.salary_min <= ?');
     params.push(parseInt(maxSalary, 10));
   }
 
@@ -70,8 +70,8 @@ jobs.get('/', requireAuth, async (c) => {
 
   let roleJoin = '';
   if (role) {
-    roleJoin = 'JOIN job_roles jr ON jr.job_id = j.id';
-    conditions.push('jr.role_name = ?');
+    roleJoin = 'JOIN job_listing_roles jr ON jr.job_listing_id = j.id';
+    conditions.push('jr.role = ?');
     params.push(role);
   }
 
@@ -81,7 +81,7 @@ jobs.get('/', requireAuth, async (c) => {
   const countResult = await db
     .prepare(
       `SELECT COUNT(DISTINCT j.id) as total
-       FROM jobs j
+       FROM job_listings j
        ${roleJoin}
        ${whereClause}`
     )
@@ -95,9 +95,9 @@ jobs.get('/', requireAuth, async (c) => {
     .prepare(
       `SELECT DISTINCT j.*, bp.company_name, bp.logo_url, bp.verified as business_verified,
          CASE WHEN sub.plan_id IN ('professional', 'enterprise') THEN 1 ELSE 0 END as is_premium
-       FROM jobs j
-       JOIN business_profiles bp ON bp.user_id = j.business_id
-       LEFT JOIN subscriptions sub ON sub.user_id = j.business_id AND sub.status = 'active'
+       FROM job_listings j
+       JOIN business_profiles bp ON bp.id = j.business_id
+       LEFT JOIN subscriptions sub ON sub.user_id = bp.user_id AND sub.status = 'active'
        ${roleJoin}
        ${whereClause}
        ORDER BY is_premium DESC, j.created_at DESC
@@ -110,13 +110,13 @@ jobs.get('/', requireAuth, async (c) => {
   const jobsWithRoles = await Promise.all(
     results.results.map(async (job: Record<string, unknown>) => {
       const jobRoles = await db
-        .prepare('SELECT role_name FROM job_roles WHERE job_id = ?')
+        .prepare('SELECT role FROM job_listing_roles WHERE job_listing_id = ?')
         .bind(job.id as string)
         .all();
 
       return {
         ...job,
-        roles: jobRoles.results.map((r: { role_name: string }) => r.role_name),
+        roles: jobRoles.results.map((r: { role: string }) => r.role),
       };
     })
   );
@@ -143,7 +143,7 @@ jobs.post(
 
     await db
       .prepare(
-        `INSERT INTO jobs (id, business_id, title, description, region, city, country,
+        `INSERT INTO job_listings (id, business_id, title, description, region, city, country,
          employment_type, min_salary, max_salary, salary_currency, housing_provided,
          housing_details, requirements, benefits, positions_available, start_date,
          status, created_at, updated_at)
@@ -177,20 +177,20 @@ jobs.post(
       for (const roleName of body.roles) {
         await db
           .prepare(
-            'INSERT INTO job_roles (id, job_id, role_name, created_at) VALUES (?, ?, ?, ?)'
+            'INSERT INTO job_listing_roles (id, job_listing_id, role) VALUES (?, ?, ?)'
           )
-          .bind(generateId(), jobId, roleName, now)
+          .bind(generateId(), jobId, roleName)
           .run();
       }
     }
 
     const job = await db
-      .prepare('SELECT * FROM jobs WHERE id = ?')
+      .prepare('SELECT * FROM job_listings WHERE id = ?')
       .bind(jobId)
       .first();
 
     const jobRoles = await db
-      .prepare('SELECT role_name FROM job_roles WHERE job_id = ?')
+      .prepare('SELECT role FROM job_listing_roles WHERE job_listing_id = ?')
       .bind(jobId)
       .all();
 
@@ -198,7 +198,7 @@ jobs.post(
       c,
       {
         job,
-        roles: jobRoles.results.map((r: { role_name: string }) => r.role_name),
+        roles: jobRoles.results.map((r: { role: string }) => r.role),
       },
       201
     );
@@ -214,8 +214,8 @@ jobs.get('/:id', requireAuth, async (c) => {
     .prepare(
       `SELECT j.*, bp.company_name, bp.logo_url, bp.verified as business_verified,
          bp.region as business_region, bp.description as business_description
-       FROM jobs j
-       JOIN business_profiles bp ON bp.user_id = j.business_id
+       FROM job_listings j
+       JOIN business_profiles bp ON bp.id = j.business_id
        WHERE j.id = ?`
     )
     .bind(jobId)
@@ -226,13 +226,13 @@ jobs.get('/:id', requireAuth, async (c) => {
   }
 
   const roles = await db
-    .prepare('SELECT role_name FROM job_roles WHERE job_id = ?')
+    .prepare('SELECT role FROM job_listing_roles WHERE job_listing_id = ?')
     .bind(jobId)
     .all();
 
   return success(c, {
     job,
-    roles: roles.results.map((r: { role_name: string }) => r.role_name),
+    roles: roles.results.map((r: { role: string }) => r.role),
   });
 });
 
@@ -254,7 +254,7 @@ jobs.patch(
 
     // Verify ownership
     const job = await db
-      .prepare('SELECT id, business_id, status FROM jobs WHERE id = ?')
+      .prepare('SELECT id, business_id, status FROM job_listings WHERE id = ?')
       .bind(jobId)
       .first<{ id: string; business_id: string; status: string }>();
 
@@ -316,16 +316,16 @@ jobs.patch(
     // Update roles if provided
     if (body.roles && Array.isArray(body.roles)) {
       await db
-        .prepare('DELETE FROM job_roles WHERE job_id = ?')
+        .prepare('DELETE FROM job_listing_roles WHERE job_listing_id = ?')
         .bind(jobId)
         .run();
 
       for (const roleName of body.roles) {
         await db
           .prepare(
-            'INSERT INTO job_roles (id, job_id, role_name, created_at) VALUES (?, ?, ?, ?)'
+            'INSERT INTO job_listing_roles (id, job_listing_id, role) VALUES (?, ?, ?)'
           )
-          .bind(generateId(), jobId, roleName, now)
+          .bind(generateId(), jobId, roleName)
           .run();
       }
     }
@@ -336,24 +336,24 @@ jobs.patch(
     if (updateFields.length > 0) {
       updateValues.push(jobId);
       await db
-        .prepare(`UPDATE jobs SET ${updateFields.join(', ')} WHERE id = ?`)
+        .prepare(`UPDATE job_listings SET ${updateFields.join(', ')} WHERE id = ?`)
         .bind(...updateValues)
         .run();
     }
 
     const updated = await db
-      .prepare('SELECT * FROM jobs WHERE id = ?')
+      .prepare('SELECT * FROM job_listings WHERE id = ?')
       .bind(jobId)
       .first();
 
     const updatedRoles = await db
-      .prepare('SELECT role_name FROM job_roles WHERE job_id = ?')
+      .prepare('SELECT role FROM job_listing_roles WHERE job_listing_id = ?')
       .bind(jobId)
       .all();
 
     return success(c, {
       job: updated,
-      roles: updatedRoles.results.map((r: { role_name: string }) => r.role_name),
+      roles: updatedRoles.results.map((r: { role: string }) => r.role),
     });
   }
 );
@@ -365,7 +365,7 @@ jobs.post('/:id/publish', requireAuth, requireRole('business'), async (c) => {
   const db = c.env.DB;
 
   const job = await db
-    .prepare('SELECT id, business_id, status, title FROM jobs WHERE id = ?')
+    .prepare('SELECT id, business_id, status, title FROM job_listings WHERE id = ?')
     .bind(jobId)
     .first<{ id: string; business_id: string; status: string; title: string }>();
 
@@ -387,7 +387,7 @@ jobs.post('/:id/publish', requireAuth, requireRole('business'), async (c) => {
 
   const now = new Date().toISOString();
   await db
-    .prepare("UPDATE jobs SET status = 'published', published_at = ?, updated_at = ? WHERE id = ?")
+    .prepare("UPDATE job_listings SET status = 'published', published_at = ?, updated_at = ? WHERE id = ?")
     .bind(now, now, jobId)
     .run();
 
@@ -401,7 +401,7 @@ jobs.post('/:id/archive', requireAuth, requireRole('business'), async (c) => {
   const db = c.env.DB;
 
   const job = await db
-    .prepare('SELECT id, business_id, status FROM jobs WHERE id = ?')
+    .prepare('SELECT id, business_id, status FROM job_listings WHERE id = ?')
     .bind(jobId)
     .first<{ id: string; business_id: string; status: string }>();
 
@@ -419,7 +419,7 @@ jobs.post('/:id/archive', requireAuth, requireRole('business'), async (c) => {
 
   const now = new Date().toISOString();
   await db
-    .prepare("UPDATE jobs SET status = 'archived', updated_at = ? WHERE id = ?")
+    .prepare("UPDATE job_listings SET status = 'archived', updated_at = ? WHERE id = ?")
     .bind(now, jobId)
     .run();
 
@@ -435,7 +435,7 @@ jobs.post('/:id/like', requireAuth, requireRole('worker'), checkSwipeLimit, asyn
 
   // Get job and verify it's published
   const job = await db
-    .prepare("SELECT id, business_id, title FROM jobs WHERE id = ? AND status = 'published'")
+    .prepare("SELECT id, business_id, title FROM job_listings WHERE id = ? AND status = 'published'")
     .bind(jobId)
     .first<{ id: string; business_id: string; title: string }>();
 
@@ -542,7 +542,7 @@ jobs.post('/:id/skip', requireAuth, requireRole('worker'), async (c) => {
   const now = new Date().toISOString();
 
   const job = await db
-    .prepare("SELECT id FROM jobs WHERE id = ? AND status = 'published'")
+    .prepare("SELECT id FROM job_listings WHERE id = ? AND status = 'published'")
     .bind(jobId)
     .first();
 
