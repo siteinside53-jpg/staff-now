@@ -13,36 +13,67 @@ import { EmptyState } from '@/components/ui/empty-state';
 interface DiscoverProfile {
   id: string;
   name: string;
-  role: string;
   location: string;
-  avatar?: string;
   bio?: string;
-  skills?: string[];
-  jobTitle?: string;
-  businessName?: string;
+  tags?: string[];
   salary?: string;
   experience?: string;
+  verified?: boolean;
+  type: 'worker' | 'job';
 }
 
 export default function DiscoverPage() {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const [candidates, setCandidates] = useState<DiscoverProfile[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
+  const isWorker = user?.role === 'worker';
+
   const fetchCandidates = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.matches.discover({ limit: 20 });
-      setCandidates(res.profiles || []);
+      if (isWorker) {
+        // Workers see jobs
+        const res = await api.jobs.list() as any;
+        const items = res?.data?.items || res?.data || [];
+        const mapped = (Array.isArray(items) ? items : []).map((j: any) => ({
+          id: j.id,
+          name: j.title || 'Θέση εργασίας',
+          location: [j.city, j.region].filter(Boolean).join(', '),
+          bio: j.description,
+          tags: j.roles || [j.employment_type].filter(Boolean),
+          salary: j.salary_min && j.salary_max ? `${j.salary_min}-${j.salary_max}€/μήνα` : undefined,
+          verified: false,
+          type: 'job' as const,
+        }));
+        setCandidates(mapped);
+      } else {
+        // Businesses see workers
+        const res = await api.workers.discover() as any;
+        const items = res?.data?.items || res?.data || [];
+        const mapped = (Array.isArray(items) ? items : []).map((w: any) => ({
+          id: w.id || w.user_id,
+          name: w.full_name || 'Χωρίς όνομα',
+          location: [w.city, w.region].filter(Boolean).join(', '),
+          bio: w.bio,
+          tags: w.roles || [],
+          salary: w.expected_monthly_salary ? `${w.expected_monthly_salary}€/μήνα` : undefined,
+          experience: w.years_of_experience ? `${w.years_of_experience} χρόνια` : undefined,
+          verified: w.verified === 1,
+          type: 'worker' as const,
+        }));
+        setCandidates(mapped);
+      }
       setCurrentIndex(0);
-    } catch {
+    } catch (err) {
+      console.error('Discover error:', err);
       toast.error('Αποτυχία φόρτωσης. Δοκίμασε ξανά.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isWorker]);
 
   useEffect(() => {
     fetchCandidates();
@@ -54,28 +85,18 @@ export default function DiscoverPage() {
     if (!currentCandidate || actionLoading) return;
     setActionLoading(true);
     try {
-      if (action === 'like') {
-        const res = await api.matches.like(currentCandidate.id);
-        if (res.matched) {
-          toast.success('Match! Μπορείτε τώρα να ξεκινήσετε συνομιλία.');
-        }
-      } else {
-        await api.matches.skip(currentCandidate.id);
-      }
-
+      // Move to next
       if (currentIndex < candidates.length - 1) {
         setCurrentIndex((prev) => prev + 1);
       } else {
         await fetchCandidates();
       }
     } catch {
-      toast.error('Κάτι πήγε στραβά. Δοκίμασε ξανά.');
+      toast.error('Κάτι πήγε στραβά.');
     } finally {
       setActionLoading(false);
     }
   };
-
-  const isWorker = profile?.role === 'worker';
 
   if (loading) {
     return (
@@ -113,78 +134,54 @@ export default function DiscoverPage() {
         </span>
       </div>
 
-      {/* Card */}
       <div className="mx-auto max-w-lg">
         <Card className="overflow-hidden shadow-lg">
-          {/* Avatar / Image area */}
+          {/* Header */}
           <div className="relative bg-gradient-to-br from-blue-500 to-indigo-600 px-6 pb-8 pt-10 text-center text-white">
             <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-white/20 text-3xl font-bold">
               {currentCandidate.name?.charAt(0)?.toUpperCase() || '?'}
             </div>
-            <h2 className="mt-4 text-2xl font-bold">
-              {isWorker
-                ? currentCandidate.businessName || currentCandidate.name
-                : currentCandidate.name}
-            </h2>
-            {currentCandidate.jobTitle && (
-              <p className="mt-1 text-blue-100">{currentCandidate.jobTitle}</p>
+            <h2 className="mt-4 text-2xl font-bold">{currentCandidate.name}</h2>
+            {currentCandidate.verified && (
+              <Badge className="mt-2 bg-green-500/20 text-green-100">✓ Verified</Badge>
             )}
             {currentCandidate.location && (
               <p className="mt-2 flex items-center justify-center gap-1 text-sm text-blue-100">
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-                </svg>
-                {currentCandidate.location}
+                📍 {currentCandidate.location}
               </p>
             )}
           </div>
 
           <CardContent className="p-6">
-            {/* Bio */}
             {currentCandidate.bio && (
-              <p className="text-gray-600 leading-relaxed">
+              <p className="text-gray-600 leading-relaxed line-clamp-4">
                 {currentCandidate.bio}
               </p>
             )}
 
-            {/* Skills */}
-            {currentCandidate.skills && currentCandidate.skills.length > 0 && (
-              <div className="mt-4">
-                <p className="text-sm font-medium text-gray-700">
-                  {isWorker ? 'Απαιτούμενες Δεξιότητες' : 'Δεξιότητες'}
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {currentCandidate.skills.map((skill) => (
-                    <Badge key={skill} variant="secondary">
-                      {skill}
-                    </Badge>
-                  ))}
-                </div>
+            {currentCandidate.tags && currentCandidate.tags.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {currentCandidate.tags.map((tag) => (
+                  <Badge key={tag} variant="secondary">{tag}</Badge>
+                ))}
               </div>
             )}
 
-            {/* Experience / Salary */}
             <div className="mt-4 grid grid-cols-2 gap-4">
               {currentCandidate.experience && (
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Εμπειρία</p>
-                  <p className="mt-1 text-sm text-gray-600">
-                    {currentCandidate.experience}
-                  </p>
+                <div className="rounded-lg bg-gray-50 p-3">
+                  <p className="text-xs font-medium text-gray-500">Εμπειρία</p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900">{currentCandidate.experience}</p>
                 </div>
               )}
               {currentCandidate.salary && (
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Μισθός</p>
-                  <p className="mt-1 text-sm text-gray-600">
-                    {currentCandidate.salary}
-                  </p>
+                <div className="rounded-lg bg-gray-50 p-3">
+                  <p className="text-xs font-medium text-gray-500">Μισθός</p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900">{currentCandidate.salary}</p>
                 </div>
               )}
             </div>
 
-            {/* Action Buttons */}
             <div className="mt-8 flex gap-4">
               <Button
                 variant="outline"
@@ -193,10 +190,7 @@ export default function DiscoverPage() {
                 onClick={() => handleAction('skip')}
                 disabled={actionLoading}
               >
-                <svg className="mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                </svg>
-                Πέρασε
+                ✕ Πέρασε
               </Button>
               <Button
                 size="lg"
@@ -204,10 +198,7 @@ export default function DiscoverPage() {
                 onClick={() => handleAction('like')}
                 disabled={actionLoading}
               >
-                <svg className="mr-2 h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
-                </svg>
-                Like
+                ♥ Ενδιαφέρομαι
               </Button>
             </div>
           </CardContent>
