@@ -18,17 +18,18 @@ interface SubscriptionInfo {
 }
 
 export default function BillingPage() {
-  const { profile, subscription, refreshUser } = useAuth();
+  const { user, profile, subscription, refreshUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [subscriptionInfo, setSubscriptionInfo] = useState<SubscriptionInfo | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const isWorker = profile?.role === 'worker';
+  const isWorker = user?.role === 'worker';
 
-  const availablePlans = PLANS.filter(
+  const allPlans = Object.values(PLANS);
+  const availablePlans = allPlans.filter(
     (plan) =>
-      (isWorker && plan.role === 'worker') ||
-      (!isWorker && plan.role === 'business')
+      (isWorker && plan.id.startsWith('worker')) ||
+      (!isWorker && plan.id.startsWith('business'))
   );
 
   useEffect(() => {

@@ -39,10 +39,10 @@ interface BusinessProfileForm {
 }
 
 export default function ProfilePage() {
-  const { profile, refreshUser } = useAuth();
+  const { user, profile, refreshUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const isWorker = profile?.role === 'worker';
+  const isWorker = user?.role === 'worker';
 
   // Worker form
   const workerForm = useForm<WorkerProfileForm>();
