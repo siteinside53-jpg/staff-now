@@ -24,18 +24,18 @@ workers.get('/me', requireAuth, requireRole('worker'), async (c) => {
   }
 
   const roles = await db
-    .prepare('SELECT role_name FROM worker_roles WHERE worker_profile_id = ?')
+    .prepare('SELECT role FROM worker_profile_roles WHERE worker_profile_id = ?')
     .bind((profile as { id: string }).id)
     .all();
 
   const languages = await db
-    .prepare('SELECT language, level FROM worker_languages WHERE worker_profile_id = ?')
+    .prepare('SELECT language, level FROM worker_profile_languages WHERE worker_profile_id = ?')
     .bind((profile as { id: string }).id)
     .all();
 
   return success(c, {
     profile,
-    roles: roles.results.map((r: { role_name: string }) => r.role_name),
+    roles: roles.results.map((r: { role: string }) => r.role),
     languages: languages.results,
   });
 });
@@ -71,37 +71,27 @@ workers.patch(
     const updateValues: (string | number | null)[] = [];
 
     const allowedFields = [
-      'first_name',
-      'last_name',
-      'phone',
-      'date_of_birth',
-      'nationality',
+      'full_name',
       'bio',
-      'avatar_url',
-      'cv_url',
+      'photo_url',
       'region',
       'city',
-      'country',
-      'available_from',
-      'employment_type',
-      'min_salary',
-      'max_salary',
-      'housing_required',
-      'years_experience',
+      'willing_to_relocate',
+      'years_of_experience',
+      'expected_hourly_rate',
+      'expected_monthly_salary',
+      'availability',
+      'is_visible',
     ];
 
     const fieldMap: Record<string, string> = {
-      firstName: 'first_name',
-      lastName: 'last_name',
-      dateOfBirth: 'date_of_birth',
-      avatarUrl: 'avatar_url',
-      cvUrl: 'cv_url',
-      availableFrom: 'available_from',
-      employmentType: 'employment_type',
-      minSalary: 'min_salary',
-      maxSalary: 'max_salary',
-      housingRequired: 'housing_required',
-      yearsExperience: 'years_experience',
+      fullName: 'full_name',
+      photoUrl: 'photo_url',
+      willingToRelocate: 'willing_to_relocate',
+      yearsOfExperience: 'years_of_experience',
+      expectedHourlyRate: 'expected_hourly_rate',
+      expectedMonthlySalary: 'expected_monthly_salary',
+      isVisible: 'is_visible',
     };
 
     for (const [key, value] of Object.entries(body)) {
@@ -116,14 +106,14 @@ workers.patch(
     // Update roles if provided
     if (body.roles && Array.isArray(body.roles)) {
       await db
-        .prepare('DELETE FROM worker_roles WHERE worker_profile_id = ?')
+        .prepare('DELETE FROM worker_profile_roles WHERE worker_profile_id = ?')
         .bind(profile.id)
         .run();
 
       for (const roleName of body.roles) {
         await db
           .prepare(
-            'INSERT INTO worker_roles (id, worker_profile_id, role_name, created_at) VALUES (?, ?, ?, ?)'
+            'INSERT INTO worker_profile_roles (id, worker_profile_id, role, created_at) VALUES (?, ?, ?, ?)'
           )
           .bind(generateId(), profile.id, roleName, now)
           .run();
@@ -133,14 +123,14 @@ workers.patch(
     // Update languages if provided
     if (body.languages && Array.isArray(body.languages)) {
       await db
-        .prepare('DELETE FROM worker_languages WHERE worker_profile_id = ?')
+        .prepare('DELETE FROM worker_profile_languages WHERE worker_profile_id = ?')
         .bind(profile.id)
         .run();
 
       for (const lang of body.languages) {
         await db
           .prepare(
-            'INSERT INTO worker_languages (id, worker_profile_id, language, level, created_at) VALUES (?, ?, ?, ?, ?)'
+            'INSERT INTO worker_profile_languages (id, worker_profile_id, language, level, created_at) VALUES (?, ?, ?, ?, ?)'
           )
           .bind(generateId(), profile.id, lang.language, lang.level, now)
           .run();
@@ -154,28 +144,25 @@ workers.patch(
       .first();
 
     const rolesCount = await db
-      .prepare('SELECT COUNT(*) as count FROM worker_roles WHERE worker_profile_id = ?')
+      .prepare('SELECT COUNT(*) as count FROM worker_profile_roles WHERE worker_profile_id = ?')
       .bind(profile.id)
       .first<{ count: number }>();
 
     const langsCount = await db
-      .prepare('SELECT COUNT(*) as count FROM worker_languages WHERE worker_profile_id = ?')
+      .prepare('SELECT COUNT(*) as count FROM worker_profile_languages WHERE worker_profile_id = ?')
       .bind(profile.id)
       .first<{ count: number }>();
 
     const fp = fullProfile as Record<string, unknown> | null;
     const completenessFields = [
-      fp?.first_name,
-      fp?.last_name,
-      fp?.phone,
-      fp?.date_of_birth,
-      fp?.nationality,
+      fp?.full_name,
       fp?.bio,
-      fp?.avatar_url,
+      fp?.photo_url,
       fp?.region,
-      fp?.country,
-      fp?.employment_type,
-      fp?.years_experience !== null && fp?.years_experience !== undefined,
+      fp?.city,
+      fp?.availability,
+      fp?.years_of_experience !== null && fp?.years_of_experience !== undefined,
+      fp?.expected_hourly_rate || fp?.expected_monthly_salary,
       (rolesCount?.count || 0) > 0,
       (langsCount?.count || 0) > 0,
     ];
@@ -207,18 +194,18 @@ workers.patch(
       .first();
 
     const updatedRoles = await db
-      .prepare('SELECT role_name FROM worker_roles WHERE worker_profile_id = ?')
+      .prepare('SELECT role FROM worker_profile_roles WHERE worker_profile_id = ?')
       .bind(profile.id)
       .all();
 
     const updatedLangs = await db
-      .prepare('SELECT language, level FROM worker_languages WHERE worker_profile_id = ?')
+      .prepare('SELECT language, level FROM worker_profile_languages WHERE worker_profile_id = ?')
       .bind(profile.id)
       .all();
 
     return success(c, {
       profile: updated,
-      roles: updatedRoles.results.map((r: { role_name: string }) => r.role_name),
+      roles: updatedRoles.results.map((r: { role: string }) => r.role),
       languages: updatedLangs.results,
     });
   }
@@ -290,14 +277,14 @@ workers.get('/discover', requireAuth, requireRole('business'), async (c) => {
 
   let roleJoin = '';
   if (role) {
-    roleJoin = 'JOIN worker_roles wr ON wr.worker_profile_id = wp.id';
-    conditions.push('wr.role_name = ?');
+    roleJoin = 'JOIN worker_profile_roles wr ON wr.worker_profile_id = wp.id';
+    conditions.push('wr.role = ?');
     params.push(role);
   }
 
   let langJoin = '';
   if (language) {
-    langJoin = 'JOIN worker_languages wl ON wl.worker_profile_id = wp.id';
+    langJoin = 'JOIN worker_profile_languages wl ON wl.worker_profile_id = wp.id';
     conditions.push('wl.language = ?');
     params.push(language);
   }
@@ -347,18 +334,18 @@ workers.get('/discover', requireAuth, requireRole('business'), async (c) => {
   const workersWithDetails = await Promise.all(
     results.results.map(async (worker: Record<string, unknown>) => {
       const roles = await db
-        .prepare('SELECT role_name FROM worker_roles WHERE worker_profile_id = ?')
+        .prepare('SELECT role FROM worker_profile_roles WHERE worker_profile_id = ?')
         .bind(worker.id as string)
         .all();
 
       const languages = await db
-        .prepare('SELECT language, level FROM worker_languages WHERE worker_profile_id = ?')
+        .prepare('SELECT language, level FROM worker_profile_languages WHERE worker_profile_id = ?')
         .bind(worker.id as string)
         .all();
 
       return {
         ...worker,
-        roles: roles.results.map((r: { role_name: string }) => r.role_name),
+        roles: roles.results.map((r: { role: string }) => r.role),
         languages: languages.results,
       };
     })
@@ -387,18 +374,18 @@ workers.get('/:id', requireAuth, async (c) => {
   }
 
   const roles = await db
-    .prepare('SELECT role_name FROM worker_roles WHERE worker_profile_id = ?')
+    .prepare('SELECT role FROM worker_profile_roles WHERE worker_profile_id = ?')
     .bind((profile as { id: string }).id)
     .all();
 
   const languages = await db
-    .prepare('SELECT language, level FROM worker_languages WHERE worker_profile_id = ?')
+    .prepare('SELECT language, level FROM worker_profile_languages WHERE worker_profile_id = ?')
     .bind((profile as { id: string }).id)
     .all();
 
   return success(c, {
     profile,
-    roles: roles.results.map((r: { role_name: string }) => r.role_name),
+    roles: roles.results.map((r: { role: string }) => r.role),
     languages: languages.results,
   });
 });
