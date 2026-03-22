@@ -94,6 +94,7 @@ function RegisterForm() {
               <input id="reg-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
                 placeholder="Τουλάχιστον 8 χαρακτήρες" required
                 className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" />
+              <p className="mt-1 text-xs text-gray-400">Κεφαλαίο, πεζό και αριθμός απαιτούνται</p>
             </div>
 
             <div>
