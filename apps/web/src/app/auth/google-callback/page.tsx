@@ -18,11 +18,11 @@ function GoogleCallbackInner() {
     }
 
     if (token) {
-      // Save token and redirect to dashboard
+      // Save token and do full page reload so AuthProvider picks it up
       localStorage.setItem('staffnow_token', token);
-      router.push('/dashboard');
+      window.location.href = '/dashboard';
     } else {
-      router.push('/auth/login?error=no_token');
+      window.location.href = '/auth/login?error=no_token';
     }
   }, [searchParams, router]);
 
