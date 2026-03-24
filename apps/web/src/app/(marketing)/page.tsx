@@ -5,6 +5,19 @@ export const metadata = {
   description: 'Βρες προσωπικό σε λίγες ώρες, όχι σε μέρες. Η πλατφόρμα για τουρισμό και εστίαση στην Ελλάδα.',
 };
 
+function CategoryIcon({ name }: { name: string }) {
+  const cls = "h-6 w-6 text-blue-600";
+  switch (name) {
+    case 'hotel': return <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 0h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" /></svg>;
+    case 'restaurant': return <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8.25v-1.5m0 1.5c-1.355 0-2.697.056-4.024.166C6.845 8.51 6 9.473 6 10.608v2.513m6-4.871c1.355 0 2.697.056 4.024.166C17.155 8.51 18 9.473 18 10.608v2.513M15 8.25v-1.5m-6 1.5v-1.5m12 9.75l-1.5.75a3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0L3 16.5m15-3.379a48.474 48.474 0 00-6-.371c-2.032 0-4.034.126-6 .371m12 0c.39.049.777.102 1.163.16 1.07.16 1.837 1.094 1.837 2.175v5.169c0 .621-.504 1.125-1.125 1.125H4.125A1.125 1.125 0 013 20.625v-5.17c0-1.08.768-2.014 1.837-2.174A47.78 47.78 0 016 13.12M16.5 8.25V6.75a4.5 4.5 0 10-9 0v1.5" /></svg>;
+    case 'bar': return <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" /></svg>;
+    case 'cleaning': return <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" /></svg>;
+    case 'tour': return <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12.75 3.03v.568c0 .334.148.65.405.864l1.068.89c.442.369.535 1.01.216 1.49l-.51.766a2.25 2.25 0 01-1.161.886l-.143.048a1.107 1.107 0 00-.57 1.664c.369.555.169 1.307-.427 1.605L9 13.125l.423 1.059a.956.956 0 01-1.652.928l-.679-.906a1.125 1.125 0 00-1.906.172L4.5 15.75l-.612.153M12.75 3.031a9 9 0 00-8.862 12.872M12.75 3.031a9 9 0 016.69 14.036m0 0l-.177-.529A2.25 2.25 0 0017.128 15H16.5l-.324-.324a1.453 1.453 0 00-2.328.377l-.036.073a1.586 1.586 0 01-.982.816l-.99.282c-.55.157-.894.702-.8 1.267l.073.438c.08.474.49.821.97.821.846 0 1.598.542 1.865 1.345l.215.643m5.276-3.67a9.012 9.012 0 01-5.276 3.67m0 0a9 9 0 01-10.275-4.835M15.75 9c0 .896-.393 1.7-1.016 2.25" /></svg>;
+    case 'events': return <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008V15zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z" /></svg>;
+    default: return <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" /></svg>;
+  }
+}
+
 const workers = [
   { name: 'Μαρία Κ.', role: 'Σερβιτόρα', rating: 4.9, distance: '2.3km', exp: '5 χρόνια', initials: 'ΜΚ', color: 'bg-pink-100 text-pink-700' },
   { name: 'Νίκος Δ.', role: 'Head Chef', rating: 4.8, distance: '4.1km', exp: '10 χρόνια', initials: 'ΝΔ', color: 'bg-amber-100 text-amber-700' },
@@ -19,12 +32,12 @@ const steps = [
 ];
 
 const categories = [
-  { name: 'Τουρισμός', icon: '🏨', count: '3,200+' },
-  { name: 'Εστίαση', icon: '🍽️', count: '2,800+' },
-  { name: 'Beach Bars', icon: '🏖️', count: '1,500+' },
-  { name: 'Καθαρισμός', icon: '🧹', count: '900+' },
-  { name: 'Delivery', icon: '🛵', count: '600+' },
-  { name: 'Events', icon: '🎉', count: '400+' },
+  { name: 'Ξενοδοχεία & Resorts', icon: 'hotel', count: '3,200+', desc: 'Ρεσεψιόν, καμαριέρες, concierge, θυρωροί' },
+  { name: 'Εστιατόρια & Ταβέρνες', icon: 'restaurant', count: '2,800+', desc: 'Σερβιτόροι, μάγειρες, σεφ, βοηθοί κουζίνας' },
+  { name: 'Bars & Beach Bars', icon: 'bar', count: '1,500+', desc: 'Bartenders, baristas, DJs, προσωπικό μπαρ' },
+  { name: 'Καθαρισμός', icon: 'cleaning', count: '900+', desc: 'Καθαριστές, housekeeping, συντηρητές' },
+  { name: 'Τουριστικά Γραφεία', icon: 'tour', count: '600+', desc: 'Ξεναγοί, οδηγοί, tour operators, transfer' },
+  { name: 'Events & Catering', icon: 'events', count: '400+', desc: 'Σερβιτόροι events, catering staff, animateurs' },
 ];
 
 const stats = [
@@ -220,14 +233,38 @@ export default function HomePage() {
             <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">Κλάδοι</p>
             <h2 className="mt-3 text-3xl font-bold text-gray-900 sm:text-4xl">Κατηγορίες εργασίας</h2>
           </div>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {categories.map((cat) => (
-              <div key={cat.name} className="group flex flex-col items-center gap-3 rounded-2xl bg-white p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-blue-200 transition-all cursor-pointer">
-                <span className="text-4xl">{cat.icon}</span>
-                <h3 className="font-semibold text-gray-900">{cat.name}</h3>
-                <span className="text-xs font-medium text-gray-400">{cat.count} θέσεις</span>
+              <div key={cat.name} className="group flex items-start gap-4 rounded-2xl bg-white p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-blue-200 transition-all cursor-pointer">
+                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-blue-50 group-hover:bg-blue-100 transition-colors">
+                  <CategoryIcon name={cat.icon} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900">{cat.name}</h3>
+                  <p className="mt-1 text-sm text-gray-500">{cat.desc}</p>
+                  <span className="mt-2 inline-block text-xs font-semibold text-blue-600">{cat.count} θέσεις</span>
+                </div>
               </div>
             ))}
+          </div>
+
+          {/* Employment Types */}
+          <div className="mt-16 text-center">
+            <h3 className="text-xl font-bold text-gray-900 mb-8">Τύποι απασχόλησης</h3>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              {[
+                { label: 'Σεζόν', desc: 'Απρίλιος — Οκτώβριος', icon: '☀️', color: 'bg-amber-50 border-amber-200 text-amber-700' },
+                { label: 'Όλο τον χρόνο', desc: 'Μόνιμη απασχόληση', icon: '📅', color: 'bg-blue-50 border-blue-200 text-blue-700' },
+                { label: 'Part-time', desc: 'Μερική απασχόληση', icon: '⏰', color: 'bg-purple-50 border-purple-200 text-purple-700' },
+                { label: 'Freelancer', desc: 'Ελεύθερος επαγγελματίας', icon: '💼', color: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
+              ].map((type) => (
+                <div key={type.label} className={`rounded-2xl border p-5 text-center ${type.color} transition-all hover:shadow-md cursor-pointer`}>
+                  <span className="text-3xl">{type.icon}</span>
+                  <h4 className="mt-3 font-bold">{type.label}</h4>
+                  <p className="mt-1 text-xs opacity-75">{type.desc}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
