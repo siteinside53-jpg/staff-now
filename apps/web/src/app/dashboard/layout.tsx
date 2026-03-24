@@ -40,20 +40,16 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/auth/login');
+      window.location.href = '/auth/login';
     }
-  }, [user, loading, router]);
+  }, [user, loading]);
 
-  if (loading) {
+  if (loading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Spinner className="h-8 w-8" />
       </div>
     );
-  }
-
-  if (!user) {
-    return null;
   }
 
   const navItems = user.role === 'business' ? businessNavItems : workerNavItems;
