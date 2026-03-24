@@ -131,13 +131,22 @@ export default function HomePage() {
             <h2 className="mt-3 text-3xl font-bold text-gray-900 sm:text-4xl">Πώς λειτουργεί</h2>
           </div>
           <div className="mt-16 grid gap-8 md:grid-cols-3">
-            {steps.map((step) => (
+            {steps.map((step, i) => (
               <div key={step.num} className="relative text-center group">
-                <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-2xl group-hover:bg-blue-100 transition-colors">
-                  {step.icon}
+                {/* Step number badge */}
+                <div className="mx-auto mb-6 relative w-16 h-16">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-2xl group-hover:bg-blue-100 transition-colors">
+                    {step.icon}
+                  </div>
+                  <span className="absolute -top-2 -right-2 flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white shadow-md">
+                    {step.num}
+                  </span>
                 </div>
-                <span className="absolute -top-2 right-1/3 text-6xl font-extrabold text-gray-100">{step.num}</span>
-                <h3 className="relative text-xl font-bold text-gray-900">{step.title}</h3>
+                {/* Connector line */}
+                {i < steps.length - 1 && (
+                  <div className="hidden md:block absolute top-8 left-[calc(50%+40px)] w-[calc(100%-80px)] border-t-2 border-dashed border-gray-200" />
+                )}
+                <h3 className="text-xl font-bold text-gray-900">{step.title}</h3>
                 <p className="mt-3 text-gray-600 leading-relaxed">{step.desc}</p>
               </div>
             ))}
