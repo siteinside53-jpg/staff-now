@@ -223,6 +223,121 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ====== DOWNLOAD APP ====== */}
+      <section className="bg-white py-20 sm:py-28 overflow-hidden">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid items-center gap-12 lg:grid-cols-2">
+            {/* Left: Text + Buttons */}
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">Mobile App</p>
+              <h2 className="mt-3 text-3xl font-bold text-gray-900 sm:text-4xl">
+                Κατέβασε την εφαρμογή
+              </h2>
+              <p className="mt-4 text-lg text-gray-600 leading-relaxed">
+                Βρες δουλειά ή προσωπικό απευθείας από το κινητό σου.
+                Swipe, match και επικοινώνησε άμεσα — όπου κι αν είσαι.
+              </p>
+
+              <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+                {/* App Store */}
+                <a href="#" className="inline-flex items-center gap-3 rounded-xl bg-gray-950 px-6 py-3.5 text-white hover:bg-gray-800 transition-colors">
+                  <svg className="h-8 w-8" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+                  </svg>
+                  <div>
+                    <p className="text-[10px] font-medium text-gray-400 leading-none">Διαθέσιμο στο</p>
+                    <p className="text-lg font-semibold leading-tight">App Store</p>
+                  </div>
+                </a>
+
+                {/* Google Play */}
+                <a href="#" className="inline-flex items-center gap-3 rounded-xl bg-gray-950 px-6 py-3.5 text-white hover:bg-gray-800 transition-colors">
+                  <svg className="h-8 w-8" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 01-.61-.92V2.734a1 1 0 01.609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.199l2.302 2.302a1 1 0 010 1.38l-2.302 2.302L15.396 13l2.302-2.492zM5.864 2.658L16.8 8.99l-2.302 2.302L5.864 2.658z"/>
+                  </svg>
+                  <div>
+                    <p className="text-[10px] font-medium text-gray-400 leading-none">Διαθέσιμο στο</p>
+                    <p className="text-lg font-semibold leading-tight">Google Play</p>
+                  </div>
+                </a>
+              </div>
+
+              <div className="mt-6 flex items-center gap-6 text-sm text-gray-500">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-yellow-500">&#9733;</span>
+                  <span className="font-semibold text-gray-900">4.8</span>
+                  <span>rating</span>
+                </div>
+                <div>
+                  <span className="font-semibold text-gray-900">50K+</span> downloads
+                </div>
+                <div>Δωρεάν</div>
+              </div>
+            </div>
+
+            {/* Right: Phone Mockup */}
+            <div className="flex justify-center lg:justify-end">
+              <div className="relative">
+                {/* Phone frame */}
+                <div className="relative w-[280px] h-[560px] bg-gray-950 rounded-[3rem] p-3 shadow-2xl">
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-gray-950 rounded-b-2xl z-10" />
+                  <div className="w-full h-full bg-white rounded-[2.3rem] overflow-hidden">
+                    {/* App screen mockup */}
+                    <div className="bg-blue-600 px-5 pt-12 pb-6 text-white">
+                      <div className="flex items-center gap-1.5 text-lg font-extrabold mb-4">
+                        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Staff<span className="text-blue-200">Now</span>
+                      </div>
+                      <p className="text-sm text-blue-100">Ανακάλυψη</p>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      {workers.slice(0, 3).map((w) => (
+                        <div key={w.name} className="flex items-center gap-2.5 rounded-xl bg-gray-50 p-3">
+                          <div className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold ${w.color}`}>
+                            {w.initials}
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-xs font-semibold text-gray-900">{w.name}</p>
+                            <p className="text-[10px] text-gray-500">{w.role}</p>
+                          </div>
+                          <div className="flex items-center gap-0.5 text-[10px]">
+                            <span className="text-yellow-500">&#9733;</span>
+                            <span className="font-medium">{w.rating}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Bottom nav mockup */}
+                    <div className="absolute bottom-3 left-3 right-3 flex justify-around rounded-2xl bg-gray-50 py-2.5">
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className="text-base">🔍</span>
+                        <span className="text-[9px] font-medium text-blue-600">Ανακάλυψη</span>
+                      </div>
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className="text-base">💼</span>
+                        <span className="text-[9px] font-medium text-gray-400">Matches</span>
+                      </div>
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className="text-base">💬</span>
+                        <span className="text-[9px] font-medium text-gray-400">Chat</span>
+                      </div>
+                      <div className="flex flex-col items-center gap-0.5">
+                        <span className="text-base">👤</span>
+                        <span className="text-[9px] font-medium text-gray-400">Προφίλ</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {/* Glow effect */}
+                <div className="absolute -inset-4 -z-10 bg-gradient-to-r from-blue-500/20 to-purple-500/20 blur-3xl rounded-full" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ====== CTA ====== */}
       <section className="bg-gray-950 py-20 sm:py-28">
         <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
