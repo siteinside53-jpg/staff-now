@@ -1,6 +1,7 @@
-import Link from 'next/link';
+'use client';
 
-export const metadata = { title: 'Κέντρο Βοήθειας | StaffNow', description: 'Βρες απαντήσεις σε συχνές ερωτήσεις και λύσεις σε προβλήματα.' };
+import { useState } from 'react';
+import Link from 'next/link';
 
 const categories = [
   {
@@ -60,6 +61,21 @@ const categories = [
 ];
 
 export default function HelpPage() {
+  const [search, setSearch] = useState('');
+
+  const query = search.toLowerCase().trim();
+
+  const filtered = query
+    ? categories.map((cat) => ({
+        ...cat,
+        articles: cat.articles.filter(
+          (a) => a.q.toLowerCase().includes(query) || a.a.toLowerCase().includes(query)
+        ),
+      })).filter((cat) => cat.articles.length > 0)
+    : categories;
+
+  const totalResults = filtered.reduce((sum, cat) => sum + cat.articles.length, 0);
+
   return (
     <>
       {/* Hero + Search */}
@@ -70,13 +86,31 @@ export default function HelpPage() {
           <p className="mt-6 text-lg text-gray-400">Βρες γρήγορα απαντήσεις στις ερωτήσεις σου.</p>
           <div className="mt-8 max-w-lg mx-auto">
             <div className="flex rounded-xl bg-white/10 border border-white/20 overflow-hidden">
-              <input type="text" placeholder="Αναζήτηση στο κέντρο βοήθειας..." className="flex-1 bg-transparent px-5 py-3.5 text-white placeholder-gray-400 text-sm outline-none" />
-              <button className="px-5 text-blue-400 hover:text-blue-300">
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Αναζήτηση π.χ. λογαριασμό, matching, πληρωμή..."
+                className="flex-1 bg-transparent px-5 py-3.5 text-white placeholder-gray-400 text-sm outline-none"
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="px-3 text-gray-400 hover:text-white">
+                  ✕
+                </button>
+              )}
+              <div className="px-4 flex items-center text-blue-400">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
                 </svg>
-              </button>
+              </div>
             </div>
+            {query && (
+              <p className="mt-3 text-sm text-gray-400">
+                {totalResults > 0
+                  ? `${totalResults} αποτέλεσμα${totalResults > 1 ? 'τα' : ''} για "${search}"`
+                  : `Κανένα αποτέλεσμα για "${search}"`}
+              </p>
+            )}
           </div>
         </div>
       </section>
@@ -84,32 +118,49 @@ export default function HelpPage() {
       {/* Category Cards Grid */}
       <section className="py-20 bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-8">Κατηγορίες</h2>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {categories.map((cat) => (
-              <div key={cat.title} className="rounded-2xl border border-gray-100 p-6 hover:shadow-lg hover:border-blue-200 transition-all">
-                <div className="flex items-center gap-3 mb-5">
-                  <span className="text-3xl">{cat.icon}</span>
-                  <h3 className="text-lg font-bold text-gray-900">{cat.title}</h3>
+          {!query && <h2 className="text-2xl font-bold text-gray-900 mb-8">Κατηγορίες</h2>}
+
+          {filtered.length === 0 ? (
+            <div className="text-center py-16">
+              <p className="text-5xl mb-4">🔍</p>
+              <p className="text-xl font-bold text-gray-900">Δεν βρέθηκαν αποτελέσματα</p>
+              <p className="mt-2 text-gray-500">Δοκίμασε διαφορετική αναζήτηση ή επικοινώνησε μαζί μας.</p>
+              <button onClick={() => setSearch('')} className="mt-6 rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700">
+                Δες όλα τα άρθρα
+              </button>
+            </div>
+          ) : (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {filtered.map((cat) => (
+                <div key={cat.title} className="rounded-2xl border border-gray-100 p-6 hover:shadow-lg hover:border-blue-200 transition-all">
+                  <div className="flex items-center gap-3 mb-5">
+                    <span className="text-3xl">{cat.icon}</span>
+                    <h3 className="text-lg font-bold text-gray-900">{cat.title}</h3>
+                    {query && (
+                      <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                        {cat.articles.length}
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    {cat.articles.map((article) => (
+                      <details key={article.q} className="group" open={!!query}>
+                        <summary className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors cursor-pointer py-1.5">
+                          <svg className="h-4 w-4 text-gray-300 group-hover:text-blue-500 group-open:rotate-90 transition-all flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                          </svg>
+                          <span className="group-open:text-blue-600 group-open:font-medium">{article.q}</span>
+                        </summary>
+                        <div className="ml-6 mt-1 mb-3 text-xs text-gray-500 leading-relaxed bg-gray-50 rounded-lg p-3">
+                          {article.a}
+                        </div>
+                      </details>
+                    ))}
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  {cat.articles.map((article) => (
-                    <details key={article.q} className="group">
-                      <summary className="flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition-colors cursor-pointer py-1.5">
-                        <svg className="h-4 w-4 text-gray-300 group-hover:text-blue-500 group-open:rotate-90 transition-all flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                        </svg>
-                        <span className="group-open:text-blue-600 group-open:font-medium">{article.q}</span>
-                      </summary>
-                      <div className="ml-6 mt-1 mb-3 text-xs text-gray-500 leading-relaxed bg-gray-50 rounded-lg p-3">
-                        {article.a}
-                      </div>
-                    </details>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
