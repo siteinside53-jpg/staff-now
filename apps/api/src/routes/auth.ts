@@ -205,4 +205,127 @@ auth.post('/reset-password', passwordResetRateLimiter, async (c) => {
   return success(c, { message: 'Ο κωδικός σας ενημερώθηκε επιτυχώς.' });
 });
 
+// ============================================================================
+// GOOGLE OAUTH
+// ============================================================================
+
+// GET /google — redirect to Google OAuth
+auth.get('/google', (c) => {
+  const role = c.req.query('role') || 'worker';
+  const clientId = c.env.GOOGLE_CLIENT_ID;
+  const redirectUri = `${c.env.API_URL || 'https://staffnow-api-production.siteinside53.workers.dev'}/auth/google/callback`;
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    scope: 'openid email profile',
+    access_type: 'offline',
+    prompt: 'consent',
+    state: role, // pass role in state
+  });
+
+  return c.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+});
+
+// GET /google/callback — handle Google OAuth callback
+auth.get('/google/callback', async (c) => {
+  const code = c.req.query('code');
+  const role = (c.req.query('state') as 'worker' | 'business') || 'worker';
+
+  if (!code) {
+    return c.redirect(`${c.env.CORS_ORIGIN?.split(',')[0] || 'https://staffnow.pages.dev'}/auth/login?error=google_failed`);
+  }
+
+  const clientId = c.env.GOOGLE_CLIENT_ID;
+  const clientSecret = c.env.GOOGLE_CLIENT_SECRET;
+  const redirectUri = `${c.env.API_URL || 'https://staffnow-api-production.siteinside53.workers.dev'}/auth/google/callback`;
+
+  try {
+    // Exchange code for tokens
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code',
+      }),
+    });
+
+    const tokenData = await tokenRes.json() as { access_token?: string; id_token?: string; error?: string };
+
+    if (!tokenData.access_token) {
+      console.error('Google token error:', tokenData);
+      return c.redirect(`${c.env.CORS_ORIGIN?.split(',')[0]}/auth/login?error=google_token_failed`);
+    }
+
+    // Get user info
+    const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+
+    const googleUser = await userInfoRes.json() as { id: string; email: string; name: string; picture: string };
+
+    if (!googleUser.email) {
+      return c.redirect(`${c.env.CORS_ORIGIN?.split(',')[0]}/auth/login?error=google_no_email`);
+    }
+
+    const db = c.env.DB;
+    const now = new Date().toISOString();
+
+    // Check if user exists
+    let user = await db
+      .prepare('SELECT id, email, role, status FROM users WHERE email = ?')
+      .bind(googleUser.email)
+      .first<{ id: string; email: string; role: string; status: string }>();
+
+    if (!user) {
+      // Create new user
+      const userId = generateId('usr');
+      await db
+        .prepare(
+          `INSERT INTO users (id, email, password_hash, role, status, email_verified, created_at, updated_at)
+           VALUES (?, ?, ?, ?, 'active', 1, ?, ?)`
+        )
+        .bind(userId, googleUser.email, `google_oauth_${googleUser.id}`, role, now, now)
+        .run();
+
+      // Create profile
+      if (role === 'worker') {
+        await db
+          .prepare(
+            `INSERT INTO worker_profiles (id, user_id, full_name, profile_completeness, created_at, updated_at)
+             VALUES (?, ?, ?, 20, ?, ?)`
+          )
+          .bind(generateId('wp'), userId, googleUser.name || '', now, now)
+          .run();
+      } else {
+        await db
+          .prepare(
+            `INSERT INTO business_profiles (id, user_id, company_name, business_type, description, created_at, updated_at)
+             VALUES (?, ?, ?, 'other', '', ?, ?)`
+          )
+          .bind(generateId('bp'), userId, googleUser.name || '', now, now)
+          .run();
+      }
+
+      user = { id: userId, email: googleUser.email, role, status: 'active' };
+    }
+
+    // Generate JWT
+    const token = await signJWT({ sub: user.id, email: user.email, role: user.role }, c.env.JWT_SECRET);
+
+    // Redirect to frontend with token
+    const frontendUrl = c.env.CORS_ORIGIN?.split(',')[0] || 'https://staffnow.pages.dev';
+    return c.redirect(`${frontendUrl}/auth/google-callback?token=${token}`);
+
+  } catch (err) {
+    console.error('Google OAuth error:', err);
+    return c.redirect(`${c.env.CORS_ORIGIN?.split(',')[0]}/auth/login?error=google_error`);
+  }
+});
+
 export default auth;

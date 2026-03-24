@@ -14,6 +14,8 @@ export interface Env {
   STRIPE_PRICE_WORKER_PREMIUM_MONTHLY: string;
   STRIPE_PRICE_WORKER_PREMIUM_YEARLY: string;
   PASSWORD_SALT: string;
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
   ENVIRONMENT: string;
   CORS_ORIGIN: string;
   API_URL: string;
