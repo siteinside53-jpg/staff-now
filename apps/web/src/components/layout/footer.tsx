@@ -57,8 +57,11 @@ function Footer() {
           {/* Brand column */}
           <div className="lg:col-span-1">
             <Link href="/" className="inline-block">
-              <span className="text-xl font-extrabold tracking-tight text-blue-600">
-                StaffNow
+              <span className="inline-flex items-center gap-1.5 text-xl font-extrabold tracking-tight">
+                <svg className="h-5 w-5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-gray-900">Staff</span><span className="text-blue-600">Now</span>
               </span>
             </Link>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-gray-500">

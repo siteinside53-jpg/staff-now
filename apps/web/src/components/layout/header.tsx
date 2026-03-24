@@ -11,14 +11,13 @@ const NAV_LINKS = [
   { href: '/for-workers', label: 'Για εργαζόμενους' },
 ];
 
-function StaffNowLogo() {
+function StaffNowLogo({ light = false }: { light?: boolean }) {
   return (
     <span className="flex items-center gap-1.5 text-2xl font-extrabold tracking-tight">
-      <svg className="h-6 w-6 text-emerald-500" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      <svg className="h-6 w-6 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
-      <span className="text-gray-900">Staff</span>
-      <span className="text-blue-600">Now</span>
+      <span className={light ? 'text-white' : 'text-gray-900'}>Staff</span><span className="text-blue-600">Now</span>
     </span>
   );
 }
