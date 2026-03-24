@@ -213,7 +213,7 @@ auth.post('/reset-password', passwordResetRateLimiter, async (c) => {
 auth.get('/google', (c) => {
   const role = c.req.query('role') || 'worker';
   const clientId = c.env.GOOGLE_CLIENT_ID;
-  const redirectUri = `${c.env.API_URL || 'https://staffnow-api-production.siteinside53.workers.dev'}/auth/google/callback`;
+  const redirectUri = `https://staffnow-api-production.siteinside53.workers.dev/auth/google/callback`;
 
   const params = new URLSearchParams({
     client_id: clientId,
@@ -239,7 +239,7 @@ auth.get('/google/callback', async (c) => {
 
   const clientId = c.env.GOOGLE_CLIENT_ID;
   const clientSecret = c.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri = `${c.env.API_URL || 'https://staffnow-api-production.siteinside53.workers.dev'}/auth/google/callback`;
+  const redirectUri = `https://staffnow-api-production.siteinside53.workers.dev/auth/google/callback`;
 
   try {
     // Exchange code for tokens
