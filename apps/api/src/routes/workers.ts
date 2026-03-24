@@ -81,6 +81,7 @@ workers.patch(
       'expected_hourly_rate',
       'expected_monthly_salary',
       'availability',
+      'employment_type',
       'is_visible',
     ];
 
@@ -92,6 +93,7 @@ workers.patch(
       expectedHourlyRate: 'expected_hourly_rate',
       expectedMonthlySalary: 'expected_monthly_salary',
       isVisible: 'is_visible',
+      employmentType: 'employment_type',
     };
 
     for (const [key, value] of Object.entries(body)) {

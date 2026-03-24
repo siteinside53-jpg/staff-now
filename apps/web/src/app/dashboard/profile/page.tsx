@@ -27,6 +27,7 @@ export default function ProfilePage() {
         city: (profile as any).city || '',
         region: (profile as any).region || '',
         availability: (profile as any).availability || '',
+        employmentType: (profile as any).employment_type || '',
       });
     } else if (profile) {
       setFormData({
@@ -107,6 +108,20 @@ export default function ProfilePage() {
                   <option value="seasonal">Εποχιακή</option>
                   <option value="part_time">Μερικής απασχόλησης</option>
                   <option value="full_time">Πλήρους απασχόλησης</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Τύπος Απασχόλησης</label>
+                <select
+                  value={formData.employmentType || ''}
+                  onChange={(e) => handleChange('employmentType', e.target.value)}
+                  className="flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                >
+                  <option value="">Επέλεξε</option>
+                  <option value="seasonal">☀️ Σεζόν</option>
+                  <option value="full_time">📅 Πλήρης απασχόληση</option>
+                  <option value="part_time">⏰ Μερική απασχόληση</option>
+                  <option value="freelancer">💼 Ελεύθερος επαγγελματίας</option>
                 </select>
               </div>
             </>

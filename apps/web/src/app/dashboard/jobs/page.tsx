@@ -103,7 +103,7 @@ export default function JobsPage() {
   }
 
   const empTypeLabels: Record<string, string> = {
-    full_time: 'Πλήρης', part_time: 'Μερική', seasonal: 'Εποχιακή',
+    full_time: 'Πλήρης', part_time: 'Μερική', seasonal: 'Εποχιακή', freelancer: 'Freelancer',
   };
 
   const statusLabels: Record<string, string> = {
@@ -152,9 +152,10 @@ export default function JobsPage() {
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">Τύπος</label>
                 <select value={employmentType} onChange={(e) => setEmploymentType(e.target.value)}
                   className="flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm">
-                  <option value="seasonal">Εποχιακή</option>
-                  <option value="full_time">Πλήρης</option>
-                  <option value="part_time">Μερική</option>
+                  <option value="seasonal">☀️ Σεζόν</option>
+                  <option value="full_time">📅 Πλήρης</option>
+                  <option value="part_time">⏰ Μερική</option>
+                  <option value="freelancer">💼 Freelancer</option>
                 </select>
               </div>
               <div>

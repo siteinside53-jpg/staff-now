@@ -31,6 +31,13 @@ export const availabilitySchema = z.enum([
   "full_time",
 ]);
 
+export const employmentTypeSchema = z.enum([
+  "seasonal",
+  "full_time",
+  "part_time",
+  "freelancer",
+]);
+
 export type Availability = z.infer<typeof availabilitySchema>;
 
 // -- Create Worker Profile ----------------------------------------------------
