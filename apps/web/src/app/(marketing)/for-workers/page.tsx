@@ -137,23 +137,21 @@ export default function ForWorkersPage() {
         </div>
 
         {/* CTA */}
-        <div className="mt-20 rounded-2xl bg-emerald-600 p-8 text-center sm:p-12">
+        <div className="mt-20 rounded-2xl bg-gray-950 p-8 text-center sm:p-12">
           <h2 className="text-3xl font-bold text-white">
             Ξεκίνα την Αναζήτηση Δωρεάν
           </h2>
-          <p className="mt-4 text-lg text-emerald-100">
+          <p className="mt-4 text-lg text-gray-400">
             Δημιούργησε το προφίλ σου σε λιγότερο από 2 λεπτά και ξεκίνα να
             λαμβάνεις προτάσεις από επιχειρήσεις.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Button asChild size="lg" className="bg-white text-emerald-700 hover:bg-emerald-50 font-semibold px-8">
-              <Link href="/auth/register?role=worker">
-                Εγγραφή Εργαζομένου
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline" className="border-white text-white hover:bg-white/10 px-8">
-              <Link href="/how-it-works">Πώς Λειτουργεί</Link>
-            </Button>
+            <Link href="/auth/register?role=worker" className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-8 py-3.5 text-base font-semibold text-white hover:bg-blue-700 transition-colors">
+              Εγγραφή Εργαζομένου
+            </Link>
+            <Link href="/how-it-works" className="inline-flex items-center justify-center rounded-xl border border-gray-600 px-8 py-3.5 text-base font-semibold text-gray-300 hover:text-white hover:border-gray-400 transition-colors">
+              Πώς Λειτουργεί
+            </Link>
           </div>
         </div>
       </div>

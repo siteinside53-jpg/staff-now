@@ -137,23 +137,21 @@ export default function ForBusinessesPage() {
         </div>
 
         {/* CTA */}
-        <div className="mt-20 rounded-2xl bg-blue-600 p-8 text-center sm:p-12">
+        <div className="mt-20 rounded-2xl bg-gray-950 p-8 text-center sm:p-12">
           <h2 className="text-3xl font-bold text-white">
             Ξεκίνα να Βρίσκεις Προσωπικό Σήμερα
           </h2>
-          <p className="mt-4 text-lg text-blue-100">
+          <p className="mt-4 text-lg text-gray-400">
             Δημιούργησε δωρεάν λογαριασμό και δημοσίευσε την πρώτη σου αγγελία
             σε λιγότερο από 5 λεπτά.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Button asChild size="lg" className="bg-white text-blue-700 hover:bg-blue-50 font-semibold px-8">
-              <Link href="/auth/register?role=business">
-                Εγγραφή Επιχείρησης
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline" className="border-white text-white hover:bg-white/10 px-8">
-              <Link href="/pricing">Δες τα Πλάνα</Link>
-            </Button>
+            <Link href="/auth/register?role=business" className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-8 py-3.5 text-base font-semibold text-white hover:bg-blue-700 transition-colors">
+              Εγγραφή Επιχείρησης
+            </Link>
+            <Link href="/pricing" className="inline-flex items-center justify-center rounded-xl border border-gray-600 px-8 py-3.5 text-base font-semibold text-gray-300 hover:text-white hover:border-gray-400 transition-colors">
+              Δες τα Πλάνα
+            </Link>
           </div>
         </div>
       </div>
