@@ -234,7 +234,7 @@ auth.get('/google/callback', async (c) => {
   const role = (c.req.query('state') as 'worker' | 'business') || 'worker';
 
   if (!code) {
-    return c.redirect(`https://staffnow.pages.dev/auth/login?error=google_failed`);
+    return c.redirect(`https://staffnow.gr/auth/login?error=google_failed`);
   }
 
   const clientId = c.env.GOOGLE_CLIENT_ID;
@@ -259,7 +259,7 @@ auth.get('/google/callback', async (c) => {
 
     if (!tokenData.access_token) {
       console.error('Google token error:', tokenData);
-      return c.redirect(`https://staffnow.pages.dev/auth/login?error=google_token_failed`);
+      return c.redirect(`https://staffnow.gr/auth/login?error=google_token_failed`);
     }
 
     // Get user info
@@ -270,7 +270,7 @@ auth.get('/google/callback', async (c) => {
     const googleUser = await userInfoRes.json() as { id: string; email: string; name: string; picture: string };
 
     if (!googleUser.email) {
-      return c.redirect(`https://staffnow.pages.dev/auth/login?error=google_no_email`);
+      return c.redirect(`https://staffnow.gr/auth/login?error=google_no_email`);
     }
 
     const db = c.env.DB;
@@ -319,11 +319,11 @@ auth.get('/google/callback', async (c) => {
     const token = await signJWT({ sub: user.id, email: user.email, role: user.role }, c.env.JWT_SECRET);
 
     // Redirect to frontend with token
-    return c.redirect(`https://staffnow.pages.dev/auth/google-callback?token=${token}`);
+    return c.redirect(`https://staffnow.gr/auth/google-callback?token=${token}`);
 
   } catch (err) {
     console.error('Google OAuth error:', err);
-    return c.redirect(`https://staffnow.pages.dev/auth/login?error=google_error`);
+    return c.redirect(`https://staffnow.gr/auth/login?error=google_error`);
   }
 });
 

@@ -87,6 +87,8 @@ export const updateWorkerProfileSchema = createWorkerProfileSchema.partial().ext
   employmentType: employmentTypeSchema.optional(),
   isVisible: z.boolean().optional(),
   compensationType: z.enum(['hourly', 'monthly']).optional(),
+  photoUrl: z.string().optional(),
+  cvUrl: z.string().optional(),
 });
 
 export type UpdateWorkerProfileInput = z.infer<typeof updateWorkerProfileSchema>;
