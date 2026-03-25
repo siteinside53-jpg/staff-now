@@ -81,7 +81,13 @@ export type CreateWorkerProfileInput = z.infer<typeof createWorkerProfileSchema>
 
 // -- Update Worker Profile ----------------------------------------------------
 
-export const updateWorkerProfileSchema = createWorkerProfileSchema.partial();
+export const updateWorkerProfileSchema = createWorkerProfileSchema.partial().extend({
+  roles: z.array(workerJobRoleSchema).max(5).optional(),
+  languages: z.array(z.string()).optional(),
+  employmentType: employmentTypeSchema.optional(),
+  isVisible: z.boolean().optional(),
+  compensationType: z.enum(['hourly', 'monthly']).optional(),
+});
 
 export type UpdateWorkerProfileInput = z.infer<typeof updateWorkerProfileSchema>;
 
