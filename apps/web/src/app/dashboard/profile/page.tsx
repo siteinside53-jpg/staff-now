@@ -111,7 +111,7 @@ export default function ProfilePage() {
           toast.success('Η φωτογραφία ανέβηκε!');
         } else {
           setCvUrl(data.data.url);
-          // cv_url not in allowedFields yet, store in profile for now
+          await api.workers.updateProfile({ cvUrl: data.data.url });
           toast.success('Το βιογραφικό ανέβηκε!');
         }
       } else {

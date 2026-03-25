@@ -83,11 +83,13 @@ workers.patch(
       'availability',
       'employment_type',
       'is_visible',
+      'cv_url',
     ];
 
     const fieldMap: Record<string, string> = {
       fullName: 'full_name',
       photoUrl: 'photo_url',
+      cvUrl: 'cv_url',
       willingToRelocate: 'willing_to_relocate',
       yearsOfExperience: 'years_of_experience',
       expectedHourlyRate: 'expected_hourly_rate',
@@ -115,9 +117,9 @@ workers.patch(
       for (const roleName of body.roles) {
         await db
           .prepare(
-            'INSERT INTO worker_profile_roles (id, worker_profile_id, role, created_at) VALUES (?, ?, ?, ?)'
+            'INSERT INTO worker_profile_roles (id, worker_profile_id, role) VALUES (?, ?, ?)'
           )
-          .bind(generateId(), profile.id, roleName, now)
+          .bind(generateId(), profile.id, roleName)
           .run();
       }
     }

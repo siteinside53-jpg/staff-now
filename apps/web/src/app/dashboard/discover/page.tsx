@@ -18,6 +18,7 @@ interface DiscoverProfile {
   tags?: string[];
   salary?: string;
   experience?: string;
+  photoUrl?: string;
   verified?: boolean;
   type: 'worker' | 'job';
 }
@@ -56,6 +57,7 @@ export default function DiscoverPage() {
         const mapped = (Array.isArray(items) ? items : []).map((w: any) => ({
           id: w.id || w.user_id,
           name: w.full_name || 'Χωρίς όνομα',
+          photoUrl: w.photo_url || undefined,
           location: [w.city, w.region].filter(Boolean).join(', '),
           bio: w.bio,
           tags: w.roles || [],
@@ -161,9 +163,13 @@ export default function DiscoverPage() {
         <Card className="overflow-hidden shadow-lg">
           {/* Header */}
           <div className="relative bg-gradient-to-br from-blue-500 to-indigo-600 px-6 pb-8 pt-10 text-center text-white">
-            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-white/20 text-3xl font-bold">
-              {currentCandidate.name?.charAt(0)?.toUpperCase() || '?'}
-            </div>
+            {currentCandidate.photoUrl ? (
+              <img src={currentCandidate.photoUrl} alt="" className="mx-auto h-24 w-24 rounded-full object-cover border-2 border-white/30" />
+            ) : (
+              <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-white/20 text-3xl font-bold">
+                {currentCandidate.name?.charAt(0)?.toUpperCase() || '?'}
+              </div>
+            )}
             <h2 className="mt-4 text-2xl font-bold">{currentCandidate.name}</h2>
             {currentCandidate.verified && (
               <Badge className="mt-2 bg-green-500/20 text-green-100">✓ Verified</Badge>
