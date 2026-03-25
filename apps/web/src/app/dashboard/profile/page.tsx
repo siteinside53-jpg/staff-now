@@ -128,6 +128,7 @@ export default function ProfilePage() {
     setSaving(true);
     try {
       const body: any = { fullName: wf.fullName, bio: wf.bio, city: wf.city, region: wf.region, availability: wf.availability || undefined, employmentType: wf.employmentType || undefined, willingToRelocate: wf.willingToRelocate, roles: wf.roles, languages: wf.languages, isVisible: wf.isVisible };
+      if (photoUrl) body.photoUrl = photoUrl;
       if (wf.yearsOfExperience) body.yearsOfExperience = parseInt(wf.yearsOfExperience);
       if (wf.compensationType === 'hourly' && wf.expectedHourlyRate) body.expectedHourlyRate = parseFloat(wf.expectedHourlyRate);
       if (wf.compensationType === 'monthly' && wf.expectedMonthlySalary) body.expectedMonthlySalary = parseFloat(wf.expectedMonthlySalary);
