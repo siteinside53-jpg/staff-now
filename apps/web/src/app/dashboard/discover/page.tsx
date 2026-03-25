@@ -109,15 +109,16 @@ export default function DiscoverPage() {
       if (currentIndex < candidates.length - 1) {
         setCurrentIndex((prev) => prev + 1);
       } else {
-        await fetchCandidates();
+        // All done - show empty state
+        setCandidates([]);
       }
     } catch (err: any) {
       console.error('Action error:', err);
-      // Move to next card regardless of error (might be duplicate swipe)
+      // Move to next regardless
       if (currentIndex < candidates.length - 1) {
         setCurrentIndex((prev) => prev + 1);
       } else {
-        await fetchCandidates();
+        setCandidates([]);
       }
     } finally {
       setActionLoading(false);
