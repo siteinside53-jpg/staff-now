@@ -112,11 +112,12 @@ export default function DiscoverPage() {
         await fetchCandidates();
       }
     } catch (err: any) {
-      if (err?.status === 409) {
-        // Already swiped, just move on
+      console.error('Action error:', err);
+      // Move to next card regardless of error (might be duplicate swipe)
+      if (currentIndex < candidates.length - 1) {
         setCurrentIndex((prev) => prev + 1);
       } else {
-        toast.error('Κάτι πήγε στραβά.');
+        await fetchCandidates();
       }
     } finally {
       setActionLoading(false);
