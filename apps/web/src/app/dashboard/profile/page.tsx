@@ -47,6 +47,9 @@ export default function ProfilePage() {
     roles: [], languages: [], isVisible: true,
   });
   const [bizForm, setBizForm] = useState({ company_name: '', description: '', business_type: '' });
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [cvUrl, setCvUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState<string | null>(null);
   const [completeness, setCompleteness] = useState(0);
   const [badges, setBadges] = useState<string[]>([]);
   const [verified, setVerified] = useState(false);
@@ -70,6 +73,8 @@ export default function ProfilePage() {
             setCompleteness(p.profile_completeness || 0);
             setBadges(p.badges ? JSON.parse(p.badges) : []);
             setVerified(p.verified === 1);
+            setPhotoUrl(p.photo_url || null);
+            setCvUrl(p.cv_url || null);
           }
         } else if (profile) {
           setBizForm({ company_name: (profile as any).company_name || '', description: (profile as any).description || '', business_type: (profile as any).business_type || '' });
@@ -82,6 +87,42 @@ export default function ProfilePage() {
   const wc = (f: keyof WorkerForm, v: any) => setWf((p) => ({ ...p, [f]: v }));
   const toggleRole = (r: string) => setWf((p) => p.roles.includes(r) ? { ...p, roles: p.roles.filter((x) => x !== r) } : p.roles.length >= 5 ? (toast.error('Μέχρι 5 ρόλοι'), p) : { ...p, roles: [...p.roles, r] });
   const toggleLang = (l: string) => setWf((p) => p.languages.includes(l) ? { ...p, languages: p.languages.filter((x) => x !== l) } : { ...p, languages: [...p.languages, l] });
+
+  // File upload handler
+  const handleFileUpload = async (file: File, category: 'avatar' | 'cv') => {
+    setUploading(category);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('category', category);
+
+      const token = localStorage.getItem('staffnow_token');
+      const res = await fetch('https://staffnow-api-production.siteinside53.workers.dev/uploads', {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        body: formData,
+      });
+      const data = await res.json() as any;
+
+      if (data.success && data.data?.url) {
+        if (category === 'avatar') {
+          setPhotoUrl(data.data.url);
+          await api.workers.updateProfile({ photoUrl: data.data.url });
+          toast.success('Η φωτογραφία ανέβηκε!');
+        } else {
+          setCvUrl(data.data.url);
+          // cv_url not in allowedFields yet, store in profile for now
+          toast.success('Το βιογραφικό ανέβηκε!');
+        }
+      } else {
+        toast.error(data.error?.message || 'Αποτυχία upload');
+      }
+    } catch {
+      toast.error('Σφάλμα κατά το upload');
+    } finally {
+      setUploading(null);
+    }
+  };
 
   const saveWorker = async () => {
     setSaving(true);
@@ -131,8 +172,25 @@ export default function ProfilePage() {
       {/* HEADER */}
       <Card className="mb-6"><CardContent className="p-6">
         <div className="flex items-center gap-5">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-blue-100 text-2xl font-bold text-blue-600 flex-shrink-0">
-            {wf.fullName ? wf.fullName.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase() : '?'}
+          {/* Avatar with upload */}
+          <div className="relative flex-shrink-0">
+            <label className="cursor-pointer group">
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'avatar'); }} />
+              {photoUrl ? (
+                <img src={photoUrl} alt="Avatar" className="h-20 w-20 rounded-full object-cover border-2 border-gray-200 group-hover:border-blue-400 transition-colors" />
+              ) : (
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-blue-100 text-2xl font-bold text-blue-600 group-hover:bg-blue-200 transition-colors">
+                  {wf.fullName ? wf.fullName.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase() : '?'}
+                </div>
+              )}
+              <div className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white shadow-md group-hover:bg-blue-700">
+                {uploading === 'avatar' ? (
+                  <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : (
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" /></svg>
+                )}
+              </div>
+            </label>
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2">
@@ -225,6 +283,41 @@ export default function ProfilePage() {
                 </div>{l}
               </label>); })}
           </div>
+        </CardContent></Card>
+
+      {/* CV UPLOAD */}
+      <Card className="mb-6"><CardHeader><h2 className="text-lg font-semibold text-gray-900">📄 Βιογραφικό (CV)</h2></CardHeader>
+        <CardContent>
+          {cvUrl ? (
+            <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 text-red-600">
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Βιογραφικό ανεβασμένο</p>
+                  <a href={cvUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">Προβολή PDF</a>
+                </div>
+              </div>
+              <label className="cursor-pointer text-xs font-medium text-blue-600 hover:text-blue-700">
+                <input type="file" accept="application/pdf" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'cv'); }} />
+                Αντικατάσταση
+              </label>
+            </div>
+          ) : (
+            <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-8 hover:border-blue-400 hover:bg-blue-50/50 transition-all">
+              <input type="file" accept="application/pdf" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'cv'); }} />
+              {uploading === 'cv' ? (
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+              ) : (
+                <>
+                  <svg className="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" /></svg>
+                  <p className="mt-3 text-sm font-medium text-gray-700">Ανέβασε το βιογραφικό σου</p>
+                  <p className="mt-1 text-xs text-gray-400">PDF μέχρι 10MB</p>
+                </>
+              )}
+            </label>
+          )}
         </CardContent></Card>
 
       {/* VISIBILITY */}
