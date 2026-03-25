@@ -80,7 +80,7 @@ uploads.post('/', requireAuth, async (c) => {
 
   // Construct the public URL
   // This assumes R2 is configured with a custom domain or public access
-  const url = `https://${c.env.R2_PUBLIC_DOMAIN || 'cdn.staffnow.app'}/${key}`;
+  const url = `https://pub-5e055b34e4694e02ac3de198a7776878.r2.dev/${key}`;
 
   return success(
     c,
@@ -149,7 +149,7 @@ uploads.post('/presign', requireAuth, async (c) => {
     },
   });
 
-  const url = `https://${c.env.R2_PUBLIC_DOMAIN || 'cdn.staffnow.app'}/${key}`;
+  const url = `https://pub-5e055b34e4694e02ac3de198a7776878.r2.dev/${key}`;
 
   return success(c, {
     uploadId: multipartUpload.uploadId,
