@@ -66,6 +66,7 @@ function EditJobInner() {
         employment_type: employmentType,
         salary_min: salaryMin ? parseFloat(salaryMin) : undefined,
         salary_max: salaryMax ? parseFloat(salaryMax) : undefined,
+        roles: roles.length > 0 ? roles : undefined,
       });
       toast.success('Η αγγελία ενημερώθηκε!');
     } catch { toast.error('Αποτυχία αποθήκευσης'); } finally { setSaving(false); }

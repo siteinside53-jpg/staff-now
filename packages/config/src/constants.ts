@@ -60,6 +60,7 @@ export const WORKER_JOB_ROLES = [
   'sommelier',
   'dj',
   'animator',
+  'technician',
   'other',
 ] as const;
 
@@ -79,6 +80,7 @@ export const WORKER_JOB_ROLE_LABELS_EL: Record<string, string> = {
   sommelier: 'Sommelier',
   dj: 'DJ',
   animator: 'Animator',
+  technician: 'Τεχνικός',
   other: 'Άλλο',
 };
 

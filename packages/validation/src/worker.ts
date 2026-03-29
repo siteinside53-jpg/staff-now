@@ -18,6 +18,7 @@ export const workerJobRoleSchema = z.enum([
   "sommelier",
   "dj",
   "animator",
+  "technician",
   "other",
 ]);
 
