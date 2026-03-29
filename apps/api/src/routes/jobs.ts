@@ -274,7 +274,11 @@ jobs.patch(
       return error(c, 'Η αγγελία δεν βρέθηκε', 404);
     }
 
-    if (job.business_id !== user.id) {
+    // Check ownership: job.business_id is business_profile_id, need to verify user owns it
+    const ownsJob = await db.prepare(
+      'SELECT id FROM business_profiles WHERE id = ? AND user_id = ?'
+    ).bind(job.business_id, user.id).first();
+    if (!ownsJob) {
       return error(c, 'Δεν έχετε δικαίωμα επεξεργασίας αυτής της αγγελίας', 403);
     }
 
@@ -385,7 +389,8 @@ jobs.post('/:id/publish', requireAuth, requireRole('business'), async (c) => {
     return error(c, 'Η αγγελία δεν βρέθηκε', 404);
   }
 
-  if (job.business_id !== user.id) {
+  const ownsThisJob = await db.prepare('SELECT id FROM business_profiles WHERE id = ? AND user_id = ?').bind(job.business_id, user.id).first();
+  if (!ownsThisJob) {
     return error(c, 'Δεν έχετε δικαίωμα δημοσίευσης αυτής της αγγελίας', 403);
   }
 
@@ -421,7 +426,8 @@ jobs.post('/:id/archive', requireAuth, requireRole('business'), async (c) => {
     return error(c, 'Η αγγελία δεν βρέθηκε', 404);
   }
 
-  if (job.business_id !== user.id) {
+  const ownsThisJob = await db.prepare('SELECT id FROM business_profiles WHERE id = ? AND user_id = ?').bind(job.business_id, user.id).first();
+  if (!ownsThisJob) {
     return error(c, 'Δεν έχετε δικαίωμα αρχειοθέτησης αυτής της αγγελίας', 403);
   }
 
