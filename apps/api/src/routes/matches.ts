@@ -80,7 +80,7 @@ matches.get('/', requireAuth, async (c) => {
         const unread = await db
           .prepare(
             `SELECT COUNT(*) as count FROM messages
-             WHERE conversation_id = ? AND sender_id != ? AND read = 0`
+             WHERE conversation_id = ? AND sender_id != ? AND read_at IS NULL`
           )
           .bind(conversationId, user.id)
           .first<{ count: number }>();

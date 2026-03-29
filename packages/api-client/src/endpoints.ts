@@ -47,6 +47,7 @@ export class StaffNowApi {
 
   interests = {
     received: () => this.client.get<any>('/interests/received'),
+    likeBack: (swiperId: string) => this.client.post<any>(`/interests/like-back/${swiperId}`),
     sent: () => this.client.get<any>('/interests/sent'),
   };
 

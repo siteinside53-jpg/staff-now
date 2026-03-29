@@ -44,27 +44,20 @@ export default function InterestsPage() {
     const targetId = isWorker ? interest.swiper_id : interest.swiper_id;
     setLiking(targetId);
     try {
-      if (isWorker) {
-        // Worker likes business's job
-        if (interest.job_id) {
-          const res = await api.jobs.like(interest.job_id) as any;
-          if (res?.data?.matched) {
-            toast.success('🎉 Match! Μπορείτε να ξεκινήσετε συνομιλία!');
-          } else {
-            toast.success('❤️ Ενδιαφέρον καταχωρήθηκε!');
-          }
-        }
+      // Direct match via like-back endpoint
+      const token = localStorage.getItem('staffnow_token');
+      const res = await fetch(`https://staffnow-api-production.siteinside53.workers.dev/interests/like-back/${targetId}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+      const data = await res.json() as any;
+
+      if (data.success && data.data?.matched) {
+        toast.success('🎉 Match! Μπορείτε τώρα να ξεκινήσετε συνομιλία!');
+        setInterests((prev) => prev.map((i) => i.swiper_id === targetId ? { ...i, is_matched: 1, liked_back: true, conversation_id: data.data.conversationId } : i));
       } else {
-        // Business likes worker
-        const res = await api.workers.like(targetId) as any;
-        if (res?.data?.matched) {
-          toast.success('🎉 Match! Μπορείτε να ξεκινήσετε συνομιλία!');
-        } else {
-          toast.success('❤️ Ενδιαφέρον καταχωρήθηκε!');
-        }
+        toast.error(data.error?.message || 'Κάτι πήγε στραβά');
       }
-      // Mark as handled
-      setInterests((prev) => prev.map((i) => i.swiper_id === targetId ? { ...i, liked_back: true } : i));
     } catch {
       toast.error('Κάτι πήγε στραβά');
     } finally {
