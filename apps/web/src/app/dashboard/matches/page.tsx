@@ -8,12 +8,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
+import { WorkerProfilePanel } from '@/components/dashboard/worker-profile-panel';
 import { EmptyState } from '@/components/ui/empty-state';
 
 export default function MatchesPage() {
   const { user } = useAuth();
   const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewingProfileId, setViewingProfileId] = useState<string | null>(null);
 
   const isWorker = user?.role === 'worker';
 
@@ -91,14 +93,22 @@ export default function MatchesPage() {
                     </p>
                   )}
 
-                  <div className="mt-4">
+                  <div className="mt-4 flex gap-2">
+                    {/* View Profile */}
+                    <button
+                      onClick={() => setViewingProfileId(isWorker ? m.business_id : m.worker_id)}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      👤 Προφίλ
+                    </button>
+                    {/* Message */}
                     {m.conversation_id ? (
-                      <Link href={`/dashboard/messages`} className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                      <Link href={`/dashboard/messages?id=${m.conversation_id}`} className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
                         💬 Μήνυμα
                       </Link>
                     ) : (
-                      <Link href="/dashboard/messages" className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                        💬 Ξεκίνα Συνομιλία
+                      <Link href="/dashboard/messages" className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                        💬 Chat
                       </Link>
                     )}
                   </div>
@@ -107,6 +117,14 @@ export default function MatchesPage() {
             );
           })}
         </div>
+      )}
+
+      {/* Worker Profile Panel */}
+      {viewingProfileId && (
+        <WorkerProfilePanel
+          workerId={viewingProfileId}
+          onClose={() => setViewingProfileId(null)}
+        />
       )}
     </div>
   );

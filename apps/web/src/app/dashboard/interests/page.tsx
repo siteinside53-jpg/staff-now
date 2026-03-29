@@ -9,6 +9,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
 import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
+import { WorkerProfilePanel } from '@/components/dashboard/worker-profile-panel';
 
 function timeAgo(dateStr?: string): string {
   if (!dateStr) return '';
@@ -27,6 +28,7 @@ export default function InterestsPage() {
   const [interests, setInterests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [liking, setLiking] = useState<string | null>(null);
+  const [viewingProfileId, setViewingProfileId] = useState<string | null>(null);
 
   const isWorker = user?.role === 'worker';
 
@@ -115,17 +117,17 @@ export default function InterestsPage() {
                           <span>🕐 {timeAgo(item.liked_at)}</span>
                         </div>
                       </div>
-                      <div className="flex-shrink-0">
+                      <div className="flex flex-shrink-0 gap-2">
+                        <button onClick={() => setViewingProfileId(item.swiper_id)} className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                          👤
+                        </button>
                         {isMatched ? (
                           <a href="/dashboard/messages" className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
                             💬 Chat
                           </a>
                         ) : (
-                          <button
-                            onClick={() => handleLikeBack(item)}
-                            disabled={liking === item.swiper_id}
-                            className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-                          >
+                          <button onClick={() => handleLikeBack(item)} disabled={liking === item.swiper_id}
+                            className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
                             {liking === item.swiper_id ? '...' : '❤️ Ενδιαφέρομαι'}
                           </button>
                         )}
@@ -135,7 +137,6 @@ export default function InterestsPage() {
                 </Card>
               );
             } else {
-              // Business sees workers that liked their jobs
               return (
                 <Card key={item.swipe_id} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-5">
@@ -160,17 +161,17 @@ export default function InterestsPage() {
                           <span>🕐 {timeAgo(item.liked_at)}</span>
                         </div>
                       </div>
-                      <div className="flex-shrink-0">
+                      <div className="flex flex-shrink-0 gap-2">
+                        <button onClick={() => setViewingProfileId(item.swiper_id)} className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                          👤
+                        </button>
                         {isMatched ? (
                           <a href="/dashboard/messages" className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
                             💬 Chat
                           </a>
                         ) : (
-                          <button
-                            onClick={() => handleLikeBack(item)}
-                            disabled={liking === item.swiper_id}
-                            className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-                          >
+                          <button onClick={() => handleLikeBack(item)} disabled={liking === item.swiper_id}
+                            className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
                             {liking === item.swiper_id ? '...' : '❤️ Ενδιαφέρομαι'}
                           </button>
                         )}
@@ -182,6 +183,13 @@ export default function InterestsPage() {
             }
           })}
         </div>
+      )}
+
+      {viewingProfileId && (
+        <WorkerProfilePanel
+          workerId={viewingProfileId}
+          onClose={() => setViewingProfileId(null)}
+        />
       )}
     </div>
   );
