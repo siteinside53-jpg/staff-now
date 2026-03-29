@@ -24,9 +24,9 @@ export default function DashboardPage() {
     async function fetchStats() {
       try {
         const [matchesRes, conversationsRes, notificationsRes] = await Promise.all([
-          api.matches.list({ limit: 0 }),
-          api.conversations.list({ limit: 0 }),
-          api.notifications.list({ unread: true, limit: 0 }),
+          api.matches.list(),
+          api.conversations.list(),
+          api.notifications.list(),
         ]);
 
         const matches = matchesRes?.data || [];
@@ -133,7 +133,7 @@ export default function DashboardPage() {
       {/* Welcome */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
-          Καλώς ήρθες{profile?.name ? `, ${profile.name}` : ''}!
+          Καλώς ήρθες{(profile as any)?.full_name || (profile as any)?.company_name ? `, ${(profile as any)?.full_name || (profile as any)?.company_name}` : ''}!
         </h1>
         <p className="mt-1 text-gray-600">
           {isWorker
