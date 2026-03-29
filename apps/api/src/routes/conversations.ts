@@ -33,19 +33,19 @@ conversations.get('/', requireAuth, async (c) => {
 
   const results = await db
     .prepare(
-      `SELECT c.id, c.match_id, c.created_at, c.updated_at,
+      `SELECT c.id, c.match_id, c.created_at, c.last_message_at,
          m.worker_id, m.business_id, m.job_id, m.status as match_status,
-         wp.first_name as worker_first_name, wp.last_name as worker_last_name,
-         wp.avatar_url as worker_avatar,
+         wp.full_name as worker_name,
+         wp.photo_url as worker_avatar,
          bp.company_name as business_name, bp.logo_url as business_logo,
          j.title as job_title
        FROM conversations c
        JOIN matches m ON m.id = c.match_id
        LEFT JOIN worker_profiles wp ON wp.user_id = m.worker_id
        LEFT JOIN business_profiles bp ON bp.user_id = m.business_id
-       LEFT JOIN jobs j ON j.id = m.job_id
+       LEFT JOIN job_listings j ON j.id = m.job_id
        WHERE ${roleCondition}
-       ORDER BY c.updated_at DESC
+       ORDER BY c.last_message_at DESC NULLS LAST, c.created_at DESC
        LIMIT ? OFFSET ?`
     )
     .bind(user.id, limit, offset)
@@ -67,7 +67,7 @@ conversations.get('/', requireAuth, async (c) => {
       const unread = await db
         .prepare(
           `SELECT COUNT(*) as count FROM messages
-           WHERE conversation_id = ? AND sender_id != ? AND read = 0`
+           WHERE conversation_id = ? AND sender_id != ? AND read_at IS NULL`
         )
         .bind(conv.id as string, user.id)
         .first<{ count: number }>();
@@ -83,7 +83,7 @@ conversations.get('/', requireAuth, async (c) => {
             }
           : {
               id: conv.worker_id,
-              name: `${conv.worker_first_name} ${conv.worker_last_name}`.trim(),
+              name: conv.worker_name || '',
               avatar: conv.worker_avatar,
               type: 'worker' as const,
             };
@@ -97,7 +97,7 @@ conversations.get('/', requireAuth, async (c) => {
         lastMessage,
         unreadCount: unread?.count || 0,
         createdAt: conv.created_at,
-        updatedAt: conv.updated_at,
+        updatedAt: conv.last_message_at || conv.created_at,
       };
     })
   );
@@ -153,12 +153,12 @@ conversations.get('/:id/messages', requireAuth, async (c) => {
       `SELECT msg.id, msg.sender_id, msg.content, msg.type, msg.attachment_url,
          msg.read, msg.created_at,
          CASE
-           WHEN msg.sender_id = wp.user_id THEN wp.first_name || ' ' || wp.last_name
+           WHEN msg.sender_id = wp.user_id THEN wp.full_name
            WHEN msg.sender_id = bp.user_id THEN bp.company_name
            ELSE 'Άγνωστος'
          END as sender_name,
          CASE
-           WHEN msg.sender_id = wp.user_id THEN wp.avatar_url
+           WHEN msg.sender_id = wp.user_id THEN wp.photo_url
            WHEN msg.sender_id = bp.user_id THEN bp.logo_url
            ELSE NULL
          END as sender_avatar
@@ -176,8 +176,8 @@ conversations.get('/:id/messages', requireAuth, async (c) => {
   const now = new Date().toISOString();
   await db
     .prepare(
-      `UPDATE messages SET read = 1, updated_at = ?
-       WHERE conversation_id = ? AND sender_id != ? AND read = 0`
+      `UPDATE messages SET read_at = ?
+       WHERE conversation_id = ? AND sender_id != ? AND read_at IS NULL`
     )
     .bind(now, conversationId, user.id)
     .run();
@@ -239,24 +239,21 @@ conversations.post('/:id/messages', requireAuth, async (c) => {
 
   await db
     .prepare(
-      `INSERT INTO messages (id, conversation_id, sender_id, content, type, attachment_url, read, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)`
+      `INSERT INTO messages (id, conversation_id, sender_id, content, created_at)
+       VALUES (?, ?, ?, ?, ?)`
     )
     .bind(
       messageId,
       conversationId,
       user.id,
       body.content.trim(),
-      messageType,
-      body.attachmentUrl || null,
-      now,
       now
     )
     .run();
 
   // Update conversation's updated_at
   await db
-    .prepare('UPDATE conversations SET updated_at = ? WHERE id = ?')
+    .prepare('UPDATE conversations SET last_message_at = ? WHERE id = ?')
     .bind(now, conversationId)
     .run();
 
@@ -271,11 +268,11 @@ conversations.post('/:id/messages', requireAuth, async (c) => {
   if (user.role === 'worker') {
     const wp = await db
       .prepare(
-        "SELECT first_name, last_name FROM worker_profiles WHERE user_id = ?"
+        "SELECT full_name FROM worker_profiles WHERE user_id = ?"
       )
       .bind(user.id)
-      .first<{ first_name: string; last_name: string }>();
-    if (wp) senderName = `${wp.first_name} ${wp.last_name}`.trim();
+      .first<{ full_name: string }>();
+    if (wp) senderName = wp.full_name || '';
   } else {
     const bp = await db
       .prepare('SELECT company_name FROM business_profiles WHERE user_id = ?')
@@ -287,8 +284,8 @@ conversations.post('/:id/messages', requireAuth, async (c) => {
   // Create notification for recipient
   await db
     .prepare(
-      `INSERT INTO notifications (id, user_id, type, title, body, data, read, created_at, updated_at)
-       VALUES (?, ?, 'message', ?, ?, ?, 0, ?, ?)`
+      `INSERT INTO notifications (id, user_id, type, title, body, data, created_at)
+       VALUES (?, ?, 'new_message', ?, ?, ?, ?)`
     )
     .bind(
       generateId(),
@@ -296,7 +293,6 @@ conversations.post('/:id/messages', requireAuth, async (c) => {
       'Νέο μήνυμα',
       `${senderName}: ${body.content.trim().substring(0, 100)}${body.content.trim().length > 100 ? '...' : ''}`,
       JSON.stringify({ conversationId, messageId, matchId: conversation.match_id }),
-      now,
       now
     )
     .run();

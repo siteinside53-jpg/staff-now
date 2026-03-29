@@ -35,7 +35,7 @@ notifications.get('/', requireAuth, async (c) => {
 
   // Count unread (always for all notifications, not filtered by type)
   const unreadResult = await db
-    .prepare('SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND read = 0')
+    .prepare('SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND read_at IS NULL')
     .bind(user.id)
     .first<{ count: number }>();
 
@@ -44,7 +44,7 @@ notifications.get('/', requireAuth, async (c) => {
   // Get notifications
   const results = await db
     .prepare(
-      `SELECT id, user_id, type, title, body, data, read, created_at
+      `SELECT id, user_id, type, title, body, data, read_at, created_at
        FROM notifications
        ${whereClause}
        ORDER BY created_at DESC
@@ -95,13 +95,13 @@ notifications.post('/:id/read', requireAuth, async (c) => {
     return error(c, 'Δεν έχετε πρόσβαση σε αυτή την ειδοποίηση', 403);
   }
 
-  if (notification.read === 1) {
+  if (notification.read_at) {
     return success(c, { message: 'Η ειδοποίηση είναι ήδη αναγνωσμένη' });
   }
 
   const now = new Date().toISOString();
   await db
-    .prepare('UPDATE notifications SET read = 1, updated_at = ? WHERE id = ?')
+    .prepare('UPDATE notifications SET read_at = ? WHERE id = ?')
     .bind(now, notificationId)
     .run();
 
@@ -116,7 +116,7 @@ notifications.post('/read-all', requireAuth, async (c) => {
   const now = new Date().toISOString();
   const result = await db
     .prepare(
-      'UPDATE notifications SET read = 1, updated_at = ? WHERE user_id = ? AND read = 0'
+      'UPDATE notifications SET read_at = ? WHERE user_id = ? AND read_at IS NULL'
     )
     .bind(now, user.id)
     .run();

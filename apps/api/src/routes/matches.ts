@@ -191,7 +191,7 @@ matches.get('/:id', requireAuth, async (c) => {
   // Worker roles
   const workerRoles = await db
     .prepare(
-      'SELECT role_name FROM worker_roles WHERE worker_profile_id = ?'
+      'SELECT role FROM worker_profile_roles WHERE worker_profile_id = ?'
     )
     .bind(m.worker_profile_id as string)
     .all();
@@ -227,7 +227,7 @@ matches.get('/:id', requireAuth, async (c) => {
     },
     worker: {
       ...workerInfo,
-      roles: workerRoles.results.map((r: { role_name: string }) => r.role_name),
+      roles: workerRoles.results.map((r: { role_name: string }) => r.role),
       languages: workerLanguages.results,
     },
     business: businessInfo,

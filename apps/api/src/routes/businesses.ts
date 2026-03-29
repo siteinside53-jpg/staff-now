@@ -26,7 +26,7 @@ businesses.get('/me', requireAuth, requireRole('business'), async (c) => {
   // Get count of active jobs
   const jobCount = await db
     .prepare(
-      "SELECT COUNT(*) as count FROM jobs WHERE business_id = ? AND status = 'published'"
+      "SELECT COUNT(*) as count FROM job_listings WHERE business_id = ? AND status = 'published'"
     )
     .bind(user.id)
     .first<{ count: number }>();
@@ -258,7 +258,7 @@ businesses.get('/discover', requireAuth, requireRole('worker'), async (c) => {
     results.results.map(async (biz: Record<string, unknown>) => {
       const jobCount = await db
         .prepare(
-          "SELECT COUNT(*) as count FROM jobs WHERE business_id = ? AND status = 'published'"
+          "SELECT COUNT(*) as count FROM job_listings WHERE business_id = ? AND status = 'published'"
         )
         .bind(biz.user_id as string)
         .first<{ count: number }>();
@@ -294,7 +294,7 @@ businesses.get('/:id', requireAuth, async (c) => {
 
   const activeJobs = await db
     .prepare(
-      "SELECT id, title, region, employment_type, min_salary, max_salary, created_at FROM jobs WHERE business_id = ? AND status = 'published' ORDER BY created_at DESC LIMIT 10"
+      "SELECT id, title, region, employment_type, salary_min, salary_max, created_at FROM job_listings WHERE business_id = ? AND status = 'published' ORDER BY created_at DESC LIMIT 10"
     )
     .bind(businessId)
     .all();
