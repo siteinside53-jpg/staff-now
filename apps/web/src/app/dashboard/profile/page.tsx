@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
+import { BusinessProfile } from '@/components/dashboard/business-profile';
 import {
   REGIONS_GREECE,
   WORKER_JOB_ROLES,
@@ -150,112 +151,8 @@ export default function ProfilePage() {
 
   // ===================== BUSINESS =====================
   if (!isWorker) {
-    const bc = (f: string, v: any) => setBizForm((p: any) => ({ ...p, [f]: v }));
-    const bsel = "flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500";
-    return (
-    <div className="max-w-3xl">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Προφίλ Επιχείρησης</h1>
-        <p className="mt-1 text-gray-600">Συμπλήρωσε όλα τα στοιχεία για να προσελκύσεις τους καλύτερους υποψηφίους.</p>
-      </div>
-
-      {/* Logo + Name Header */}
-      <Card className="mb-6"><CardContent className="p-6">
-        <div className="flex items-center gap-5">
-          <label className="cursor-pointer group relative flex-shrink-0">
-            <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'avatar'); }} />
-            {(bizForm as any).logo_url ? (
-              <img src={(bizForm as any).logo_url} alt="" className="h-20 w-20 rounded-xl object-cover border-2 border-gray-200 group-hover:border-blue-400" />
-            ) : (
-              <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-blue-100 text-2xl font-bold text-blue-600 group-hover:bg-blue-200">
-                {bizForm.company_name?.[0]?.toUpperCase() || '🏢'}
-              </div>
-            )}
-            <div className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white shadow-md">
-              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" /></svg>
-            </div>
-          </label>
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">{bizForm.company_name || 'Όνομα Επιχείρησης'}</h2>
-            {(bizForm as any).verified && <Badge className="bg-emerald-100 text-emerald-700 text-xs mt-1">✓ Επαληθευμένη</Badge>}
-          </div>
-        </div>
-      </CardContent></Card>
-
-      {/* Basic Info */}
-      <Card className="mb-6"><CardHeader><h2 className="text-lg font-semibold text-gray-900">🏢 Στοιχεία Επιχείρησης</h2></CardHeader>
-        <CardContent className="space-y-4">
-          <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Επωνυμία *</label>
-            <Input value={bizForm.company_name} onChange={(e) => bc('company_name', e.target.value)} placeholder="π.χ. Sunset Boutique Hotel" /></div>
-          <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Περιγραφή *</label>
-            <Textarea value={bizForm.description} onChange={(e) => bc('description', e.target.value)} rows={4} placeholder="Περίγραψε την επιχείρησή σου..." /></div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Τύπος Επιχείρησης</label>
-              <select value={bizForm.business_type} onChange={(e) => bc('business_type', e.target.value)} className={bsel}>
-                <option value="">Επέλεξε</option><option value="hotel">🏨 Ξενοδοχείο</option><option value="restaurant">🍽️ Εστιατόριο</option>
-                <option value="beach_bar">🏖️ Beach Bar</option><option value="bar">🍸 Μπαρ</option><option value="cafe">☕ Καφετέρια</option>
-                <option value="villa">🏡 Βίλα</option><option value="tourism_company">✈️ Τουριστική Εταιρεία</option><option value="resort">🌴 Resort</option><option value="other">📋 Άλλο</option>
-              </select></div>
-            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Περιοχή</label>
-              <select value={(bizForm as any).region || ''} onChange={(e) => bc('region', e.target.value)} className={bsel}>
-                <option value="">Επέλεξε</option>{REGIONS_GREECE.map((r) => <option key={r} value={r}>{r}</option>)}
-              </select></div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Τηλέφωνο</label>
-              <Input value={(bizForm as any).phone || ''} onChange={(e) => bc('phone', e.target.value)} placeholder="+30 210 1234567" /></div>
-            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Website</label>
-              <Input value={(bizForm as any).website || ''} onChange={(e) => bc('website', e.target.value)} placeholder="https://example.com" /></div>
-          </div>
-          <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Διεύθυνση</label>
-            <Input value={(bizForm as any).address || ''} onChange={(e) => bc('address', e.target.value)} placeholder="π.χ. Λεωφ. Βασ. Σοφίας 12, Αθήνα" /></div>
-        </CardContent></Card>
-
-      {/* Working Conditions */}
-      <Card className="mb-6"><CardHeader><h2 className="text-lg font-semibold text-gray-900">🏠 Συνθήκες Εργασίας</h2></CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-gray-500">Αυτές οι πληροφορίες βοηθούν τους εργαζομένους να αποφασίσουν γρήγορα.</p>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {[
-              { key: 'staff_housing', label: '🏠 Παρέχεται Διαμονή', desc: 'Στέγαση για εργαζομένους' },
-              { key: 'meals_provided', label: '🍽️ Παρέχεται Σίτιση', desc: 'Γεύματα στον χώρο εργασίας' },
-              { key: 'transportation_assistance', label: '🚌 Μεταφορά', desc: 'Βοήθεια μετακίνησης' },
-            ].map((item) => {
-              const on = !!(bizForm as any)[item.key];
-              return (
-                <div key={item.key} onClick={() => bc(item.key, on ? 0 : 1)}
-                  className={`cursor-pointer rounded-xl border-2 p-4 text-center transition-all ${on ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                  <p className="text-sm font-semibold">{item.label}</p>
-                  <p className="mt-1 text-xs text-gray-500">{item.desc}</p>
-                  <div className={`mt-2 inline-block rounded-full px-3 py-0.5 text-xs font-medium ${on ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                    {on ? 'Ναι' : 'Όχι'}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent></Card>
-
-      {/* Salary Range */}
-      <Card className="mb-6"><CardHeader><h2 className="text-lg font-semibold text-gray-900">💰 Εύρος Μισθού</h2></CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-gray-500">Διαφάνεια στους μισθούς αυξάνει τις αιτήσεις κατά 40%.</p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Ελάχιστος μισθός (€/μήνα)</label>
-              <Input type="number" min="0" value={(bizForm as any).salary_range_min || ''} onChange={(e) => bc('salary_range_min', e.target.value ? parseFloat(e.target.value) : null)} placeholder="π.χ. 1200" /></div>
-            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Μέγιστος μισθός (€/μήνα)</label>
-              <Input type="number" min="0" value={(bizForm as any).salary_range_max || ''} onChange={(e) => bc('salary_range_max', e.target.value ? parseFloat(e.target.value) : null)} placeholder="π.χ. 1800" /></div>
-          </div>
-        </CardContent></Card>
-
-      {/* Save */}
-      <div className="sticky bottom-0 bg-gray-50/95 backdrop-blur border-t border-gray-200 -mx-4 px-4 py-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-        <Button onClick={saveBiz} disabled={saving} className="w-full sm:w-auto" size="lg">
-          {saving ? 'Αποθήκευση...' : '💾 Αποθήκευση Αλλαγών'}
-        </Button>
-      </div>
-    </div>
-  );}
+    return <BusinessProfile user={user} profile={profile} refreshUser={refreshUser} />;
+  }
 
   // ===================== WORKER =====================
   const sLabel = completeness >= 80 ? 'Εξαιρετικό' : completeness >= 60 ? 'Δυνατό' : completeness >= 40 ? 'Βασικό' : 'Αδύναμο';

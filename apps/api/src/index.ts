@@ -13,6 +13,7 @@ import notificationRoutes from './routes/notifications';
 import billingRoutes from './routes/billing';
 import uploadRoutes from './routes/uploads';
 import adminRoutes from './routes/admin';
+import branchRoutes from './routes/branches';
 import { errorHandler } from './middleware/error-handler';
 import { rateLimiter } from './middleware/rate-limiter';
 
@@ -50,6 +51,7 @@ app.route('/notifications', notificationRoutes);
 app.route('/billing', billingRoutes);
 app.route('/uploads', uploadRoutes);
 app.route('/admin', adminRoutes);
+app.route('/branches', branchRoutes);
 
 // 404 handler
 app.notFound((c) =>

@@ -38,6 +38,13 @@ export class StaffNowApi {
     skip: (id: string) => this.client.post<any>(`/businesses/${id}/skip`),
   };
 
+  branches = {
+    list: () => this.client.get<any>('/branches'),
+    create: (body: unknown) => this.client.post<any>('/branches', body),
+    update: (id: string, body: unknown) => this.client.patch<any>(`/branches/${id}`, body),
+    delete: (id: string) => this.client.delete<any>(`/branches/${id}`),
+  };
+
   jobs = {
     list: (params?: Params) => this.client.get<any>('/jobs', params),
     getById: (id: string) => this.client.get<any>(`/jobs/${id}`),
