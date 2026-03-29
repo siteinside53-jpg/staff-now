@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
@@ -20,6 +20,12 @@ function MessagesInner() {
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [newMsg, setNewMsg] = useState('');
   const [sending, setSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   // Load conversations
   useEffect(() => {
@@ -39,7 +45,9 @@ function MessagesInner() {
       setLoadingMsgs(true);
       try {
         const res = await api.conversations.getMessages(selectedConv!) as any;
-        setMessages(res?.data || []);
+        const msgs = res?.data || [];
+        // API returns newest first, we need oldest first for chat display
+        setMessages(Array.isArray(msgs) ? [...msgs].reverse() : []);
       } catch {} finally { setLoadingMsgs(false); }
     }
     loadMsgs();
@@ -139,6 +147,7 @@ function MessagesInner() {
                       );
                     })
                   )}
+                  <div ref={messagesEndRef} />
                 </div>
 
                 {/* Input */}
@@ -153,7 +162,11 @@ function MessagesInner() {
                     />
                     <button onClick={sendMessage} disabled={sending || !newMsg.trim()}
                       className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-                      {sending ? '...' : '📤'}
+                      {sending ? (
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      ) : (
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
+                      )}
                     </button>
                   </div>
                 </div>
