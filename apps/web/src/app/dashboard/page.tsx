@@ -29,15 +29,20 @@ export default function DashboardPage() {
           api.notifications.list({ unread: true, limit: 0 }),
         ]);
 
+        const matches = matchesRes?.data || [];
+        const convos = conversationsRes?.data || [];
+        const notifs = notificationsRes?.data || [];
+
         const dashStats: DashboardStats = {
-          totalMatches: matchesRes.total || 0,
-          unreadMessages: conversationsRes.unreadCount || 0,
-          profileViews: notificationsRes.total || 0,
+          totalMatches: Array.isArray(matches) ? matches.length : 0,
+          unreadMessages: Array.isArray(convos) ? convos.length : 0,
+          profileViews: Array.isArray(notifs) ? notifs.length : 0,
         };
 
-        if (profile?.role === 'business') {
-          const jobsRes = await api.jobs.list({ limit: 0 });
-          dashStats.activeJobs = jobsRes.total || 0;
+        if (user?.role === 'business') {
+          const jobsRes = await api.jobs.list() as any;
+          const jobs = jobsRes?.data || [];
+          dashStats.activeJobs = Array.isArray(jobs) ? jobs.length : 0;
         }
 
         setStats(dashStats);
@@ -54,10 +59,10 @@ export default function DashboardPage() {
     }
 
     fetchStats();
-  }, [profile?.role]);
+  }, [user?.role]);
 
-  const isWorker = profile?.role === 'worker';
-  const isBusiness = profile?.role === 'business';
+  const isWorker = user?.role === 'worker';
+  const isBusiness = user?.role === 'business';
 
   const statCards = [
     {

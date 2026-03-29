@@ -249,7 +249,15 @@ export default function DiscoverPage() {
               )}
             </div>
 
-            <div className="mt-8 flex gap-4">
+            {/* View Profile Link */}
+            <div className="mt-4 text-center">
+              <a href={`/dashboard/view-profile?id=${currentCandidate.id}&type=${currentCandidate.type}`}
+                className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline">
+                👤 Δες πλήρες προφίλ
+              </a>
+            </div>
+
+            <div className="mt-6 flex gap-4">
               <Button
                 variant="outline"
                 size="lg"

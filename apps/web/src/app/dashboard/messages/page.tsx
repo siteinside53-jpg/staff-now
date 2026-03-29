@@ -1,320 +1,170 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
 import { EmptyState } from '@/components/ui/empty-state';
 
-interface Conversation {
-  id: string;
-  otherUser: {
-    id: string;
-    name: string;
-    avatar?: string;
-  };
-  lastMessage?: {
-    text: string;
-    createdAt: string;
-    senderId: string;
-  };
-  unreadCount: number;
-}
-
-interface Message {
-  id: string;
-  text: string;
-  senderId: string;
-  createdAt: string;
-}
-
-export default function MessagesPage() {
+function MessagesInner() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
-  const activeConversationId = searchParams.get('id');
-
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loadingConversations, setLoadingConversations] = useState(true);
-  const [loadingMessages, setLoadingMessages] = useState(false);
-  const [newMessage, setNewMessage] = useState('');
+  const convId = searchParams.get('id');
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [selectedConv, setSelectedConv] = useState<string | null>(convId);
+  const [loading, setLoading] = useState(true);
+  const [loadingMsgs, setLoadingMsgs] = useState(false);
+  const [newMsg, setNewMsg] = useState('');
   const [sending, setSending] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const activeConversation = conversations.find(
-    (c) => c.id === activeConversationId
-  );
-
-  // Fetch conversations
+  // Load conversations
   useEffect(() => {
-    async function fetchConversations() {
+    async function load() {
       try {
-        const res = await api.conversations.list({ limit: 50 });
-        setConversations(res.conversations || []);
-      } catch {
-        setConversations([]);
-      } finally {
-        setLoadingConversations(false);
-      }
+        const res = await api.conversations.list() as any;
+        setConversations(res?.data || []);
+      } catch {} finally { setLoading(false); }
     }
-
-    fetchConversations();
+    load();
   }, []);
 
-  // Fetch messages for active conversation
-  const fetchMessages = useCallback(async (conversationId: string) => {
-    setLoadingMessages(true);
-    try {
-      const res = await api.conversations.messages(conversationId, {
-        limit: 100,
-      });
-      setMessages(res.messages || []);
-    } catch {
-      setMessages([]);
-    } finally {
-      setLoadingMessages(false);
-    }
-  }, []);
-
+  // Load messages for selected conversation
   useEffect(() => {
-    if (activeConversationId) {
-      fetchMessages(activeConversationId);
+    if (!selectedConv) return;
+    async function loadMsgs() {
+      setLoadingMsgs(true);
+      try {
+        const res = await api.conversations.getMessages(selectedConv!) as any;
+        setMessages(res?.data || []);
+      } catch {} finally { setLoadingMsgs(false); }
     }
-  }, [activeConversationId, fetchMessages]);
+    loadMsgs();
+  }, [selectedConv]);
 
-  // Scroll to bottom on new messages
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !activeConversationId || sending) return;
-
+  const sendMessage = async () => {
+    if (!newMsg.trim() || !selectedConv) return;
     setSending(true);
     try {
-      const res = await api.conversations.sendMessage(activeConversationId, {
-        text: newMessage.trim(),
-      });
-      setMessages((prev) => [...prev, res.message]);
-      setNewMessage('');
-
-      // Update last message in conversation list
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === activeConversationId
-            ? {
-                ...c,
-                lastMessage: {
-                  text: newMessage.trim(),
-                  createdAt: new Date().toISOString(),
-                  senderId: user!.id,
-                },
-              }
-            : c
-        )
-      );
-    } catch {
-      toast.error('Αποτυχία αποστολής μηνύματος.');
-    } finally {
-      setSending(false);
-    }
+      const res = await api.conversations.sendMessage(selectedConv, { content: newMsg.trim() }) as any;
+      if (res.success) {
+        setMessages((prev) => [...prev, res.data]);
+        setNewMsg('');
+      }
+    } catch { toast.error('Αποτυχία αποστολής'); } finally { setSending(false); }
   };
 
-  if (loadingConversations) {
-    return (
-      <div className="flex justify-center py-20">
-        <Spinner className="h-8 w-8" />
-      </div>
-    );
-  }
+  if (loading) return <div className="flex justify-center py-20"><Spinner className="h-8 w-8" /></div>;
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Μηνύματα</h1>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">💬 Μηνύματα</h1>
+      </div>
 
-      {conversations.length === 0 ? (
+      {conversations.length === 0 && !selectedConv ? (
         <EmptyState
           title="Δεν έχεις μηνύματα ακόμα"
-          description="Κάνε match με κάποιον για να ξεκινήσεις συνομιλία!"
+          description="Κάνε match με κάποιον στην Ανακάλυψη ή στο Ενδιαφέρον για να ξεκινήσεις συνομιλία!"
         />
       ) : (
-        <div className="flex h-[calc(100vh-220px)] overflow-hidden rounded-lg border bg-white shadow-sm lg:h-[calc(100vh-180px)]">
+        <div className="grid gap-6 lg:grid-cols-3">
           {/* Conversation List */}
-          <div
-            className={`w-full border-r md:w-80 md:flex-shrink-0 ${
-              activeConversationId ? 'hidden md:block' : ''
-            }`}
-          >
-            <div className="border-b px-4 py-3">
-              <h2 className="font-semibold text-gray-900">Συνομιλίες</h2>
-            </div>
-            <div className="overflow-y-auto">
-              {conversations.map((conversation) => {
-                const isActive = conversation.id === activeConversationId;
-                return (
-                  <a
-                    key={conversation.id}
-                    href={`/dashboard/messages?id=${conversation.id}`}
-                    className={`flex items-center gap-3 border-b px-4 py-3 transition-colors hover:bg-gray-50 ${
-                      isActive ? 'bg-blue-50' : ''
-                    }`}
-                  >
-                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-sm font-bold text-gray-600">
-                      {conversation.otherUser.name?.charAt(0)?.toUpperCase() || '?'}
+          <div className="lg:col-span-1 space-y-2">
+            <p className="text-sm font-medium text-gray-500 mb-2">{conversations.length} συνομιλίες</p>
+            {conversations.map((c: any) => {
+              const isActive = selectedConv === c.id;
+              const otherName = user?.role === 'worker'
+                ? (c.business_name || c.company_name || 'Επιχείρηση')
+                : (c.worker_name || c.full_name || 'Εργαζόμενος');
+              return (
+                <div key={c.id} onClick={() => setSelectedConv(c.id)}
+                  className={`cursor-pointer rounded-xl p-4 transition-all ${isActive ? 'bg-blue-50 border-2 border-blue-500' : 'bg-white border border-gray-100 hover:border-gray-300'}`}>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-600 flex-shrink-0">
+                      {otherName[0]?.toUpperCase() || '?'}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="truncate text-sm font-medium text-gray-900">
-                          {conversation.otherUser.name}
-                        </p>
-                        {conversation.lastMessage && (
-                          <span className="ml-2 flex-shrink-0 text-xs text-gray-400">
-                            {new Date(
-                              conversation.lastMessage.createdAt
-                            ).toLocaleDateString('el-GR', {
-                              day: 'numeric',
-                              month: 'short',
-                            })}
-                          </span>
-                        )}
-                      </div>
-                      {conversation.lastMessage && (
-                        <p className="truncate text-xs text-gray-500">
-                          {conversation.lastMessage.senderId === user?.id
-                            ? 'Εσύ: '
-                            : ''}
-                          {conversation.lastMessage.text}
-                        </p>
+                      <p className="font-semibold text-gray-900 truncate text-sm">{otherName}</p>
+                      {c.last_message_at && (
+                        <p className="text-xs text-gray-400">{new Date(c.last_message_at).toLocaleDateString('el-GR')}</p>
                       )}
                     </div>
-                    {conversation.unreadCount > 0 && (
-                      <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
-                        {conversation.unreadCount}
-                      </span>
-                    )}
-                  </a>
-                );
-              })}
-            </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          {/* Message Thread */}
-          <div
-            className={`flex flex-1 flex-col ${
-              !activeConversationId ? 'hidden md:flex' : ''
-            }`}
-          >
-            {!activeConversationId ? (
-              <div className="flex flex-1 items-center justify-center text-gray-500">
-                <p>Επέλεξε μια συνομιλία για να δεις τα μηνύματα</p>
-              </div>
-            ) : (
-              <>
-                {/* Thread header */}
-                <div className="flex items-center gap-3 border-b px-4 py-3">
-                  <a
-                    href="/dashboard/messages"
-                    className="md:hidden"
-                  >
-                    <svg className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-                    </svg>
-                  </a>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-sm font-bold text-gray-600">
-                    {activeConversation?.otherUser.name
-                      ?.charAt(0)
-                      ?.toUpperCase() || '?'}
-                  </div>
-                  <p className="font-medium text-gray-900">
-                    {activeConversation?.otherUser.name || 'Χρήστης'}
-                  </p>
-                </div>
-
+          {/* Chat Area */}
+          <div className="lg:col-span-2">
+            {selectedConv ? (
+              <Card className="h-[500px] flex flex-col">
                 {/* Messages */}
-                <div className="flex-1 overflow-y-auto px-4 py-4">
-                  {loadingMessages ? (
-                    <div className="flex justify-center py-8">
-                      <Spinner className="h-6 w-6" />
-                    </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {loadingMsgs ? (
+                    <div className="flex justify-center py-10"><Spinner className="h-6 w-6" /></div>
                   ) : messages.length === 0 ? (
-                    <p className="text-center text-sm text-gray-500">
-                      Στείλε το πρώτο μήνυμα!
-                    </p>
-                  ) : (
-                    <div className="space-y-3">
-                      {messages.map((message) => {
-                        const isOwn = message.senderId === user?.id;
-                        return (
-                          <div
-                            key={message.id}
-                            className={`flex ${
-                              isOwn ? 'justify-end' : 'justify-start'
-                            }`}
-                          >
-                            <div
-                              className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
-                                isOwn
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-gray-100 text-gray-900'
-                              }`}
-                            >
-                              <p className="text-sm leading-relaxed">
-                                {message.text}
-                              </p>
-                              <p
-                                className={`mt-1 text-right text-xs ${
-                                  isOwn ? 'text-blue-200' : 'text-gray-400'
-                                }`}
-                              >
-                                {new Date(message.createdAt).toLocaleTimeString(
-                                  'el-GR',
-                                  {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                  }
-                                )}
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      <div ref={messagesEndRef} />
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                      <p className="text-4xl mb-2">👋</p>
+                      <p className="text-sm">Ξεκίνα τη συνομιλία!</p>
                     </div>
+                  ) : (
+                    messages.map((m: any) => {
+                      const isMine = m.sender_id === user?.id;
+                      return (
+                        <div key={m.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 text-sm ${isMine ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-900'}`}>
+                            <p>{m.content}</p>
+                            <p className={`text-[10px] mt-1 ${isMine ? 'text-blue-200' : 'text-gray-400'}`}>
+                              {new Date(m.created_at).toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
 
                 {/* Input */}
-                <form
-                  onSubmit={handleSendMessage}
-                  className="flex items-center gap-2 border-t px-4 py-3"
-                >
-                  <Input
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Γράψε ένα μήνυμα..."
-                    className="flex-1"
-                    disabled={sending}
-                  />
-                  <Button type="submit" disabled={!newMessage.trim() || sending}>
-                    {sending ? (
-                      <Spinner className="h-4 w-4" />
-                    ) : (
-                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
-                      </svg>
-                    )}
-                  </Button>
-                </form>
-              </>
+                <div className="border-t border-gray-200 p-4">
+                  <div className="flex gap-2">
+                    <input
+                      value={newMsg}
+                      onChange={(e) => setNewMsg(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+                      placeholder="Γράψε μήνυμα..."
+                      className="flex-1 rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                    />
+                    <button onClick={sendMessage} disabled={sending || !newMsg.trim()}
+                      className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+                      {sending ? '...' : '📤'}
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            ) : (
+              <Card className="h-[500px] flex items-center justify-center">
+                <div className="text-center text-gray-400">
+                  <p className="text-4xl mb-2">💬</p>
+                  <p className="text-sm">Επίλεξε μια συνομιλία</p>
+                </div>
+              </Card>
             )}
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-20"><Spinner className="h-8 w-8" /></div>}>
+      <MessagesInner />
+    </Suspense>
   );
 }
