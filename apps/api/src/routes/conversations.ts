@@ -150,8 +150,8 @@ conversations.get('/:id/messages', requireAuth, async (c) => {
   // Get messages ordered by newest first
   const messages = await db
     .prepare(
-      `SELECT msg.id, msg.sender_id, msg.content, msg.type, msg.attachment_url,
-         msg.read, msg.created_at,
+      `SELECT msg.id, msg.sender_id, msg.content,
+         msg.read_at, msg.created_at,
          CASE
            WHEN msg.sender_id = wp.user_id THEN wp.full_name
            WHEN msg.sender_id = bp.user_id THEN bp.company_name
