@@ -125,8 +125,8 @@ export default function ProfilePage() {
       } else {
         toast.error(data.error?.message || 'Αποτυχία upload');
       }
-    } catch {
-      toast.error('Σφάλμα κατά το upload');
+    } catch (err: any) {
+      toast.error(err?.message || 'Σφάλμα σύνδεσης κατά το upload');
     } finally {
       setUploading(null);
     }

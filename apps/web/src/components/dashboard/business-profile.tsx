@@ -97,9 +97,9 @@ export function BusinessProfile({ user, profile, refreshUser }: { user: any; pro
         setEditingBranch((p) => p ? { ...p, logo_url: data.data.url } : p);
         toast.success('Το λογότυπο ανέβηκε!');
       } else {
-        toast.error('Αποτυχία upload');
+        toast.error(data.error?.message || 'Αποτυχία upload');
       }
-    } catch { toast.error('Σφάλμα upload'); } finally { setUploading(false); }
+    } catch (err: any) { toast.error(err?.message || 'Σφάλμα σύνδεσης'); } finally { setUploading(false); }
   };
 
   // Delete branch
