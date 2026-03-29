@@ -35,33 +35,25 @@ function Header() {
           <StaffNowLogo />
         </Link>
 
-        {/* Desktop Nav */}
+        {/* Desktop Nav — always show main links */}
         <nav className="hidden items-center gap-1 lg:flex">
-          {!isAuthenticated &&
-            NAV_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="rounded-md px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
-              >
-                {link.label}
-              </Link>
-            ))}
-          {isAuthenticated && (
-            <>
-              <Link href="/dashboard" className="rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Dashboard</Link>
-              <Link href="/dashboard/discover" className="rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Ανακάλυψη</Link>
-              <Link href="/dashboard/matches" className="rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Matches</Link>
-            </>
-          )}
+          {NAV_LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="rounded-md px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
+            >
+              {link.label}
+            </Link>
+          ))}
         </nav>
 
         {/* Desktop Actions */}
         <div className="hidden items-center gap-3 lg:flex">
           {isAuthenticated ? (
             <>
-              <Link href="/dashboard/profile" className="text-sm font-medium text-gray-600 hover:text-gray-900">
-                Προφίλ
+              <Link href="/dashboard" className="text-sm font-medium text-gray-600 hover:text-gray-900">
+                Πίνακας Ελέγχου
               </Link>
               <button
                 onClick={() => logout()}
