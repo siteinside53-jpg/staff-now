@@ -190,9 +190,18 @@ function MessagesInner() {
               <Card className="h-[550px] flex flex-col overflow-hidden">
                 {/* Chat header */}
                 <div className="border-b border-gray-100 px-5 py-3 flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-600">
-                    {(conversations.find((c) => c.id === selectedConv)?.otherParty?.name || '?')[0]?.toUpperCase()}
-                  </div>
+                  {(() => {
+                    const conv = conversations.find((c) => c.id === selectedConv);
+                    const avatar = conv?.otherParty?.avatar;
+                    const name = conv?.otherParty?.name || 'Συνομιλία';
+                    return avatar ? (
+                      <img src={avatar} alt="" className="h-8 w-8 rounded-full object-cover flex-shrink-0" />
+                    ) : (
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-600">
+                        {name[0]?.toUpperCase() || '?'}
+                      </div>
+                    );
+                  })()}
                   <div>
                     <p className="text-sm font-semibold text-gray-900">
                       {conversations.find((c) => c.id === selectedConv)?.otherParty?.name || 'Συνομιλία'}
