@@ -34,7 +34,7 @@ function EditJobInner() {
       try {
         const res = await api.jobs.getById(jobId!) as any;
         if (res.success && res.data) {
-          const j = res.data;
+          const j = res.data?.job || res.data;
           setTitle(j.title || '');
           setDescription(j.description || '');
           setCity(j.city || '');
