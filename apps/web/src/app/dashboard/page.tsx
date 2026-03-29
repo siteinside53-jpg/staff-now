@@ -35,7 +35,7 @@ export default function DashboardPage() {
 
         const dashStats: DashboardStats = {
           totalMatches: Array.isArray(matches) ? matches.length : 0,
-          unreadMessages: Array.isArray(convos) ? convos.length : 0,
+          unreadMessages: Array.isArray(convos) ? convos.filter((c: any) => c.unreadCount > 0).length : 0,
           profileViews: Array.isArray(notifs) ? notifs.length : 0,
         };
 

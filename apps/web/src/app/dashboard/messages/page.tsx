@@ -48,6 +48,16 @@ function MessagesInner() {
         const res = await api.conversations.getMessages(selectedConv!) as any;
         const msgs = res?.data || [];
         setMessages(Array.isArray(msgs) ? [...msgs].reverse() : []);
+        // Mark conversation as read
+        try {
+          const token = localStorage.getItem('staffnow_token');
+          await fetch(`https://staffnow-api-production.siteinside53.workers.dev/conversations/${selectedConv}`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          });
+          // Update unread count locally
+          setConversations((prev) => prev.map((c) => c.id === selectedConv ? { ...c, unreadCount: 0 } : c));
+        } catch {}
       } catch {} finally { setLoadingMsgs(false); }
     }
     loadMsgs();
