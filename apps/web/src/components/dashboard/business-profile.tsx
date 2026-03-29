@@ -178,12 +178,52 @@ export function BusinessProfile({ user, profile, refreshUser }: { user: any; pro
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Πόλη</label>
-                <Input value={editingBranch.city || ''} onChange={(e) => bc('city', e.target.value)} placeholder="π.χ. Μύκονος" /></div>
+                <Input value={editingBranch.city || ''} onChange={(e) => bc('city', e.target.value)} placeholder="π.χ. Θεσσαλονίκη" /></div>
               <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Τηλέφωνο</label>
                 <Input value={editingBranch.phone || ''} onChange={(e) => bc('phone', e.target.value)} placeholder="+30 210 1234567" /></div>
             </div>
             <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Διεύθυνση</label>
-              <Input value={editingBranch.address || ''} onChange={(e) => bc('address', e.target.value)} placeholder="π.χ. Λεωφ. Βασ. Σοφίας 12" /></div>
+              <Input value={editingBranch.address || ''} onChange={(e) => bc('address', e.target.value)} placeholder="π.χ. Κασσάνδρου 123, Θεσσαλονίκη" /></div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Ταχυδρομικός Κώδικας (ΤΚ)</label>
+                <Input value={(editingBranch as any).postal_code || ''} onChange={(e) => {
+                  const tk = e.target.value.replace(/\D/g, '').substring(0, 5);
+                  bc('postal_code', tk);
+                  // Auto-fill area based on postal code
+                  const postalAreas: Record<string, string> = {
+                    '546': 'Κέντρο Θεσσαλονίκης', '562': 'Εύοσμος', '563': 'Κορδελιό-Εύοσμος',
+                    '551': 'Καλαμαριά', '552': 'Πυλαία', '553': 'Θέρμη', '554': 'Μίκρα',
+                    '555': 'Πανόραμα', '564': 'Σταυρούπολη', '565': 'Νεάπολη-Συκιές',
+                    '566': 'Αμπελόκηποι-Μενεμένη', '561': 'Ωραιόκαστρο',
+                    '104': 'Αθήνα Κέντρο', '105': 'Πλάκα-Μοναστηράκι', '111': 'Γκάζι-Κεραμεικός',
+                    '112': 'Περιστέρι', '113': 'Πατήσια', '114': 'Κυψέλη',
+                    '115': 'Αμπελόκηποι Αθήνα', '116': 'Παγκράτι', '117': 'Νέος Κόσμος',
+                    '121': 'Περιστέρι', '131': 'Πετρούπολη', '141': 'Ν. Ηράκλειο',
+                    '151': 'Μαρούσι', '152': 'Χαλάνδρι', '153': 'Αγ. Παρασκευή',
+                    '154': 'Κηφισιά', '161': 'Γλυφάδα', '162': 'Βούλα',
+                    '163': 'Βουλιαγμένη', '171': 'Ν. Σμύρνη', '172': 'Καλλιθέα',
+                    '173': 'Δάφνη', '174': 'Άγ. Δημήτριος', '175': 'Άλιμος',
+                    '176': 'Ελληνικό', '181': 'Πειραιάς', '185': 'Πέραμα',
+                    '731': 'Ηράκλειο Κρήτης', '741': 'Ρέθυμνο', '711': 'Χανιά',
+                    '721': 'Αγ. Νικόλαος Κρήτης',
+                    '491': 'Κέρκυρα', '291': 'Ζάκυνθος', '841': 'Μύκονος',
+                    '847': 'Σαντορίνη', '851': 'Ρόδος', '631': 'Χαλκιδική',
+                    '261': 'Πάτρα', '411': 'Λάρισα', '451': 'Ιωάννινα',
+                    '681': 'Αλεξανδρούπολη', '671': 'Ξάνθη', '661': 'Δράμα',
+                    '641': 'Καβάλα', '611': 'Κοζάνη', '501': 'Βέροια',
+                  };
+                  if (tk.length >= 3) {
+                    const prefix3 = tk.substring(0, 3);
+                    if (postalAreas[prefix3]) {
+                      bc('area', postalAreas[prefix3]);
+                    }
+                  }
+                }} placeholder="π.χ. 56224" maxLength={5} /></div>
+              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Περιοχή / Δήμος</label>
+                <Input value={(editingBranch as any).area || ''} onChange={(e) => bc('area', e.target.value)} placeholder="π.χ. Εύοσμος" />
+                {(editingBranch as any).area && <p className="mt-1 text-xs text-emerald-600">📍 {(editingBranch as any).area}</p>}
+              </div>
+            </div>
             <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Website</label>
               <Input value={editingBranch.website || ''} onChange={(e) => bc('website', e.target.value)} placeholder="https://example.com" /></div>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -277,7 +317,7 @@ export function BusinessProfile({ user, profile, refreshUser }: { user: any; pro
                     </div>
                     {b.description && <p className="mt-1 text-sm text-gray-500 line-clamp-1">{b.description}</p>}
                     <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-400">
-                      {b.city && <span>📍 {b.city}{b.region ? `, ${b.region}` : ''}</span>}
+                      {(b.address || b.city) && <span>📍 {[b.address, (b as any).area, b.city, (b as any).postal_code].filter(Boolean).join(', ')}</span>}
                       {b.staff_housing ? <span className="text-emerald-600">🏠 Διαμονή</span> : null}
                       {b.meals_provided ? <span className="text-emerald-600">🍽️ Σίτιση</span> : null}
                       {b.transportation_assistance ? <span className="text-emerald-600">🚌 Μεταφορά</span> : null}
