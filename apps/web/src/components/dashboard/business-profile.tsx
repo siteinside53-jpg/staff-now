@@ -78,6 +78,30 @@ export function BusinessProfile({ user, profile, refreshUser }: { user: any; pro
     } catch { toast.error('Σφάλμα αποθήκευσης'); } finally { setSaving(false); }
   };
 
+  // Upload logo
+  const [uploading, setUploading] = useState(false);
+  const handleLogoUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('category', 'logo');
+      const token = localStorage.getItem('staffnow_token');
+      const res = await fetch('https://staffnow-api-production.siteinside53.workers.dev/uploads', {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        body: formData,
+      });
+      const data = await res.json() as any;
+      if (data.success && data.data?.url) {
+        setEditingBranch((p) => p ? { ...p, logo_url: data.data.url } : p);
+        toast.success('Το λογότυπο ανέβηκε!');
+      } else {
+        toast.error('Αποτυχία upload');
+      }
+    } catch { toast.error('Σφάλμα upload'); } finally { setUploading(false); }
+  };
+
   // Delete branch
   const deleteBranch = async (id: string) => {
     if (!confirm('Σίγουρα θέλεις να διαγράψεις αυτή την επιχείρηση;')) return;
@@ -108,6 +132,33 @@ export function BusinessProfile({ user, profile, refreshUser }: { user: any; pro
         </div>
 
         {/* Basic */}
+        {/* Logo Upload */}
+        <Card className="mb-6"><CardContent className="p-6">
+          <div className="flex items-center gap-5">
+            <label className="cursor-pointer group relative flex-shrink-0">
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoUpload(f); }} />
+              {editingBranch?.logo_url ? (
+                <img src={editingBranch.logo_url} alt="" className="h-20 w-20 rounded-xl object-cover border-2 border-gray-200 group-hover:border-blue-400 transition-colors" />
+              ) : (
+                <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-blue-100 text-2xl font-bold text-blue-600 group-hover:bg-blue-200 transition-colors">
+                  {editingBranch?.name?.[0]?.toUpperCase() || '🏢'}
+                </div>
+              )}
+              <div className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white shadow-md group-hover:bg-blue-700">
+                {uploading ? (
+                  <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : (
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" /></svg>
+                )}
+              </div>
+            </label>
+            <div>
+              <p className="text-sm font-medium text-gray-700">Λογότυπο / Φωτογραφία</p>
+              <p className="text-xs text-gray-400">Πάτα για να ανεβάσεις (JPG, PNG, WebP)</p>
+            </div>
+          </div>
+        </CardContent></Card>
+
         <Card className="mb-6"><CardHeader><h2 className="text-lg font-semibold text-gray-900">🏢 Στοιχεία</h2></CardHeader>
           <CardContent className="space-y-4">
             <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Όνομα Επιχείρησης *</label>
@@ -195,9 +246,13 @@ export function BusinessProfile({ user, profile, refreshUser }: { user: any; pro
             <Card key={b.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-5">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-blue-100 text-xl font-bold text-blue-600">
-                    {b.name?.[0]?.toUpperCase() || '🏢'}
-                  </div>
+                  {b.logo_url ? (
+                    <img src={b.logo_url} alt="" className="h-14 w-14 rounded-xl object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-blue-100 text-xl font-bold text-blue-600">
+                      {b.name?.[0]?.toUpperCase() || '🏢'}
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <h3 className="font-bold text-gray-900 truncate">{b.name}</h3>
