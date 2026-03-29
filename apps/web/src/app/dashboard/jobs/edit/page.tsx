@@ -2,7 +2,6 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,10 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Spinner } from '@/components/ui/spinner';
-import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
+import { WORKER_JOB_ROLE_LABELS_EL, REGIONS_GREECE } from '@staffnow/config';
 
 function EditJobInner() {
-  const { user } = useAuth();
   const searchParams = useSearchParams();
   const jobId = searchParams.get('id');
   const [loading, setLoading] = useState(true);
@@ -27,6 +25,7 @@ function EditJobInner() {
   const [salaryMin, setSalaryMin] = useState('');
   const [salaryMax, setSalaryMax] = useState('');
   const [status, setStatus] = useState('published');
+  const [roles, setRoles] = useState<string[]>([]);
 
   useEffect(() => {
     if (!jobId) return;
@@ -43,11 +42,17 @@ function EditJobInner() {
           setSalaryMin(j.salary_min?.toString() || '');
           setSalaryMax(j.salary_max?.toString() || '');
           setStatus(j.status || 'published');
+          // Load roles from job data
+          if (j.roles && Array.isArray(j.roles)) setRoles(j.roles);
         }
       } catch {} finally { setLoading(false); }
     }
     load();
   }, [jobId]);
+
+  const toggleRole = (role: string) => {
+    setRoles((prev) => prev.includes(role) ? prev.filter((r) => r !== role) : prev.length >= 10 ? (toast.error('Μέχρι 10 ειδικότητες'), prev) : [...prev, role]);
+  };
 
   const handleSave = async () => {
     if (!title) { toast.error('Συμπλήρωσε τον τίτλο'); return; }
@@ -84,6 +89,7 @@ function EditJobInner() {
 
   const statusLabels: Record<string, string> = { draft: 'Πρόχειρη', published: 'Ενεργή', archived: 'Αρχείο', filled: 'Πληρώθηκε' };
   const statusColors: Record<string, string> = { draft: 'bg-gray-100 text-gray-700', published: 'bg-emerald-100 text-emerald-700', archived: 'bg-amber-100 text-amber-700', filled: 'bg-blue-100 text-blue-700' };
+  const sel = "flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500";
 
   return (
     <div className="max-w-2xl">
@@ -97,7 +103,6 @@ function EditJobInner() {
             <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusColors[status] || 'bg-gray-100 text-gray-700'}`}>
               {statusLabels[status] || status}
             </span>
-            <span className="text-xs text-gray-400">ID: {jobId?.substring(0, 12)}...</span>
           </div>
         </div>
       </div>
@@ -115,17 +120,19 @@ function EditJobInner() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">Πόλη</label>
-              <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="π.χ. Μύκονος" />
+              <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="π.χ. Θεσσαλονίκη" />
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">Περιοχή</label>
-              <Input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="π.χ. Κυκλάδες" />
+              <select value={region} onChange={(e) => setRegion(e.target.value)} className={sel}>
+                <option value="">Επέλεξε</option>
+                {REGIONS_GREECE.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
             </div>
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">Τύπος Εργασίας</label>
-            <select value={employmentType} onChange={(e) => setEmploymentType(e.target.value)}
-              className="flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm">
+            <select value={employmentType} onChange={(e) => setEmploymentType(e.target.value)} className={sel}>
               <option value="seasonal">☀️ Σεζόν</option>
               <option value="full_time">📅 Πλήρης</option>
               <option value="part_time">⏰ Μερική</option>
@@ -141,6 +148,30 @@ function EditJobInner() {
               <label className="mb-1.5 block text-sm font-medium text-gray-700">Μισθός έως (€)</label>
               <Input type="number" min="0" value={salaryMax} onChange={(e) => setSalaryMax(e.target.value)} placeholder="1800" />
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Ειδικότητες */}
+      <Card className="mb-6">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-3">
+            <label className="text-sm font-medium text-gray-700">Ειδικότητες</label>
+            <span className="text-xs text-gray-400">{roles.length} επιλεγμένες</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {Object.entries(WORKER_JOB_ROLE_LABELS_EL).map(([value, label]) => {
+              const on = roles.includes(value);
+              return (
+                <label key={value} className={`flex items-center gap-2 rounded-lg border p-2.5 cursor-pointer transition-all text-sm ${on ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 hover:border-gray-300 text-gray-700'}`}>
+                  <input type="checkbox" checked={on} onChange={() => toggleRole(value)} className="sr-only" />
+                  <div className={`flex h-4 w-4 items-center justify-center rounded border flex-shrink-0 ${on ? 'border-blue-500 bg-blue-500 text-white' : 'border-gray-300'}`}>
+                    {on && <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                  </div>
+                  {label}
+                </label>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
@@ -165,6 +196,9 @@ function EditJobInner() {
             🚀 Επαναδημοσίευση
           </Button>
         )}
+        <a href="/dashboard/jobs" className="inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
+          ← Πίσω
+        </a>
       </div>
     </div>
   );
