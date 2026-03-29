@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
 import { EmptyState } from '@/components/ui/empty-state';
+import { WorkerProfilePanel } from '@/components/dashboard/worker-profile-panel';
 
 interface DiscoverProfile {
   id: string;
@@ -45,6 +46,7 @@ export default function DiscoverPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [viewingProfileId, setViewingProfileId] = useState<string | null>(null);
 
   const isWorker = user?.role === 'worker';
 
@@ -249,12 +251,14 @@ export default function DiscoverPage() {
               )}
             </div>
 
-            {/* View Profile Link */}
+            {/* View Profile Button */}
             <div className="mt-4 text-center">
-              <a href={`/dashboard/view-profile?id=${currentCandidate.id}&type=${currentCandidate.type}`}
-                className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline">
+              <button
+                onClick={() => setViewingProfileId(currentCandidate.id)}
+                className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
+              >
                 👤 Δες πλήρες προφίλ
-              </a>
+              </button>
             </div>
 
             <div className="mt-6 flex gap-4">
@@ -279,6 +283,16 @@ export default function DiscoverPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Worker Profile Slide-over Panel */}
+      {viewingProfileId && (
+        <WorkerProfilePanel
+          workerId={viewingProfileId}
+          onClose={() => setViewingProfileId(null)}
+          onLike={(id) => handleAction('like')}
+          onSkip={(id) => handleAction('skip')}
+        />
+      )}
     </div>
   );
 }
