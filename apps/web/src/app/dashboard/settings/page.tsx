@@ -70,13 +70,18 @@ export default function SettingsPage() {
     setSavingAccount(true);
     try {
       const token = localStorage.getItem('staffnow_token');
-      await fetch('https://staffnow-api-production.siteinside53.workers.dev/auth/me/settings', {
+      const res = await fetch('https://staffnow-api-production.siteinside53.workers.dev/auth/me/settings', {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ displayName }),
       });
-      toast.success('Τα στοιχεία ενημερώθηκαν!');
-    } catch { toast.error('Σφάλμα αποθήκευσης'); } finally { setSavingAccount(false); }
+      const data = await res.json() as any;
+      if (data.success) {
+        toast.success('Τα στοιχεία ενημερώθηκαν!');
+      } else {
+        toast.error(data.error?.message || 'Αποτυχία αποθήκευσης');
+      }
+    } catch (err: any) { toast.error(err?.message || 'Σφάλμα σύνδεσης'); } finally { setSavingAccount(false); }
   };
 
   const passwordForm = useForm<PasswordForm>();

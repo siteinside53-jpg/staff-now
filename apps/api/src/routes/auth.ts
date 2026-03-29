@@ -144,7 +144,9 @@ auth.get('/me', requireAuth, async (c) => {
     .bind(user.id)
     .first();
 
-  return success(c, { user: { ...user, display_name: (user as any).display_name, avatar_url: (user as any).avatar_url }, profile, subscription });
+  // Fetch full user data including display_name and avatar_url
+  const fullUser = await db.prepare('SELECT id, email, role, status, display_name, avatar_url FROM users WHERE id = ?').bind(user.id).first();
+  return success(c, { user: fullUser || user, profile, subscription });
 });
 
 // PATCH /me/settings — update account display name + avatar
