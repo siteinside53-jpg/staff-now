@@ -21,6 +21,22 @@ interface DiscoverProfile {
   photoUrl?: string;
   verified?: boolean;
   type: 'worker' | 'job';
+  createdAt?: string;
+  companyName?: string;
+  housingProvided?: boolean;
+  mealsProvided?: boolean;
+}
+
+function timeAgo(dateStr?: string): string {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins} λεπτά πριν`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} ώρ${hours === 1 ? 'α' : 'ες'} πριν`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} ημέρ${days === 1 ? 'α' : 'ες'} πριν`;
+  return new Date(dateStr).toLocaleDateString('el-GR', { day: 'numeric', month: 'short' });
 }
 
 export default function DiscoverPage() {
@@ -42,6 +58,10 @@ export default function DiscoverPage() {
         const mapped = (Array.isArray(items) ? items : []).map((j: any) => ({
           id: j.id,
           name: j.title || 'Θέση εργασίας',
+          companyName: j.company_name,
+          createdAt: j.created_at,
+          housingProvided: j.housing_provided === 1,
+          mealsProvided: j.meals_provided === 1,
           location: [j.city, j.region].filter(Boolean).join(', '),
           bio: j.description,
           tags: j.roles || [j.employment_type].filter(Boolean),
@@ -173,6 +193,9 @@ export default function DiscoverPage() {
               </div>
             )}
             <h2 className="mt-4 text-2xl font-bold">{currentCandidate.name}</h2>
+            {currentCandidate.companyName && (
+              <p className="mt-1 text-sm text-blue-200">🏢 {currentCandidate.companyName}</p>
+            )}
             {currentCandidate.verified && (
               <Badge className="mt-2 bg-green-500/20 text-green-100">✓ Verified</Badge>
             )}
@@ -184,6 +207,19 @@ export default function DiscoverPage() {
           </div>
 
           <CardContent className="p-6">
+            {/* Time + conditions */}
+            <div className="flex flex-wrap items-center gap-2 mb-4 text-xs">
+              {currentCandidate.createdAt && (
+                <span className="text-gray-400">🕐 {timeAgo(currentCandidate.createdAt)}</span>
+              )}
+              {currentCandidate.housingProvided && (
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700 font-medium">🏠 Διαμονή</span>
+              )}
+              {currentCandidate.mealsProvided && (
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700 font-medium">🍽️ Σίτιση</span>
+              )}
+            </div>
+
             {currentCandidate.bio && (
               <p className="text-gray-600 leading-relaxed line-clamp-4">
                 {currentCandidate.bio}

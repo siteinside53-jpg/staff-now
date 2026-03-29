@@ -11,6 +11,7 @@ import { Avatar } from '@/components/ui/avatar';
 const workerNavItems = [
   { href: '/dashboard', label: 'Αρχική', icon: HomeIcon },
   { href: '/dashboard/discover', label: 'Ανακάλυψη', icon: DiscoverIcon },
+  { href: '/dashboard/interests', label: 'Ενδιαφέρον', icon: DiscoverIcon },
   { href: '/dashboard/matches', label: 'Matches', icon: MatchIcon },
   { href: '/dashboard/messages', label: 'Μηνύματα', icon: MessageIcon },
   { href: '/dashboard/profile', label: 'Προφίλ', icon: ProfileIcon },
@@ -22,6 +23,7 @@ const businessNavItems = [
   { href: '/dashboard', label: 'Αρχική', icon: HomeIcon },
   { href: '/dashboard/jobs', label: 'Αγγελίες', icon: JobsIcon },
   { href: '/dashboard/discover', label: 'Ανακάλυψη', icon: DiscoverIcon },
+  { href: '/dashboard/interests', label: 'Ενδιαφέρον', icon: DiscoverIcon },
   { href: '/dashboard/matches', label: 'Matches', icon: MatchIcon },
   { href: '/dashboard/messages', label: 'Μηνύματα', icon: MessageIcon },
   { href: '/dashboard/profile', label: 'Προφίλ', icon: ProfileIcon },

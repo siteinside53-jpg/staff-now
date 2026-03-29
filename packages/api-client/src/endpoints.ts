@@ -45,6 +45,11 @@ export class StaffNowApi {
     delete: (id: string) => this.client.delete<any>(`/branches/${id}`),
   };
 
+  interests = {
+    received: () => this.client.get<any>('/interests/received'),
+    sent: () => this.client.get<any>('/interests/sent'),
+  };
+
   jobs = {
     list: (params?: Params) => this.client.get<any>('/jobs', params),
     getById: (id: string) => this.client.get<any>(`/jobs/${id}`),
