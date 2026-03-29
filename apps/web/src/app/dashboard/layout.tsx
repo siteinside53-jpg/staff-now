@@ -62,8 +62,9 @@ export default function DashboardLayout({
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-gray-200 bg-white lg:flex">
         {/* Logo */}
         <div className="flex h-16 items-center border-b px-6">
-          <Link href="/dashboard" className="text-xl font-bold text-blue-600">
-            StaffNow
+          <Link href="/" className="inline-flex items-center gap-1.5 text-xl font-extrabold">
+            <svg className="h-5 w-5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span className="text-gray-900">Staff</span><span className="text-blue-600">Now</span>
           </Link>
         </div>
 
@@ -130,8 +131,9 @@ export default function DashboardLayout({
 
       {/* Mobile header */}
       <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b bg-white px-4 lg:hidden">
-        <Link href="/dashboard" className="text-lg font-bold text-blue-600">
-          StaffNow
+        <Link href="/" className="inline-flex items-center gap-1.5 text-lg font-extrabold">
+          <svg className="h-4 w-4 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          <span className="text-gray-900">Staff</span><span className="text-blue-600">Now</span>
         </Link>
         <Button variant="outline" size="sm" onClick={() => logout()}>
           Αποσύνδεση
