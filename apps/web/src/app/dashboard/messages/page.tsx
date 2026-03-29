@@ -51,7 +51,11 @@ function MessagesInner() {
     try {
       const res = await api.conversations.sendMessage(selectedConv, { content: newMsg.trim() }) as any;
       if (res.success) {
-        setMessages((prev) => [...prev, res.data]);
+        const newMessage = res.data?.message || res.data;
+        // Ensure created_at exists
+        if (!newMessage.created_at) newMessage.created_at = new Date().toISOString();
+        if (!newMessage.sender_id) newMessage.sender_id = user?.id;
+        setMessages((prev) => [...prev, newMessage]);
         setNewMsg('');
       }
     } catch { toast.error('Αποτυχία αποστολής'); } finally { setSending(false); }
@@ -121,13 +125,15 @@ function MessagesInner() {
                   ) : (
                     messages.map((m: any) => {
                       const isMine = m.sender_id === user?.id;
+                      const msgDate = m.created_at ? new Date(m.created_at) : null;
+                      const timeStr = msgDate && !isNaN(msgDate.getTime()) ? msgDate.toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit' }) : '';
                       return (
                         <div key={m.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                           <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 text-sm ${isMine ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-900'}`}>
                             <p>{m.content}</p>
-                            <p className={`text-[10px] mt-1 ${isMine ? 'text-blue-200' : 'text-gray-400'}`}>
-                              {new Date(m.created_at).toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit' })}
-                            </p>
+                            {timeStr && (
+                              <p className={`text-[10px] mt-1 ${isMine ? 'text-blue-200' : 'text-gray-400'}`}>{timeStr}</p>
+                            )}
                           </div>
                         </div>
                       );
