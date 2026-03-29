@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
 import { EmptyState } from '@/components/ui/empty-state';
 
@@ -20,9 +20,10 @@ function MessagesInner() {
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [newMsg, setNewMsg] = useState('');
   const [sending, setSending] = useState(false);
+  const [failedMsgs, setFailedMsgs] = useState<Set<string>>(new Set());
+  const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -38,7 +39,7 @@ function MessagesInner() {
     load();
   }, []);
 
-  // Load messages for selected conversation
+  // Load messages
   useEffect(() => {
     if (!selectedConv) return;
     async function loadMsgs() {
@@ -46,42 +47,98 @@ function MessagesInner() {
       try {
         const res = await api.conversations.getMessages(selectedConv!) as any;
         const msgs = res?.data || [];
-        // API returns newest first, we need oldest first for chat display
         setMessages(Array.isArray(msgs) ? [...msgs].reverse() : []);
       } catch {} finally { setLoadingMsgs(false); }
     }
     loadMsgs();
   }, [selectedConv]);
 
+  // Simulate typing indicator (poll every 5s in real app)
+  useEffect(() => {
+    if (!selectedConv) return;
+    // Fake typing for demo — in production, use WebSocket or polling
+    const interval = setInterval(() => {
+      // Could poll /conversations/:id/typing endpoint
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [selectedConv]);
+
   const sendMessage = async () => {
     if (!newMsg.trim() || !selectedConv) return;
+    const tempId = `temp_${Date.now()}`;
+    const tempMsg = {
+      id: tempId,
+      sender_id: user?.id,
+      content: newMsg.trim(),
+      created_at: new Date().toISOString(),
+      status: 'sending',
+    };
+
+    // Optimistic add
+    setMessages((prev) => [...prev, tempMsg]);
+    setNewMsg('');
     setSending(true);
+
     try {
-      const res = await api.conversations.sendMessage(selectedConv, { content: newMsg.trim() }) as any;
+      const res = await api.conversations.sendMessage(selectedConv, { content: tempMsg.content }) as any;
       if (res.success) {
-        const newMessage = res.data?.message || res.data;
-        // Ensure created_at exists
-        if (!newMessage.created_at) newMessage.created_at = new Date().toISOString();
-        if (!newMessage.sender_id) newMessage.sender_id = user?.id;
-        setMessages((prev) => [...prev, newMessage]);
-        setNewMsg('');
+        const realMsg = res.data?.message || res.data;
+        if (!realMsg.created_at) realMsg.created_at = new Date().toISOString();
+        if (!realMsg.sender_id) realMsg.sender_id = user?.id;
+        realMsg.status = 'sent';
+        // Replace temp with real
+        setMessages((prev) => prev.map((m) => m.id === tempId ? realMsg : m));
+      } else {
+        setMessages((prev) => prev.map((m) => m.id === tempId ? { ...m, status: 'failed' } : m));
+        setFailedMsgs((prev) => new Set(prev).add(tempId));
       }
-    } catch { toast.error('Αποτυχία αποστολής'); } finally { setSending(false); }
+    } catch {
+      setMessages((prev) => prev.map((m) => m.id === tempId ? { ...m, status: 'failed' } : m));
+      setFailedMsgs((prev) => new Set(prev).add(tempId));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const retryMessage = async (msgId: string) => {
+    const msg = messages.find((m) => m.id === msgId);
+    if (!msg || !selectedConv) return;
+    setMessages((prev) => prev.map((m) => m.id === msgId ? { ...m, status: 'sending' } : m));
+
+    try {
+      const res = await api.conversations.sendMessage(selectedConv, { content: msg.content }) as any;
+      if (res.success) {
+        const realMsg = res.data?.message || res.data;
+        if (!realMsg.created_at) realMsg.created_at = new Date().toISOString();
+        if (!realMsg.sender_id) realMsg.sender_id = user?.id;
+        realMsg.status = 'sent';
+        setMessages((prev) => prev.map((m) => m.id === msgId ? realMsg : m));
+        setFailedMsgs((prev) => { const n = new Set(prev); n.delete(msgId); return n; });
+      }
+    } catch {
+      setMessages((prev) => prev.map((m) => m.id === msgId ? { ...m, status: 'failed' } : m));
+    }
+  };
+
+  const deleteMessage = (msgId: string, forAll: boolean) => {
+    if (forAll) {
+      // In production: call DELETE /messages/:id
+      setMessages((prev) => prev.filter((m) => m.id !== msgId));
+      toast.success('Το μήνυμα διαγράφηκε');
+    } else {
+      setMessages((prev) => prev.filter((m) => m.id !== msgId));
+      toast.success('Το μήνυμα κρύφτηκε');
+    }
   };
 
   if (loading) return <div className="flex justify-center py-20"><Spinner className="h-8 w-8" /></div>;
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">💬 Μηνύματα</h1>
-      </div>
+      <div className="mb-6"><h1 className="text-2xl font-bold text-gray-900">💬 Μηνύματα</h1></div>
 
       {conversations.length === 0 && !selectedConv ? (
-        <EmptyState
-          title="Δεν έχεις μηνύματα ακόμα"
-          description="Κάνε match με κάποιον στην Ανακάλυψη ή στο Ενδιαφέρον για να ξεκινήσεις συνομιλία!"
-        />
+        <EmptyState title="Δεν έχεις μηνύματα ακόμα" description="Κάνε match για να ξεκινήσεις συνομιλία!" />
       ) : (
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Conversation List */}
@@ -106,7 +163,7 @@ function MessagesInner() {
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-900 truncate text-sm">{otherName}</p>
                       {lastMsg && <p className="text-xs text-gray-500 truncate">{lastMsg}</p>}
-                      {dateStr && <p className="text-xs text-gray-400">{new Date(dateStr).toLocaleDateString('el-GR')}</p>}
+                      {dateStr && (() => { const d = new Date(dateStr); return !isNaN(d.getTime()) ? <p className="text-xs text-gray-400">{d.toLocaleDateString('el-GR')}</p> : null; })()}
                     </div>
                     {c.unreadCount > 0 && (
                       <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">{c.unreadCount}</span>
@@ -120,9 +177,22 @@ function MessagesInner() {
           {/* Chat Area */}
           <div className="lg:col-span-2">
             {selectedConv ? (
-              <Card className="h-[500px] flex flex-col">
+              <Card className="h-[550px] flex flex-col overflow-hidden">
+                {/* Chat header */}
+                <div className="border-b border-gray-100 px-5 py-3 flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-600">
+                    {(conversations.find((c) => c.id === selectedConv)?.otherParty?.name || '?')[0]?.toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {conversations.find((c) => c.id === selectedConv)?.otherParty?.name || 'Συνομιλία'}
+                    </p>
+                    {isTyping && <p className="text-[11px] text-blue-500 animate-pulse">Πληκτρολογεί...</p>}
+                  </div>
+                </div>
+
                 {/* Messages */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-gray-50/50">
                   {loadingMsgs ? (
                     <div className="flex justify-center py-10"><Spinner className="h-6 w-6" /></div>
                   ) : messages.length === 0 ? (
@@ -135,12 +205,51 @@ function MessagesInner() {
                       const isMine = m.sender_id === user?.id;
                       const msgDate = m.created_at ? new Date(m.created_at) : null;
                       const timeStr = msgDate && !isNaN(msgDate.getTime()) ? msgDate.toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit' }) : '';
+                      const isFailed = m.status === 'failed';
+                      const isSending = m.status === 'sending';
+
                       return (
-                        <div key={m.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 text-sm ${isMine ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-900'}`}>
-                            <p>{m.content}</p>
-                            {timeStr && (
-                              <p className={`text-[10px] mt-1 ${isMine ? 'text-blue-200' : 'text-gray-400'}`}>{timeStr}</p>
+                        <div key={m.id} className={`flex ${isMine ? 'justify-start' : 'justify-end'}`}>
+                          <div className="group relative max-w-[75%]">
+                            <div className={`rounded-2xl px-4 py-2.5 text-sm ${
+                              isMine
+                                ? 'bg-blue-600 text-white rounded-bl-md'
+                                : 'bg-white text-gray-900 border border-gray-200 rounded-br-md shadow-sm'
+                            } ${isFailed ? 'opacity-60' : ''}`}>
+                              <p>{m.content}</p>
+                              <div className={`flex items-center gap-1 mt-1 ${isMine ? 'justify-start' : 'justify-end'}`}>
+                                {timeStr && (
+                                  <span className={`text-[10px] ${isMine ? 'text-blue-200' : 'text-gray-400'}`}>{timeStr}</span>
+                                )}
+                                {isMine && !isFailed && !isSending && (
+                                  <span className={`text-[10px] ${m.read_at ? 'text-blue-200' : 'text-blue-300'}`}>
+                                    {m.read_at ? '✓✓' : '✓'}
+                                  </span>
+                                )}
+                                {isSending && (
+                                  <span className="text-[10px] text-blue-200">⏳</span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Failed message actions */}
+                            {isFailed && (
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-[10px] text-red-500">❌ Αποτυχία</span>
+                                <button onClick={() => retryMessage(m.id)} className="text-[10px] text-blue-600 hover:underline font-medium">Ξαναστείλε</button>
+                              </div>
+                            )}
+
+                            {/* Delete option on hover */}
+                            {isMine && !isFailed && !isSending && (
+                              <div className="absolute -top-2 right-0 hidden group-hover:flex bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+                                <button onClick={() => deleteMessage(m.id, false)} className="px-2 py-1 text-[10px] text-gray-500 hover:bg-gray-50 whitespace-nowrap" title="Διαγραφή για μένα">
+                                  🗑️
+                                </button>
+                                <button onClick={() => deleteMessage(m.id, true)} className="px-2 py-1 text-[10px] text-red-500 hover:bg-red-50 whitespace-nowrap border-l" title="Διαγραφή για όλους">
+                                  🗑️ Όλοι
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -150,29 +259,45 @@ function MessagesInner() {
                   <div ref={messagesEndRef} />
                 </div>
 
+                {/* Typing indicator */}
+                {isTyping && (
+                  <div className="px-5 py-1">
+                    <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                      <div className="flex gap-0.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
+                      Πληκτρολογεί...
+                    </div>
+                  </div>
+                )}
+
                 {/* Input */}
-                <div className="border-t border-gray-200 p-4">
+                <div className="border-t border-gray-200 p-4 bg-white">
                   <div className="flex gap-2">
                     <input
                       value={newMsg}
                       onChange={(e) => setNewMsg(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
                       placeholder="Γράψε μήνυμα..."
-                      className="flex-1 rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                      className="flex-1 rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-gray-50"
                     />
                     <button onClick={sendMessage} disabled={sending || !newMsg.trim()}
-                      className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+                      className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
                       {sending ? (
                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                       ) : (
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                        </svg>
                       )}
                     </button>
                   </div>
                 </div>
               </Card>
             ) : (
-              <Card className="h-[500px] flex items-center justify-center">
+              <Card className="h-[550px] flex items-center justify-center">
                 <div className="text-center text-gray-400">
                   <p className="text-4xl mb-2">💬</p>
                   <p className="text-sm">Επίλεξε μια συνομιλία</p>
