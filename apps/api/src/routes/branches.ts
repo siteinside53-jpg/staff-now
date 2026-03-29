@@ -31,8 +31,8 @@ branches.post('/', requireAuth, requireRole('business'), async (c) => {
 
   await db
     .prepare(
-      `INSERT INTO business_branches (id, user_id, name, business_type, description, region, city, address, phone, website, logo_url, staff_housing, meals_provided, transportation_assistance, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO business_branches (id, user_id, name, business_type, description, region, city, address, phone, website, logo_url, staff_housing, meals_provided, transportation_assistance, legal_form, tax_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       id, user.id,
@@ -40,6 +40,7 @@ branches.post('/', requireAuth, requireRole('business'), async (c) => {
       body.region || null, body.city || null, body.address || null,
       body.phone || null, body.website || null, body.logo_url || null,
       body.staff_housing ? 1 : 0, body.meals_provided ? 1 : 0, body.transportation_assistance ? 1 : 0,
+      body.legal_form || null, body.tax_id || null,
       now, now
     )
     .run();
@@ -59,7 +60,7 @@ branches.patch('/:id', requireAuth, requireRole('business'), async (c) => {
   const branch = await db.prepare('SELECT id FROM business_branches WHERE id = ? AND user_id = ?').bind(branchId, user.id).first();
   if (!branch) return error(c, 'Η επιχείρηση δεν βρέθηκε', 404);
 
-  const fields = ['name', 'business_type', 'description', 'region', 'city', 'address', 'phone', 'website', 'logo_url', 'staff_housing', 'meals_provided', 'transportation_assistance'];
+  const fields = ['name', 'business_type', 'description', 'region', 'city', 'address', 'phone', 'website', 'logo_url', 'staff_housing', 'meals_provided', 'transportation_assistance', 'legal_form', 'tax_id'];
   const updates: string[] = [];
   const values: any[] = [];
 

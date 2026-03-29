@@ -101,16 +101,16 @@ export default function DashboardLayout({
         {/* User section */}
         <div className="border-t p-4">
           <div className="flex items-center gap-3">
-            {((profile as any)?.photo_url || (profile as any)?.logo_url) ? (
-              <img src={(profile as any).photo_url || (profile as any).logo_url} alt="" className="h-9 w-9 rounded-full object-cover" />
+            {((user as any)?.avatar_url || (profile as any)?.photo_url || (profile as any)?.logo_url) ? (
+              <img src={(user as any)?.avatar_url || (profile as any)?.photo_url || (profile as any)?.logo_url} alt="" className="h-9 w-9 rounded-full object-cover" />
             ) : (
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-600">
-                {((profile as any)?.full_name || (profile as any)?.company_name || user.email || '?').trim()[0]?.toUpperCase() || '?'}
+                {((user as any)?.display_name || (profile as any)?.full_name || (profile as any)?.company_name || user.email || '?').trim()[0]?.toUpperCase() || '?'}
               </div>
             )}
             <div className="flex-1 truncate">
               <p className="truncate text-sm font-medium text-gray-900">
-                {((profile as any)?.full_name || '').trim() || ((profile as any)?.company_name || '').trim() || user.email}
+                {((user as any)?.display_name || '').trim() || ((profile as any)?.full_name || '').trim() || ((profile as any)?.company_name || '').trim() || user.email}
               </p>
               <p className="truncate text-xs text-gray-500">
                 {user.role === 'business' ? 'Επιχείρηση' : 'Εργαζόμενος'}

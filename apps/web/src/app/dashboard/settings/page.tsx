@@ -32,6 +32,53 @@ export default function SettingsPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
 
+  const [displayName, setDisplayName] = useState((user as any)?.display_name || '');
+  const [accountAvatar, setAccountAvatar] = useState((user as any)?.avatar_url || '');
+  const [savingAccount, setSavingAccount] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const handleAvatarUpload = async (file: File) => {
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('category', 'avatar');
+      const token = localStorage.getItem('staffnow_token');
+      const res = await fetch('https://staffnow-api-production.siteinside53.workers.dev/uploads', {
+        method: 'POST',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        body: formData,
+      });
+      const data = await res.json() as any;
+      if (data.success && data.data?.url) {
+        setAccountAvatar(data.data.url);
+        // Save to user settings
+        const token2 = localStorage.getItem('staffnow_token');
+        await fetch('https://staffnow-api-production.siteinside53.workers.dev/auth/me/settings', {
+          method: 'PATCH',
+          headers: { 'Authorization': `Bearer ${token2}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ avatarUrl: data.data.url }),
+        });
+        toast.success('Η φωτογραφία ανέβηκε!');
+      } else {
+        toast.error(data.error?.message || 'Αποτυχία upload');
+      }
+    } catch { toast.error('Σφάλμα upload'); } finally { setUploadingAvatar(false); }
+  };
+
+  const saveAccountSettings = async () => {
+    setSavingAccount(true);
+    try {
+      const token = localStorage.getItem('staffnow_token');
+      await fetch('https://staffnow-api-production.siteinside53.workers.dev/auth/me/settings', {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ displayName }),
+      });
+      toast.success('Τα στοιχεία ενημερώθηκαν!');
+    } catch { toast.error('Σφάλμα αποθήκευσης'); } finally { setSavingAccount(false); }
+  };
+
   const passwordForm = useForm<PasswordForm>();
 
   const [notifications, setNotifications] = useState<NotificationSettings>({
@@ -95,22 +142,51 @@ export default function SettingsPage() {
       </div>
 
       <div className="space-y-6">
-        {/* Account Info */}
+        {/* Account Info with Avatar */}
         <Card>
           <CardHeader>
-            <h2 className="text-lg font-semibold text-gray-900">
-              Στοιχεία Λογαριασμού
-            </h2>
+            <h2 className="text-lg font-semibold text-gray-900">Στοιχεία Λογαριασμού</h2>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Email</p>
-                  <p className="text-sm text-gray-500">{user?.email}</p>
+          <CardContent className="space-y-4">
+            {/* Avatar upload */}
+            <div className="flex items-center gap-5">
+              <label className="cursor-pointer group relative flex-shrink-0">
+                <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAvatarUpload(f); }} />
+                {accountAvatar ? (
+                  <img src={accountAvatar} alt="" className="h-16 w-16 rounded-full object-cover border-2 border-gray-200 group-hover:border-blue-400" />
+                ) : (
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-xl font-bold text-blue-600 group-hover:bg-blue-200">
+                    {(displayName || user?.email || '?')[0]?.toUpperCase()}
+                  </div>
+                )}
+                <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-white shadow-md">
+                  {uploadingAvatar ? <div className="h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" /> : (
+                    <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" /></svg>
+                  )}
                 </div>
+              </label>
+              <div>
+                <p className="text-sm font-medium text-gray-700">Φωτογραφία Λογαριασμού</p>
+                <p className="text-xs text-gray-400">Εμφανίζεται στο sidebar + chat</p>
               </div>
             </div>
+
+            {/* Display name */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">Ονοματεπώνυμο</label>
+              <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="π.χ. Ευγένιος Αφενδουλίδης" />
+              <p className="mt-1 text-xs text-gray-400">Εμφανίζεται κάτω αριστερά και στα matches</p>
+            </div>
+
+            {/* Email (read-only) */}
+            <div className="rounded-lg bg-gray-50 px-4 py-3">
+              <p className="text-sm font-medium text-gray-700">Email</p>
+              <p className="text-sm text-gray-500">{user?.email}</p>
+            </div>
+
+            <Button onClick={saveAccountSettings} disabled={savingAccount} size="sm">
+              {savingAccount ? 'Αποθήκευση...' : 'Αποθήκευση Στοιχείων'}
+            </Button>
           </CardContent>
         </Card>
 

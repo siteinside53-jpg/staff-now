@@ -144,7 +144,30 @@ auth.get('/me', requireAuth, async (c) => {
     .bind(user.id)
     .first();
 
-  return success(c, { user, profile, subscription });
+  return success(c, { user: { ...user, display_name: (user as any).display_name, avatar_url: (user as any).avatar_url }, profile, subscription });
+});
+
+// PATCH /me/settings — update account display name + avatar
+auth.patch('/me/settings', requireAuth, async (c) => {
+  const user = c.get('user');
+  const db = c.env.DB;
+  const body = await c.req.json();
+  const now = new Date().toISOString();
+
+  const updates: string[] = [];
+  const values: any[] = [];
+
+  if (body.displayName !== undefined) { updates.push('display_name = ?'); values.push(body.displayName); }
+  if (body.avatarUrl !== undefined) { updates.push('avatar_url = ?'); values.push(body.avatarUrl); }
+
+  if (updates.length > 0) {
+    updates.push('updated_at = ?');
+    values.push(now, user.id);
+    await db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
+  }
+
+  const updated = await db.prepare('SELECT id, email, role, status, display_name, avatar_url FROM users WHERE id = ?').bind(user.id).first();
+  return success(c, updated);
 });
 
 // POST /forgot-password

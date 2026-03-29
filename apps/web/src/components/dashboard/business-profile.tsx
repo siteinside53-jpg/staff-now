@@ -34,7 +34,8 @@ const EMPTY_BRANCH: Partial<Branch> = {
 const BIZ_TYPES: Record<string, string> = {
   hotel: '🏨 Ξενοδοχείο', restaurant: '🍽️ Εστιατόριο', beach_bar: '🏖️ Beach Bar',
   bar: '🍸 Μπαρ', cafe: '☕ Καφετέρια', villa: '🏡 Βίλα',
-  tourism_company: '✈️ Τουριστική Εταιρεία', resort: '🌴 Resort', other: '📋 Άλλο',
+  tourism_company: '✈️ Τουριστική Εταιρεία', resort: '🌴 Resort',
+  technical: '🔧 Τεχνική Εταιρεία', other: '📋 Άλλο',
 };
 
 export function BusinessProfile({ user, profile, refreshUser }: { user: any; profile: any; refreshUser: () => Promise<void> }) {
@@ -185,6 +186,22 @@ export function BusinessProfile({ user, profile, refreshUser }: { user: any; pro
               <Input value={editingBranch.address || ''} onChange={(e) => bc('address', e.target.value)} placeholder="π.χ. Λεωφ. Βασ. Σοφίας 12" /></div>
             <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Website</label>
               <Input value={editingBranch.website || ''} onChange={(e) => bc('website', e.target.value)} placeholder="https://example.com" /></div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Νομική Μορφή</label>
+                <select value={(editingBranch as any).legal_form || ''} onChange={(e) => bc('legal_form', e.target.value)} className={sel}>
+                  <option value="">Επέλεξε</option>
+                  <option value="sole">Ατομική</option>
+                  <option value="ike">ΙΚΕ</option>
+                  <option value="oe">ΟΕ</option>
+                  <option value="ee">ΕΕ</option>
+                  <option value="epe">ΕΠΕ</option>
+                  <option value="ae">ΑΕ</option>
+                  <option value="koinsx">ΚοινΣΕπ</option>
+                  <option value="other">Άλλο</option>
+                </select></div>
+              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">ΑΦΜ <span className="text-xs text-gray-400">(προαιρετικό)</span></label>
+                <Input value={(editingBranch as any).tax_id || ''} onChange={(e) => bc('tax_id', e.target.value)} placeholder="π.χ. 123456789" /></div>
+            </div>
           </CardContent></Card>
 
         {/* Conditions */}
