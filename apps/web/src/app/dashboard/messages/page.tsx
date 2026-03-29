@@ -77,22 +77,28 @@ function MessagesInner() {
             <p className="text-sm font-medium text-gray-500 mb-2">{conversations.length} συνομιλίες</p>
             {conversations.map((c: any) => {
               const isActive = selectedConv === c.id;
-              const otherName = user?.role === 'worker'
-                ? (c.business_name || c.company_name || 'Επιχείρηση')
-                : (c.worker_name || c.full_name || 'Εργαζόμενος');
+              const otherName = c.otherParty?.name || (user?.role === 'worker' ? 'Επιχείρηση' : 'Εργαζόμενος');
+              const lastMsg = c.lastMessage?.content || c.lastMessage?.text;
+              const dateStr = c.updatedAt || c.createdAt;
               return (
                 <div key={c.id} onClick={() => setSelectedConv(c.id)}
                   className={`cursor-pointer rounded-xl p-4 transition-all ${isActive ? 'bg-blue-50 border-2 border-blue-500' : 'bg-white border border-gray-100 hover:border-gray-300'}`}>
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-600 flex-shrink-0">
-                      {otherName[0]?.toUpperCase() || '?'}
-                    </div>
+                    {c.otherParty?.avatar ? (
+                      <img src={c.otherParty.avatar} alt="" className="h-10 w-10 rounded-full object-cover flex-shrink-0" />
+                    ) : (
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-600 flex-shrink-0">
+                        {otherName[0]?.toUpperCase() || '?'}
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-900 truncate text-sm">{otherName}</p>
-                      {c.last_message_at && (
-                        <p className="text-xs text-gray-400">{new Date(c.last_message_at).toLocaleDateString('el-GR')}</p>
-                      )}
+                      {lastMsg && <p className="text-xs text-gray-500 truncate">{lastMsg}</p>}
+                      {dateStr && <p className="text-xs text-gray-400">{new Date(dateStr).toLocaleDateString('el-GR')}</p>}
                     </div>
+                    {c.unreadCount > 0 && (
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">{c.unreadCount}</span>
+                    )}
                   </div>
                 </div>
               );
