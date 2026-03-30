@@ -307,7 +307,8 @@ workers.get('/discover', requireAuth, requireRole('business'), async (c) => {
       CASE WHEN sub.plan_id IN ('professional', 'enterprise') THEN 1 ELSE 0 END as is_premium,
       CASE WHEN wp.verified = 1 THEN 1 ELSE 0 END as is_verified,
       wp.profile_completeness,
-      (SELECT direction FROM swipes WHERE swiper_id = '${user.id}' AND target_id = wp.user_id AND target_type = 'worker' LIMIT 1) as swipe_status
+      (SELECT direction FROM swipes WHERE swiper_id = '${user.id}' AND target_id = wp.user_id AND target_type = 'worker' LIMIT 1) as swipe_status,
+      (SELECT COUNT(*) FROM matches WHERE business_id = '${user.id}' AND worker_id = wp.user_id AND status = 'active') as is_matched
     FROM worker_profiles wp
     JOIN users u ON u.id = wp.user_id
     LEFT JOIN subscriptions sub ON sub.user_id = u.id AND sub.status = 'active'

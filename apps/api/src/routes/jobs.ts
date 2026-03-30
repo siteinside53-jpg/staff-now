@@ -102,7 +102,8 @@ jobs.get('/', requireAuth, async (c) => {
          COALESCE(NULLIF(br.name, ''), bp.company_name) as display_company_name,
          bp.verified as business_verified,
          CASE WHEN sub.plan_id IN ('professional', 'enterprise') THEN 1 ELSE 0 END as is_premium,
-         (SELECT direction FROM swipes WHERE swiper_id = '${user.id}' AND target_id = j.id AND target_type = 'job' LIMIT 1) as swipe_status
+         (SELECT direction FROM swipes WHERE swiper_id = '${user.id}' AND target_id = j.id AND target_type = 'job' LIMIT 1) as swipe_status,
+         (SELECT COUNT(*) FROM matches WHERE worker_id = '${user.id}' AND business_id = bp.user_id AND status = 'active') as is_matched
        FROM job_listings j
        JOIN business_profiles bp ON bp.id = j.business_id
        LEFT JOIN business_branches br ON br.user_id = bp.user_id

@@ -27,6 +27,7 @@ interface DiscoverProfile {
   housingProvided?: boolean;
   mealsProvided?: boolean;
   swipeStatus?: string | null; // 'like' | 'skip' | null
+  isMatched?: boolean;
 }
 
 function timeAgo(dateStr?: string): string {
@@ -66,6 +67,7 @@ export default function DiscoverPage() {
           housingProvided: j.housing_provided === 1,
           mealsProvided: j.meals_provided === 1,
           swipeStatus: j.swipe_status || null,
+          isMatched: j.is_matched > 0,
           companyName: j.display_company_name || j.company_name,
           location: [j.city, j.region].filter(Boolean).join(', '),
           bio: j.description,
@@ -84,6 +86,7 @@ export default function DiscoverPage() {
           name: w.full_name || 'Χωρίς όνομα',
           photoUrl: w.photo_url || undefined,
           swipeStatus: w.swipe_status || null,
+          isMatched: w.is_matched > 0,
           location: [w.city, w.region].filter(Boolean).join(', '),
           bio: w.bio,
           tags: w.roles || [],
@@ -265,37 +268,47 @@ export default function DiscoverPage() {
               </button>
             </div>
 
-            {/* Swipe status badge */}
-            {currentCandidate.swipeStatus && (
+            {/* Status badge */}
+            {(currentCandidate.isMatched || currentCandidate.swipeStatus) && (
               <div className="mt-3 text-center">
                 <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
-                  currentCandidate.swipeStatus === 'like'
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                    : 'bg-gray-100 text-gray-500 border border-gray-200'
+                  currentCandidate.isMatched
+                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                    : currentCandidate.swipeStatus === 'like'
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : 'bg-gray-100 text-gray-500 border border-gray-200'
                 }`}>
-                  {currentCandidate.swipeStatus === 'like' ? '❤️ Δήλωσα Ενδιαφέρον' : '👁️ Προβλήθηκε'}
+                  {currentCandidate.isMatched ? '🤝 Match — Μπορείτε να συνομιλήσετε' : currentCandidate.swipeStatus === 'like' ? '❤️ Δήλωσα Ενδιαφέρον' : '👁️ Προβλήθηκε'}
                 </span>
               </div>
             )}
 
             <div className="mt-4 flex gap-4">
-              <Button
-                variant="outline"
-                size="lg"
-                className="flex-1 border-red-200 text-red-600 hover:bg-red-50"
-                onClick={() => handleAction('skip')}
-                disabled={actionLoading}
-              >
-                ✕ Πέρασε
-              </Button>
-              <Button
-                size="lg"
-                className={`flex-1 text-white ${currentCandidate.swipeStatus === 'like' ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
-                onClick={() => handleAction('like')}
-                disabled={actionLoading || currentCandidate.swipeStatus === 'like'}
-              >
-                {currentCandidate.swipeStatus === 'like' ? '✓ Δηλώθηκε' : '♥ Ενδιαφέρομαι'}
-              </Button>
+              {currentCandidate.isMatched ? (
+                <a href="/dashboard/messages" className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white hover:bg-blue-700">
+                  💬 Άνοιξε Chat
+                </a>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="flex-1 border-red-200 text-red-600 hover:bg-red-50"
+                    onClick={() => handleAction('skip')}
+                    disabled={actionLoading}
+                  >
+                    ✕ Πέρασε
+                  </Button>
+                  <Button
+                    size="lg"
+                    className={`flex-1 text-white ${currentCandidate.swipeStatus === 'like' ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                    onClick={() => handleAction('like')}
+                    disabled={actionLoading || currentCandidate.swipeStatus === 'like'}
+                  >
+                    {currentCandidate.swipeStatus === 'like' ? '✓ Δηλώθηκε' : '♥ Ενδιαφέρομαι'}
+                  </Button>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
