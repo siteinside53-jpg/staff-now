@@ -101,9 +101,13 @@ export default function InterestsPage() {
                 <Card key={item.swipe_id} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-5">
                     <div className="flex items-start gap-4">
-                      <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-blue-100 text-xl font-bold text-blue-600">
-                        {item.company_name?.[0]?.toUpperCase() || '🏢'}
-                      </div>
+                      {item.logo_url ? (
+                        <img src={item.logo_url} alt="" className="h-14 w-14 rounded-xl object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-blue-100 text-xl font-bold text-blue-600">
+                          {item.company_name?.[0]?.toUpperCase() || '🏢'}
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <h3 className="font-bold text-gray-900 truncate">{item.company_name || 'Επιχείρηση'}</h3>

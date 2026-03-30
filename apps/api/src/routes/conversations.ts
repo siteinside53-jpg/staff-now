@@ -37,8 +37,8 @@ conversations.get('/', requireAuth, async (c) => {
          m.worker_id, m.business_id, m.job_id, m.status as match_status,
          COALESCE(NULLIF(wp.full_name, ''), u_w.display_name, u_w.email) as worker_name,
          COALESCE(wp.photo_url, u_w.avatar_url) as worker_avatar,
-         COALESCE(NULLIF(bp.company_name, ''), u_b.display_name, u_b.email) as business_name,
-         COALESCE(bp.logo_url, u_b.avatar_url) as business_logo,
+         COALESCE(NULLIF(br.name, ''), NULLIF(bp.company_name, ''), u_b.display_name, u_b.email) as business_name,
+         COALESCE(br.logo_url, bp.logo_url, u_b.avatar_url) as business_logo,
          j.title as job_title
        FROM conversations c
        JOIN matches m ON m.id = c.match_id
@@ -46,6 +46,7 @@ conversations.get('/', requireAuth, async (c) => {
        LEFT JOIN users u_w ON u_w.id = m.worker_id
        LEFT JOIN business_profiles bp ON bp.user_id = m.business_id
        LEFT JOIN users u_b ON u_b.id = m.business_id
+       LEFT JOIN business_branches br ON br.user_id = m.business_id
        LEFT JOIN job_listings j ON j.id = m.job_id
        WHERE ${roleCondition}
        ORDER BY c.last_message_at DESC NULLS LAST, c.created_at DESC
