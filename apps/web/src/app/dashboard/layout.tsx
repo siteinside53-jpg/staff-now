@@ -65,7 +65,7 @@ export default function DashboardLayout({
         <div className="flex h-16 items-center border-b px-6">
           <Link href="/" className="inline-flex items-center gap-1.5 text-xl font-extrabold">
             <svg className="h-5 w-5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            <span className="text-gray-900">Staff</span><span className="text-blue-600">Now</span>
+            <span><span className="text-gray-900">Staff</span><span className="text-blue-600">Now</span></span>
           </Link>
         </div>
 
@@ -134,7 +134,7 @@ export default function DashboardLayout({
       <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b bg-white px-4 lg:hidden">
         <Link href="/" className="inline-flex items-center gap-1.5 text-lg font-extrabold">
           <svg className="h-4 w-4 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          <span className="text-gray-900">Staff</span><span className="text-blue-600">Now</span>
+          <span><span className="text-gray-900">Staff</span><span className="text-blue-600">Now</span></span>
         </Link>
         <div className="relative">
           <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100">
