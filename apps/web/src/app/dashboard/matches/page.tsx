@@ -66,21 +66,31 @@ export default function MatchesPage() {
             const avatar = isWorker ? m.business_logo : m.worker_avatar;
             const jobTitle = m.job_title;
             const matchDate = m.matched_at || m.created_at;
+            const bizType = m.business_type;
+            const housing = m.staff_housing;
+            const meals = m.meals_provided;
 
             return (
               <Card key={m.id} className="transition-shadow hover:shadow-md">
                 <CardContent className="p-5">
                   <div className="flex items-start gap-4">
                     {avatar ? (
-                      <img src={avatar} alt="" className="h-12 w-12 rounded-full object-cover flex-shrink-0" />
+                      <img src={avatar} alt="" className="h-12 w-12 rounded-xl object-cover flex-shrink-0" />
                     ) : (
-                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-lg font-bold text-blue-600">
+                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-blue-100 text-lg font-bold text-blue-600">
                         {name.charAt(0).toUpperCase()}
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
                       <h3 className="truncate font-semibold text-gray-900">{name}</h3>
                       {jobTitle && <p className="truncate text-sm text-gray-600">{jobTitle}</p>}
+                      {isWorker && (
+                        <div className="mt-1 flex flex-wrap gap-1.5 text-xs">
+                          {m.business_region && <span className="text-gray-400">📍 {m.business_region}</span>}
+                          {housing === 1 && <span className="text-emerald-600">🏠</span>}
+                          {meals === 1 && <span className="text-emerald-600">🍽️</span>}
+                        </div>
+                      )}
                     </div>
                     <Badge variant={m.status === 'active' ? 'default' : 'secondary'}>
                       {m.status === 'active' ? 'Ενεργό' : 'Αρχείο'}

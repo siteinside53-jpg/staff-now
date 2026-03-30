@@ -42,9 +42,11 @@ matches.get('/', requireAuth, async (c) => {
       `SELECT m.*,
          COALESCE(NULLIF(wp.full_name, ''), u_w.display_name, u_w.email) as worker_name,
          COALESCE(wp.photo_url, u_w.avatar_url) as worker_avatar, wp.region as worker_region,
-         COALESCE(NULLIF(bp.company_name, ''), u_b.display_name, u_b.email) as business_name,
-         COALESCE(bp.logo_url, u_b.avatar_url) as business_logo,
-         bp.region as business_region,
+         COALESCE(NULLIF(br.name, ''), NULLIF(bp.company_name, ''), u_b.display_name, u_b.email) as business_name,
+         COALESCE(br.logo_url, bp.logo_url, u_b.avatar_url) as business_logo,
+         COALESCE(br.region, bp.region) as business_region,
+         br.business_type as business_type,
+         br.staff_housing, br.meals_provided,
          j.title as job_title, j.id as linked_job_id,
          conv.id as conversation_id
        FROM matches m
@@ -52,6 +54,7 @@ matches.get('/', requireAuth, async (c) => {
        LEFT JOIN users u_w ON u_w.id = m.worker_id
        LEFT JOIN business_profiles bp ON bp.user_id = m.business_id
        LEFT JOIN users u_b ON u_b.id = m.business_id
+       LEFT JOIN business_branches br ON br.user_id = m.business_id
        LEFT JOIN job_listings j ON j.id = m.job_id
        LEFT JOIN conversations conv ON conv.match_id = m.id
        ${whereClause}

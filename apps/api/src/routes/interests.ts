@@ -16,15 +16,19 @@ interests.get('/received', requireAuth, async (c) => {
     const results = await db
       .prepare(
         `SELECT s.id as swipe_id, s.swiper_id, s.created_at as liked_at,
-           COALESCE(NULLIF(bp.company_name, ''), u.display_name, u.email) as company_name,
-           COALESCE(bp.logo_url, u.avatar_url) as logo_url,
-           bp.business_type, bp.region,
-           bp.staff_housing, bp.meals_provided, bp.description,
+           COALESCE(NULLIF(br.name, ''), NULLIF(bp.company_name, ''), u.display_name, u.email) as company_name,
+           COALESCE(br.logo_url, bp.logo_url, u.avatar_url) as logo_url,
+           COALESCE(br.business_type, bp.business_type) as business_type,
+           COALESCE(br.region, bp.region) as region,
+           COALESCE(br.staff_housing, bp.staff_housing) as staff_housing,
+           COALESCE(br.meals_provided, bp.meals_provided) as meals_provided,
+           COALESCE(br.description, bp.description) as description,
            u.email as business_email,
            (SELECT COUNT(*) FROM matches WHERE worker_id = ? AND business_id = s.swiper_id AND status = 'active') as is_matched
          FROM swipes s
          JOIN users u ON u.id = s.swiper_id
          LEFT JOIN business_profiles bp ON bp.user_id = s.swiper_id
+         LEFT JOIN business_branches br ON br.user_id = s.swiper_id
          WHERE s.target_id = ? AND s.target_type = 'worker' AND s.direction = 'like'
          ORDER BY s.created_at DESC
          LIMIT 50`
