@@ -26,6 +26,7 @@ interface DiscoverProfile {
   companyName?: string;
   housingProvided?: boolean;
   mealsProvided?: boolean;
+  swipeStatus?: string | null; // 'like' | 'skip' | null
 }
 
 function timeAgo(dateStr?: string): string {
@@ -64,6 +65,8 @@ export default function DiscoverPage() {
           createdAt: j.created_at,
           housingProvided: j.housing_provided === 1,
           mealsProvided: j.meals_provided === 1,
+          swipeStatus: j.swipe_status || null,
+          companyName: j.display_company_name || j.company_name,
           location: [j.city, j.region].filter(Boolean).join(', '),
           bio: j.description,
           tags: j.roles || [j.employment_type].filter(Boolean),
@@ -80,6 +83,7 @@ export default function DiscoverPage() {
           id: w.id || w.user_id,
           name: w.full_name || 'Χωρίς όνομα',
           photoUrl: w.photo_url || undefined,
+          swipeStatus: w.swipe_status || null,
           location: [w.city, w.region].filter(Boolean).join(', '),
           bio: w.bio,
           tags: w.roles || [],
@@ -261,7 +265,20 @@ export default function DiscoverPage() {
               </button>
             </div>
 
-            <div className="mt-6 flex gap-4">
+            {/* Swipe status badge */}
+            {currentCandidate.swipeStatus && (
+              <div className="mt-3 text-center">
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
+                  currentCandidate.swipeStatus === 'like'
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-gray-100 text-gray-500 border border-gray-200'
+                }`}>
+                  {currentCandidate.swipeStatus === 'like' ? '❤️ Δήλωσα Ενδιαφέρον' : '👁️ Προβλήθηκε'}
+                </span>
+              </div>
+            )}
+
+            <div className="mt-4 flex gap-4">
               <Button
                 variant="outline"
                 size="lg"
@@ -273,11 +290,11 @@ export default function DiscoverPage() {
               </Button>
               <Button
                 size="lg"
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                className={`flex-1 text-white ${currentCandidate.swipeStatus === 'like' ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
                 onClick={() => handleAction('like')}
-                disabled={actionLoading}
+                disabled={actionLoading || currentCandidate.swipeStatus === 'like'}
               >
-                ♥ Ενδιαφέρομαι
+                {currentCandidate.swipeStatus === 'like' ? '✓ Δηλώθηκε' : '♥ Ενδιαφέρομαι'}
               </Button>
             </div>
           </CardContent>

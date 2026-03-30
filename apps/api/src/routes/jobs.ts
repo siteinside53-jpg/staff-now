@@ -38,12 +38,8 @@ jobs.get('/', requireAuth, async (c) => {
       params.push(bp.id);
     }
   } else {
-    // Workers see only published jobs, excluding swiped
+    // Workers see all published jobs (including already swiped)
     conditions.push("j.status = 'published'");
-    conditions.push(
-      `j.id NOT IN (SELECT target_id FROM swipes WHERE swiper_id = ? AND target_type = 'job')`
-    );
-    params.push(user.id);
   }
 
   if (region) {
@@ -101,10 +97,15 @@ jobs.get('/', requireAuth, async (c) => {
   // Get jobs
   const results = await db
     .prepare(
-      `SELECT DISTINCT j.*, bp.company_name, bp.logo_url, bp.verified as business_verified,
-         CASE WHEN sub.plan_id IN ('professional', 'enterprise') THEN 1 ELSE 0 END as is_premium
+      `SELECT DISTINCT j.*, bp.company_name,
+         COALESCE(br.logo_url, bp.logo_url) as company_logo,
+         COALESCE(NULLIF(br.name, ''), bp.company_name) as display_company_name,
+         bp.verified as business_verified,
+         CASE WHEN sub.plan_id IN ('professional', 'enterprise') THEN 1 ELSE 0 END as is_premium,
+         (SELECT direction FROM swipes WHERE swiper_id = '${user.id}' AND target_id = j.id AND target_type = 'job' LIMIT 1) as swipe_status
        FROM job_listings j
        JOIN business_profiles bp ON bp.id = j.business_id
+       LEFT JOIN business_branches br ON br.user_id = bp.user_id
        LEFT JOIN subscriptions sub ON sub.user_id = bp.user_id AND sub.status = 'active'
        ${roleJoin}
        ${whereClause}

@@ -236,13 +236,7 @@ workers.get('/discover', requireAuth, requireRole('business'), async (c) => {
   const conditions: string[] = ['u.status = ?', 'u.role = ?'];
   const params: (string | number)[] = ['active', 'worker'];
 
-  // Exclude already swiped workers
-  conditions.push(
-    `wp.user_id NOT IN (SELECT target_id FROM swipes WHERE swiper_id = ? AND target_type = 'worker')`
-  );
-  params.push(user.id);
-
-  // Exclude blocked workers
+  // Only exclude blocked workers (not swiped — we show all with status)
   conditions.push(
     `wp.user_id NOT IN (SELECT blocked_id FROM blocks WHERE blocker_id = ?)`
   );
@@ -312,7 +306,8 @@ workers.get('/discover', requireAuth, requireRole('business'), async (c) => {
     SELECT DISTINCT wp.*, u.email, u.status as user_status,
       CASE WHEN sub.plan_id IN ('professional', 'enterprise') THEN 1 ELSE 0 END as is_premium,
       CASE WHEN wp.verified = 1 THEN 1 ELSE 0 END as is_verified,
-      wp.profile_completeness
+      wp.profile_completeness,
+      (SELECT direction FROM swipes WHERE swiper_id = '${user.id}' AND target_id = wp.user_id AND target_type = 'worker' LIMIT 1) as swipe_status
     FROM worker_profiles wp
     JOIN users u ON u.id = wp.user_id
     LEFT JOIN subscriptions sub ON sub.user_id = u.id AND sub.status = 'active'
