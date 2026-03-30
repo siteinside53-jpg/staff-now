@@ -343,8 +343,9 @@ auth.get('/google/callback', async (c) => {
     // Generate JWT
     const token = await signJWT({ sub: user.id, email: user.email, role: user.role }, c.env.JWT_SECRET);
 
-    // Redirect to frontend with token
-    return c.redirect(`https://staffnow.gr/auth/google-callback?token=${token}`);
+    // Redirect to frontend with token in URL hash (not query param)
+    // Using hash so it works even if RSC doesn't render properly
+    return c.redirect(`https://staffnow.gr/auth/google-callback#token=${token}`);
 
   } catch (err) {
     console.error('Google OAuth error:', err);

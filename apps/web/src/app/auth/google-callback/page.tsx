@@ -1,30 +1,27 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
 
-function GoogleCallbackInner() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
+export default function GoogleCallbackPage() {
   useEffect(() => {
-    const token = searchParams.get('token');
-    const error = searchParams.get('error');
+    // Read token from URL hash (#token=xxx) or query param (?token=xxx)
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash || window.location.search);
+    const token = params.get('token');
+    const error = params.get('error');
 
     if (error) {
-      router.push(`/auth/login?error=${error}`);
+      window.location.href = `/auth/login?error=${error}`;
       return;
     }
 
     if (token) {
-      // Save token and do full page reload so AuthProvider picks it up
       localStorage.setItem('staffnow_token', token);
       window.location.href = '/dashboard';
     } else {
       window.location.href = '/auth/login?error=no_token';
     }
-  }, [searchParams, router]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -33,13 +30,5 @@ function GoogleCallbackInner() {
         <p className="mt-4 text-gray-600">Σύνδεση μέσω Google...</p>
       </div>
     </div>
-  );
-}
-
-export default function GoogleCallbackPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center"><p>Φόρτωση...</p></div>}>
-      <GoogleCallbackInner />
-    </Suspense>
   );
 }
