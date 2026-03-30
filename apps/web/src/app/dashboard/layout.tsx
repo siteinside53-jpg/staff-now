@@ -141,22 +141,33 @@ export default function DashboardLayout({
       </div>
 
       {/* Mobile bottom navigation */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t bg-white lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex border-t bg-white lg:hidden safe-area-inset-bottom">
         {navItems.slice(0, 5).map((item) => {
           const isActive =
             item.href === '/dashboard'
               ? pathname === '/dashboard'
               : pathname.startsWith(item.href);
+          const shortLabels: Record<string, string> = {
+            'Αρχική': 'Αρχική',
+            'Ανακάλυψη': 'Εύρεση',
+            'Ενδιαφέρον': '❤️',
+            'Matches': 'Match',
+            'Μηνύματα': 'Chat',
+            'Αγγελίες': 'Αγγελ.',
+            'Προφίλ': 'Προφίλ',
+            'Συνδρομή': 'Πλάνο',
+            'Ρυθμίσεις': 'Ρυθμ.',
+          };
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-1 flex-col items-center gap-1 py-2 text-xs ${
+              className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] ${
                 isActive ? 'text-blue-600' : 'text-gray-500'
               }`}
             >
               <item.icon className="h-5 w-5" />
-              <span>{item.label}</span>
+              <span className="truncate">{shortLabels[item.label] || item.label}</span>
             </Link>
           );
         })}

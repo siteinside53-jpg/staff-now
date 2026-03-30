@@ -117,18 +117,18 @@ export default function InterestsPage() {
                           <span>🕐 {timeAgo(item.liked_at)}</span>
                         </div>
                       </div>
-                      <div className="flex flex-shrink-0 gap-2">
-                        <button onClick={() => setViewingProfileId(item.swiper_id)} className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                      <div className="flex flex-shrink-0 gap-1.5 sm:gap-2">
+                        <button onClick={() => setViewingProfileId(item.swiper_id)} className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50">
                           👤
                         </button>
                         {isMatched ? (
-                          <a href="/dashboard/messages" className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-                            💬 Chat
+                          <a href="/dashboard/messages" className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-white hover:bg-emerald-700">
+                            💬
                           </a>
                         ) : (
                           <button onClick={() => handleLikeBack(item)} disabled={liking === item.swiper_id}
-                            className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-                            {liking === item.swiper_id ? '...' : '❤️ Ενδιαφέρομαι'}
+                            className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+                            {liking === item.swiper_id ? '...' : '❤️'}
                           </button>
                         )}
                       </div>
@@ -161,18 +161,18 @@ export default function InterestsPage() {
                           <span>🕐 {timeAgo(item.liked_at)}</span>
                         </div>
                       </div>
-                      <div className="flex flex-shrink-0 gap-2">
-                        <button onClick={() => setViewingProfileId(item.swiper_id)} className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                      <div className="flex flex-shrink-0 gap-1.5 sm:gap-2">
+                        <button onClick={() => setViewingProfileId(item.swiper_id)} className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50">
                           👤
                         </button>
                         {isMatched ? (
-                          <a href="/dashboard/messages" className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-                            💬 Chat
+                          <a href="/dashboard/messages" className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-white hover:bg-emerald-700">
+                            💬
                           </a>
                         ) : (
                           <button onClick={() => handleLikeBack(item)} disabled={liking === item.swiper_id}
-                            className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-                            {liking === item.swiper_id ? '...' : '❤️ Ενδιαφέρομαι'}
+                            className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+                            {liking === item.swiper_id ? '...' : '❤️'}
                           </button>
                         )}
                       </div>

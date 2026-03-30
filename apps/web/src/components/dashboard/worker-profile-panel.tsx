@@ -55,7 +55,7 @@ export function WorkerProfilePanel({ workerId, onClose, onLike, onSkip, totalCar
       <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
-      <div className="fixed inset-4 z-50 mx-auto max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl sm:inset-8 lg:inset-y-8 lg:inset-x-auto lg:max-w-[1000px]">
+      <div className="fixed inset-0 z-50 mx-auto overflow-hidden bg-white shadow-2xl sm:inset-4 sm:rounded-2xl sm:max-w-5xl lg:inset-y-8 lg:inset-x-auto lg:max-w-[1000px]">
         <div className="flex h-full">
 
           {/* ====== LEFT SIDEBAR ====== */}
@@ -95,10 +95,10 @@ export function WorkerProfilePanel({ workerId, onClose, onLike, onSkip, totalCar
             {/* Sidebar Nav */}
             <nav className="flex-1 px-4 space-y-1">
               {[
-                { icon: '📋', label: 'Νεύελαΐα', id: 'profile' },
+                { icon: '📋', label: 'Προφίλ', id: 'profile' },
                 { icon: '💼', label: 'Εμπειρία', id: 'experience' },
-                { icon: '⭐', label: 'Matches', id: 'reviews' },
-                { icon: '📎', label: 'Συζοφάσει', id: 'documents' },
+                { icon: '⭐', label: 'Αξιολογήσεις', id: 'reviews' },
+                { icon: '📎', label: 'Έγγραφα', id: 'documents' },
               ].map((item) => (
                 <button key={item.id} onClick={() => setActiveTab(item.id)}
                   className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${activeTab === item.id ? 'bg-white text-blue-600 font-semibold shadow-sm' : 'text-gray-600 hover:bg-white/60'}`}>
