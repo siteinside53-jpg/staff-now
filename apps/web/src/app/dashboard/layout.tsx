@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
@@ -11,10 +11,10 @@ import { Avatar } from '@/components/ui/avatar';
 const workerNavItems = [
   { href: '/dashboard', label: 'Αρχική', icon: HomeIcon },
   { href: '/dashboard/discover', label: 'Ανακάλυψη', icon: DiscoverIcon },
-  { href: '/dashboard/interests', label: 'Ενδιαφέρον', icon: HeartIcon },
   { href: '/dashboard/matches', label: 'Matches', icon: MatchIcon },
   { href: '/dashboard/messages', label: 'Μηνύματα', icon: MessageIcon },
   { href: '/dashboard/profile', label: 'Προφίλ', icon: ProfileIcon },
+  { href: '/dashboard/interests', label: 'Ενδιαφέρον', icon: HeartIcon },
   { href: '/dashboard/billing', label: 'Συνδρομή', icon: BillingIcon },
   { href: '/dashboard/settings', label: 'Ρυθμίσεις', icon: SettingsIcon },
 ];
@@ -23,9 +23,9 @@ const businessNavItems = [
   { href: '/dashboard', label: 'Αρχική', icon: HomeIcon },
   { href: '/dashboard/jobs', label: 'Αγγελίες', icon: JobsIcon },
   { href: '/dashboard/discover', label: 'Ανακάλυψη', icon: DiscoverIcon },
-  { href: '/dashboard/interests', label: 'Ενδιαφέρον', icon: HeartIcon },
   { href: '/dashboard/matches', label: 'Matches', icon: MatchIcon },
   { href: '/dashboard/messages', label: 'Μηνύματα', icon: MessageIcon },
+  { href: '/dashboard/interests', label: 'Ενδιαφέρον', icon: HeartIcon },
   { href: '/dashboard/profile', label: 'Προφίλ', icon: ProfileIcon },
   { href: '/dashboard/billing', label: 'Συνδρομή', icon: BillingIcon },
   { href: '/dashboard/settings', label: 'Ρυθμίσεις', icon: SettingsIcon },
@@ -39,6 +39,7 @@ export default function DashboardLayout({
   const { user, profile, loading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -135,9 +136,32 @@ export default function DashboardLayout({
           <svg className="h-4 w-4 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           <span className="text-gray-900">Staff</span><span className="text-blue-600">Now</span>
         </Link>
-        <Button variant="outline" size="sm" onClick={() => logout()}>
-          Αποσύνδεση
-        </Button>
+        <div className="relative">
+          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100">
+            {mobileMenuOpen ? (
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            ) : (
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
+            )}
+          </button>
+          {mobileMenuOpen && (
+            <div className="absolute right-0 top-12 z-50 w-56 rounded-xl border border-gray-200 bg-white py-2 shadow-xl">
+              {navItems.map((item) => (
+                <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-2.5 text-sm ${pathname.startsWith(item.href) && item.href !== '/dashboard' ? 'text-blue-600 bg-blue-50 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}>
+                  <item.icon className="h-4 w-4" />
+                  {item.label}
+                </Link>
+              ))}
+              <div className="my-1 border-t border-gray-100" />
+              <button onClick={() => { setMobileMenuOpen(false); logout(); }}
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" /></svg>
+                Αποσύνδεση
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Mobile bottom navigation */}
