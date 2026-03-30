@@ -109,9 +109,14 @@ function Header() {
           </nav>
           <div className="mt-4 flex flex-col gap-2 border-t pt-4">
             {isAuthenticated ? (
-              <button onClick={() => { setMobileMenuOpen(false); logout(); }} className="rounded-md px-3 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50">
-                Αποσύνδεση
-              </button>
+              <>
+                <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)} className="rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white">
+                  Πίνακας Ελέγχου
+                </Link>
+                <button onClick={() => { setMobileMenuOpen(false); logout(); }} className="rounded-md px-3 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50">
+                  Αποσύνδεση
+                </button>
+              </>
             ) : (
               <>
                 <Link href="/auth/login" onClick={() => setMobileMenuOpen(false)} className="rounded-lg border border-gray-300 px-4 py-2.5 text-center text-sm font-medium text-gray-700">Σύνδεση</Link>
