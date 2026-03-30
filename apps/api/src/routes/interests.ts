@@ -16,7 +16,9 @@ interests.get('/received', requireAuth, async (c) => {
     const results = await db
       .prepare(
         `SELECT s.id as swipe_id, s.swiper_id, s.created_at as liked_at,
-           bp.company_name, bp.logo_url, bp.business_type, bp.region,
+           COALESCE(NULLIF(bp.company_name, ''), u.display_name, u.email) as company_name,
+           COALESCE(bp.logo_url, u.avatar_url) as logo_url,
+           bp.business_type, bp.region,
            bp.staff_housing, bp.meals_provided, bp.description,
            u.email as business_email,
            (SELECT COUNT(*) FROM matches WHERE worker_id = ? AND business_id = s.swiper_id AND status = 'active') as is_matched
@@ -35,7 +37,9 @@ interests.get('/received', requireAuth, async (c) => {
     const results = await db
       .prepare(
         `SELECT s.id as swipe_id, s.swiper_id, s.target_id as job_id, s.created_at as liked_at,
-           wp.full_name, wp.photo_url, wp.city, wp.region, wp.bio, wp.years_of_experience, wp.availability,
+           COALESCE(NULLIF(wp.full_name, ''), u.display_name, u.email) as full_name,
+           COALESCE(wp.photo_url, u.avatar_url) as photo_url,
+           wp.city, wp.region, wp.bio, wp.years_of_experience, wp.availability,
            jl.title as job_title,
            (SELECT COUNT(*) FROM matches WHERE worker_id = s.swiper_id AND business_id = ? AND status = 'active') as is_matched
          FROM swipes s
