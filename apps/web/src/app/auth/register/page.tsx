@@ -45,7 +45,7 @@ function RegisterForm() {
     try {
       await registerUser({ email, password, confirmPassword, role, acceptTerms: true });
       toast.success('Ο λογαριασμός δημιουργήθηκε επιτυχώς!');
-      router.push('/dashboard');
+      window.location.href = '/dashboard';
     } catch (err: any) {
       setErrorMsg(err.message || 'Αποτυχία εγγραφής. Δοκιμάστε ξανά.');
     } finally {

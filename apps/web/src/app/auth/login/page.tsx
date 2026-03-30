@@ -21,7 +21,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      router.push('/dashboard');
+      window.location.href = '/dashboard';
     } catch (err: any) {
       setErrorMsg(err.message || 'Λάθος email ή κωδικός.');
     } finally {
