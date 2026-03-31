@@ -108,6 +108,7 @@ jobs.get('/', requireAuth, async (c) => {
          COALESCE(br.region, j.region, bp.region) as display_region,
          br.postal_code as company_postal_code,
          br.area as company_area,
+         bp.user_id as business_user_id,
          br.staff_housing as branch_housing,
          br.meals_provided as branch_meals,
          br.transportation_assistance as branch_transport,

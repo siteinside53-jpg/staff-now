@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
 import { EmptyState } from '@/components/ui/empty-state';
 import { WorkerProfilePanel } from '@/components/dashboard/worker-profile-panel';
+import { BusinessProfilePanel } from '@/components/dashboard/business-profile-panel';
 
 interface DiscoverProfile {
   id: string;
@@ -26,8 +27,9 @@ interface DiscoverProfile {
   companyName?: string;
   housingProvided?: boolean;
   mealsProvided?: boolean;
-  swipeStatus?: string | null; // 'like' | 'skip' | null
+  swipeStatus?: string | null;
   isMatched?: boolean;
+  businessUserId?: string;
 }
 
 function timeAgo(dateStr?: string): string {
@@ -49,6 +51,7 @@ export default function DiscoverPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [viewingProfileId, setViewingProfileId] = useState<string | null>(null);
+  const [viewingBusinessId, setViewingBusinessId] = useState<string | null>(null);
 
   const isWorker = user?.role === 'worker';
 
@@ -70,6 +73,7 @@ export default function DiscoverPage() {
           isMatched: j.is_matched > 0,
           location: [j.company_address, j.company_area, j.display_city || j.city, j.display_region || j.region, j.company_postal_code].filter(Boolean).join(', '),
           bio: j.description,
+          businessUserId: j.business_user_id || undefined,
           tags: j.roles || [j.employment_type].filter(Boolean),
           salary: j.salary_min && j.salary_max ? `${j.salary_min}-${j.salary_max}€/μήνα` : undefined,
           verified: false,
@@ -260,7 +264,13 @@ export default function DiscoverPage() {
             {/* View Profile Button */}
             <div className="mt-4 text-center">
               <button
-                onClick={() => setViewingProfileId(currentCandidate.id)}
+                onClick={() => {
+                  if (isWorker && currentCandidate.businessUserId) {
+                    setViewingBusinessId(currentCandidate.businessUserId);
+                  } else {
+                    setViewingProfileId(currentCandidate.id);
+                  }
+                }}
                 className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
               >
                 👤 Δες πλήρες προφίλ
@@ -320,6 +330,15 @@ export default function DiscoverPage() {
           onClose={() => setViewingProfileId(null)}
           onLike={(id) => handleAction('like')}
           onSkip={(id) => handleAction('skip')}
+        />
+      )}
+
+      {viewingBusinessId && (
+        <BusinessProfilePanel
+          businessUserId={viewingBusinessId}
+          onClose={() => setViewingBusinessId(null)}
+          onLike={() => handleAction('like')}
+          onSkip={() => handleAction('skip')}
         />
       )}
     </div>
