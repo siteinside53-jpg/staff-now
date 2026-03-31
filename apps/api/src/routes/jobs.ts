@@ -38,8 +38,11 @@ jobs.get('/', requireAuth, async (c) => {
       params.push(bp.id);
     }
   } else {
-    // Workers see all published jobs (including already swiped)
+    // Workers see published jobs, exclude matched ones
     conditions.push("j.status = 'published'");
+    conditions.push(
+      `bp.user_id NOT IN (SELECT business_id FROM matches WHERE worker_id = '${user.id}' AND status = 'active')`
+    );
   }
 
   if (region) {
@@ -100,6 +103,14 @@ jobs.get('/', requireAuth, async (c) => {
       `SELECT DISTINCT j.*, bp.company_name,
          COALESCE(br.logo_url, bp.logo_url) as company_logo,
          COALESCE(NULLIF(br.name, ''), bp.company_name) as display_company_name,
+         COALESCE(br.address, bp.address) as company_address,
+         COALESCE(br.city, j.city) as display_city,
+         COALESCE(br.region, j.region, bp.region) as display_region,
+         br.postal_code as company_postal_code,
+         br.area as company_area,
+         br.staff_housing as branch_housing,
+         br.meals_provided as branch_meals,
+         br.transportation_assistance as branch_transport,
          bp.verified as business_verified,
          CASE WHEN sub.plan_id IN ('professional', 'enterprise') THEN 1 ELSE 0 END as is_premium,
          (SELECT direction FROM swipes WHERE swiper_id = '${user.id}' AND target_id = j.id AND target_type = 'job' LIMIT 1) as swipe_status,

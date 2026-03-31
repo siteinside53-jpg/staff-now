@@ -236,11 +236,16 @@ workers.get('/discover', requireAuth, requireRole('business'), async (c) => {
   const conditions: string[] = ['u.status = ?', 'u.role = ?'];
   const params: (string | number)[] = ['active', 'worker'];
 
-  // Only exclude blocked workers (not swiped — we show all with status)
+  // Exclude blocked workers
   conditions.push(
     `wp.user_id NOT IN (SELECT blocked_id FROM blocks WHERE blocker_id = ?)`
   );
   params.push(user.id);
+
+  // Exclude matched workers
+  conditions.push(
+    `wp.user_id NOT IN (SELECT worker_id FROM matches WHERE business_id = '${user.id}' AND status = 'active')`
+  );
 
   // Exclude users who blocked this business
   conditions.push(

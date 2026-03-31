@@ -40,12 +40,41 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [badges, setBadges] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!loading && !user) {
       window.location.href = '/auth/login';
     }
   }, [user, loading]);
+
+  // Fetch notification badges
+  useEffect(() => {
+    if (!user) return;
+    async function fetchBadges() {
+      try {
+        const token = localStorage.getItem('staffnow_token');
+        const headers = { 'Authorization': `Bearer ${token}` };
+        const base = 'https://staffnow-api-production.siteinside53.workers.dev';
+        const [matchesRes, convosRes, interestsRes] = await Promise.all([
+          fetch(`${base}/matches`, { headers }).then(r => r.json()) as Promise<any>,
+          fetch(`${base}/conversations`, { headers }).then(r => r.json()) as Promise<any>,
+          fetch(`${base}/interests/received`, { headers }).then(r => r.json()) as Promise<any>,
+        ]);
+        const matches = matchesRes?.data || [];
+        const convos = convosRes?.data || [];
+        const interests = interestsRes?.data || [];
+        setBadges({
+          matches: Array.isArray(matches) ? matches.length : 0,
+          messages: Array.isArray(convos) ? convos.filter((c: any) => c.unreadCount > 0).length : 0,
+          interests: Array.isArray(interests) ? interests.filter((i: any) => !i.is_matched).length : 0,
+        });
+      } catch {}
+    }
+    fetchBadges();
+    const interval = setInterval(fetchBadges, 30000); // refresh every 30s
+    return () => clearInterval(interval);
+  }, [user]);
 
   if (loading || !user) {
     return (
@@ -92,7 +121,10 @@ export default function DashboardLayout({
                         isActive ? 'text-blue-600' : 'text-gray-400'
                       }`}
                     />
-                    {item.label}
+                    <span className="flex-1">{item.label}</span>
+                    {item.label === 'Matches' && badges.matches > 0 && <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{badges.matches}</span>}
+                    {item.label === 'Μηνύματα' && badges.messages > 0 && <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{badges.messages}</span>}
+                    {item.label === 'Ενδιαφέρον' && badges.interests > 0 && <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{badges.interests}</span>}
                   </Link>
                 </li>
               );
@@ -136,7 +168,17 @@ export default function DashboardLayout({
           <svg className="h-4 w-4 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           <span><span className="text-gray-900">Staff</span><span className="text-blue-600">Now</span></span>
         </Link>
-        <div className="relative">
+        <div className="flex items-center gap-2">
+          {/* Notification bell */}
+          <Link href="/dashboard/interests" className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100">
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
+            {(badges.interests > 0 || badges.messages > 0) && (
+              <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                {(badges.interests || 0) + (badges.messages || 0)}
+              </span>
+            )}
+          </Link>
+          <div className="relative">
           <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100">
             {mobileMenuOpen ? (
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -161,6 +203,7 @@ export default function DashboardLayout({
               </button>
             </div>
           )}
+        </div>
         </div>
       </div>
 
@@ -190,7 +233,11 @@ export default function DashboardLayout({
                 isActive ? 'text-blue-600' : 'text-gray-500'
               }`}
             >
-              <item.icon className="h-5 w-5" />
+              <div className="relative">
+                <item.icon className="h-5 w-5" />
+                {item.label === 'Matches' && badges.matches > 0 && <span className="absolute -top-1.5 -right-2.5 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-red-500 px-0.5 text-[8px] font-bold text-white">{badges.matches}</span>}
+                {item.label === 'Μηνύματα' && badges.messages > 0 && <span className="absolute -top-1.5 -right-2.5 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-red-500 px-0.5 text-[8px] font-bold text-white">{badges.messages}</span>}
+              </div>
               <span className="truncate">{shortLabels[item.label] || item.label}</span>
             </Link>
           );
