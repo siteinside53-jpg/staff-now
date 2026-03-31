@@ -41,7 +41,7 @@ jobs.get('/', requireAuth, async (c) => {
     // Workers see published jobs, exclude matched ones
     conditions.push("j.status = 'published'");
     conditions.push(
-      `bp.user_id NOT IN (SELECT business_id FROM matches WHERE worker_id = '${user.id}' AND status = 'active')`
+      `j.business_id NOT IN (SELECT bp2.id FROM business_profiles bp2 JOIN matches mt ON mt.business_id = bp2.user_id WHERE mt.worker_id = '${user.id}' AND mt.status = 'active')`
     );
   }
 

@@ -40,6 +40,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const [badges, setBadges] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -75,6 +76,8 @@ export default function DashboardLayout({
     const interval = setInterval(fetchBadges, 30000); // refresh every 30s
     return () => clearInterval(interval);
   }, [user]);
+
+  const totalNotifs = (badges.matches || 0) + (badges.messages || 0) + (badges.interests || 0);
 
   if (loading || !user) {
     return (
@@ -169,15 +172,49 @@ export default function DashboardLayout({
           <span><span className="text-gray-900">Staff</span><span className="text-blue-600">Now</span></span>
         </Link>
         <div className="flex items-center gap-2">
-          {/* Notification bell */}
-          <Link href="/dashboard/interests" className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100">
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
-            {(badges.interests > 0 || badges.messages > 0) && (
-              <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
-                {(badges.interests || 0) + (badges.messages || 0)}
-              </span>
+          {/* Notification bell with dropdown */}
+          <div className="relative">
+            <button onClick={() => setNotifOpen(!notifOpen)} className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100">
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
+              {totalNotifs > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                  {totalNotifs}
+                </span>
+              )}
+            </button>
+            {notifOpen && (
+              <div className="absolute right-0 top-11 z-50 w-72 rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden">
+                <div className="border-b border-gray-100 px-4 py-2.5"><p className="text-sm font-semibold text-gray-900">Ειδοποιήσεις</p></div>
+                <div className="max-h-64 overflow-y-auto">
+                  {totalNotifs === 0 ? (
+                    <div className="px-4 py-6 text-center text-sm text-gray-400">Δεν υπάρχουν ειδοποιήσεις</div>
+                  ) : (<>
+                    {badges.messages > 0 && (
+                      <Link href="/dashboard/messages" onClick={() => setNotifOpen(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 border-b border-gray-50">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm">💬</span>
+                        <div className="flex-1"><p className="text-sm font-medium text-gray-900">{badges.messages} αδιάβαστα μηνύματα</p><p className="text-xs text-gray-400">Πατήστε για να δείτε</p></div>
+                        <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{badges.messages}</span>
+                      </Link>
+                    )}
+                    {badges.matches > 0 && (
+                      <Link href="/dashboard/matches" onClick={() => setNotifOpen(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 border-b border-gray-50">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-sm">🤝</span>
+                        <div className="flex-1"><p className="text-sm font-medium text-gray-900">{badges.matches} matches</p><p className="text-xs text-gray-400">Δείτε τα ταιριάσματά σας</p></div>
+                        <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{badges.matches}</span>
+                      </Link>
+                    )}
+                    {badges.interests > 0 && (
+                      <Link href="/dashboard/interests" onClick={() => setNotifOpen(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 border-b border-gray-50">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-pink-100 text-sm">❤️</span>
+                        <div className="flex-1"><p className="text-sm font-medium text-gray-900">{badges.interests} ενδιαφερόμενοι</p><p className="text-xs text-gray-400">Κάποιος ενδιαφέρθηκε για εσάς</p></div>
+                        <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{badges.interests}</span>
+                      </Link>
+                    )}
+                  </>)}
+                </div>
+              </div>
             )}
-          </Link>
+          </div>
           <div className="relative">
           <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100">
             {mobileMenuOpen ? (
