@@ -22,6 +22,7 @@ function MessagesInner() {
   const [sending, setSending] = useState(false);
   const [failedMsgs, setFailedMsgs] = useState<Set<string>>(new Set());
   const [isTyping, setIsTyping] = useState(false);
+  const [pendingFile, setPendingFile] = useState<{ file: File; previewUrl: string; uploading: boolean } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -230,22 +231,32 @@ function MessagesInner() {
                       return (
                         <div key={m.id} className={`flex ${isMine ? 'justify-start' : 'justify-end'}`}>
                           <div className="group relative max-w-[75%]">
-                            <div className={`rounded-2xl px-4 py-2.5 text-sm ${
-                              isMine
-                                ? 'bg-blue-600 text-white rounded-bl-md'
-                                : 'bg-white text-gray-900 border border-gray-200 rounded-br-md shadow-sm'
-                            } ${isFailed ? 'opacity-60' : ''}`}>
-                              {m.content?.startsWith('📷') && m.content.includes('](') ? (
+                            {m.content?.startsWith('📷') && m.content.includes('](') ? (
+                              /* Image — no bubble, just image */
+                              <div className={isFailed ? 'opacity-60' : ''}>
                                 <a href={m.content.match(/\((https?:\/\/[^)]+)\)/)?.[1] || '#'} target="_blank" rel="noopener noreferrer">
-                                  <img src={m.content.match(/\((https?:\/\/[^)]+)\)/)?.[1] || ''} alt="Φωτογραφία" className="max-w-[200px] rounded-lg" />
+                                  <img src={m.content.match(/\((https?:\/\/[^)]+)\)/)?.[1] || ''} alt="Φωτογραφία" className="max-w-[220px] rounded-xl shadow-sm" />
                                 </a>
-                              ) : m.content?.startsWith('📎') && m.content.includes('](') ? (
-                                <a href={m.content.match(/\((https?:\/\/[^)]+)\)/)?.[1] || '#'} target="_blank" rel="noopener noreferrer" className={`underline ${isMine ? 'text-blue-200' : 'text-blue-600'}`}>
-                                  📎 {m.content.match(/\[([^\]]+)\]/)?.[1] || 'Αρχείο'}
+                              </div>
+                            ) : m.content?.startsWith('📎') && m.content.includes('](') ? (
+                              /* File — minimal card, no colored bubble */
+                              <div className={`rounded-xl border border-gray-200 bg-white p-3 shadow-sm ${isFailed ? 'opacity-60' : ''}`}>
+                                <a href={m.content.match(/\((https?:\/\/[^)]+)\)/)?.[1] || '#'} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-blue-600 hover:underline">
+                                  <svg className="h-5 w-5 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                                  {m.content.match(/\[([^\]]+)\]/)?.[1] || 'Αρχείο'}
                                 </a>
-                              ) : (
+                              </div>
+                            ) : (
+                              /* Text — normal bubble */
+                              <div className={`rounded-2xl px-4 py-2.5 text-sm ${
+                                isMine ? 'bg-blue-600 text-white rounded-bl-md' : 'bg-white text-gray-900 border border-gray-200 rounded-br-md shadow-sm'
+                              } ${isFailed ? 'opacity-60' : ''}`}>
                                 <p>{m.content}</p>
-                              )}
+                              </div>
+                            )}
+                            {/* Status below message */}
+                            <div className="px-1">
+                              {/* Keep existing status rendering inside the old div — move it here */}
                               <div className={`flex items-center gap-1 mt-1 ${isMine ? 'justify-start' : 'justify-end'}`}>
                                 {timeStr && (
                                   <span className={`text-[10px] ${isMine ? 'text-blue-200' : 'text-gray-400'}`}>{timeStr}</span>
@@ -302,41 +313,43 @@ function MessagesInner() {
                   </div>
                 )}
 
+                {/* Pending file preview */}
+                {pendingFile && (
+                  <div className="border-t border-gray-200 px-4 py-3 bg-gray-50">
+                    <div className="flex items-center gap-3">
+                      {pendingFile.previewUrl ? (
+                        <img src={pendingFile.previewUrl} alt="" className="h-16 w-16 rounded-lg object-cover" />
+                      ) : (
+                        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-red-50">
+                          <svg className="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{pendingFile.file.name}</p>
+                        <p className="text-xs text-gray-400">{(pendingFile.file.size / 1024).toFixed(0)} KB</p>
+                      </div>
+                      {pendingFile.uploading ? (
+                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                      ) : (
+                        <button onClick={() => { if (pendingFile.previewUrl) URL.revokeObjectURL(pendingFile.previewUrl); setPendingFile(null); }}
+                          className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-200 hover:text-gray-600">
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Input */}
                 <div className="border-t border-gray-200 p-4 bg-white">
                   <div className="flex gap-2">
                     {/* Upload button */}
                     <label className="flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded-xl border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-blue-600 transition-colors">
-                      <input type="file" accept="image/*,application/pdf,.doc,.docx" className="sr-only" onChange={async (e) => {
+                      <input type="file" accept="image/*,application/pdf,.doc,.docx" className="sr-only" onChange={(e) => {
                         const file = e.target.files?.[0];
-                        if (!file || !selectedConv) return;
-                        try {
-                          const formData = new FormData();
-                          formData.append('file', file);
-                          formData.append('category', 'chat');
-                          const token = localStorage.getItem('staffnow_token');
-                          const uploadRes = await fetch('https://staffnow-api-production.siteinside53.workers.dev/uploads', {
-                            method: 'POST',
-                            headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-                            body: formData,
-                          });
-                          const uploadData = await uploadRes.json() as any;
-                          if (uploadData.success && uploadData.data?.url) {
-                            const isImage = file.type.startsWith('image/');
-                            const msgContent = isImage
-                              ? `📷 [Φωτογραφία](${uploadData.data.url})`
-                              : `📎 [${file.name}](${uploadData.data.url})`;
-                            const res = await api.conversations.sendMessage(selectedConv, { content: msgContent }) as any;
-                            if (res.success) {
-                              const realMsg = res.data?.message || res.data;
-                              if (!realMsg.created_at) realMsg.created_at = new Date().toISOString();
-                              if (!realMsg.sender_id) realMsg.sender_id = user?.id;
-                              setMessages((prev) => [...prev, realMsg]);
-                            }
-                          } else {
-                            toast.error(uploadData.error?.message || 'Αποτυχία upload');
-                          }
-                        } catch { toast.error('Σφάλμα upload'); }
+                        if (!file) return;
+                        const previewUrl = file.type.startsWith('image/') ? URL.createObjectURL(file) : '';
+                        setPendingFile({ file, previewUrl, uploading: false });
                         e.target.value = '';
                       }} />
                       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -350,7 +363,38 @@ function MessagesInner() {
                       placeholder="Γράψε μήνυμα..."
                       className="flex-1 rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-gray-50"
                     />
-                    <button onClick={sendMessage} disabled={sending || !newMsg.trim()}
+                    <button onClick={async () => {
+                      if (pendingFile && selectedConv) {
+                        setPendingFile((p) => p ? { ...p, uploading: true } : null);
+                        try {
+                          const formData = new FormData();
+                          formData.append('file', pendingFile.file);
+                          formData.append('category', 'chat');
+                          const token = localStorage.getItem('staffnow_token');
+                          const uploadRes = await fetch('https://staffnow-api-production.siteinside53.workers.dev/uploads', {
+                            method: 'POST', headers: token ? { 'Authorization': `Bearer ${token}` } : {}, body: formData,
+                          });
+                          const uploadData = await uploadRes.json() as any;
+                          if (uploadData.success && uploadData.data?.url) {
+                            const isImage = pendingFile.file.type.startsWith('image/');
+                            const content = isImage ? `📷 [Φωτογραφία](${uploadData.data.url})` : `📎 [${pendingFile.file.name}](${uploadData.data.url})`;
+                            const msgText = newMsg.trim() ? `${content}\n${newMsg.trim()}` : content;
+                            const res = await api.conversations.sendMessage(selectedConv, { content: msgText }) as any;
+                            if (res.success) {
+                              const m = res.data?.message || res.data;
+                              if (!m.created_at) m.created_at = new Date().toISOString();
+                              if (!m.sender_id) m.sender_id = user?.id;
+                              setMessages((prev) => [...prev, m]);
+                            }
+                          } else { toast.error(uploadData.error?.message || 'Αποτυχία upload'); }
+                        } catch { toast.error('Σφάλμα upload'); }
+                        if (pendingFile?.previewUrl) URL.revokeObjectURL(pendingFile.previewUrl);
+                        setPendingFile(null);
+                        setNewMsg('');
+                      } else {
+                        sendMessage();
+                      }
+                    }} disabled={sending || (!newMsg.trim() && !pendingFile)}
                       className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
                       {sending ? (
                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
