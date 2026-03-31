@@ -235,7 +235,17 @@ function MessagesInner() {
                                 ? 'bg-blue-600 text-white rounded-bl-md'
                                 : 'bg-white text-gray-900 border border-gray-200 rounded-br-md shadow-sm'
                             } ${isFailed ? 'opacity-60' : ''}`}>
-                              <p>{m.content}</p>
+                              {m.content?.startsWith('📷') && m.content.includes('](') ? (
+                                <a href={m.content.match(/\((https?:\/\/[^)]+)\)/)?.[1] || '#'} target="_blank" rel="noopener noreferrer">
+                                  <img src={m.content.match(/\((https?:\/\/[^)]+)\)/)?.[1] || ''} alt="Φωτογραφία" className="max-w-[200px] rounded-lg" />
+                                </a>
+                              ) : m.content?.startsWith('📎') && m.content.includes('](') ? (
+                                <a href={m.content.match(/\((https?:\/\/[^)]+)\)/)?.[1] || '#'} target="_blank" rel="noopener noreferrer" className={`underline ${isMine ? 'text-blue-200' : 'text-blue-600'}`}>
+                                  📎 {m.content.match(/\[([^\]]+)\]/)?.[1] || 'Αρχείο'}
+                                </a>
+                              ) : (
+                                <p>{m.content}</p>
+                              )}
                               <div className={`flex items-center gap-1 mt-1 ${isMine ? 'justify-start' : 'justify-end'}`}>
                                 {timeStr && (
                                   <span className={`text-[10px] ${isMine ? 'text-blue-200' : 'text-gray-400'}`}>{timeStr}</span>
@@ -295,6 +305,44 @@ function MessagesInner() {
                 {/* Input */}
                 <div className="border-t border-gray-200 p-4 bg-white">
                   <div className="flex gap-2">
+                    {/* Upload button */}
+                    <label className="flex h-10 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded-xl border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-blue-600 transition-colors">
+                      <input type="file" accept="image/*,application/pdf,.doc,.docx" className="sr-only" onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file || !selectedConv) return;
+                        try {
+                          const formData = new FormData();
+                          formData.append('file', file);
+                          formData.append('category', 'chat');
+                          const token = localStorage.getItem('staffnow_token');
+                          const uploadRes = await fetch('https://staffnow-api-production.siteinside53.workers.dev/uploads', {
+                            method: 'POST',
+                            headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+                            body: formData,
+                          });
+                          const uploadData = await uploadRes.json() as any;
+                          if (uploadData.success && uploadData.data?.url) {
+                            const isImage = file.type.startsWith('image/');
+                            const msgContent = isImage
+                              ? `📷 [Φωτογραφία](${uploadData.data.url})`
+                              : `📎 [${file.name}](${uploadData.data.url})`;
+                            const res = await api.conversations.sendMessage(selectedConv, { content: msgContent }) as any;
+                            if (res.success) {
+                              const realMsg = res.data?.message || res.data;
+                              if (!realMsg.created_at) realMsg.created_at = new Date().toISOString();
+                              if (!realMsg.sender_id) realMsg.sender_id = user?.id;
+                              setMessages((prev) => [...prev, realMsg]);
+                            }
+                          } else {
+                            toast.error(uploadData.error?.message || 'Αποτυχία upload');
+                          }
+                        } catch { toast.error('Σφάλμα upload'); }
+                        e.target.value = '';
+                      }} />
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
+                      </svg>
+                    </label>
                     <input
                       value={newMsg}
                       onChange={(e) => setNewMsg(e.target.value)}
