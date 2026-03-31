@@ -66,9 +66,9 @@ export default function DashboardLayout({
         const convos = convosRes?.data || [];
         const interests = interestsRes?.data || [];
         setBadges({
-          matches: Array.isArray(matches) ? matches.length : 0,
+          matches: 0, // matches are not "unread" — no badge needed
           messages: Array.isArray(convos) ? convos.filter((c: any) => c.unreadCount > 0).length : 0,
-          interests: Array.isArray(interests) ? interests.filter((i: any) => !i.is_matched).length : 0,
+          interests: Array.isArray(interests) ? interests.filter((i: any) => !i.is_matched && i.is_matched !== 1).length : 0,
         });
       } catch {}
     }
