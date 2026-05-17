@@ -88,7 +88,7 @@ export default function HomePage() {
                   href="/auth/register?role=worker"
                   className="inline-flex items-center justify-center rounded-xl border border-gray-600 px-8 py-4 text-base font-semibold text-white hover:bg-white/5 transition-all"
                 >
-                  Βρες εργασία
+                  Ψάχνω δουλειά
                 </Link>
               </div>
             </div>
@@ -382,7 +382,7 @@ export default function HomePage() {
               Βρες προσωπικό
             </Link>
             <Link href="/auth/register?role=worker" className="w-full sm:w-auto inline-flex items-center justify-center rounded-xl border border-gray-600 px-8 py-4 text-base font-semibold text-white hover:bg-white/5 transition-all">
-              Βρες εργασία
+              Ψάχνω δουλειά
             </Link>
           </div>
         </div>
