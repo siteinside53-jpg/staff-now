@@ -38,7 +38,7 @@ jobs:
 
       - name: Deploy to Cloudflare Pages
         working-directory: apps/web
-        run: wrangler pages deploy out --project-name=staffnow-web --branch=main
+        run: wrangler pages deploy out --project-name=staffnow --branch=main
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
