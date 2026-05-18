@@ -1,0 +1,79 @@
+{
+  "name": "StaffNow – Βρες Προσωπικό Τουρισμού & Εστίασης",
+  "short_name": "StaffNow",
+  "description": "Swipe-style αντιστοίχιση εργαζομένων & επιχειρήσεων στον τουρισμό και την εστίαση. Βρες προσωπικό σε λίγα λεπτά.",
+  "lang": "el",
+  "dir": "ltr",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0A0F2E",
+  "theme_color": "#3B82F6",
+  "categories": ["business", "productivity", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "640x1136",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "StaffNow mobile experience"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Εύρεση εργαζομένων",
+      "short_name": "Εύρεση",
+      "description": "Ανακάλυψη διαθέσιμων εργαζομένων",
+      "url": "/dashboard/discover",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Μηνύματα",
+      "short_name": "Μηνύματα",
+      "description": "Άνοιξε τις συνομιλίες σου",
+      "url": "/dashboard/messages",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Αγγελίες",
+      "short_name": "Αγγελίες",
+      "description": "Οι αγγελίες μου",
+      "url": "/dashboard/jobs",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "prefer_related_applications": false
+}

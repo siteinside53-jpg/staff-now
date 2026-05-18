@@ -3,6 +3,12 @@ main = "src/index.ts"
 compatibility_date = "2024-12-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Bundle TTF font binaries into the worker so we can render Greek text in PDFs.
+[[rules]]
+type = "Data"
+globs = ["**/*.ttf"]
+fallthrough = true
+
 [vars]
 ENVIRONMENT = "development"
 CORS_ORIGIN = "http://localhost:3002,http://localhost:3000,http://127.0.0.1:3002"
@@ -20,6 +26,15 @@ bucket_name = "staffnow-uploads"
 [[kv_namespaces]]
 binding = "KV"
 id = "YOUR_KV_NAMESPACE_ID"
+
+# Workers AI — free tier (10k neurons/day), then pay-per-use
+[ai]
+binding = "AI"
+
+# Scheduled triggers
+#   03:15 UTC daily — billing maintenance (grace-period downgrades + manual transfer expiry)
+[triggers]
+crons = ["15 3 * * *"]
 
 [env.staging]
 vars = { ENVIRONMENT = "staging", CORS_ORIGIN = "https://staging.staffnow.gr", API_URL = "https://api-staging.staffnow.gr" }
@@ -52,3 +67,6 @@ bucket_name = "staffnow-uploads-prod"
 [[env.production.kv_namespaces]]
 binding = "KV"
 id = "817d9666ea2e46288a31b02d6a914a10"
+
+[env.production.ai]
+binding = "AI"

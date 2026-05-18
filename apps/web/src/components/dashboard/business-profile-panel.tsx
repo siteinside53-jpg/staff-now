@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { Spinner } from '@/components/ui/spinner';
 import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
+import { JobPreviewPanel } from './job-preview-panel';
 
 interface Props {
   businessUserId: string | null;
@@ -18,10 +19,53 @@ const BIZ_TYPES: Record<string, string> = {
   tourism_company: 'Τουριστική', resort: 'Resort', technical: 'Τεχνική', other: 'Επιχείρηση',
 };
 
+const DAYS_LABELS: Record<string, string> = {
+  mon: 'Δευτέρα', tue: 'Τρίτη', wed: 'Τετάρτη', thu: 'Πέμπτη',
+  fri: 'Παρασκευή', sat: 'Σάββατο', sun: 'Κυριακή',
+};
+
+function formatScheduleDisplay(json: string): string[] {
+  try {
+    const schedule = JSON.parse(json) as Record<string, { open: string; close: string; closed: boolean }>;
+    return Object.keys(DAYS_LABELS).map((key) => {
+      const s = schedule[key];
+      const label = DAYS_LABELS[key];
+      if (!s) return `${label}: -`;
+      if (s.closed) return `${label}: Κλειστά`;
+      return `${label}: ${s.open} - ${s.close}`;
+    });
+  } catch { return []; }
+}
+
+const SALARY_TYPE_SUFFIX: Record<string, string> = {
+  hourly: '/ώρα',
+  daily: '/ημέρα',
+  monthly: '/μήνα',
+  fixed: '',
+};
+
+function formatSalary(min: number | null | undefined, max: number | null | undefined, type?: string): string | null {
+  const hasMin = min != null && min !== 0;
+  const hasMax = max != null && max !== 0;
+  if (!hasMin && !hasMax) return null;
+  const suffix = SALARY_TYPE_SUFFIX[type || 'monthly'] ?? '';
+  if (hasMin && hasMax) return `${min}-${max}€${suffix}`;
+  if (hasMin) return `από ${min}€${suffix}`;
+  return `έως ${max}€${suffix}`;
+}
+
+const EMP_LABELS: Record<string, string> = {
+  seasonal: 'Σεζόν',
+  full_time: 'Πλήρης',
+  part_time: 'Μερική',
+  freelancer: 'Freelancer',
+};
+
 export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip }: Props) {
   const [branch, setBranch] = useState<any>(null);
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!businessUserId) return;
@@ -34,7 +78,7 @@ export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip }
         const bizRes = await fetch(`${base}/businesses/${businessUserId}`, { headers }).then(r => r.json()) as any;
         if (bizRes.success && bizRes.data) {
           setBranch(bizRes.data.profile || bizRes.data);
-          setJobs(bizRes.data.recentJobs || bizRes.data.jobs || []);
+          setJobs(bizRes.data.activeJobs || bizRes.data.recentJobs || bizRes.data.jobs || []);
         }
       } catch {} finally { setLoading(false); }
     }
@@ -55,27 +99,37 @@ export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip }
           <div className="flex flex-col min-h-full">
 
             {/* ====== COVER PHOTO ====== */}
-            <div className="relative h-52 sm:h-64 bg-gradient-to-br from-cyan-500 via-blue-600 to-indigo-700 sm:rounded-t-2xl overflow-hidden">
-              {/* Pattern overlay */}
-              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCI+PHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsMC4xKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9zdmc+')] opacity-30" />
+            <div className="relative">
+              <div className="h-52 sm:h-64 sm:rounded-t-2xl overflow-hidden">
+                {b.cover_photo_url ? (
+                  <img src={b.cover_photo_url} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="relative h-full w-full bg-gradient-to-br from-cyan-500 via-blue-600 to-indigo-700">
+                    <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCI+PHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSJub25lIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsMC4xKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9zdmc+')] opacity-30" />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
 
-              {/* Close */}
-              <button onClick={onClose} className="absolute top-4 right-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/30 text-white hover:bg-black/50 transition-colors">
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
+                {/* Close */}
+                <button onClick={onClose} className="absolute top-4 right-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/30 text-white hover:bg-black/50 transition-colors">
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
 
-              {/* Verified badge */}
-              {b.verified === 1 && (
-                <div className="absolute top-4 left-4 flex items-center gap-1.5 rounded-full bg-white/95 backdrop-blur px-3 py-1.5 shadow-sm">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white text-[10px] font-bold">✓</span>
-                  <span className="text-xs font-semibold text-emerald-700">Επαληθευμένη επιχείρηση</span>
-                </div>
-              )}
+                {/* Verified badge */}
+                {b.verified === 1 && (
+                  <div className="absolute top-4 left-4 flex items-center gap-1.5 rounded-full bg-white/95 backdrop-blur px-3 py-1.5 shadow-sm">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white text-[10px] font-bold">✓</span>
+                    <span className="text-xs font-semibold text-emerald-700">Επαληθευμένη επιχείρηση</span>
+                  </div>
+                )}
+              </div>
 
-              {/* Logo */}
-              <div className="absolute -bottom-12 left-6">
+              {/* Logo - OUTSIDE overflow-hidden */}
+              <div className="absolute -bottom-12 left-6 z-10">
                 {b.logo_url ? (
-                  <img src={b.logo_url} alt="" className="h-28 w-28 rounded-2xl border-4 border-white bg-white object-cover shadow-xl" />
+                  <div className="h-28 w-28 rounded-2xl border-4 border-white bg-white shadow-xl overflow-hidden">
+                    <img src={b.logo_url} alt="" className="w-full h-full object-cover" />
+                  </div>
                 ) : (
                   <div className="flex h-28 w-28 items-center justify-center rounded-2xl border-4 border-white bg-white text-4xl font-bold text-blue-600 shadow-xl">
                     {b.company_name?.[0]?.toUpperCase() || '🏢'}
@@ -128,25 +182,43 @@ export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip }
                 </h2>
                 {jobs.length > 0 ? (
                   <div className="space-y-3">
-                    {jobs.map((job: any, i: number) => (
-                      <div key={job.id || i} className="flex items-center justify-between rounded-xl bg-gray-50 p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
-                            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
+                    {jobs.map((job: any, i: number) => {
+                      const salaryStr = formatSalary(job.salary_min, job.salary_max, job.salary_type);
+                      return (
+                        <button
+                          key={job.id || i}
+                          type="button"
+                          onClick={() => setSelectedJobId(job.id)}
+                          className="w-full text-left flex items-center justify-between rounded-xl bg-gray-50 p-4 hover:bg-gray-100 transition-colors group"
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600 group-hover:bg-blue-200">
+                              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-semibold text-gray-900 text-sm truncate">{job.title}</p>
+                              <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                {job.employment_type && (
+                                  <span className="text-xs text-gray-500">{EMP_LABELS[job.employment_type] || job.employment_type}</span>
+                                )}
+                                {(job.city || job.region) && (
+                                  <>
+                                    <span className="text-xs text-gray-300">·</span>
+                                    <span className="text-xs text-gray-500 truncate">📍 {[job.city, job.region].filter(Boolean).join(', ')}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-semibold text-gray-900 text-sm">{job.title}</p>
-                            <p className="text-xs text-gray-500">{job.employment_type === 'seasonal' ? 'Εποχιακή' : job.employment_type === 'full_time' ? 'Πλήρης' : job.employment_type}</p>
-                          </div>
-                        </div>
-                        {(job.salary_min || job.salary_max) && (
-                          <div className="text-right">
-                            <p className="font-bold text-emerald-600 text-sm">{job.salary_min}-{job.salary_max}€</p>
-                            <p className="text-[10px] text-gray-400">{job.salary_type === 'hourly' ? 'την ώρα' : 'τον μήνα'}</p>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                          {salaryStr && (
+                            <div className="text-right flex-shrink-0 ml-2">
+                              <p className="font-bold text-emerald-600 text-sm whitespace-nowrap">{salaryStr}</p>
+                            </div>
+                          )}
+                          <svg className="h-4 w-4 text-gray-300 group-hover:text-gray-500 ml-1 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                        </button>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="rounded-xl bg-gray-50 p-6 text-center text-sm text-gray-400">
@@ -165,16 +237,24 @@ export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip }
                   </h2>
                   <div className="flex flex-wrap gap-2">
                     {b.staff_housing === 1 && (
-                      <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">🏠 Δωρεάν διαμονή</span>
+                      <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">🏠 Διαμονή</span>
                     )}
                     {b.meals_provided === 1 && (
-                      <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">🍽️ Γεύματα</span>
+                      <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">🍽️ Σίτιση</span>
                     )}
                     {b.transportation_assistance === 1 && (
                       <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">🚌 Μεταφορά</span>
                     )}
-                    <span className="flex items-center gap-1.5 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700">⏰ Ωράριο εργασίας</span>
-                    {!b.staff_housing && !b.meals_provided && !b.transportation_assistance && (
+                    {b.bonus_provided === 1 && (
+                      <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">💰 Bonus</span>
+                    )}
+                    {b.insurance_provided === 1 && (
+                      <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">⏰ Ευέλικτο ωράριο</span>
+                    )}
+                    {b.no_benefits === 1 && (
+                      <span className="flex items-center gap-1.5 rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600">❌ Χωρίς παροχές</span>
+                    )}
+                    {!b.staff_housing && !b.meals_provided && !b.transportation_assistance && !b.bonus_provided && !b.insurance_provided && !b.no_benefits && (
                       <span className="text-sm text-gray-400">Δεν δηλώθηκαν παροχές</span>
                     )}
                   </div>
@@ -184,18 +264,22 @@ export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip }
                 <div>
                   <h2 className="text-base font-bold text-gray-900 mb-3">Πληροφορίες</h2>
                   <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100"><span className="text-sm">📅</span></div>
-                      <div><p className="text-sm font-medium text-gray-900">Περίοδος λειτουργίας</p><p className="text-xs text-gray-500">Μάιος - Οκτώβριος (Σεζόν)</p></div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100"><span className="text-sm">💰</span></div>
-                      <div><p className="text-sm font-medium text-gray-900">Μισθοδοσία</p><p className="text-xs text-gray-500">{b.salary_range_min && b.salary_range_max ? `${b.salary_range_min}-${b.salary_range_max}€/μήνα` : 'Ανάλογα τη θέση'}</p></div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100"><span className="text-sm">🌍</span></div>
-                      <div><p className="text-sm font-medium text-gray-900">Γλώσσες</p><p className="text-xs text-gray-500">Ελληνικά, Αγγλικά</p></div>
-                    </div>
+                    {b.operating_hours && (() => {
+                      const lines = formatScheduleDisplay(b.operating_hours);
+                      return lines.length > 0 ? (
+                        <div className="flex gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 flex-shrink-0 mt-0.5"><span className="text-sm">🕐</span></div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 mb-1">Ωράριο Λειτουργίας</p>
+                            <div className="space-y-0.5">
+                              {lines.map((line, i) => (
+                                <p key={i} className={`text-xs ${line.includes('Κλειστά') ? 'text-red-500' : 'text-gray-500'}`}>{line}</p>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
                     {b.phone && (
                       <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100"><span className="text-sm">📞</span></div>
@@ -208,30 +292,56 @@ export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip }
                         <div><p className="text-sm font-medium text-gray-900">Website</p><a href={b.website} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">{b.website}</a></div>
                       </div>
                     )}
+                    {b.google_business_url && (
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100"><span className="text-sm">📍</span></div>
+                        <div><p className="text-sm font-medium text-gray-900">Google Business</p><a href={b.google_business_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">Google Profile</a></div>
+                      </div>
+                    )}
+                    {(b.address || b.city) && (
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100"><span className="text-sm">🏠</span></div>
+                        <div><p className="text-sm font-medium text-gray-900">Τοποθεσία</p><p className="text-xs text-gray-500">{[b.address, b.area, b.city, b.postal_code, b.region].filter(Boolean).join(', ')}</p></div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
 
             {/* ====== STICKY ACTIONS ====== */}
-            <div className="sticky bottom-0 border-t border-gray-200 bg-white px-6 py-4">
-              <div className="flex gap-3">
-                <button className="flex items-center justify-center gap-2 rounded-xl border border-gray-300 px-5 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
-                  🔖
-                </button>
-                <button onClick={() => { onSkip?.(); onClose(); }}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-red-200 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors">
-                  ✕ Πέρασε
-                </button>
-                <button onClick={() => { onLike?.(); onClose(); }}
-                  className="flex flex-[1.5] items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-600/20">
-                  ♥ Ενδιαφέρομαι
+            {(onLike || onSkip) ? (
+              <div className="sticky bottom-0 border-t border-gray-200 bg-white px-6 py-4">
+                <div className="flex gap-3">
+                  <button onClick={() => { onSkip?.(); onClose(); }}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-red-200 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors">
+                    ✕ Πέρασε
+                  </button>
+                  <button onClick={() => { onLike?.(); onClose(); }}
+                    className="flex flex-[1.5] items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-600/20">
+                    ♥ Ενδιαφέρομαι
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="sticky bottom-0 border-t border-gray-200 bg-white px-6 py-4">
+                <button onClick={onClose} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-100 py-3 text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors">
+                  Κλείσιμο
                 </button>
               </div>
-            </div>
+            )}
           </div>
         )}
       </div>
+
+      {/* ====== JOB PREVIEW PANEL (full details, no edit button for workers) ====== */}
+      {selectedJobId && (
+        <JobPreviewPanel
+          jobId={selectedJobId}
+          isOwner={false}
+          onClose={() => setSelectedJobId(null)}
+        />
+      )}
     </>
   );
 }

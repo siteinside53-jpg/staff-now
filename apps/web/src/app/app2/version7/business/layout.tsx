@@ -1,0 +1,78 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { auth, getToken, stats as statsApi, type User } from '../_lib/api';
+import { BottomTabs, FullPageSpinner, TabIcons } from '../_lib/ui';
+
+export default function BusinessLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname() || '';
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [unread, setUnread] = useState(0);
+  const [interests, setInterests] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!getToken()) {
+        router.replace('/app2/version7/login');
+        return;
+      }
+      try {
+        const me = await auth.me();
+        if (cancelled) return;
+        if (me.user.role !== 'business') {
+          router.replace(
+            me.user.role === 'worker'
+              ? '/app2/version7/worker/home'
+              : '/app2/version7/login',
+          );
+          return;
+        }
+        setUser(me.user);
+      } catch {
+        router.replace('/app2/version7/login');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [router]);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const s = await statsApi.dashboard();
+        if (!cancelled) {
+          setUnread(s.unread_messages || 0);
+          setInterests(s.pending_interests || 0);
+        }
+      } catch {}
+    };
+    refresh();
+    const t = setInterval(refresh, 25000);
+    return () => { cancelled = true; clearInterval(t); };
+  }, [user]);
+
+  if (loading || !user) return <FullPageSpinner />;
+
+  // Order: Matches (left) · Αγγελίες · Swipe (center) · Μηνύματα · Προφίλ
+  const items = [
+    { href: '/app2/version7/business/matches', label: 'Matches', icon: TabIcons.handshake, badge: interests, match: (p: string) => p.startsWith('/app2/version7/business/matches') },
+    { href: '/app2/version7/business/jobs', label: 'Αγγελίες', icon: TabIcons.briefcase, match: (p: string) => p === '/app2/version7/business/home' || p.startsWith('/app2/version7/business/jobs') },
+    { href: '/app2/version7/business/discover', label: 'Swipe', icon: TabIcons.swipe, match: (p: string) => p.startsWith('/app2/version7/business/discover') },
+    { href: '/app2/version7/business/messages', label: 'Μηνύματα', icon: TabIcons.chat, badge: unread, match: (p: string) => p.startsWith('/app2/version7/business/messages') },
+    { href: '/app2/version7/business/profile', label: 'Προφίλ', icon: TabIcons.user, match: (p: string) => p.startsWith('/app2/version7/business/profile') || p.startsWith('/app2/version7/business/settings') },
+  ];
+
+  return (
+    <div className="fixed inset-0 flex flex-col bg-[#F5F7FB]">
+      <div className="flex-1 overflow-hidden flex flex-col">{children}</div>
+      <BottomTabs items={items} pathname={pathname} />
+    </div>
+  );
+}

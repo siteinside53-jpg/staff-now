@@ -5,7 +5,8 @@ import { Card, CardContent } from '@/components/ui/card';
 export const metadata = {
   title: 'Για Εργαζόμενους - StaffNow',
   description:
-    'Βρες δουλειά στον τουρισμό γρήγορα. Δημιούργησε προφίλ, κάνε swipe, βρες τον ιδανικό εργοδότη.',
+    'Βρες δουλειά γρήγορα σε κάθε κλάδο. Δημιούργησε προφίλ, κάνε swipe, βρες τον ιδανικό εργοδότη.',
+  alternates: { canonical: '/for-workers' },
 };
 
 const features = [
@@ -109,11 +110,11 @@ export default function ForWorkersPage() {
         {/* Header */}
         <div className="mx-auto max-w-3xl text-center">
           <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl">
-            Για Εργαζόμενους Τουρισμού
+            Για Εργαζόμενους
           </h1>
           <p className="mt-4 text-lg text-gray-600">
-            Σερβιτόροι, μάγειρες, ρεσεψιονίστ, bartenders, καμαριέρες &mdash;
-            βρες τη θέση εργασίας που σου ταιριάζει στον τουρισμό.
+            Σερβιτόροι, πωλητές, αποθηκάριοι, bartenders, τεχνικοί &mdash;
+            βρες τη θέση εργασίας που σου ταιριάζει σε κάθε κλάδο.
           </p>
         </div>
 

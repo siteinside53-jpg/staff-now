@@ -7,22 +7,23 @@ import { useAuth } from '@/lib/auth-context';
 import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
+import { CreditsProvider } from '@/components/credits/credits-context';
 
 const workerNavItems = [
   { href: '/dashboard', label: 'Αρχική', icon: HomeIcon },
-  { href: '/dashboard/discover', label: 'Ανακάλυψη', icon: DiscoverIcon },
+  { href: '/dashboard/discover', label: 'Εύρεση', icon: DiscoverIcon },
   { href: '/dashboard/matches', label: 'Matches', icon: MatchIcon },
   { href: '/dashboard/messages', label: 'Μηνύματα', icon: MessageIcon },
   { href: '/dashboard/profile', label: 'Προφίλ', icon: ProfileIcon },
   { href: '/dashboard/interests', label: 'Ενδιαφέρον', icon: HeartIcon },
-  { href: '/dashboard/billing', label: 'Συνδρομή', icon: BillingIcon },
+  { href: '/dashboard/billing', label: 'Premium', icon: BillingIcon },
   { href: '/dashboard/settings', label: 'Ρυθμίσεις', icon: SettingsIcon },
 ];
 
 const businessNavItems = [
   { href: '/dashboard', label: 'Αρχική', icon: HomeIcon },
   { href: '/dashboard/jobs', label: 'Αγγελίες', icon: JobsIcon },
-  { href: '/dashboard/discover', label: 'Ανακάλυψη', icon: DiscoverIcon },
+  { href: '/dashboard/discover', label: 'Εύρεση', icon: DiscoverIcon },
   { href: '/dashboard/matches', label: 'Matches', icon: MatchIcon },
   { href: '/dashboard/messages', label: 'Μηνύματα', icon: MessageIcon },
   { href: '/dashboard/interests', label: 'Ενδιαφέρον', icon: HeartIcon },
@@ -42,6 +43,8 @@ export default function DashboardLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [badges, setBadges] = useState<Record<string, number>>({});
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifUnread, setNotifUnread] = useState(0);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -49,7 +52,7 @@ export default function DashboardLayout({
     }
   }, [user, loading]);
 
-  // Fetch notification badges
+  // Fetch notification badges + real notifications
   useEffect(() => {
     if (!user) return;
     async function fetchBadges() {
@@ -57,25 +60,39 @@ export default function DashboardLayout({
         const token = localStorage.getItem('staffnow_token');
         const headers = { 'Authorization': `Bearer ${token}` };
         const base = 'https://staffnow-api-production.siteinside53.workers.dev';
-        const [matchesRes, convosRes, interestsRes] = await Promise.all([
-          fetch(`${base}/matches`, { headers }).then(r => r.json()) as Promise<any>,
+        const [convosRes, interestsRes, notifRes] = await Promise.all([
           fetch(`${base}/conversations`, { headers }).then(r => r.json()) as Promise<any>,
           fetch(`${base}/interests/received`, { headers }).then(r => r.json()) as Promise<any>,
+          fetch(`${base}/notifications?limit=15`, { headers }).then(r => r.json()) as Promise<any>,
         ]);
-        const matches = matchesRes?.data || [];
         const convos = convosRes?.data || [];
         const interests = interestsRes?.data || [];
         setBadges({
-          matches: 0, // matches are not "unread" — no badge needed
+          matches: 0,
           messages: Array.isArray(convos) ? convos.filter((c: any) => c.unreadCount > 0).length : 0,
           interests: Array.isArray(interests) ? interests.filter((i: any) => !i.is_matched && i.is_matched !== 1).length : 0,
         });
+        setNotifications(notifRes?.data || []);
+        setNotifUnread(notifRes?.unreadCount || 0);
       } catch {}
     }
     fetchBadges();
-    const interval = setInterval(fetchBadges, 30000); // refresh every 30s
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchBadges, 15000);
+    const handler = () => fetchBadges();
+    window.addEventListener('staffnow:badges-refresh', handler);
+    return () => { clearInterval(interval); window.removeEventListener('staffnow:badges-refresh', handler); };
   }, [user]);
+
+  const markAllNotificationsRead = async () => {
+    try {
+      const token = localStorage.getItem('staffnow_token');
+      await fetch('https://staffnow-api-production.siteinside53.workers.dev/notifications/read-all', {
+        method: 'POST', headers: { 'Authorization': `Bearer ${token}` },
+      });
+      setNotifUnread(0);
+      setNotifications((prev) => prev.map((n) => ({ ...n, read_at: new Date().toISOString() })));
+    } catch {}
+  };
 
   const totalNotifs = (badges.matches || 0) + (badges.messages || 0) + (badges.interests || 0);
 
@@ -90,15 +107,92 @@ export default function DashboardLayout({
   const navItems = user.role === 'business' ? businessNavItems : workerNavItems;
 
   return (
+    <CreditsProvider>
     <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-gray-200 bg-white lg:flex">
-        {/* Logo */}
-        <div className="flex h-16 items-center border-b px-6">
-          <Link href="/" className="inline-flex items-center gap-1.5 text-xl font-extrabold">
-            <svg className="h-5 w-5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            <span><span className="text-gray-900">Staff</span><span className="text-blue-600">Now</span></span>
+        {/* Logo + Notification bell */}
+        <div className="flex h-16 items-center justify-between border-b px-6">
+          <Link href="/" className="inline-flex items-center gap-2 text-xl font-extrabold">
+            <img src="/staffnow-logo.png" alt="StaffNow" className="h-9 w-9 rounded-full" />
+            <span><span className="text-gray-900">Staff</span><span className="text-blue-500">Now</span></span>
           </Link>
+          {/* Notification bell */}
+          <div className="relative">
+            <button onClick={() => { setNotifOpen(!notifOpen); if (!notifOpen && notifUnread > 0) markAllNotificationsRead(); }}
+              className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100">
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
+              {(notifUnread > 0 || totalNotifs > 0) && (
+                <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                  {notifUnread || totalNotifs}
+                </span>
+              )}
+            </button>
+            {notifOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
+                <div className="absolute left-0 top-11 z-50 w-80 rounded-xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
+                  <div className="border-b border-gray-100 px-4 py-2.5 flex items-center justify-between">
+                    <p className="text-sm font-semibold text-gray-900">Ειδοποιήσεις</p>
+                    {notifUnread > 0 && <span className="text-[10px] text-blue-600 font-medium">{notifUnread} νέες</span>}
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {(badges.messages > 0 || badges.interests > 0) && (
+                      <div className="px-3 py-2 flex gap-2 border-b border-gray-100 bg-gray-50">
+                        {badges.messages > 0 && (
+                          <Link href="/dashboard/messages" onClick={() => setNotifOpen(false)} className="flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-200">
+                            💬 {badges.messages} μηνύματα
+                          </Link>
+                        )}
+                        {badges.interests > 0 && (
+                          <Link href="/dashboard/interests" onClick={() => setNotifOpen(false)} className="flex items-center gap-1.5 rounded-full bg-pink-100 px-3 py-1 text-xs font-medium text-pink-700 hover:bg-pink-200">
+                            ❤️ {badges.interests} ενδιαφέρον
+                          </Link>
+                        )}
+                      </div>
+                    )}
+                    {notifications.length === 0 ? (
+                      <div className="px-4 py-8 text-center">
+                        <p className="text-3xl mb-2">🔔</p>
+                        <p className="text-sm font-medium text-gray-500">Δεν υπάρχουν ειδοποιήσεις</p>
+                        <p className="text-xs text-gray-400 mt-1">Θα σε ενημερώσουμε για matches, μηνύματα και ενδιαφέρον</p>
+                      </div>
+                    ) : (
+                      notifications.map((n: any) => {
+                        const icons: Record<string, string> = { new_match: '🎉', new_message: '💬', match: '🤝', interest: '❤️', new_like: '❤️', system: '⚡', reminder: '🔔', boost: '🚀' };
+                        const bgColors: Record<string, string> = { new_match: 'bg-emerald-100', new_message: 'bg-blue-100', match: 'bg-emerald-100', interest: 'bg-pink-100', new_like: 'bg-pink-100', system: 'bg-amber-100', reminder: 'bg-amber-100', boost: 'bg-purple-100' };
+                        const icon = icons[n.type] || '🔔';
+                        const bgColor = bgColors[n.type] || 'bg-gray-100';
+                        const link = n.type === 'new_message' ? '/dashboard/messages' : n.type === 'new_match' || n.type === 'match' ? '/dashboard/matches' : n.type === 'interest' || n.type === 'new_like' ? '/dashboard/interests' : '/dashboard';
+                        const timeAgo = (() => {
+                          if (!n.created_at) return '';
+                          const mins = Math.floor((Date.now() - new Date(n.created_at).getTime()) / 60000);
+                          if (mins < 1) return 'Τώρα';
+                          if (mins < 60) return `${mins}λ πριν`;
+                          const hrs = Math.floor(mins / 60);
+                          if (hrs < 24) return `${hrs}ω πριν`;
+                          const days = Math.floor(hrs / 24);
+                          return `${days}η πριν`;
+                        })();
+                        return (
+                          <Link key={n.id} href={link} onClick={() => setNotifOpen(false)}
+                            className={`flex items-start gap-3 px-4 py-3 hover:bg-gray-50 border-b border-gray-50 transition-colors ${!n.read_at ? 'bg-blue-50/50' : ''}`}>
+                            <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${bgColor} text-sm mt-0.5`}>{icon}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm ${!n.read_at ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>{n.title}</p>
+                              {n.body && <p className="text-xs text-gray-500 line-clamp-2 mt-0.5">{n.body}</p>}
+                              <p className="text-[10px] text-gray-400 mt-1">{timeAgo}</p>
+                            </div>
+                            {!n.read_at && <span className="h-2 w-2 rounded-full bg-blue-500 flex-shrink-0 mt-2" />}
+                          </Link>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Navigation */}
@@ -139,7 +233,7 @@ export default function DashboardLayout({
         <div className="border-t p-4">
           <div className="flex items-center gap-3">
             {((user as any)?.avatar_url || (profile as any)?.photo_url || (profile as any)?.logo_url) ? (
-              <img src={(user as any)?.avatar_url || (profile as any)?.photo_url || (profile as any)?.logo_url} alt="" className="h-9 w-9 rounded-full object-cover" />
+              <img src={(user as any)?.avatar_url || (profile as any)?.photo_url || (profile as any)?.logo_url} alt="" className="h-9 w-9 rounded-full object-cover border border-gray-200" />
             ) : (
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-600">
                 {((user as any)?.display_name || (profile as any)?.full_name || (profile as any)?.company_name || user.email || '?').trim()[0]?.toUpperCase() || '?'}
@@ -167,52 +261,86 @@ export default function DashboardLayout({
 
       {/* Mobile header */}
       <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b bg-white px-4 lg:hidden">
-        <Link href="/" className="inline-flex items-center gap-1.5 text-lg font-extrabold">
-          <svg className="h-4 w-4 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          <span><span className="text-gray-900">Staff</span><span className="text-blue-600">Now</span></span>
+        <Link href="/" className="inline-flex items-center gap-2 text-lg font-extrabold">
+          <img src="/staffnow-logo.png" alt="StaffNow" className="h-8 w-8 rounded-full" />
+          <span><span className="text-gray-800">Staff</span><span className="text-blue-500">Now</span></span>
         </Link>
         <div className="flex items-center gap-2">
           {/* Notification bell with dropdown */}
           <div className="relative">
-            <button onClick={() => setNotifOpen(!notifOpen)} className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100">
+            <button onClick={() => { setNotifOpen(!notifOpen); if (!notifOpen && notifUnread > 0) markAllNotificationsRead(); }} className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100">
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
-              {totalNotifs > 0 && (
+              {(notifUnread > 0 || totalNotifs > 0) && (
                 <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
-                  {totalNotifs}
+                  {notifUnread || totalNotifs}
                 </span>
               )}
             </button>
             {notifOpen && (
-              <div className="absolute right-0 top-11 z-50 w-72 rounded-xl border border-gray-200 bg-white shadow-xl overflow-hidden">
-                <div className="border-b border-gray-100 px-4 py-2.5"><p className="text-sm font-semibold text-gray-900">Ειδοποιήσεις</p></div>
-                <div className="max-h-64 overflow-y-auto">
-                  {totalNotifs === 0 ? (
-                    <div className="px-4 py-6 text-center text-sm text-gray-400">Δεν υπάρχουν ειδοποιήσεις</div>
-                  ) : (<>
-                    {badges.messages > 0 && (
-                      <Link href="/dashboard/messages" onClick={() => setNotifOpen(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 border-b border-gray-50">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm">💬</span>
-                        <div className="flex-1"><p className="text-sm font-medium text-gray-900">{badges.messages} αδιάβαστα μηνύματα</p><p className="text-xs text-gray-400">Πατήστε για να δείτε</p></div>
-                        <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{badges.messages}</span>
-                      </Link>
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
+                <div className="absolute right-0 top-11 z-50 w-80 rounded-xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
+                  <div className="border-b border-gray-100 px-4 py-2.5 flex items-center justify-between">
+                    <p className="text-sm font-semibold text-gray-900">Ειδοποιήσεις</p>
+                    {notifUnread > 0 && <span className="text-[10px] text-blue-600 font-medium">{notifUnread} νέες</span>}
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {/* Quick badges */}
+                    {(badges.messages > 0 || badges.interests > 0) && (
+                      <div className="px-3 py-2 flex gap-2 border-b border-gray-100 bg-gray-50">
+                        {badges.messages > 0 && (
+                          <Link href="/dashboard/messages" onClick={() => setNotifOpen(false)} className="flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-200">
+                            💬 {badges.messages} μηνύματα
+                          </Link>
+                        )}
+                        {badges.interests > 0 && (
+                          <Link href="/dashboard/interests" onClick={() => setNotifOpen(false)} className="flex items-center gap-1.5 rounded-full bg-pink-100 px-3 py-1 text-xs font-medium text-pink-700 hover:bg-pink-200">
+                            ❤️ {badges.interests} ενδιαφέρον
+                          </Link>
+                        )}
+                      </div>
                     )}
-                    {badges.matches > 0 && (
-                      <Link href="/dashboard/matches" onClick={() => setNotifOpen(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 border-b border-gray-50">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 text-sm">🤝</span>
-                        <div className="flex-1"><p className="text-sm font-medium text-gray-900">{badges.matches} matches</p><p className="text-xs text-gray-400">Δείτε τα ταιριάσματά σας</p></div>
-                        <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{badges.matches}</span>
-                      </Link>
+                    {/* Real notifications */}
+                    {notifications.length === 0 ? (
+                      <div className="px-4 py-8 text-center">
+                        <p className="text-3xl mb-2">🔔</p>
+                        <p className="text-sm font-medium text-gray-500">Δεν υπάρχουν ειδοποιήσεις</p>
+                        <p className="text-xs text-gray-400 mt-1">Θα σε ενημερώσουμε για matches, μηνύματα και ενδιαφέρον</p>
+                      </div>
+                    ) : (
+                      notifications.map((n: any) => {
+                        const icons: Record<string, string> = { new_match: '🎉', new_message: '💬', match: '🤝', interest: '❤️', new_like: '❤️', system: '⚡', reminder: '🔔', boost: '🚀' };
+                        const bgColors: Record<string, string> = { new_match: 'bg-emerald-100', new_message: 'bg-blue-100', match: 'bg-emerald-100', interest: 'bg-pink-100', new_like: 'bg-pink-100', system: 'bg-amber-100', reminder: 'bg-amber-100', boost: 'bg-purple-100' };
+                        const icon = icons[n.type] || '🔔';
+                        const bgColor = bgColors[n.type] || 'bg-gray-100';
+                        const link = n.type === 'new_message' ? '/dashboard/messages' : n.type === 'new_match' || n.type === 'match' ? '/dashboard/matches' : n.type === 'interest' || n.type === 'new_like' ? '/dashboard/interests' : '/dashboard';
+                        const timeAgo = (() => {
+                          if (!n.created_at) return '';
+                          const mins = Math.floor((Date.now() - new Date(n.created_at).getTime()) / 60000);
+                          if (mins < 1) return 'Τώρα';
+                          if (mins < 60) return `${mins}λ πριν`;
+                          const hrs = Math.floor(mins / 60);
+                          if (hrs < 24) return `${hrs}ω πριν`;
+                          const days = Math.floor(hrs / 24);
+                          return `${days}η πριν`;
+                        })();
+                        return (
+                          <Link key={n.id} href={link} onClick={() => setNotifOpen(false)}
+                            className={`flex items-start gap-3 px-4 py-3 hover:bg-gray-50 border-b border-gray-50 transition-colors ${!n.read_at ? 'bg-blue-50/50' : ''}`}>
+                            <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${bgColor} text-sm mt-0.5`}>{icon}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm ${!n.read_at ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>{n.title}</p>
+                              {n.body && <p className="text-xs text-gray-500 line-clamp-2 mt-0.5">{n.body}</p>}
+                              <p className="text-[10px] text-gray-400 mt-1">{timeAgo}</p>
+                            </div>
+                            {!n.read_at && <span className="h-2 w-2 rounded-full bg-blue-500 flex-shrink-0 mt-2" />}
+                          </Link>
+                        );
+                      })
                     )}
-                    {badges.interests > 0 && (
-                      <Link href="/dashboard/interests" onClick={() => setNotifOpen(false)} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 border-b border-gray-50">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-pink-100 text-sm">❤️</span>
-                        <div className="flex-1"><p className="text-sm font-medium text-gray-900">{badges.interests} ενδιαφερόμενοι</p><p className="text-xs text-gray-400">Κάποιος ενδιαφέρθηκε για εσάς</p></div>
-                        <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{badges.interests}</span>
-                      </Link>
-                    )}
-                  </>)}
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
           <div className="relative">
@@ -288,6 +416,7 @@ export default function DashboardLayout({
         </div>
       </main>
     </div>
+    </CreditsProvider>
   );
 }
 

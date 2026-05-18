@@ -13,11 +13,19 @@ matches.get('/', requireAuth, async (c) => {
   const page = parseInt(c.req.query('page') || '1', 10);
   const limit = Math.min(parseInt(c.req.query('limit') || '20', 10), 50);
   const offset = (page - 1) * limit;
-  const status = c.req.query('status') || 'active';
+  const status = c.req.query('status') || 'all';
 
   // Determine which side of the match the user is on
-  const conditions: string[] = ["m.status = ?"];
-  const params: (string | number)[] = [status];
+  const conditions: string[] = [];
+  const params: (string | number)[] = [];
+
+  if (status !== 'all') {
+    conditions.push("m.status = ?");
+    params.push(status);
+  } else {
+    // 'all' must still hide soft-deleted matches.
+    conditions.push("m.status != 'deleted'");
+  }
 
   if (user.role === 'worker') {
     conditions.push('m.worker_id = ?');
@@ -58,6 +66,7 @@ matches.get('/', requireAuth, async (c) => {
        LEFT JOIN job_listings j ON j.id = m.job_id
        LEFT JOIN conversations conv ON conv.match_id = m.id
        ${whereClause}
+       GROUP BY ${user.role === 'worker' ? 'm.business_id' : 'm.worker_id'}
        ORDER BY m.matched_at DESC
        LIMIT ? OFFSET ?`
     )
@@ -94,10 +103,16 @@ matches.get('/', requireAuth, async (c) => {
         unreadCount = unread?.count || 0;
       }
 
+      // Check block status
+      const otherUserId = user.role === 'worker' ? match.business_id as string : match.worker_id as string;
+      const blocked = await db.prepare('SELECT blocker_id FROM blocks WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?)').bind(user.id, otherUserId, otherUserId, user.id).first<{ blocker_id: string }>();
+
       return {
         ...match,
         lastMessage,
         unreadCount,
+        isBlocked: !!blocked,
+        blockedByMe: blocked?.blocker_id === user.id,
       };
     })
   );
@@ -179,7 +194,9 @@ matches.get('/:id', requireAuth, async (c) => {
       .first<{ plan_id: string }>();
 
     const hasPremium =
-      subscription?.plan_id === 'professional' || subscription?.plan_id === 'enterprise';
+      subscription?.plan_id === 'business_pro' ||
+      subscription?.plan_id === 'business_elite' ||
+      subscription?.plan_id === 'founding_pro';
 
     if (hasPremium) {
       workerInfo.email = m.worker_email;
@@ -264,13 +281,105 @@ matches.post('/:id/archive', requireAuth, async (c) => {
     return error(c, 'Το ταίριασμα είναι ήδη αρχειοθετημένο', 400);
   }
 
-  const now = new Date().toISOString();
   await db
-    .prepare("UPDATE matches SET status = 'archived', updated_at = ? WHERE id = ?")
-    .bind(now, matchId)
+    .prepare("UPDATE matches SET status = 'archived', archived_at = datetime('now') WHERE id = ?")
+    .bind(matchId)
     .run();
 
   return success(c, { archived: true, matchId });
+});
+
+// POST /:id/restore — restore an archived match (also unblocks if needed)
+matches.post('/:id/restore', requireAuth, async (c) => {
+  const user = c.get('user');
+  const matchId = c.req.param('id');
+  const db = c.env.DB;
+
+  const match = await db
+    .prepare('SELECT id, worker_id, business_id, status FROM matches WHERE id = ?')
+    .bind(matchId)
+    .first<{ id: string; worker_id: string; business_id: string; status: string }>();
+
+  if (!match) return error(c, 'Δεν βρέθηκε', 404);
+  if (match.worker_id !== user.id && match.business_id !== user.id) return error(c, 'Δεν έχετε πρόσβαση', 403);
+
+  const otherUserId = match.worker_id === user.id ? match.business_id : match.worker_id;
+
+  // Check if OTHER user blocked this user (can't restore)
+  const blockedByOther = await db.prepare('SELECT id FROM blocks WHERE blocker_id = ? AND blocked_id = ?').bind(otherUserId, user.id).first();
+  if (blockedByOther) return error(c, 'Ο χρήστης σας έχει αποκλείσει', 400);
+
+  // Remove block if THIS user blocked the other
+  await db.prepare('DELETE FROM blocks WHERE blocker_id = ? AND blocked_id = ?').bind(user.id, otherUserId).run();
+
+  // Restore ALL matches between these two users (not just this one)
+  const now = new Date().toISOString();
+  await db.prepare("UPDATE matches SET status = 'active', archived_at = NULL WHERE worker_id = ? AND business_id = ?").bind(match.worker_id, match.business_id).run();
+
+  return success(c, { restored: true, matchId });
+});
+
+// DELETE /:id — permanently remove a match.
+//   Soft-deletes the match row (status='deleted') and clears the underlying
+//   swipes between the two users so the match never re-emerges from
+//   /matches or /discover.
+//
+// Until now the frontend was only deleting the conversation and locally
+// hiding the row, so on refresh the match returned from /matches and the
+// user saw it again ("ξανά εμφανιζόταν"). This endpoint fixes that.
+matches.delete('/:id', requireAuth, async (c) => {
+  const user = c.get('user');
+  const matchId = c.req.param('id');
+  const db = c.env.DB;
+
+  const match = await db
+    .prepare('SELECT id, worker_id, business_id, status FROM matches WHERE id = ?')
+    .bind(matchId)
+    .first<{ id: string; worker_id: string; business_id: string; status: string }>();
+
+  if (!match) return error(c, 'Δεν βρέθηκε το ταίριασμα', 404);
+  if (match.worker_id !== user.id && match.business_id !== user.id) {
+    return error(c, 'Δεν έχετε πρόσβαση σε αυτό το ταίριασμα', 403);
+  }
+
+  // Soft-delete the match row. NOTE: the `matches` table on this DB
+  // does NOT have an `updated_at` column. Furthermore, the `status`
+  // column has a CHECK constraint that only allows
+  // 'active' | 'archived' | 'expired' — so 'deleted' fails too.
+  // Hard-delete the row; the swipes wipe below prevents instant re-match.
+  await db.prepare('DELETE FROM matches WHERE id = ?').bind(matchId).run();
+
+  // Wipe the business→worker swipe so the pair can't re-match instantly.
+  // Worker→job swipes are left alone — the worker may still want to apply
+  // to a different job from the same business.
+  try {
+    await db
+      .prepare(
+        `DELETE FROM swipes
+          WHERE swiper_id = ? AND target_type = 'worker' AND target_id = ?`,
+      )
+      .bind(match.business_id, match.worker_id)
+      .run();
+  } catch {}
+
+  // Audit trail — every match deletion shows up στο /admin/audit-log.
+  try {
+    await db
+      .prepare(
+        `INSERT INTO audit_logs (id, user_id, action, entity_type, entity_id, metadata, ip_address, created_at)
+         VALUES (?, ?, 'match_deleted', 'match', ?, ?, ?, datetime('now'))`,
+      )
+      .bind(
+        `al_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+        user.id,
+        matchId,
+        JSON.stringify({ worker_id: match.worker_id, business_id: match.business_id }),
+        c.req.header('CF-Connecting-IP') || null,
+      )
+      .run();
+  } catch {}
+
+  return success(c, { deleted: true, matchId });
 });
 
 export default matches;

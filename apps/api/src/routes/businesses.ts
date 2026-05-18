@@ -3,9 +3,10 @@ import { zValidator } from '@hono/zod-validator';
 import { updateBusinessProfileSchema } from '@staffnow/validation';
 import type { Env, AuthUser } from '../types';
 import { requireAuth, requireRole } from '../middleware/auth';
-import { checkSwipeLimit } from '../middleware/subscription';
+import { checkSwipeLimit, checkActiveMatchesLimit } from '../middleware/subscription';
 import { success, error, paginated } from '../lib/response';
 import { generateId } from '../lib/id';
+import { recordDataChange, computeDiff, getRequestIp, getGeoFromRequest } from '../lib/activity';
 
 const businesses = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
 
@@ -60,6 +61,12 @@ businesses.patch(
     if (!profile) {
       return error(c, 'Το προφίλ δεν βρέθηκε', 404);
     }
+
+    // Snapshot before for diff
+    const beforeProfile = await db
+      .prepare('SELECT * FROM business_profiles WHERE id = ?')
+      .bind(profile.id)
+      .first<any>();
 
     const now = new Date().toISOString();
     const updateFields: string[] = [];
@@ -171,6 +178,25 @@ businesses.patch(
       .bind(profile.id)
       .first();
 
+    const diff = computeDiff(beforeProfile, updated as any, ['updated_at', 'profile_completeness']);
+    if (Object.keys(diff).length > 0) {
+      c.executionCtx.waitUntil(
+        recordDataChange(c.env, {
+          actorUserId: user.id,
+          actorRole: user.role,
+          actorEmail: user.email,
+          action: 'profile_update',
+          entityType: 'business_profile',
+          entityId: profile.id,
+          entityOwnerId: user.id,
+          fieldChanges: diff,
+          ip: getRequestIp(c),
+          userAgent: c.req.header('User-Agent') || null,
+          geo: getGeoFromRequest(c),
+        }),
+      );
+    }
+
     return success(c, { profile: updated });
   }
 );
@@ -240,7 +266,7 @@ businesses.get('/discover', requireAuth, requireRole('worker'), async (c) => {
   const results = await db
     .prepare(
       `SELECT bp.*, u.email, u.status as user_status,
-         CASE WHEN sub.plan_id IN ('professional', 'enterprise') THEN 1 ELSE 0 END as is_premium,
+         CASE WHEN sub.plan_id IN ('business_pro', 'business_elite', 'founding_pro') THEN 1 ELSE 0 END as is_premium,
          CASE WHEN bp.verified = 1 THEN 1 ELSE 0 END as is_verified,
          bp.profile_completeness
        FROM business_profiles bp
@@ -275,8 +301,11 @@ businesses.get('/discover', requireAuth, requireRole('worker'), async (c) => {
 
 // GET /:id — get business by ID
 businesses.get('/:id', requireAuth, async (c) => {
+  const viewer = c.get('user');
   const businessId = c.req.param('id');
   const db = c.env.DB;
+  const isSelf = viewer.id === businessId;
+  const isAdmin = viewer.role === 'admin';
 
   const profile = await db
     .prepare(
@@ -292,15 +321,64 @@ businesses.get('/:id', requireAuth, async (c) => {
     return error(c, 'Η επιχείρηση δεν βρέθηκε', 404);
   }
 
+  // Hide email unless viewer is self/admin/matched worker
+  let isMatched = false;
+  if (!isSelf && !isAdmin && viewer.role === 'worker') {
+    const match = await db
+      .prepare("SELECT id FROM matches WHERE business_id = ? AND worker_id = ? AND status = 'active' LIMIT 1")
+      .bind(businessId, viewer.id)
+      .first();
+    isMatched = !!match;
+  }
+  if (!isSelf && !isAdmin && !isMatched) {
+    (profile as any).email = undefined;
+    (profile as any).phone = undefined;
+  }
+
+  // Get branch info (cover photo, etc.)
+  const branch = await db
+    .prepare('SELECT * FROM business_branches WHERE user_id = ? ORDER BY created_at ASC LIMIT 1')
+    .bind(businessId)
+    .first();
+
+  // job_listings.business_id stores business_profiles.id (NOT user_id)
+  // so we use the bp.id from the profile we just fetched
+  const bpId = (profile as any).id;
   const activeJobs = await db
     .prepare(
-      "SELECT id, title, region, employment_type, salary_min, salary_max, created_at FROM job_listings WHERE business_id = ? AND status = 'published' ORDER BY created_at DESC LIMIT 10"
+      "SELECT id, title, region, city, employment_type, salary_min, salary_max, salary_type, housing_provided, meals_provided, transport_provided, bonus_provided, insurance_provided, no_benefits, created_at FROM job_listings WHERE business_id = ? AND status = 'published' ORDER BY created_at DESC LIMIT 10"
     )
-    .bind(businessId)
+    .bind(bpId)
     .all();
 
+  // Merge branch data with profile - branch data takes priority
+  const mergedProfile: any = { ...(profile as any) };
+  if (branch) {
+    const b = branch as any;
+    mergedProfile.company_name = b.name || mergedProfile.company_name;
+    mergedProfile.logo_url = b.logo_url || mergedProfile.logo_url;
+    mergedProfile.business_type = b.business_type || mergedProfile.business_type;
+    mergedProfile.description = b.description || mergedProfile.description;
+    mergedProfile.phone = b.phone || mergedProfile.phone;
+    mergedProfile.website = b.website || mergedProfile.website;
+    mergedProfile.address = b.address || mergedProfile.address;
+    mergedProfile.region = b.region || mergedProfile.region;
+    mergedProfile.city = b.city;
+    mergedProfile.cover_photo_url = b.cover_photo_url;
+    mergedProfile.staff_housing = b.staff_housing != null ? b.staff_housing : mergedProfile.staff_housing;
+    mergedProfile.meals_provided = b.meals_provided != null ? b.meals_provided : mergedProfile.meals_provided;
+    mergedProfile.transportation_assistance = b.transportation_assistance != null ? b.transportation_assistance : mergedProfile.transportation_assistance;
+    mergedProfile.bonus_provided = b.bonus_provided;
+    mergedProfile.insurance_provided = b.insurance_provided;
+    mergedProfile.no_benefits = b.no_benefits;
+    mergedProfile.operating_hours = b.operating_hours;
+    mergedProfile.google_business_url = b.google_business_url;
+    mergedProfile.postal_code = b.postal_code;
+    mergedProfile.area = b.area;
+  }
+
   return success(c, {
-    profile,
+    profile: mergedProfile,
     activeJobs: activeJobs.results,
   });
 });
@@ -356,6 +434,16 @@ businesses.post('/:id/like', requireAuth, requireRole('worker'), checkSwipeLimit
   let matchId: string | null = null;
 
   if (mutualSwipe) {
+    // Cap belongs to the business side (targetId here is the business user_id).
+    const cap = await checkActiveMatchesLimit(db, targetId);
+    if (!cap.allowed) {
+      return success(c, {
+        matched: false,
+        atCap: true,
+        message: 'Η επιχείρηση έχει φτάσει το όριο matches. Δοκίμασε ξανά σύντομα.',
+      });
+    }
+
     matched = true;
     matchId = generateId();
     const conversationId = generateId();
@@ -370,10 +458,10 @@ businesses.post('/:id/like', requireAuth, requireRole('worker'), checkSwipeLimit
 
     await db
       .prepare(
-        `INSERT INTO conversations (id, match_id, created_at, updated_at)
-         VALUES (?, ?, ?, ?)`
+        `INSERT INTO conversations (id, match_id, worker_id, business_id, status, created_at)
+         VALUES (?, ?, ?, ?, 'active', ?)`
       )
-      .bind(conversationId, matchId, now, now)
+      .bind(conversationId, matchId, user.id, targetId, now)
       .run();
 
     // Notify both parties

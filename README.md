@@ -65,7 +65,11 @@ cp apps/api/.env.example apps/api/.dev.vars
 # Edit apps/api/.dev.vars with your values
 
 # Web environment
-cp apps/web/.env.example apps/web/.env.local
+# IMPORTANT: use .env.development.local (NOT .env.local).
+# Next.js loads .env.local in EVERY environment including production builds,
+# which would bake `localhost` URLs into the deployed bundle.
+# .env.development.local is loaded ONLY by `next dev`.
+cp apps/web/.env.example apps/web/.env.development.local
 ```
 
 ### 3. Setup Database
@@ -232,7 +236,7 @@ No commission on hires. Revenue is subscription-based only.
 - [ ] `STRIPE_WEBHOOK_SECRET` - Stripe Dashboard > Webhooks
 - [ ] `STRIPE_PRICE_*` - 6 Stripe Price IDs for plans
 
-### Web (.env.local)
+### Web (.env.development.local for dev / .env.production for prod build)
 - [ ] `NEXT_PUBLIC_API_URL` - API base URL
 - [ ] `NEXT_PUBLIC_APP_URL` - Web app URL
 - [ ] `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - Stripe publishable key

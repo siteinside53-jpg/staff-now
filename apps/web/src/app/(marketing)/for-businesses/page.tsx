@@ -5,7 +5,8 @@ import { Card, CardContent } from '@/components/ui/card';
 export const metadata = {
   title: 'Για Επιχειρήσεις - StaffNow',
   description:
-    'Βρες αξιόπιστο προσωπικό τουρισμού γρήγορα. Δημοσίευσε αγγελίες, κάνε swipe matching, επικοινώνησε άμεσα.',
+    'Βρες αξιόπιστο προσωπικό γρήγορα σε κάθε κλάδο. Δημοσίευσε αγγελίες, κάνε swipe matching, επικοινώνησε άμεσα.',
+  alternates: { canonical: '/for-businesses' },
 };
 
 const features = [
@@ -108,12 +109,12 @@ export default function ForBusinessesPage() {
         {/* Header */}
         <div className="mx-auto max-w-3xl text-center">
           <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl">
-            Για Επιχειρήσεις Τουρισμού
+            Για Επιχειρήσεις
           </h1>
           <p className="mt-4 text-lg text-gray-600">
-            Βρες αξιόπιστο προσωπικό γρήγορα και εύκολα. Ξενοδοχεία,
-            εστιατόρια, μπαρ, τουριστικά γραφεία &mdash; η λύση για κάθε
-            τουριστική επιχείρηση.
+            Βρες αξιόπιστο προσωπικό γρήγορα και εύκολα. Εστίαση, retail,
+            logistics, υγεία, κατασκευές &mdash; η λύση για κάθε
+            επιχείρηση σε κάθε κλάδο.
           </p>
         </div>
 

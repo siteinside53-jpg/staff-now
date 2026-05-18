@@ -3,7 +3,7 @@ import Link from 'next/link';
 export const metadata = {
   title: 'Καριέρα - StaffNow',
   description:
-    'Δουλειά στο StaffNow. Χτίζουμε το μέλλον της εργασίας στον τουρισμό. Δες τις ανοιχτές θέσεις και κάνε αίτηση.',
+    'Δουλειά στο StaffNow. Χτίζουμε το μέλλον της εργασίας. Δες τις ανοιχτές θέσεις και κάνε αίτηση.',
 };
 
 const perks = [
@@ -113,8 +113,8 @@ export default function CareersPage() {
               Καριέρα στο StaffNow
             </p>
             <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl leading-[1.1]">
-              Χτίζουμε το μέλλον της εργασίας στον{' '}
-              <span className="text-blue-500">τουρισμό</span>
+              Χτίζουμε το μέλλον της{' '}
+              <span className="text-blue-500">εργασίας</span>
             </h1>
             <p className="mt-6 text-lg text-gray-400 leading-relaxed">
               Γίνε μέρος μιας ομάδας που αλλάζει τον τρόπο πρόσληψης στην Ελλάδα.

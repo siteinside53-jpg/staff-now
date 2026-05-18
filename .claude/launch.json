@@ -4,8 +4,14 @@
     {
       "name": "web",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "web", "dev"],
-      "port": 3000
+      "runtimeArgs": ["--filter", "@staffnow/web", "dev"],
+      "port": 3002
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@staffnow/api", "dev"],
+      "port": 8787
     }
   ]
 }

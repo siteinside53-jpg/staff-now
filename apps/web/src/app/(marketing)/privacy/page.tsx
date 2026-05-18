@@ -34,7 +34,7 @@ export default function PrivacyPage() {
             </h2>
             <p className="mt-4 leading-relaxed text-gray-700">
               Υπεύθυνος επεξεργασίας των δεδομένων σας είναι η εταιρεία
-              StaffNow, με έδρα την Αθήνα, Ελλάδα. Για θέματα προστασίας
+              StaffNow, με έδρα τη Θεσσαλονίκη, Ελλάδα. Για θέματα προστασίας
               δεδομένων μπορείτε να επικοινωνήσετε μαζί μας στο
               privacy@staffnow.gr.
             </p>

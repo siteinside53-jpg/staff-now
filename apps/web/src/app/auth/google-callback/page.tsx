@@ -17,7 +17,34 @@ export default function GoogleCallbackPage() {
 
     if (token) {
       localStorage.setItem('staffnow_token', token);
-      window.location.href = '/dashboard';
+      // Check for a custom return_to (e.g. user came from /app2/version5)
+      let returnTo: string | null = null;
+      try {
+        returnTo = sessionStorage.getItem('staffnow_return_to');
+        if (returnTo) sessionStorage.removeItem('staffnow_return_to');
+      } catch {}
+
+      // Check role before redirecting
+      (async () => {
+        try {
+          const API = process.env.NEXT_PUBLIC_API_URL || 'https://staffnow-api-production.siteinside53.workers.dev';
+          const res = await fetch(`${API}/auth/me`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+          const data = await res.json() as any;
+          const role = data?.data?.user?.role;
+          if (role === 'admin') {
+            window.location.href = '/admin';
+          } else if (returnTo && returnTo.startsWith('/')) {
+            // Safe: only same-origin paths
+            window.location.href = returnTo;
+          } else {
+            window.location.href = '/dashboard';
+          }
+        } catch {
+          window.location.href = returnTo && returnTo.startsWith('/') ? returnTo : '/dashboard';
+        }
+      })();
     } else {
       window.location.href = '/auth/login?error=no_token';
     }

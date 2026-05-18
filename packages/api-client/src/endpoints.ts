@@ -27,6 +27,8 @@ export class StaffNowApi {
     skip: (id: string) => this.client.post<any>(`/workers/${id}/skip`),
     favorite: (id: string) => this.client.post<any>(`/workers/${id}/favorite`),
     unfavorite: (id: string) => this.client.delete<any>(`/workers/${id}/favorite`),
+    deleteCvFile: () => this.client.delete<any>('/workers/me/cv/file'),
+    saveCvAsPdf: () => this.client.post<{ url: string; key: string }>('/workers/me/cv/save-as-pdf'),
   };
 
   businesses = {
@@ -57,9 +59,16 @@ export class StaffNowApi {
     create: (body: unknown) => this.client.post<any>('/jobs', body),
     update: (id: string, body: unknown) => this.client.patch<any>(`/jobs/${id}`, body),
     publish: (id: string) => this.client.post<any>(`/jobs/${id}/publish`),
+    pause: (id: string) => this.client.post<any>(`/jobs/${id}/pause`),
+    resume: (id: string) => this.client.post<any>(`/jobs/${id}/resume`),
     archive: (id: string) => this.client.post<any>(`/jobs/${id}/archive`),
+    boost: (id: string) => this.client.post<any>(`/jobs/${id}/boost`),
+    delete: (id: string) => this.client.delete<any>(`/jobs/${id}`),
     like: (id: string) => this.client.post<any>(`/jobs/${id}/like`),
     skip: (id: string) => this.client.post<any>(`/jobs/${id}/skip`),
+    favorite: (id: string) => this.client.post<any>(`/jobs/${id}/favorite`),
+    unfavorite: (id: string) => this.client.delete<any>(`/jobs/${id}/favorite`),
+    favorites: () => this.client.get<any>('/jobs/favorites/list'),
   };
 
   matches = {
@@ -82,10 +91,40 @@ export class StaffNowApi {
 
   billing = {
     getPlans: () => this.client.get<any>('/billing/plans'),
-    createCheckout: (body: { planId: string; interval: 'month' | 'year' }) =>
-      this.client.post<any>('/billing/checkout', body),
-    getPortalUrl: () => this.client.post<any>('/billing/portal'),
+    createCheckout: (body: {
+      planId: string;
+      period?: 'monthly' | 'yearly';
+      successUrl: string;
+      cancelUrl: string;
+      documentType?: 'invoice' | 'receipt';
+    }) => this.client.post<any>('/billing/checkout', body),
+    getPortalUrl: (returnUrl?: string) =>
+      this.client.post<any>('/billing/portal', { returnUrl: returnUrl || '' }),
     getSubscription: () => this.client.get<any>('/billing/subscription'),
+    /** Full billing snapshot: subscription + plan + payments + invoices + profile. */
+    getMe: () => this.client.get<any>('/billing/me'),
+    getProfile: () => this.client.get<any>('/billing/profile'),
+    updateProfile: (body: {
+      documentType: 'invoice' | 'receipt';
+      legalName?: string;
+      vatNumber?: string;
+      doy?: string;
+      address?: string;
+      postalCode?: string;
+      city?: string;
+      country?: string;
+      phone?: string;
+      email?: string;
+      notes?: string;
+    }) => this.client.put<any>('/billing/profile', body),
+    cancel: () => this.client.post<any>('/billing/cancel'),
+    createManualTransfer: (body: {
+      planId: string;
+      period?: 'monthly' | 'yearly';
+      documentType?: 'invoice' | 'receipt';
+    }) => this.client.post<any>('/billing/manual-transfer', body),
+    getManualTransfer: (id: string) =>
+      this.client.get<any>(`/billing/manual-transfer/${id}`),
   };
 
   uploads = {

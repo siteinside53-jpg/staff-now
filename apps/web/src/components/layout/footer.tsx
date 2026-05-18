@@ -9,10 +9,11 @@ const COLUMNS = [
   {
     titleKey: 'footer.product',
     links: [
-      { href: '/#how-it-works', labelKey: 'footer.howItWorks' },
-      { href: '/#workers', labelKey: 'footer.forWorkers' },
-      { href: '/#businesses', labelKey: 'footer.forBusinesses' },
+      { href: '/how-it-works', labelKey: 'footer.howItWorks' },
+      { href: '/for-workers', labelKey: 'footer.forWorkers' },
+      { href: '/for-businesses', labelKey: 'footer.forBusinesses' },
       { href: '/pricing', labelKey: 'nav.pricing' },
+      { href: '/categories', label: 'Κλάδοι' },
     ],
   },
   {
@@ -57,14 +58,15 @@ function Footer() {
           {/* Brand column */}
           <div className="lg:col-span-1">
             <Link href="/" className="inline-block">
-              <span className="inline-flex items-center gap-1.5 text-xl font-extrabold tracking-tight">
-                <svg className="h-5 w-5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <span className="inline-flex items-center gap-2 text-xl font-extrabold tracking-tight">
+                <svg viewBox="0 0 32 32" className="h-6 w-6 block" aria-label="StaffNow">
+                  <circle cx="16" cy="16" r="16" fill="#3b82f6" />
+                  <path d="M9 16.5l4.5 4.5L23 11" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
-                <span><span className="text-gray-900">Staff</span><span className="text-blue-600">Now</span></span>
+                <span><span className="text-gray-800">Staff</span><span className="text-blue-500">Now</span></span>
               </span>
             </Link>
-            <p className="mt-4 max-w-xs text-sm leading-relaxed text-gray-500">
+            <p className="mt-3 max-w-xs text-sm leading-relaxed text-gray-500">
               {t('footer.description')}
             </p>
           </div>
@@ -82,7 +84,7 @@ function Footer() {
                       href={link.href}
                       className="text-sm text-gray-500 transition-colors hover:text-gray-900"
                     >
-                      {t(link.labelKey)}
+                      {'labelKey' in link && link.labelKey ? t(link.labelKey) : (link as { label: string }).label}
                     </Link>
                   </li>
                 ))}

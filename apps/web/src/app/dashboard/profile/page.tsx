@@ -11,12 +11,10 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
 import { BusinessProfile } from '@/components/dashboard/business-profile';
-import {
-  REGIONS_GREECE,
-  WORKER_JOB_ROLES,
-  WORKER_JOB_ROLE_LABELS_EL,
-  LANGUAGES_COMMON,
-} from '@staffnow/config';
+import { WorkerProfilePanel } from '@/components/dashboard/worker-profile-panel';
+import { BusinessProfilePanel } from '@/components/dashboard/business-profile-panel';
+import { LANGUAGES_COMMON } from '@staffnow/config';
+import { RolePicker } from '@/components/ui/role-picker';
 
 interface WorkerForm {
   fullName: string;
@@ -32,6 +30,7 @@ interface WorkerForm {
   compensationType: 'hourly' | 'monthly';
   roles: string[];
   languages: string[];
+  skills: string[];
   isVisible: boolean;
 }
 
@@ -39,14 +38,16 @@ export default function ProfilePage() {
   const { user, profile, refreshUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const isWorker = user?.role === 'worker';
 
   const [wf, setWf] = useState<WorkerForm>({
     fullName: '', bio: '', city: '', region: '', availability: '',
     employmentType: '', willingToRelocate: false, yearsOfExperience: '',
     expectedHourlyRate: '', expectedMonthlySalary: '', compensationType: 'monthly',
-    roles: [], languages: [], isVisible: true,
+    roles: [], languages: [], skills: [], isVisible: true,
   });
+  const [skillInput, setSkillInput] = useState('');
   const [bizForm, setBizForm] = useState({ company_name: '', description: '', business_type: '' });
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [cvUrl, setCvUrl] = useState<string | null>(null);
@@ -64,12 +65,14 @@ export default function ProfilePage() {
             const p = res.data.profile || {};
             const roles = res.data.roles || [];
             const langs = (res.data.languages || []).map((l: any) => typeof l === 'string' ? l : l.language);
+            let parsedSkills: string[] = [];
+            try { parsedSkills = p.skills ? JSON.parse(p.skills) : []; } catch { parsedSkills = []; }
             setWf({
               fullName: p.full_name || '', bio: p.bio || '', city: p.city || '', region: p.region || '',
               availability: p.availability || '', employmentType: p.employment_type || '',
               willingToRelocate: p.willing_to_relocate === 1, yearsOfExperience: p.years_of_experience?.toString() || '',
               expectedHourlyRate: p.expected_hourly_rate?.toString() || '', expectedMonthlySalary: p.expected_monthly_salary?.toString() || '',
-              compensationType: p.expected_hourly_rate ? 'hourly' : 'monthly', roles, languages: langs, isVisible: p.is_visible !== 0,
+              compensationType: p.expected_hourly_rate ? 'hourly' : 'monthly', roles, languages: langs, skills: parsedSkills, isVisible: p.is_visible !== 0,
             });
             setCompleteness(p.profile_completeness || 0);
             setBadges(p.badges ? JSON.parse(p.badges) : []);
@@ -93,7 +96,6 @@ export default function ProfilePage() {
   }, [isWorker, profile]);
 
   const wc = (f: keyof WorkerForm, v: any) => setWf((p) => ({ ...p, [f]: v }));
-  const toggleRole = (r: string) => setWf((p) => p.roles.includes(r) ? { ...p, roles: p.roles.filter((x) => x !== r) } : p.roles.length >= 5 ? (toast.error('Μέχρι 5 ρόλοι'), p) : { ...p, roles: [...p.roles, r] });
   const toggleLang = (l: string) => setWf((p) => p.languages.includes(l) ? { ...p, languages: p.languages.filter((x) => x !== l) } : { ...p, languages: [...p.languages, l] });
 
   // File upload handler
@@ -135,7 +137,7 @@ export default function ProfilePage() {
   const saveWorker = async () => {
     setSaving(true);
     try {
-      const body: any = { fullName: wf.fullName, bio: wf.bio, city: wf.city, region: wf.region, availability: wf.availability || undefined, employmentType: wf.employmentType || undefined, willingToRelocate: wf.willingToRelocate, roles: wf.roles, languages: wf.languages, isVisible: wf.isVisible };
+      const body: any = { fullName: wf.fullName, bio: wf.bio, city: wf.city, region: wf.region, availability: wf.availability || undefined, employmentType: wf.employmentType || undefined, willingToRelocate: wf.willingToRelocate, roles: wf.roles, languages: wf.languages, isVisible: wf.isVisible, skills: JSON.stringify(wf.skills) };
       if (photoUrl) body.photoUrl = photoUrl;
       if (wf.yearsOfExperience) body.yearsOfExperience = parseInt(wf.yearsOfExperience);
       if (wf.compensationType === 'hourly' && wf.expectedHourlyRate) body.expectedHourlyRate = parseFloat(wf.expectedHourlyRate);
@@ -143,6 +145,19 @@ export default function ProfilePage() {
       const res = await api.workers.updateProfile(body) as any;
       if (res.success) { setCompleteness(res.data?.profile?.profile_completeness || completeness); await refreshUser(); toast.success('Το προφίλ ενημερώθηκε!'); }
     } catch { toast.error('Αποτυχία αποθήκευσης.'); } finally { setSaving(false); }
+  };
+
+  const addSkill = () => {
+    const s = skillInput.trim();
+    if (!s) return;
+    if (wf.skills.length >= 10) { toast.error('Μέχρι 10 ειδικότητες'); return; }
+    if (wf.skills.includes(s)) { setSkillInput(''); return; }
+    setWf((p) => ({ ...p, skills: [...p.skills, s] }));
+    setSkillInput('');
+  };
+
+  const removeSkill = (s: string) => {
+    setWf((p) => ({ ...p, skills: p.skills.filter((x) => x !== s) }));
   };
 
   const saveBiz = async () => { setSaving(true); try { await api.businesses.updateProfile(bizForm); await refreshUser(); toast.success('Ενημερώθηκε!'); } catch { toast.error('Σφάλμα.'); } finally { setSaving(false); } };
@@ -166,6 +181,39 @@ export default function ProfilePage() {
         <h1 className="text-2xl font-bold text-gray-900">Προφίλ Εργαζομένου</h1>
         <p className="mt-1 text-gray-600">Συμπλήρωσε όλα τα στοιχεία για καλύτερα ταιριάσματα.</p>
       </div>
+
+      {/* IMPROVEMENT SUGGESTIONS */}
+      {(() => {
+        const suggestions: { icon: string; text: string }[] = [];
+        if (!photoUrl) suggestions.push({ icon: '📸', text: 'Βάλε μια φωτογραφία' });
+        if (!wf.bio || wf.bio.length < 30) suggestions.push({ icon: '✍️', text: 'Γράψε σύντομη βιογραφία' });
+        if (wf.roles.length === 0) suggestions.push({ icon: '🎯', text: 'Επέλεξε ρόλους' });
+        if (wf.skills.length === 0) suggestions.push({ icon: '⭐', text: 'Πρόσθεσε ειδικότητες' });
+        if (!cvUrl) suggestions.push({ icon: '📄', text: 'Ανέβασε CV' });
+        if (!wf.expectedHourlyRate && !wf.expectedMonthlySalary) suggestions.push({ icon: '💰', text: 'Δήλωσε επιθυμητή αμοιβή' });
+        if (wf.languages.length === 0) suggestions.push({ icon: '🌍', text: 'Πρόσθεσε γλώσσες' });
+        if (suggestions.length === 0 || completeness >= 100) return null;
+        return (
+          <Card className="mb-6 border-amber-200 bg-amber-50/50">
+            <CardContent className="p-5">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 text-xl">💡</div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold text-amber-900 mb-2">Βελτίωσε το προφίλ σου</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {suggestions.slice(0, 6).map((s) => (
+                      <span key={s.text} className="inline-flex items-center gap-1.5 rounded-full bg-white border border-amber-200 px-3 py-1 text-xs font-medium text-amber-800">
+                        <span>{s.icon}</span>
+                        <span>{s.text}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* HEADER */}
       <Card className="mb-6"><CardContent className="p-6">
@@ -213,9 +261,7 @@ export default function ProfilePage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Πόλη</label><Input value={wf.city} onChange={(e) => wc('city', e.target.value)} placeholder="π.χ. Μύκονος" /></div>
             <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Περιοχή</label>
-              <select value={wf.region} onChange={(e) => wc('region', e.target.value)} className={sel}>
-                <option value="">Επέλεξε</option>{REGIONS_GREECE.map((r) => <option key={r} value={r}>{r}</option>)}
-              </select></div>
+              <Input value={wf.region} onChange={(e) => wc('region', e.target.value)} placeholder="π.χ. Καλαμαριά" /></div>
           </div>
         </CardContent></Card>
 
@@ -258,15 +304,44 @@ export default function ProfilePage() {
       {/* ROLES */}
       <Card className="mb-6"><CardHeader><div className="flex items-center justify-between"><h2 className="text-lg font-semibold text-gray-900">🏷️ Ρόλοι Εργασίας</h2><span className="text-xs text-gray-400">{wf.roles.length}/5</span></div></CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {WORKER_JOB_ROLES.map((r) => { const on = wf.roles.includes(r); return (
-              <label key={r} className={`flex items-center gap-2 rounded-lg border p-2.5 cursor-pointer transition-all text-sm ${on ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 hover:border-gray-300 text-gray-700'}`}>
-                <input type="checkbox" checked={on} onChange={() => toggleRole(r)} className="sr-only" />
-                <div className={`flex h-4 w-4 items-center justify-center rounded border flex-shrink-0 ${on ? 'border-blue-500 bg-blue-500 text-white' : 'border-gray-300'}`}>
-                  {on && <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
-                </div>{WORKER_JOB_ROLE_LABELS_EL[r] || r}
-              </label>); })}
+          <p className="text-xs text-gray-500 mb-3">Επίλεξε έως 5 ειδικότητες που σε αντιπροσωπεύουν.</p>
+          <RolePicker
+            value={wf.roles}
+            onChange={(next) => {
+              if (next.length > 5) { toast.error('Μέχρι 5 ρόλοι'); return; }
+              wc('roles', next);
+            }}
+            max={5}
+            triggerLabel="+ Προσθήκη ρόλου"
+          />
+        </CardContent></Card>
+
+      {/* SKILLS (free-form tags) */}
+      <Card className="mb-6"><CardHeader><div className="flex items-center justify-between"><h2 className="text-lg font-semibold text-gray-900">⭐ Ειδικότητες / Δεξιότητες</h2><span className="text-xs text-gray-400">{wf.skills.length}/10</span></div></CardHeader>
+        <CardContent>
+          <p className="text-xs text-gray-500 mb-3">Πρόσθεσε συγκεκριμένες ικανότητες (π.χ. "Μοντάρισμα", "Latte art", "Γυψοσανίδα"). Φαίνονται στους εργοδότες ως tags.</p>
+          <div className="flex gap-2 mb-3">
+            <Input
+              value={skillInput}
+              onChange={(e) => setSkillInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSkill(); } }}
+              placeholder="π.χ. Μοντάρισμα"
+              className="flex-1"
+            />
+            <Button onClick={addSkill} disabled={!skillInput.trim() || wf.skills.length >= 10} type="button">+ Προσθήκη</Button>
           </div>
+          {wf.skills.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {wf.skills.map((s) => (
+                <span key={s} className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 px-3 py-1.5 text-sm font-medium text-blue-700">
+                  {s}
+                  <button type="button" onClick={() => removeSkill(s)} className="text-blue-400 hover:text-red-500" aria-label={`Αφαίρεση ${s}`}>✕</button>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400">Δεν έχεις προσθέσει ειδικότητες ακόμα.</p>
+          )}
         </CardContent></Card>
 
       {/* LANGUAGES */}
@@ -287,7 +362,7 @@ export default function ProfilePage() {
       <Card className="mb-6"><CardHeader><h2 className="text-lg font-semibold text-gray-900">📄 Βιογραφικό (CV)</h2></CardHeader>
         <CardContent>
           {cvUrl ? (
-            <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 text-red-600">
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
@@ -297,10 +372,28 @@ export default function ProfilePage() {
                   <a href={cvUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">Προβολή PDF</a>
                 </div>
               </div>
-              <label className="cursor-pointer text-xs font-medium text-blue-600 hover:text-blue-700">
-                <input type="file" accept="application/pdf" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'cv'); }} />
-                Αντικατάσταση
-              </label>
+              <div className="flex items-center gap-3">
+                <label className="cursor-pointer text-xs font-medium text-blue-600 hover:text-blue-700">
+                  <input type="file" accept="application/pdf" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'cv'); }} />
+                  Αντικατάσταση
+                </label>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!confirm('Σίγουρα θέλεις να διαγράψεις το βιογραφικό σου;')) return;
+                    try {
+                      await (api.workers as any).deleteCvFile();
+                      setCvUrl(null);
+                      toast.success('Το βιογραφικό διαγράφηκε');
+                    } catch {
+                      toast.error('Αποτυχία διαγραφής');
+                    }
+                  }}
+                  className="text-xs font-medium text-red-600 hover:text-red-700"
+                >
+                  🗑️ Διαγραφή
+                </button>
+              </div>
             </div>
           ) : (
             <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-8 hover:border-blue-400 hover:bg-blue-50/50 transition-all">
@@ -329,11 +422,21 @@ export default function ProfilePage() {
         </CardContent></Card>
 
       {/* SAVE */}
-      <div className="sticky bottom-0 bg-gray-50/95 backdrop-blur border-t border-gray-200 -mx-4 px-4 py-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      <div className="sticky bottom-0 bg-gray-50/95 backdrop-blur border-t border-gray-200 -mx-4 px-4 py-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 flex gap-3">
         <Button onClick={saveWorker} disabled={saving} className="w-full sm:w-auto" size="lg">
           {saving ? 'Αποθήκευση...' : '💾 Αποθήκευση Αλλαγών'}
         </Button>
+        <Button onClick={() => setShowPreview(true)} variant="outline" className="w-full sm:w-auto" size="lg">
+          👁️ Προβολή Προφίλ
+        </Button>
       </div>
+
+      {showPreview && isWorker && (
+        <WorkerProfilePanel workerId={user?.id || null} onClose={() => setShowPreview(false)} isSelfView />
+      )}
+      {showPreview && !isWorker && (
+        <BusinessProfilePanel businessUserId={user?.id || null} onClose={() => setShowPreview(false)} />
+      )}
     </div>
   );
 }

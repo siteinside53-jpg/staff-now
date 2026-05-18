@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
 import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
 import { WorkerProfilePanel } from '@/components/dashboard/worker-profile-panel';
+import { BusinessProfilePanel } from '@/components/dashboard/business-profile-panel';
 
 function timeAgo(dateStr?: string): string {
   if (!dateStr) return '';
@@ -29,6 +30,7 @@ export default function InterestsPage() {
   const [loading, setLoading] = useState(true);
   const [liking, setLiking] = useState<string | null>(null);
   const [viewingProfileId, setViewingProfileId] = useState<string | null>(null);
+  const [viewingBusinessId, setViewingBusinessId] = useState<string | null>(null);
 
   const isWorker = user?.role === 'worker';
 
@@ -122,7 +124,7 @@ export default function InterestsPage() {
                         </div>
                       </div>
                       <div className="flex flex-shrink-0 gap-1.5 sm:gap-2">
-                        <button onClick={() => setViewingProfileId(item.swiper_id)} className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        <button onClick={() => setViewingBusinessId(item.swiper_id)} className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50">
                           👤
                         </button>
                         {isMatched ? (
@@ -193,6 +195,13 @@ export default function InterestsPage() {
         <WorkerProfilePanel
           workerId={viewingProfileId}
           onClose={() => setViewingProfileId(null)}
+        />
+      )}
+
+      {viewingBusinessId && (
+        <BusinessProfilePanel
+          businessUserId={viewingBusinessId}
+          onClose={() => setViewingBusinessId(null)}
         />
       )}
     </div>

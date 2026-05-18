@@ -3,21 +3,27 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
+import { useLoginModal } from '@/components/auth/login-modal';
 
 const NAV_LINKS = [
-  { href: '/#how-it-works', label: 'Πώς λειτουργεί' },
-  { href: '/#categories', label: 'Κατηγορίες' },
+  { href: '/how-it-works', label: 'Πώς λειτουργεί' },
   { href: '/for-businesses', label: 'Για επιχειρήσεις' },
   { href: '/for-workers', label: 'Για εργαζόμενους' },
+  { href: '/#download-app', label: 'Κατέβασε το App' },
+];
+
+const MOBILE_EXTRA_LINKS = [
+  { href: '/pricing', label: 'Τιμολόγηση' },
 ];
 
 function StaffNowLogo({ light = false }: { light?: boolean }) {
   return (
-    <span className="flex items-center gap-1.5 text-2xl font-extrabold tracking-tight">
-      <svg className="h-6 w-6 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <span className="flex items-center gap-2 text-xl font-extrabold tracking-tight">
+      <svg viewBox="0 0 32 32" className="h-6 w-6 block" aria-label="StaffNow">
+        <circle cx="16" cy="16" r="16" fill="#3b82f6" />
+        <path d="M9 16.5l4.5 4.5L23 11" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-      <span><span className={light ? 'text-white' : 'text-gray-900'}>Staff</span><span className="text-blue-600">Now</span></span>
+      <span><span className={light ? 'text-white' : 'text-gray-800'}>Staff</span><span className="text-blue-500">Now</span></span>
     </span>
   );
 }
@@ -26,6 +32,7 @@ function Header() {
   const { user, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isAuthenticated = !!user;
+  const loginModal = useLoginModal();
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur border-b border-gray-100">
@@ -52,7 +59,10 @@ function Header() {
         <div className="hidden items-center gap-3 lg:flex">
           {isAuthenticated ? (
             <>
-              <Link href="/dashboard" className="text-sm font-medium text-gray-600 hover:text-gray-900">
+              <Link
+                href="/dashboard"
+                className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+              >
                 Πίνακας Ελέγχου
               </Link>
               <button
@@ -64,18 +74,18 @@ function Header() {
             </>
           ) : (
             <>
-              <Link
-                href="/auth/login"
+              <button
+                onClick={() => loginModal.open('login')}
                 className="text-sm font-medium text-gray-600 hover:text-gray-900"
               >
                 Σύνδεση
-              </Link>
-              <Link
-                href="/auth/register"
+              </button>
+              <button
+                onClick={() => loginModal.open('register')}
                 className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
               >
-                Ξεκίνα τώρα
-              </Link>
+                Ξεκίνα Δωρεάν
+              </button>
             </>
           )}
         </div>
@@ -101,7 +111,7 @@ function Header() {
       {mobileMenuOpen && (
         <div className="border-t bg-white px-4 pb-4 pt-2 lg:hidden">
           <nav className="flex flex-col gap-1">
-            {NAV_LINKS.map((link) => (
+            {[...NAV_LINKS, ...MOBILE_EXTRA_LINKS].map((link) => (
               <Link key={link.href} href={link.href} className="rounded-md px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50" onClick={() => setMobileMenuOpen(false)}>
                 {link.label}
               </Link>
@@ -119,8 +129,8 @@ function Header() {
               </>
             ) : (
               <>
-                <Link href="/auth/login" onClick={() => setMobileMenuOpen(false)} className="rounded-lg border border-gray-300 px-4 py-2.5 text-center text-sm font-medium text-gray-700">Σύνδεση</Link>
-                <Link href="/auth/register" onClick={() => setMobileMenuOpen(false)} className="rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white">Ξεκίνα τώρα</Link>
+                <button onClick={() => { setMobileMenuOpen(false); loginModal.open('login'); }} className="rounded-lg border border-gray-300 px-4 py-2.5 text-center text-sm font-medium text-gray-700">Σύνδεση</button>
+                <button onClick={() => { setMobileMenuOpen(false); loginModal.open('register'); }} className="rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white">Ξεκίνα Δωρεάν</button>
               </>
             )}
           </div>

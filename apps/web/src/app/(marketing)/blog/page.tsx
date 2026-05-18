@@ -1,8 +1,8 @@
-import Link from 'next/link';
+import { NewsletterForm } from '@/components/marketing/newsletter-form';
 
-export const metadata = { title: 'Blog & Νέα | StaffNow', description: 'Άρθρα, συμβουλές και νέα για τον τουρισμό, την εργασία και το StaffNow.' };
+export const metadata = { title: 'Blog & Νέα | StaffNow', description: 'Άρθρα, συμβουλές και νέα για την εργασία, στελέχωση και το StaffNow.' };
 
-const categories = ['Όλα', 'Νέα', 'Συμβουλές', 'Product', 'Τουρισμός'];
+const categories = ['Όλα', 'Νέα', 'Συμβουλές', 'Product', 'Αγορά Εργασίας'];
 
 const posts = [
   {
@@ -16,7 +16,7 @@ const posts = [
   },
   {
     category: 'Συμβουλές',
-    title: 'Πώς να βρεις προσωπικό τουρισμού σε 24 ώρες',
+    title: 'Πώς να βρεις προσωπικό σε 24 ώρες',
     excerpt: 'Ο πλήρης οδηγός για επιχειρήσεις που θέλουν να καλύψουν θέσεις γρήγορα χωρίς συμβιβασμούς στην ποιότητα.',
     date: '15 Μαρ 2026',
     readTime: '7 λεπτά',
@@ -25,7 +25,7 @@ const posts = [
   },
   {
     category: 'Συμβουλές',
-    title: '5 τρόποι να ξεχωρίσεις ως εργαζόμενος στον τουρισμό',
+    title: '5 τρόποι να ξεχωρίσεις ως εργαζόμενος στο StaffNow',
     excerpt: 'Από το τέλειο προφίλ μέχρι τις σωστές δεξιότητες — τι κοιτάνε πραγματικά οι εργοδότες.',
     date: '10 Μαρ 2026',
     readTime: '5 λεπτά',
@@ -42,8 +42,8 @@ const posts = [
     color: 'bg-purple-100 text-purple-700',
   },
   {
-    category: 'Τουρισμός',
-    title: 'Τουρισμός 2026: Οι τάσεις που θα καθορίσουν τη σεζόν',
+    category: 'Αγορά Εργασίας',
+    title: 'Αγορά Εργασίας 2026: Οι τάσεις που αλλάζουν τις προσλήψεις',
     excerpt: 'Αύξηση ζήτησης, νέες τεχνολογίες και αλλαγές στην εργασιακή αγορά — τι περιμένουμε φέτος.',
     date: '28 Φεβ 2026',
     readTime: '6 λεπτά',
@@ -68,7 +68,7 @@ export default function BlogPage() {
         <div className="mx-auto max-w-4xl px-4 text-center">
           <p className="text-sm font-semibold uppercase tracking-wider text-blue-400">Blog</p>
           <h1 className="mt-4 text-4xl font-extrabold sm:text-5xl">Blog &amp; Νέα</h1>
-          <p className="mt-6 text-lg text-gray-400">Άρθρα, συμβουλές και νέα για τον τουρισμό και την εργασία.</p>
+          <p className="mt-6 text-lg text-gray-400">Άρθρα, συμβουλές και νέα για την εργασία και τη στελέχωση.</p>
         </div>
       </section>
 
@@ -86,7 +86,7 @@ export default function BlogPage() {
           {/* Posts Grid */}
           <div className="grid gap-8 md:grid-cols-2">
             {posts.map((post) => (
-              <article key={post.title} className="group rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg hover:border-blue-200 transition-all">
+              <article key={post.title} className="rounded-2xl border border-gray-100 overflow-hidden">
                 {/* Color bar */}
                 <div className="h-2 bg-gradient-to-r from-blue-600 to-indigo-600" />
                 <div className="p-6">
@@ -95,7 +95,7 @@ export default function BlogPage() {
                     <span className="text-xs text-gray-400">{post.date}</span>
                     <span className="text-xs text-gray-400">&middot; {post.readTime}</span>
                   </div>
-                  <h2 className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">{post.title}</h2>
+                  <h2 className="text-xl font-bold text-gray-900">{post.title}</h2>
                   <p className="mt-3 text-gray-600 text-sm leading-relaxed">{post.excerpt}</p>
                   <div className="mt-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -104,7 +104,7 @@ export default function BlogPage() {
                       </div>
                       <span className="text-xs font-medium text-gray-500">{post.author}</span>
                     </div>
-                    <span className="text-xs font-semibold text-blue-600 group-hover:underline">Διάβασε →</span>
+                    <span className="text-xs font-semibold text-gray-400">Σύντομα</span>
                   </div>
                 </div>
               </article>
@@ -118,10 +118,7 @@ export default function BlogPage() {
         <div className="mx-auto max-w-2xl px-4 text-center">
           <h2 className="text-2xl font-bold text-gray-900">Μείνε ενημερωμένος</h2>
           <p className="mt-3 text-gray-600">Γράψου στο newsletter μας για νέα, συμβουλές και ενημερώσεις.</p>
-          <div className="mt-8 flex gap-3 max-w-md mx-auto">
-            <input type="email" placeholder="Το email σου" className="flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none" />
-            <button className="rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-colors whitespace-nowrap">Εγγραφή</button>
-          </div>
+          <NewsletterForm />
           <p className="mt-3 text-xs text-gray-400">Χωρίς spam. Ακύρωση ανά πάσα στιγμή.</p>
         </div>
       </section>

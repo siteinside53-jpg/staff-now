@@ -15,7 +15,7 @@ interface AuthContextType {
   profile: any;
   subscription: any;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<any>;
   register: (data: { email: string; password: string; confirmPassword: string; role: string; acceptTerms: boolean }) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -57,7 +57,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setUser(data.user);
       await refreshUser();
+      return data.user;
     }
+    return null;
   };
 
   const register = async (data: { email: string; password: string; confirmPassword: string; role: string; acceptTerms: boolean }) => {

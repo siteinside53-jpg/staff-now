@@ -13,24 +13,35 @@ function ViewProfileInner() {
   const searchParams = useSearchParams();
   const id = searchParams.get('id');
   const type = searchParams.get('type');
+  const workerId = searchParams.get('worker');
+  const businessId = searchParams.get('business');
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
-      if (!id) return;
       try {
-        if (type === 'worker') {
-          const res = await api.workers.getById(id) as any;
+        if (workerId || type === 'worker') {
+          const res = await api.workers.getById(workerId || id!) as any;
           if (res.success) setProfile({ ...res.data, profileType: 'worker' });
-        } else {
+        } else if (businessId) {
+          const token = localStorage.getItem('staffnow_token');
+          const API = process.env.NEXT_PUBLIC_API_URL || 'https://staffnow-api-production.siteinside53.workers.dev';
+          const res = await fetch(`${API}/businesses/${businessId}`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+            credentials: 'include',
+          });
+          const data = await res.json() as any;
+          if (data.success) setProfile({ ...data.data, profileType: 'business' });
+        } else if (id) {
           const res = await api.jobs.getById(id) as any;
           if (res.success) setProfile({ ...res.data, profileType: 'job' });
         }
       } catch {} finally { setLoading(false); }
     }
-    load();
-  }, [id, type]);
+    if (id || workerId || businessId) load();
+    else setLoading(false);
+  }, [id, type, workerId, businessId]);
 
   if (loading) return <div className="flex justify-center py-20"><Spinner className="h-8 w-8" /></div>;
   if (!profile) return <div className="text-center py-20"><p className="text-gray-500">Το προφίλ δεν βρέθηκε.</p><Link href="/dashboard/discover" className="mt-4 inline-block text-blue-600 hover:underline">← Πίσω στην Ανακάλυψη</Link></div>;
@@ -90,6 +101,37 @@ function ViewProfileInner() {
             <div className="flex items-center gap-3 text-sm text-gray-400">
               {p.willing_to_relocate === 1 && <span>✈️ Διαθέσιμος/η για μετακόμιση</span>}
               {p.cv_url && <a href={p.cv_url} target="_blank" className="text-blue-600 hover:underline">📄 Βιογραφικό</a>}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Business profile
+  if (profile.profileType === 'business') {
+    const b = profile.profile || profile;
+    return (
+      <div className="max-w-2xl mx-auto">
+        <Link href="/dashboard/messages" className="mb-6 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">← Πίσω</Link>
+        <Card className="overflow-hidden">
+          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 px-6 pb-8 pt-10 text-center text-white">
+            {(b.logo_url || profile.logo_url) ? (
+              <img src={b.logo_url || profile.logo_url} alt="" className="mx-auto h-24 w-24 rounded-xl object-cover border-4 border-white/30" />
+            ) : (
+              <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-xl bg-white/20 text-3xl font-bold">
+                {(b.company_name || profile.company_name)?.[0]?.toUpperCase() || '🏢'}
+              </div>
+            )}
+            <h1 className="mt-4 text-2xl font-bold">{b.company_name || profile.company_name || 'Επιχείρηση'}</h1>
+            {(b.business_type || profile.business_type) && <Badge className="mt-2 bg-white/20 text-white">{b.business_type || profile.business_type}</Badge>}
+            {(b.region || profile.region) && <p className="mt-2 text-sm text-emerald-100">📍 {b.city || profile.city || ''}{b.region || profile.region ? `, ${b.region || profile.region}` : ''}</p>}
+          </div>
+          <CardContent className="p-6 space-y-4">
+            {(b.description || profile.description) && <div><h3 className="font-semibold text-gray-900 mb-2">Περιγραφή</h3><p className="text-gray-600 text-sm">{b.description || profile.description}</p></div>}
+            <div className="flex flex-wrap gap-3 text-sm">
+              {(b.staff_housing === 1 || profile.staff_housing === 1) && <Badge className="bg-emerald-50 text-emerald-700">🏠 Παρέχει Διαμονή</Badge>}
+              {(b.meals_provided === 1 || profile.meals_provided === 1) && <Badge className="bg-emerald-50 text-emerald-700">🍽️ Παρέχει Σίτιση</Badge>}
             </div>
           </CardContent>
         </Card>

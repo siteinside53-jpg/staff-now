@@ -5,6 +5,7 @@ export const metadata = {
   title: 'Πώς Λειτουργεί - StaffNow',
   description:
     'Μάθε πώς λειτουργεί το StaffNow σε 6 απλά βήματα. Εγγραφή, προφίλ, αναζήτηση, matching, συνομιλία, συνεργασία.',
+  alternates: { canonical: '/how-it-works' },
 };
 
 const steps = [

@@ -6,6 +6,7 @@ import { hashPassword, verifyPassword } from '../lib/password';
 import { signJWT } from '../lib/jwt';
 import { generateId } from '../lib/id';
 import { success, error } from '../lib/response';
+import { recordActivity, startSession, endSession, getRequestIp, getGeoFromRequest } from '../lib/activity';
 import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from '@staffnow/validation';
 
 const auth = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
@@ -69,6 +70,24 @@ auth.post('/register', authRateLimiter, async (c) => {
     `staffnow_token=${token}; HttpOnly; ${isProduction ? 'Secure; ' : ''}SameSite=Lax; Path=/; Max-Age=${72 * 3600}`,
   );
 
+  // Track activity (best-effort, never throws)
+  const ip = getRequestIp(c);
+  const ua = c.req.header('User-Agent') || null;
+  const geo = getGeoFromRequest(c);
+  c.executionCtx.waitUntil(
+    (async () => {
+      await startSession(c.env, { userId, ip, userAgent: ua, geo });
+      await recordActivity(c.env, {
+        userId,
+        type: 'register',
+        metadata: { role, email },
+        ip,
+        userAgent: ua,
+        geo,
+      });
+    })(),
+  );
+
   return success(c, { user: { id: userId, email, role, status: 'active' }, token }, 201);
 });
 
@@ -82,13 +101,36 @@ auth.post('/login', authRateLimiter, async (c) => {
 
   const { email, password } = parsed.data;
   const db = c.env.DB;
+  const lockKey = `login_fails:${email.toLowerCase()}`;
+  const MAX_ATTEMPTS = 5;
+  const LOCK_DURATION_S = 15 * 60; // 15 minutes
+
+  // Check lockout
+  let failedAttempts = 0;
+  try {
+    const stored = await c.env.KV.get(lockKey);
+    if (stored) failedAttempts = parseInt(stored, 10) || 0;
+  } catch { /* KV unavailable — allow through */ }
+
+  if (failedAttempts >= MAX_ATTEMPTS) {
+    return error(c, 'LOCKED', 'Πολλές αποτυχημένες προσπάθειες. Δοκιμάστε ξανά σε 15 λεπτά.', 429);
+  }
 
   const user = await db
     .prepare('SELECT id, email, password_hash, role, status FROM users WHERE email = ?')
     .bind(email)
     .first<{ id: string; email: string; password_hash: string; role: string; status: string }>();
 
+  const bumpFailures = () => {
+    try {
+      c.executionCtx.waitUntil(
+        c.env.KV.put(lockKey, String(failedAttempts + 1), { expirationTtl: LOCK_DURATION_S }),
+      );
+    } catch { /* ignore KV errors */ }
+  };
+
   if (!user) {
+    bumpFailures();
     return error(c, 'UNAUTHORIZED', 'Λάθος email ή κωδικός.', 401);
   }
 
@@ -98,8 +140,12 @@ auth.post('/login', authRateLimiter, async (c) => {
 
   const valid = await verifyPassword(password, user.password_hash, c.env.PASSWORD_SALT);
   if (!valid) {
+    bumpFailures();
     return error(c, 'UNAUTHORIZED', 'Λάθος email ή κωδικός.', 401);
   }
+
+  // Clear lockout on successful login
+  try { c.executionCtx.waitUntil(c.env.KV.delete(lockKey)); } catch {}
 
   // Update last login
   await db
@@ -115,6 +161,25 @@ auth.post('/login', authRateLimiter, async (c) => {
     `staffnow_token=${token}; HttpOnly; ${isProduction ? 'Secure; ' : ''}SameSite=Lax; Path=/; Max-Age=${72 * 3600}`,
   );
 
+  // Track activity (best-effort)
+  const ip = getRequestIp(c);
+  const ua = c.req.header('User-Agent') || null;
+  const geo = getGeoFromRequest(c);
+  const userIdForLog = user.id;
+  c.executionCtx.waitUntil(
+    (async () => {
+      await startSession(c.env, { userId: userIdForLog, ip, userAgent: ua, geo });
+      await recordActivity(c.env, {
+        userId: userIdForLog,
+        type: 'login',
+        metadata: { email: user.email, role: user.role },
+        ip,
+        userAgent: ua,
+        geo,
+      });
+    })(),
+  );
+
   return success(c, {
     user: { id: user.id, email: user.email, role: user.role, status: user.status },
     token,
@@ -122,8 +187,24 @@ auth.post('/login', authRateLimiter, async (c) => {
 });
 
 // POST /logout
-auth.post('/logout', (c) => {
+auth.post('/logout', requireAuth, async (c) => {
+  const u = c.get('user');
   c.header('Set-Cookie', 'staffnow_token=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0');
+  const logoutIp = getRequestIp(c);
+  const logoutUa = c.req.header('User-Agent') || null;
+  const logoutGeo = getGeoFromRequest(c);
+  c.executionCtx.waitUntil(
+    (async () => {
+      await endSession(c.env, u.id);
+      await recordActivity(c.env, {
+        userId: u.id,
+        type: 'logout',
+        ip: logoutIp,
+        userAgent: logoutUa,
+        geo: logoutGeo,
+      });
+    })(),
+  );
   return success(c, { message: 'Αποσυνδεθήκατε επιτυχώς.' });
 });
 
@@ -135,8 +216,33 @@ auth.get('/me', requireAuth, async (c) => {
   let profile = null;
   if (user.role === 'worker') {
     profile = await db.prepare('SELECT * FROM worker_profiles WHERE user_id = ?').bind(user.id).first();
+    if (profile) {
+      const p = profile as any;
+      const roles = await db
+        .prepare('SELECT role FROM worker_profile_roles WHERE worker_profile_id = ?')
+        .bind(p.id)
+        .all();
+      p.roles = (roles.results as Array<{ role: string }>).map((r) => r.role);
+      const languages = await db
+        .prepare('SELECT language FROM worker_profile_languages WHERE worker_profile_id = ?')
+        .bind(p.id)
+        .all();
+      p.languages = (languages.results as Array<{ language: string }>).map((l) => l.language);
+    }
   } else if (user.role === 'business') {
     profile = await db.prepare('SELECT * FROM business_profiles WHERE user_id = ?').bind(user.id).first();
+    // Merge branch data (name, logo, cover) if missing from profile
+    const branch = await db.prepare('SELECT name, logo_url, cover_photo_url, description, business_type, region, city FROM business_branches WHERE user_id = ?').bind(user.id).first<any>();
+    if (profile && branch) {
+      const p = profile as any;
+      if (!p.company_name && branch.name) p.company_name = branch.name;
+      if (!p.logo_url && branch.logo_url) p.logo_url = branch.logo_url;
+      if (!p.cover_photo_url && branch.cover_photo_url) p.cover_photo_url = branch.cover_photo_url;
+      if (!p.description && branch.description) p.description = branch.description;
+      if (!p.business_type && branch.business_type) p.business_type = branch.business_type;
+      if (!p.region && branch.region) p.region = branch.region;
+      if (!p.city && branch.city) p.city = branch.city;
+    }
   }
 
   const subscription = await db
@@ -194,7 +300,11 @@ auth.post('/forgot-password', passwordResetRateLimiter, async (c) => {
       .bind(resetToken, expiresAt, user.id)
       .run();
 
-    console.log(`[DEV] Password reset token for ${email}: ${resetToken}`);
+    // Send reset email via email service (token kept server-side only)
+    if (c.env.ENVIRONMENT !== 'production') {
+      // eslint-disable-next-line no-console
+      console.log(`[DEV] Password reset requested for ${email}`);
+    }
   }
 
   return success(c, { message: 'Αν υπάρχει λογαριασμός με αυτό το email, θα λάβετε οδηγίες επαναφοράς.' });

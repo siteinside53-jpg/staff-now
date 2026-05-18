@@ -32,16 +32,30 @@ export default function ContactPage(): React.JSX.Element {
     resolver: zodResolver(contactSchema),
   });
 
-  const onSubmit = async (_data: ContactFormData) => {
+  const onSubmit = async (data: ContactFormData) => {
     setIsSubmitting(true);
     try {
-      // TODO: Integrate with API
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const apiBase =
+        process.env.NEXT_PUBLIC_API_URL ||
+        'https://staffnow-api-production.siteinside53.workers.dev';
+      const res = await fetch(`${apiBase}/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error?.message || 'Request failed');
+      }
       setIsSubmitted(true);
       reset();
       toast.success('Το μήνυμά σου στάλθηκε επιτυχώς!');
-    } catch {
-      toast.error('Κάτι πήγε στραβά. Δοκίμασε ξανά.');
+    } catch (err) {
+      const msg =
+        err instanceof Error && err.message !== 'Request failed'
+          ? err.message
+          : 'Κάτι πήγε στραβά. Δοκίμασε ξανά.';
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -227,7 +241,7 @@ export default function ContactPage(): React.JSX.Element {
                 </div>
                 <div>
                   <p className="font-medium text-gray-900">Τηλέφωνο</p>
-                  <p className="mt-1 text-gray-600">+30 210 1234 567</p>
+                  <p className="mt-1 text-gray-600">+30 697 155 3942</p>
                 </div>
               </div>
 
@@ -241,7 +255,7 @@ export default function ContactPage(): React.JSX.Element {
                 <div>
                   <p className="font-medium text-gray-900">Διεύθυνση</p>
                   <p className="mt-1 text-gray-600">
-                    Αθήνα, Ελλάδα
+                    Θεσσαλονίκη, Ελλάδα
                   </p>
                 </div>
               </div>
