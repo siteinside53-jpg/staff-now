@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
@@ -64,6 +64,15 @@ export default function DiscoverPage() {
   const [viewingBusinessId, setViewingBusinessId] = useState<string | null>(null);
   const [viewingJobDetail, setViewingJobDetail] = useState<DiscoverProfile | null>(null);
   const [aiMatchScores, setAiMatchScores] = useState<Record<string, number>>({});
+
+  // v5-style swipe drag state
+  const dragRef = useRef({ startX: 0, startY: 0, moved: false });
+  const [offsetX, setOffsetX] = useState(0);
+  const [offsetY, setOffsetY] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const [exitDir, setExitDir] = useState<'left' | 'right' | null>(null);
+  const [savedBounce, setSavedBounce] = useState(false);
+  const [discoverView, setDiscoverView] = useState<'swipe' | 'list'>('swipe');
 
   const isWorker = user?.role === 'worker';
 
@@ -464,10 +473,190 @@ export default function DiscoverPage() {
         </div>
       )}
 
-      {discoverTab === 'discover' && !noCandidates && currentCandidate && (
+      {/* Swipe/Λίστα toggle — visible only on Εύρεση tab when there are candidates */}
+      {discoverTab === 'discover' && !noCandidates && (
+        <div className="mx-auto max-w-lg mb-4 flex items-center justify-center">
+          <div className="inline-flex rounded-full bg-gray-100 p-1 text-xs font-bold shadow-inner">
+            <button
+              onClick={() => setDiscoverView('swipe')}
+              className={`px-5 py-1.5 rounded-full transition-all ${discoverView === 'swipe' ? 'bg-white text-gray-900 shadow' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              🎴 Swipe
+            </button>
+            <button
+              onClick={() => setDiscoverView('list')}
+              className={`px-5 py-1.5 rounded-full transition-all ${discoverView === 'list' ? 'bg-white text-gray-900 shadow' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              📋 Λίστα
+            </button>
+          </div>
+        </div>
+      )}
 
-      <div className="mx-auto max-w-lg">
-        <Card className="overflow-hidden shadow-lg">
+      {/* LIST VIEW — horizontal cards stacked vertically */}
+      {discoverTab === 'discover' && !noCandidates && discoverView === 'list' && (
+        <div className="mx-auto max-w-2xl">
+          <ul className="space-y-3">
+            {candidates.map((c, idx) => {
+              const photo = c.photoUrl || c.companyLogo || c.coverPhoto;
+              const score = aiMatchScores[c.id];
+              return (
+                <li key={c.id}>
+                  <button
+                    onClick={() => {
+                      setCurrentIndex(idx);
+                      setDiscoverView('swipe');
+                    }}
+                    className="group w-full flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100 hover:shadow-md hover:ring-blue-200 transition-all active:scale-[0.99] text-left"
+                  >
+                    {/* Avatar / Logo */}
+                    <div className="relative h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0 overflow-hidden rounded-2xl bg-gradient-to-br from-purple-200 via-pink-200 to-rose-200 flex items-center justify-center">
+                      {photo ? (
+                        <img src={photo} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="text-2xl sm:text-3xl font-black text-purple-700">
+                          {c.name?.charAt(0)?.toUpperCase() || '?'}
+                        </span>
+                      )}
+                      {c.isBoosted && (
+                        <span className="absolute -top-0 -left-0 rounded-br-md bg-purple-500/90 px-1 py-0.5 text-[9px] font-bold text-white">
+                          BOOST
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Main info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-sm sm:text-base font-bold text-gray-900 truncate">
+                          {c.name}
+                        </p>
+                        {c.verified && (
+                          <span
+                            className="inline-flex items-center rounded-full bg-blue-500/10 px-1.5 text-[10px] font-bold text-blue-600"
+                            title="Επαληθευμένος"
+                          >
+                            ✓
+                          </span>
+                        )}
+                        {c.isPremium && (
+                          <span className="inline-flex items-center rounded-full bg-amber-100 px-1.5 text-[10px] font-bold text-amber-700">
+                            ⭐ Premium
+                          </span>
+                        )}
+                      </div>
+                      {c.companyName && (
+                        <p className="text-xs sm:text-sm text-gray-600 truncate">
+                          🏢 {c.companyName}
+                        </p>
+                      )}
+                      {c.location && (
+                        <p className="mt-0.5 text-xs text-gray-500 truncate">
+                          📍 {c.location}
+                        </p>
+                      )}
+                      {(c.salary || c.experience) && (
+                        <p className="mt-0.5 text-xs font-semibold text-emerald-600 truncate">
+                          {c.salary || c.experience}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Right column: AI score + chevron */}
+                    <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                      {typeof score === 'number' && score > 0 && (
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold text-white shadow-sm ${
+                            score >= 80
+                              ? 'bg-emerald-500'
+                              : score >= 60
+                                ? 'bg-blue-500'
+                                : 'bg-gray-500'
+                          }`}
+                        >
+                          🧠 {score}%
+                        </span>
+                      )}
+                      <span
+                        aria-hidden="true"
+                        className="text-gray-300 text-2xl leading-none group-hover:text-blue-400 transition-colors"
+                      >
+                        ›
+                      </span>
+                    </div>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
+      {/* SWIPE VIEW — single card */}
+      {discoverTab === 'discover' && !noCandidates && currentCandidate && discoverView === 'swipe' && (
+
+      <div className="mx-auto max-w-lg select-none">
+        <Card
+          className="overflow-hidden shadow-2xl touch-none"
+          onPointerDown={(e) => {
+            const target = e.target as HTMLElement;
+            if (target.closest('button, a, [data-no-drag]')) return;
+            dragRef.current = { startX: e.clientX, startY: e.clientY, moved: false };
+            setDragging(true);
+          }}
+          onPointerMove={(e) => {
+            if (!dragging) return;
+            const dx = e.clientX - dragRef.current.startX;
+            const dy = e.clientY - dragRef.current.startY;
+            if (Math.abs(dx) > 6 || Math.abs(dy) > 6) dragRef.current.moved = true;
+            setOffsetX(dx);
+            setOffsetY(dy);
+          }}
+          onPointerUp={() => {
+            if (!dragging) return;
+            setDragging(false);
+            const { moved } = dragRef.current;
+            if (Math.abs(offsetX) > 100) {
+              const dir = offsetX > 0 ? 'right' : 'left';
+              setExitDir(dir);
+              setTimeout(() => {
+                handleAction(dir === 'right' ? 'like' : 'skip');
+                setOffsetX(0);
+                setOffsetY(0);
+                setExitDir(null);
+              }, 220);
+            } else if (!moved) {
+              // Tap → open profile
+              if (isWorker && currentCandidate.type === 'job') {
+                setViewingJobDetail(currentCandidate);
+              } else if (isWorker && currentCandidate.businessUserId) {
+                setViewingBusinessId(currentCandidate.businessUserId);
+              } else {
+                setViewingProfileId(currentCandidate.id);
+              }
+              setOffsetX(0);
+              setOffsetY(0);
+            } else {
+              setOffsetX(0);
+              setOffsetY(0);
+            }
+          }}
+          onPointerCancel={() => {
+            setDragging(false);
+            setOffsetX(0);
+            setOffsetY(0);
+          }}
+          style={{
+            transform:
+              exitDir === 'right'
+                ? 'translate(130vw, 0) rotate(40deg)'
+                : exitDir === 'left'
+                  ? 'translate(-130vw, 0) rotate(-40deg)'
+                  : `translate(${offsetX}px, ${offsetY * 0.5}px) rotate(${offsetX / 22}deg)`,
+            transition: dragging ? 'none' : 'transform 220ms ease-out',
+            cursor: dragging ? 'grabbing' : 'grab',
+          }}
+        >
           {/* Header */}
           <div
             className={`relative px-6 pb-8 pt-10 text-center text-white ${
@@ -483,6 +672,19 @@ export default function DiscoverPage() {
                 : undefined
             }
           >
+            {/* Swipe overlays */}
+            <div
+              className="pointer-events-none absolute top-6 left-6 z-20 rounded-2xl border-4 border-emerald-400 px-4 py-1.5 text-xl font-black text-emerald-400 -rotate-12"
+              style={{ opacity: Math.max(0, Math.min(1, offsetX / 100)) }}
+            >
+              LIKE
+            </div>
+            <div
+              className="pointer-events-none absolute top-6 right-6 z-20 rounded-2xl border-4 border-rose-400 px-4 py-1.5 text-xl font-black text-rose-400 rotate-12"
+              style={{ opacity: Math.max(0, Math.min(1, -offsetX / 100)) }}
+            >
+              NOPE
+            </div>
             {currentCandidate.coverPhoto && (
               <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/45 to-black/60" />
             )}
@@ -578,32 +780,6 @@ export default function DiscoverPage() {
               )}
             </div>
 
-            {/* Save + Share + View */}
-            <div className="mt-4 flex items-center justify-center gap-3">
-              <button onClick={() => { saveItem(currentCandidate.id, currentCandidate.type === 'job' ? 'job' : 'worker'); }} title="Αποθήκευση"
-                className="rounded-lg border border-gray-200 p-2 text-gray-400 hover:text-amber-500 hover:bg-amber-50 transition-colors">
-                🔖
-              </button>
-              <button
-                onClick={() => {
-                  if (isWorker && currentCandidate.type === 'job') {
-                    setViewingJobDetail(currentCandidate);
-                  } else if (isWorker && currentCandidate.businessUserId) {
-                    setViewingBusinessId(currentCandidate.businessUserId);
-                  } else {
-                    setViewingProfileId(currentCandidate.id);
-                  }
-                }}
-                className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
-              >
-                {isWorker ? '📋 Δες πλήρη αγγελία & προφίλ' : '👤 Δες πλήρες προφίλ'}
-              </button>
-              <button onClick={() => shareItem(currentCandidate.name)} title="Κοινοποίηση"
-                className="rounded-lg border border-gray-200 p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-colors">
-                📤
-              </button>
-            </div>
-
             {/* Status badge */}
             {(currentCandidate.isMatched || currentCandidate.swipeStatus) && (
               <div className="mt-3 text-center">
@@ -619,35 +795,76 @@ export default function DiscoverPage() {
               </div>
             )}
 
-            <div className="mt-4 flex gap-4">
-              {currentCandidate.isMatched ? (
-                <a href="/dashboard/messages" className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white hover:bg-blue-700">
+            {/* Matched → chat link */}
+            {currentCandidate.isMatched && (
+              <div className="mt-4">
+                <a data-no-drag onClick={(e) => e.stopPropagation()} href="/dashboard/messages" className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white hover:bg-blue-700">
                   💬 Άνοιξε Chat
                 </a>
-              ) : (
-                <>
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="flex-1 border-red-200 text-red-600 hover:bg-red-50"
-                    onClick={() => handleAction('skip')}
-                    disabled={actionLoading}
-                  >
-                    ✕ Πέρασε
-                  </Button>
-                  <Button
-                    size="lg"
-                    className={`flex-1 text-white ${currentCandidate.swipeStatus === 'like' ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
-                    onClick={() => handleAction('like')}
-                    disabled={actionLoading || currentCandidate.swipeStatus === 'like'}
-                  >
-                    {currentCandidate.swipeStatus === 'like' ? '✓ Δηλώθηκε' : '♥ Ενδιαφέρομαι'}
-                  </Button>
-                </>
-              )}
-            </div>
+              </div>
+            )}
           </CardContent>
         </Card>
+
+        {/* Bottom action bar — ❌ Πέρασε | 📁 Αποθήκευση | ❤️ Like */}
+        {!currentCandidate.isMatched && (
+          <div className="mt-5 flex items-center justify-center gap-5" data-no-drag>
+            {/* Skip */}
+            <button
+              data-no-drag
+              onClick={(e) => { e.stopPropagation(); handleAction('skip'); }}
+              disabled={actionLoading}
+              aria-label="Πέρασε"
+              title="Πέρασε"
+              className="group h-16 w-16 inline-flex items-center justify-center rounded-full bg-white shadow-lg ring-1 ring-gray-200 text-rose-500 hover:text-white hover:bg-rose-500 hover:ring-rose-500 active:scale-90 transition-all disabled:opacity-50"
+            >
+              <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {/* Save (folder, filled blue with bounce animation) */}
+            <button
+              data-no-drag
+              onClick={(e) => {
+                e.stopPropagation();
+                saveItem(currentCandidate.id, currentCandidate.type === 'job' ? 'job' : 'worker');
+                setSavedBounce(true);
+                setTimeout(() => setSavedBounce(false), 600);
+              }}
+              aria-label="Αποθήκευση"
+              title="Αποθήκευση"
+              className={`h-14 w-14 inline-flex items-center justify-center rounded-full bg-blue-600 text-white shadow-lg ring-1 ring-blue-700 hover:bg-blue-700 active:scale-90 transition-all ${savedBounce ? 'animate-savedBounce' : ''}`}
+            >
+              <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M19.5 21a3 3 0 0 0 3-3v-9a3 3 0 0 0-3-3h-5.379a.75.75 0 0 1-.53-.22L11.47 3.66A2.25 2.25 0 0 0 9.879 3H4.5a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h15Z" />
+              </svg>
+            </button>
+
+            {/* Like */}
+            <button
+              data-no-drag
+              onClick={(e) => { e.stopPropagation(); handleAction('like'); }}
+              disabled={actionLoading || currentCandidate.swipeStatus === 'like'}
+              aria-label="Ενδιαφέρομαι"
+              title="Ενδιαφέρομαι"
+              className={`h-16 w-16 inline-flex items-center justify-center rounded-full shadow-lg ring-1 active:scale-90 transition-all ${
+                currentCandidate.swipeStatus === 'like'
+                  ? 'bg-gray-300 ring-gray-300 text-white cursor-not-allowed'
+                  : 'bg-white text-emerald-600 ring-gray-200 hover:bg-emerald-500 hover:text-white hover:ring-emerald-500'
+              }`}
+            >
+              <svg className="h-7 w-7" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 0 1-.383-.218 25.18 25.18 0 0 1-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0 1 12 5.052 5.5 5.5 0 0 1 16.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 0 1-4.244 3.17 15.247 15.247 0 0 1-.383.219l-.022.012-.007.004-.003.001a.752.752 0 0 1-.704 0l-.003-.001Z" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        {/* Hint */}
+        <p className="mt-3 text-center text-[11px] text-gray-400">
+          👆 Πάτα για προφίλ · 👈 Σύρε αριστερά (skip) · Σύρε δεξιά 👉 (like)
+        </p>
       </div>
       )}
 

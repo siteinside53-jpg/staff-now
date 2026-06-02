@@ -17,6 +17,7 @@ import branchRoutes from './routes/branches';
 import interestRoutes from './routes/interests';
 import aiRoutes from './routes/ai';
 import creditRoutes from './routes/credits';
+import publicRoutes from './routes/public';
 import { errorHandler } from './middleware/error-handler';
 import { rateLimiter } from './middleware/rate-limiter';
 import { requireAuth } from './middleware/auth';
@@ -66,6 +67,7 @@ app.route('/branches', branchRoutes);
 app.route('/interests', interestRoutes);
 app.route('/ai', aiRoutes);
 app.route('/credits', creditRoutes);
+app.route('/public', publicRoutes);
 
 // POST /activity/track — page-view / action ping from logged-in clients
 app.post('/activity/track', requireAuth, async (c) => {
