@@ -41,3 +41,4 @@ jobs:
         run: pnpm dlx wrangler@3 pages deploy out --project-name=staffnow --branch=main
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 19a8ae246fe10ce24660b285944ba774
