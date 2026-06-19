@@ -6,6 +6,9 @@ on:
     paths:
       - 'apps/web/**'
       - 'packages/**'
+  schedule:
+    # Κάθε 6 ώρες: rebuild ώστε να μπαίνουν στο sitemap/SEO οι νέες αγγελίες
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 jobs:
@@ -31,7 +34,7 @@ jobs:
         working-directory: apps/web
         run: pnpm build
         env:
-          NEXT_PUBLIC_API_URL: https://api.staffnow.gr
+          NEXT_PUBLIC_API_URL: https://staffnow-api-production.siteinside53.workers.dev
           NEXT_PUBLIC_APP_URL: https://staffnow.gr
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
 
@@ -39,4 +42,4 @@ jobs:
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          command: pages deploy apps/web/.next --project-name=staffnow-web
+          command: pages deploy apps/web/out --project-name=staffnow --branch=main
