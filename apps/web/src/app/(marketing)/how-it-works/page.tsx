@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 export const metadata = {
-  title: 'Πώς Λειτουργεί - StaffNow',
+  title: 'Πώς Λειτουργεί',
   description:
     'Μάθε πώς λειτουργεί το StaffNow σε 6 απλά βήματα. Εγγραφή, προφίλ, αναζήτηση, matching, συνομιλία, συνεργασία.',
   alternates: { canonical: '/how-it-works' },

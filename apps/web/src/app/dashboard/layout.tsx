@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
@@ -32,6 +32,23 @@ const businessNavItems = [
   { href: '/dashboard/settings', label: 'Ρυθμίσεις', icon: SettingsIcon },
 ];
 
+// ── Seen interests (ώστε το badge «Ενδιαφέρον» να καθαρίζει μόλις το δεις) ──
+const INTERESTS_SEEN_KEY = 'staffnow_interests_seen';
+function getSeenInterestIds(): Set<string> {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(INTERESTS_SEEN_KEY) || '[]'));
+  } catch {
+    return new Set();
+  }
+}
+function addSeenInterestIds(ids: string[]) {
+  try {
+    const cur = getSeenInterestIds();
+    ids.forEach((id) => cur.add(id));
+    localStorage.setItem(INTERESTS_SEEN_KEY, JSON.stringify([...cur]));
+  } catch {}
+}
+
 export default function DashboardLayout({
   children,
 }: {
@@ -45,6 +62,9 @@ export default function DashboardLayout({
   const [badges, setBadges] = useState<Record<string, number>>({});
   const [notifications, setNotifications] = useState<any[]>([]);
   const [notifUnread, setNotifUnread] = useState(0);
+  const receivedInterestsRef = useRef<any[]>([]);
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
 
   useEffect(() => {
     if (!loading && !user) {
@@ -66,11 +86,24 @@ export default function DashboardLayout({
           fetch(`${base}/notifications?limit=15`, { headers }).then(r => r.json()) as Promise<any>,
         ]);
         const convos = convosRes?.data || [];
-        const interests = interestsRes?.data || [];
+        const interests: any[] = Array.isArray(interestsRes?.data) ? interestsRes.data : [];
+        receivedInterestsRef.current = interests;
+
+        const unmatched = interests.filter((i) => !i.is_matched && i.is_matched !== 1);
+        const onInterestsPage = pathnameRef.current.startsWith('/dashboard/interests');
+        if (onInterestsPage) {
+          // Είσαι ήδη στη σελίδα → μαρκάρισέ τα ως «είδα» ώστε το badge να μη ξαναβγεί.
+          addSeenInterestIds(unmatched.map((i) => String(i.swipe_id ?? i.id)));
+        }
+        const seen = getSeenInterestIds();
+        const unseenInterests = onInterestsPage
+          ? 0
+          : unmatched.filter((i) => !seen.has(String(i.swipe_id ?? i.id))).length;
+
         setBadges({
           matches: 0,
           messages: Array.isArray(convos) ? convos.filter((c: any) => c.unreadCount > 0).length : 0,
-          interests: Array.isArray(interests) ? interests.filter((i: any) => !i.is_matched && i.is_matched !== 1).length : 0,
+          interests: unseenInterests,
         });
         setNotifications(notifRes?.data || []);
         setNotifUnread(notifRes?.unreadCount || 0);
@@ -83,6 +116,16 @@ export default function DashboardLayout({
     return () => { clearInterval(interval); window.removeEventListener('staffnow:badges-refresh', handler); };
   }, [user]);
 
+  // Μόλις μπεις στη σελίδα «Ενδιαφέρον» → καθάρισε το badge άμεσα + θυμήσου ότι τα είδες.
+  useEffect(() => {
+    if (!pathname.startsWith('/dashboard/interests')) return;
+    const ids = (receivedInterestsRef.current || [])
+      .filter((i: any) => !i.is_matched && i.is_matched !== 1)
+      .map((i: any) => String(i.swipe_id ?? i.id));
+    if (ids.length) addSeenInterestIds(ids);
+    setBadges((b) => ({ ...b, interests: 0 }));
+  }, [pathname]);
+
   const markAllNotificationsRead = async () => {
     try {
       const token = localStorage.getItem('staffnow_token');
@@ -91,6 +134,21 @@ export default function DashboardLayout({
       });
       setNotifUnread(0);
       setNotifications((prev) => prev.map((n) => ({ ...n, read_at: new Date().toISOString() })));
+    } catch {}
+  };
+
+  // Πάτημα σε ειδοποίηση → φεύγει αμέσως (mark read τοπικά + στον server).
+  const dismissNotification = (n: any) => {
+    if (!n?.id) return;
+    setNotifications((prev) =>
+      prev.map((x) => (x.id === n.id ? { ...x, read_at: x.read_at || new Date().toISOString() } : x)),
+    );
+    if (!n.read_at) setNotifUnread((u) => Math.max(0, u - 1));
+    try {
+      const token = localStorage.getItem('staffnow_token');
+      fetch(`https://staffnow-api-production.siteinside53.workers.dev/notifications/${n.id}/read`, {
+        method: 'POST', headers: { 'Authorization': `Bearer ${token}` },
+      }).catch(() => {});
     } catch {}
   };
 
@@ -119,7 +177,7 @@ export default function DashboardLayout({
           </Link>
           {/* Notification bell */}
           <div className="relative">
-            <button onClick={() => { setNotifOpen(!notifOpen); if (!notifOpen && notifUnread > 0) markAllNotificationsRead(); }}
+            <button onClick={() => setNotifOpen(!notifOpen)}
               className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100">
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
               {(notifUnread > 0 || totalNotifs > 0) && (
@@ -134,7 +192,11 @@ export default function DashboardLayout({
                 <div className="absolute left-0 top-11 z-50 w-80 rounded-xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
                   <div className="border-b border-gray-100 px-4 py-2.5 flex items-center justify-between">
                     <p className="text-sm font-semibold text-gray-900">Ειδοποιήσεις</p>
-                    {notifUnread > 0 && <span className="text-[10px] text-blue-600 font-medium">{notifUnread} νέες</span>}
+                    {notifUnread > 0 && (
+                      <button onClick={markAllNotificationsRead} className="text-[10px] text-blue-600 font-medium hover:underline">
+                        Διάβασα όλες ({notifUnread})
+                      </button>
+                    )}
                   </div>
                   <div className="max-h-80 overflow-y-auto">
                     {(badges.messages > 0 || badges.interests > 0) && (
@@ -151,14 +213,14 @@ export default function DashboardLayout({
                         )}
                       </div>
                     )}
-                    {notifications.length === 0 ? (
+                    {notifications.filter((n: any) => !n.read_at).length === 0 ? (
                       <div className="px-4 py-8 text-center">
                         <p className="text-3xl mb-2">🔔</p>
                         <p className="text-sm font-medium text-gray-500">Δεν υπάρχουν ειδοποιήσεις</p>
                         <p className="text-xs text-gray-400 mt-1">Θα σε ενημερώσουμε για matches, μηνύματα και ενδιαφέρον</p>
                       </div>
                     ) : (
-                      notifications.map((n: any) => {
+                      notifications.filter((n: any) => !n.read_at).map((n: any) => {
                         const icons: Record<string, string> = { new_match: '🎉', new_message: '💬', match: '🤝', interest: '❤️', new_like: '❤️', system: '⚡', reminder: '🔔', boost: '🚀' };
                         const bgColors: Record<string, string> = { new_match: 'bg-emerald-100', new_message: 'bg-blue-100', match: 'bg-emerald-100', interest: 'bg-pink-100', new_like: 'bg-pink-100', system: 'bg-amber-100', reminder: 'bg-amber-100', boost: 'bg-purple-100' };
                         const icon = icons[n.type] || '🔔';
@@ -175,7 +237,7 @@ export default function DashboardLayout({
                           return `${days}η πριν`;
                         })();
                         return (
-                          <Link key={n.id} href={link} onClick={() => setNotifOpen(false)}
+                          <Link key={n.id} href={link} onClick={() => { setNotifOpen(false); dismissNotification(n); }}
                             className={`flex items-start gap-3 px-4 py-3 hover:bg-gray-50 border-b border-gray-50 transition-colors ${!n.read_at ? 'bg-blue-50/50' : ''}`}>
                             <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${bgColor} text-sm mt-0.5`}>{icon}</span>
                             <div className="flex-1 min-w-0">
@@ -282,7 +344,11 @@ export default function DashboardLayout({
                 <div className="absolute right-0 top-11 z-50 w-80 rounded-xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
                   <div className="border-b border-gray-100 px-4 py-2.5 flex items-center justify-between">
                     <p className="text-sm font-semibold text-gray-900">Ειδοποιήσεις</p>
-                    {notifUnread > 0 && <span className="text-[10px] text-blue-600 font-medium">{notifUnread} νέες</span>}
+                    {notifUnread > 0 && (
+                      <button onClick={markAllNotificationsRead} className="text-[10px] text-blue-600 font-medium hover:underline">
+                        Διάβασα όλες ({notifUnread})
+                      </button>
+                    )}
                   </div>
                   <div className="max-h-80 overflow-y-auto">
                     {/* Quick badges */}
@@ -301,14 +367,14 @@ export default function DashboardLayout({
                       </div>
                     )}
                     {/* Real notifications */}
-                    {notifications.length === 0 ? (
+                    {notifications.filter((n: any) => !n.read_at).length === 0 ? (
                       <div className="px-4 py-8 text-center">
                         <p className="text-3xl mb-2">🔔</p>
                         <p className="text-sm font-medium text-gray-500">Δεν υπάρχουν ειδοποιήσεις</p>
                         <p className="text-xs text-gray-400 mt-1">Θα σε ενημερώσουμε για matches, μηνύματα και ενδιαφέρον</p>
                       </div>
                     ) : (
-                      notifications.map((n: any) => {
+                      notifications.filter((n: any) => !n.read_at).map((n: any) => {
                         const icons: Record<string, string> = { new_match: '🎉', new_message: '💬', match: '🤝', interest: '❤️', new_like: '❤️', system: '⚡', reminder: '🔔', boost: '🚀' };
                         const bgColors: Record<string, string> = { new_match: 'bg-emerald-100', new_message: 'bg-blue-100', match: 'bg-emerald-100', interest: 'bg-pink-100', new_like: 'bg-pink-100', system: 'bg-amber-100', reminder: 'bg-amber-100', boost: 'bg-purple-100' };
                         const icon = icons[n.type] || '🔔';
@@ -325,7 +391,7 @@ export default function DashboardLayout({
                           return `${days}η πριν`;
                         })();
                         return (
-                          <Link key={n.id} href={link} onClick={() => setNotifOpen(false)}
+                          <Link key={n.id} href={link} onClick={() => { setNotifOpen(false); dismissNotification(n); }}
                             className={`flex items-start gap-3 px-4 py-3 hover:bg-gray-50 border-b border-gray-50 transition-colors ${!n.read_at ? 'bg-blue-50/50' : ''}`}>
                             <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${bgColor} text-sm mt-0.5`}>{icon}</span>
                             <div className="flex-1 min-w-0">

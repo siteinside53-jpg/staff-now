@@ -17,7 +17,6 @@ import branchRoutes from './routes/branches';
 import interestRoutes from './routes/interests';
 import aiRoutes from './routes/ai';
 import creditRoutes from './routes/credits';
-import publicRoutes from './routes/public';
 import { errorHandler } from './middleware/error-handler';
 import { rateLimiter } from './middleware/rate-limiter';
 import { requireAuth } from './middleware/auth';
@@ -67,7 +66,6 @@ app.route('/branches', branchRoutes);
 app.route('/interests', interestRoutes);
 app.route('/ai', aiRoutes);
 app.route('/credits', creditRoutes);
-app.route('/public', publicRoutes);
 
 // POST /activity/track — page-view / action ping from logged-in clients
 app.post('/activity/track', requireAuth, async (c) => {
@@ -558,7 +556,14 @@ app.get('/public/activity', async (c) => {
       `SELECT
          (SELECT COUNT(*) FROM users WHERE status = 'active') as total_users,
          (SELECT COUNT(*) FROM job_listings WHERE status = 'published') as total_jobs,
-         (SELECT COUNT(*) FROM matches) as total_matches`
+         (SELECT COUNT(*) FROM matches) as total_matches,
+         (
+           (SELECT COUNT(*) FROM anonymous_sessions
+             WHERE datetime(last_seen_at) > datetime('now','-40 seconds'))
+           +
+           (SELECT COUNT(*) FROM user_sessions
+             WHERE is_active = 1 AND datetime(last_activity_at) > datetime('now','-40 seconds'))
+         ) as online_now`
     ).first(),
   ]);
 
@@ -602,6 +607,7 @@ app.get('/public/activity', async (c) => {
         totalUsers: (stats as any)?.total_users || 0,
         totalJobs: (stats as any)?.total_jobs || 0,
         totalMatches: (stats as any)?.total_matches || 0,
+        onlineNow: (stats as any)?.online_now || 0,
       },
     },
   });

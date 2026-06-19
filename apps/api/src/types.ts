@@ -19,6 +19,7 @@ export interface Env {
   STRIPE_PRICE_FOUNDING_PRO_MONTHLY: string;
   STRIPE_PRICE_FOUNDING_PRO_YEARLY: string;
   PASSWORD_SALT: string;
+  OPENAI_API_KEY: string;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   ENVIRONMENT: string;

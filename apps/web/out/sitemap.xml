@@ -1,78 +1,363 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://staffnow.gr/</loc>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>https://staffnow.gr/for-businesses</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.95</priority>
-  </url>
-  <url>
-    <loc>https://staffnow.gr/for-workers</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.95</priority>
-  </url>
-  <url>
-    <loc>https://staffnow.gr/pricing</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://staffnow.gr/how-it-works</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.85</priority>
-  </url>
-  <url>
-    <loc>https://staffnow.gr/about</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.75</priority>
-  </url>
-  <url>
-    <loc>https://staffnow.gr/faq</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://staffnow.gr/blog</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://staffnow.gr/help</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://staffnow.gr/contact</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://staffnow.gr/careers</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://staffnow.gr/press</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.4</priority>
-  </url>
-  <url>
-    <loc>https://staffnow.gr/privacy</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://staffnow.gr/terms</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://staffnow.gr/cookies</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
-  </url>
+<url>
+<loc>https://staffnow.gr</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>1</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/find-job</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>hourly</changefreq>
+<priority>0.95</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/find-staff</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>hourly</changefreq>
+<priority>0.95</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/for-businesses</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.9</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/for-workers</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.9</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/pricing</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>monthly</changefreq>
+<priority>0.85</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/how-it-works</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>monthly</changefreq>
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/categories</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/about</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>monthly</changefreq>
+<priority>0.7</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/faq</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>monthly</changefreq>
+<priority>0.7</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/blog</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.7</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/contact</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>monthly</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/help</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>monthly</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/careers</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>monthly</changefreq>
+<priority>0.5</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/press</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>monthly</changefreq>
+<priority>0.4</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/terms</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>yearly</changefreq>
+<priority>0.3</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/privacy</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>yearly</changefreq>
+<priority>0.3</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/cookies</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>yearly</changefreq>
+<priority>0.3</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/jobs/jl_37yndynblc286xg43mae</loc>
+<lastmod>2026-05-27T18:41:57.497Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.85</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/jobs/jl_apktt8xyzkthbbo34k7c</loc>
+<lastmod>2026-05-27T09:21:28.381Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.85</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/jobs/jl_9nswxep3w119fsbzaf4z</loc>
+<lastmod>2026-05-17T18:12:23.054Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.85</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/jobs/jl_dk5wmhv0ity5zdkwehjd</loc>
+<lastmod>2026-05-06T09:28:19.867Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.85</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/jobs/jl_cc2hy4h8y8ctxcudurwb</loc>
+<lastmod>2026-04-30T18:59:16.333Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.85</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/jobs/jl_yoxcwbo6vzizap4q2s1i</loc>
+<lastmod>2026-03-29T14:58:36.626Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.85</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/jobs/jl_utzt6sz5tva1jeph1hx4</loc>
+<lastmod>2026-03-24T07:43:10.737Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.85</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/jobs/jl_09</loc>
+<lastmod>2026-03-19T10:00:00.000Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.85</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/jobs/jl_10</loc>
+<lastmod>2026-03-19T10:00:00.000Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.85</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/jobs/jl_07</loc>
+<lastmod>2026-03-18T10:00:00.000Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.85</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/jobs/jl_08</loc>
+<lastmod>2026-03-18T10:00:00.000Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.85</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/jobs/jl_05</loc>
+<lastmod>2026-03-17T10:00:00.000Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.85</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/jobs/jl_06</loc>
+<lastmod>2026-03-17T10:00:00.000Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.85</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/jobs/jl_03</loc>
+<lastmod>2026-03-16T10:00:00.000Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.85</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/jobs/jl_04</loc>
+<lastmod>2026-03-16T10:00:00.000Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.85</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/jobs/jl_01</loc>
+<lastmod>2026-03-15T10:00:00.000Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.85</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/jobs/jl_02</loc>
+<lastmod>2026-03-15T10:00:00.000Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.85</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_dj6sitmi0msvqf5roq0a</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_2mvaqwxidt41fo7356hk</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_njjtj5fuxdx6xd7n92kf</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_6hymzfsrzuvl2uhn2cjd</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_tem77taczkquzcoecosa</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_efblzc3lhb8leryiinhf</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_tdb0hlmgzo5d57r9icqf</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_y12reu8yl53y5ib1awu7</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_63f5ad7bqycwl5xw1ng4</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_dror7khowsakle5fb4hm</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_btpgn2hh52tqsjtd7uhj</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_bqdkdfhq04s6i16j9pda</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_k23tsmugjjuw0lxksdu8</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_y9pay8pvkhru3gnzrld1</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_fxb4p5ft5mfjadv24xsx</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_worker01</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_worker02</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_worker03</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_worker04</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_worker05</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_worker06</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_worker07</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_worker08</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_worker09</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
+<url>
+<loc>https://staffnow.gr/workers/usr_worker10</loc>
+<lastmod>2026-06-19T19:38:22.197Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>0.6</priority>
+</url>
 </urlset>

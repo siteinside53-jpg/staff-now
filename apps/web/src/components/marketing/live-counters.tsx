@@ -92,37 +92,25 @@ export function LiveCounters() {
     return () => { cancelled = true; };
   }, []);
 
-  // Drift values
+  // Ανανέωση ΠΡΑΓΜΑΤΙΚΩΝ στατιστικών κάθε 25s (χωρίς fake drift)
   useEffect(() => {
-    const timers: ReturnType<typeof setTimeout>[] = [];
-
-    const scheduleNext = (idx: number) => {
-      const c = counters[idx];
-      if (!c) return;
-      const delay = c.intervalMin + Math.random() * (c.intervalMax - c.intervalMin);
-      const t = setTimeout(() => {
-        const increment = c.min + Math.floor(Math.random() * (c.max - c.min + 1));
-        setValues((prev) => {
-          const next = [...prev];
-          next[idx] = next[idx] + increment;
-          return next;
-        });
-        setFlashingIndices((prev) => new Set(prev).add(idx));
-        setTimeout(() => {
-          setFlashingIndices((prev) => {
-            const n = new Set(prev);
-            n.delete(idx);
-            return n;
-          });
-        }, 700);
-        scheduleNext(idx);
-      }, delay);
-      timers.push(t);
-    };
-
-    counters.forEach((_, i) => scheduleNext(i));
-    return () => timers.forEach(clearTimeout);
-  }, [counters]);
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/public/activity`);
+        if (!res.ok) return;
+        const json = await res.json();
+        const stats = json?.data?.stats;
+        if (stats) {
+          const c = buildCounters(stats);
+          setCounters(c);
+          setValues(c.map((x) => x.value));
+        }
+      } catch {
+        /* keep last known real values */
+      }
+    }, 25_000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <>

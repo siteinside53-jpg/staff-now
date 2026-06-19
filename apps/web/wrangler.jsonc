@@ -1,0 +1,8 @@
+{
+  // Cloudflare Pages config για το δημόσιο site (staffnow.gr).
+  // Υπάρχει ώστε το `wrangler pages deploy` να ΜΗΝ ανεβαίνει στον γονικό φάκελο
+  // και να μπερδεύεται με άσχετο wrangler config (lim/ecorenovation).
+  "name": "staffnow",
+  "pages_build_output_dir": "out",
+  "compatibility_date": "2024-12-01"
+}

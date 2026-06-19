@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { PublicWorkersList } from '@/components/marketing/public-workers-list';
+import { RedirectIfAuthed } from '@/components/marketing/redirect-if-authed';
 
 export const metadata = {
-  title: 'Διαθέσιμοι Εργαζόμενοι | StaffNow',
+  title: 'Διαθέσιμοι Εργαζόμενοι',
   description:
     'Δες ποιοι εργαζόμενοι είναι διαθέσιμοι τώρα στην περιοχή σου — τουρισμός, εστίαση, retail και άλλα.',
   alternates: { canonical: '/find-staff' },
@@ -11,6 +12,7 @@ export const metadata = {
 export default function FindStaffPage() {
   return (
     <main className="min-h-screen bg-gray-50">
+      <RedirectIfAuthed to="/dashboard/discover" />
       <section className="bg-gradient-to-b from-white to-gray-50 py-10 sm:py-14">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
           <nav className="text-xs text-gray-500 mb-4" aria-label="breadcrumb">
@@ -39,7 +41,7 @@ export default function FindStaffPage() {
       </section>
 
       <section className="pb-16 sm:pb-24">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <PublicWorkersList />
 
           <div className="mt-10 rounded-2xl bg-white border border-gray-100 p-6 sm:p-8 text-center shadow-sm">

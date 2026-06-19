@@ -1,5 +1,5 @@
 export const metadata = {
-  title: 'Πολιτική Απορρήτου - StaffNow',
+  title: 'Πολιτική Απορρήτου',
   description: 'Πολιτική απορρήτου και προστασίας προσωπικών δεδομένων του StaffNow.',
 };
 

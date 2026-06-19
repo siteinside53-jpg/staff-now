@@ -94,9 +94,9 @@ export const metadata: Metadata = {
     type: 'website',
     images: [
       {
-        url: '/icon-512.png',
-        width: 512,
-        height: 512,
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
         alt: 'StaffNow',
       },
     ],
@@ -105,7 +105,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'StaffNow – Βρες Προσωπικό σε λίγα λεπτά',
     description: 'Swipe-style αντιστοίχιση για τον τουρισμό & την εστίαση στην Ελλάδα.',
-    images: ['/icon-512.png'],
+    images: ['/og-image.png'],
   },
   robots: {
     index: true,

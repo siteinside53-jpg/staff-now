@@ -5,9 +5,10 @@ import { ActivityMarquee } from '@/components/marketing/activity-marquee';
 import { LiveWorkersHeroCard } from '@/components/marketing/live-workers';
 import { HeroGradient } from '@/components/marketing/hero-gradient';
 import { HowItWorksTabs } from '@/components/marketing/how-it-works-tabs';
+import { TrustBar } from '@/components/marketing/trust-bar';
 
 export const metadata = {
-  title: 'StaffNow - Βρες Προσωπικό & Δουλειά σε Λίγα Λεπτά',
+  title: { absolute: 'StaffNow - Βρες Προσωπικό & Δουλειά σε Λίγα Λεπτά' },
   description:
     'Η πλατφόρμα που συνδέει επιχειρήσεις με εργαζόμενους — γρήγορα. Swipe, match & ξεκίνα. Τουρισμός, εστίαση, retail, logistics & πολλά ακόμα.',
   alternates: { canonical: '/' },
@@ -82,7 +83,12 @@ export default function HomePage() {
         <div className="relative mx-auto max-w-7xl px-4 pt-6 pb-20 sm:px-6 sm:pt-8 sm:pb-28 lg:px-8 lg:pt-10 lg:pb-36">
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div>
-              <LiveBadge className="mb-6" />
+              {/* Προσωρινά κρυμμένο: αόρατο αλλά κρατάει τη θέση του ώστε να ΜΗΝ μετακινηθεί
+                  ο τίτλος/κείμενο. Όταν η πλατφόρμα έχει κίνηση, αφαίρεσε το `invisible` (ή
+                  βάλε `visible`) από το wrapper για να ξαναεμφανιστεί. */}
+              <div className="invisible mb-6" aria-hidden="true">
+                <LiveBadge />
+              </div>
 
               <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl leading-[1.1]">
                 Βρες δουλειά ή προσωπικό
@@ -123,33 +129,8 @@ export default function HomePage() {
         </div>
       </HeroGradient>
 
-      {/* ====== TRUST BAR ====== */}
-      <section className="bg-gray-900 py-6 border-b border-gray-800">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-12 text-center">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-extrabold text-white">50.000+</span>
-              <span className="text-sm text-gray-400">Εργαζόμενοι</span>
-            </div>
-            <div className="hidden sm:block h-8 w-px bg-gray-700" />
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-extrabold text-white">5.500+</span>
-              <span className="text-sm text-gray-400">Επιχειρήσεις</span>
-            </div>
-            <div className="hidden sm:block h-8 w-px bg-gray-700" />
-            <div className="flex items-center gap-2">
-              <span className="text-yellow-400 text-lg">&#9733;</span>
-              <span className="text-2xl font-extrabold text-white">4.8</span>
-              <span className="text-sm text-gray-400">Αξιολόγηση</span>
-            </div>
-            <div className="hidden sm:block h-8 w-px bg-gray-700" />
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-extrabold text-blue-400">&lt;24ω</span>
-              <span className="text-sm text-gray-400">Μέσος χρόνος πρόσληψης</span>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* ====== TRUST BAR (πραγματικοί αριθμοί) ====== */}
+      <TrustBar />
 
       {/* ====== ACTIVITY MARQUEE ====== */}
       <ActivityMarquee />

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 export const metadata = {
-  title: 'Σχετικά με εμάς - StaffNow',
+  title: 'Σχετικά με εμάς',
   description:
     'Μάθε για την ομάδα και την αποστολή του StaffNow. Αλλάζουμε τον τρόπο πρόσληψης στην Ελλάδα.',
   alternates: { canonical: '/about' },

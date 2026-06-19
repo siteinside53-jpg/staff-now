@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
@@ -13,6 +13,8 @@ import { PremiumTick } from '@/components/ui/premium-tick';
 import { WorkerProfilePanel } from '@/components/dashboard/worker-profile-panel';
 import { BusinessProfilePanel } from '@/components/dashboard/business-profile-panel';
 import { JobDetailPanel } from '@/components/dashboard/job-detail-panel';
+import { FilteredListLayout, type FilterGroup } from '@/components/marketing/filtered-list-layout';
+import { GREEK_CITIES } from '@/lib/greek-cities';
 
 interface DiscoverProfile {
   id: string;
@@ -50,6 +52,11 @@ function timeAgo(dateStr?: string): string {
   return new Date(dateStr).toLocaleDateString('el-GR', { day: 'numeric', month: 'short' });
 }
 
+// Κανονικοποίηση κειμένου για αναζήτηση/φίλτρα (πεζά + χωρίς τόνους)
+function normText(s: string): string {
+  return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
 export default function DiscoverPage() {
   const { user, profile } = useAuth();
   const [candidates, setCandidates] = useState<DiscoverProfile[]>([]);
@@ -74,7 +81,80 @@ export default function DiscoverPage() {
   const [savedBounce, setSavedBounce] = useState(false);
   const [discoverView, setDiscoverView] = useState<'swipe' | 'list'>('swipe');
 
+  // List-view filters (ίδια λογική με τις δημόσιες λίστες)
+  const [listQuery, setListQuery] = useState('');
+  const [listSel, setListSel] = useState<Record<string, string[]>>({ location: [], role: [] });
+
   const isWorker = user?.role === 'worker';
+
+  // ── Filter options & φιλτραρισμένη λίστα για το list view ──
+  const listCityOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const c of GREEK_CITIES) {
+      const n = normText(c);
+      if (!seen.has(n)) seen.set(n, c);
+    }
+    for (const c of candidates) {
+      const n = normText(c.location || '');
+      if (n && !seen.has(n)) seen.set(n, c.location || '');
+    }
+    return Array.from(seen.entries())
+      .map(([n, label]) => ({
+        value: label,
+        label,
+        count: candidates.filter((c) => {
+          const cl = normText(c.location || '');
+          return cl && (cl.includes(n) || n.includes(cl));
+        }).length,
+      }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'el'));
+  }, [candidates]);
+
+  const listRoleOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const c of candidates) for (const t of c.tags ?? []) counts.set(t, (counts.get(t) || 0) + 1);
+    return Array.from(counts.entries())
+      .map(([v, n]) => ({ value: v, label: v, count: n }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'el'));
+  }, [candidates]);
+
+  const listGroups: FilterGroup[] = useMemo(
+    () =>
+      [
+        { key: 'location', title: 'Πόλεις', options: listCityOptions, searchable: true },
+        { key: 'role', title: 'Ειδικότητες', options: listRoleOptions },
+      ].filter((g) => g.options.length > 0),
+    [listCityOptions, listRoleOptions],
+  );
+
+  const filteredCandidates = useMemo(() => {
+    const q = normText(listQuery);
+    const cityNorms = (listSel.location ?? []).map(normText);
+    return candidates.filter((c) => {
+      if (q) {
+        const hay = `${c.name} ${c.companyName ?? ''} ${c.location ?? ''} ${(c.tags ?? []).join(' ')}`;
+        if (!normText(hay).includes(q)) return false;
+      }
+      if (cityNorms.length) {
+        const cl = normText(c.location || '');
+        if (!cityNorms.some((cn) => cl.includes(cn) || cn.includes(cl))) return false;
+      }
+      if ((listSel.role ?? []).length && !(c.tags ?? []).some((t) => listSel.role!.includes(t))) return false;
+      return true;
+    });
+  }, [candidates, listQuery, listSel]);
+
+  function toggleListFilter(group: string, value: string) {
+    setListSel((prev) => {
+      const cur = prev[group] ?? [];
+      return { ...prev, [group]: cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value] };
+    });
+  }
+
+  function clearListFilters() {
+    setListQuery('');
+    setListSel({ location: [], role: [] });
+  }
 
   // Fetch AI match scores in parallel (non-blocking)
   const fetchAiMatches = useCallback(async () => {
@@ -281,6 +361,30 @@ export default function DiscoverPage() {
 
   const noCandidates = candidates.length === 0 || !currentCandidate;
 
+  const TABS = [
+    { key: 'discover' as const, label: 'Εύρεση' },
+    { key: 'saved' as const, label: 'Αποθηκευμένα' },
+    { key: 'interest' as const, label: 'Αιτήματα' },
+    { key: 'matched' as const, label: 'Matched' },
+  ];
+  const renderTabs = (vertical: boolean) => (
+    <div className={vertical ? 'flex flex-col gap-1' : 'flex gap-1 rounded-lg bg-gray-100 p-1'}>
+      {TABS.map((t) => (
+        <button
+          key={t.key}
+          onClick={() => setDiscoverTab(t.key)}
+          className={
+            vertical
+              ? `text-left rounded-lg px-3 py-2 text-sm font-medium transition-all ${discoverTab === t.key ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`
+              : `flex-1 rounded-md py-2 text-xs font-medium transition-all ${discoverTab === t.key ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
+          }
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
@@ -288,20 +392,21 @@ export default function DiscoverPage() {
         {discoverTab === 'discover' && !noCandidates && <span className="text-sm text-gray-500">{currentIndex + 1} / {candidates.length}</span>}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 rounded-lg bg-gray-100 p-1 mb-6">
-        {[
-          { key: 'discover' as const, label: 'Εύρεση' },
-          { key: 'saved' as const, label: 'Αποθηκευμένα' },
-          { key: 'interest' as const, label: 'Αιτήματα' },
-          { key: 'matched' as const, label: 'Matched' },
-        ].map((t) => (
-          <button key={t.key} onClick={() => setDiscoverTab(t.key)}
-            className={`flex-1 rounded-md py-2 text-xs font-medium transition-all ${discoverTab === t.key ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
-            {t.label}
-          </button>
-        ))}
+      {/* Tabs — σε desktop πάνε αριστερά (sidebar). Εδώ μένουν μόνο για mobile. */}
+      <div className="mb-6 lg:hidden">
+        {renderTabs(false)}
       </div>
+
+      {/* Desktop: αριστερό sidebar με tabs — εκτός από το discover-list (εκεί μπαίνουν στο filter sidebar) */}
+      <div className="lg:flex lg:gap-6">
+        {!(discoverTab === 'discover' && !noCandidates) && (
+          <aside className="hidden lg:block lg:w-56 flex-shrink-0">
+            <div className="sticky top-6 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
+              {renderTabs(true)}
+            </div>
+          </aside>
+        )}
+        <div className="flex-1 min-w-0">
 
       {/* Saved Tab */}
       {discoverTab === 'saved' && (
@@ -473,9 +578,9 @@ export default function DiscoverPage() {
         </div>
       )}
 
-      {/* Swipe/Λίστα toggle — visible only on Εύρεση tab when there are candidates */}
+      {/* Swipe/Λίστα toggle — ΜΟΝΟ σε mobile (σε desktop δείχνουμε πάντα λίστα) */}
       {discoverTab === 'discover' && !noCandidates && (
-        <div className="mx-auto max-w-lg mb-4 flex items-center justify-center">
+        <div className="mx-auto max-w-lg mb-4 flex items-center justify-center lg:hidden">
           <div className="inline-flex rounded-full bg-gray-100 p-1 text-xs font-bold shadow-inner">
             <button
               onClick={() => setDiscoverView('swipe')}
@@ -493,19 +598,50 @@ export default function DiscoverPage() {
         </div>
       )}
 
-      {/* LIST VIEW — horizontal cards stacked vertically */}
-      {discoverTab === 'discover' && !noCandidates && discoverView === 'list' && (
-        <div className="mx-auto max-w-2xl">
+      {/* LIST VIEW — πάντα ορατή σε desktop· σε mobile όταν επιλεγεί «Λίστα» */}
+      {discoverTab === 'discover' && !noCandidates && (
+        <div className={`mx-auto max-w-5xl ${discoverView === 'list' ? '' : 'hidden lg:block'}`}>
+          <FilteredListLayout
+            accent="blue"
+            sidebarHeader={<div className="hidden lg:block">{renderTabs(true)}</div>}
+            search={listQuery}
+            onSearch={setListQuery}
+            searchPlaceholder={isWorker ? 'Αναζήτηση θέσης ή εταιρείας…' : 'Αναζήτηση εργαζομένου ή ρόλου…'}
+            groups={listGroups}
+            selected={listSel}
+            onToggle={toggleListFilter}
+            onClear={clearListFilters}
+            resultCount={filteredCandidates.length}
+            resultNoun={isWorker ? ['θέση', 'θέσεις'] : ['εργαζόμενος', 'εργαζόμενοι']}
+          >
+          {filteredCandidates.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center">
+              <p className="text-gray-600 font-medium">Κανένα αποτέλεσμα με αυτά τα φίλτρα.</p>
+              <button
+                type="button"
+                onClick={clearListFilters}
+                className="mt-3 inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                Καθαρισμός φίλτρων
+              </button>
+            </div>
+          ) : (
           <ul className="space-y-3">
-            {candidates.map((c, idx) => {
+            {filteredCandidates.map((c) => {
               const photo = c.photoUrl || c.companyLogo || c.coverPhoto;
               const score = aiMatchScores[c.id];
               return (
                 <li key={c.id}>
                   <button
                     onClick={() => {
-                      setCurrentIndex(idx);
-                      setDiscoverView('swipe');
+                      // Άνοιξε απευθείας την καρτέλα (δουλεύει και σε desktop όπου δεν υπάρχει swipe)
+                      if (isWorker && c.type === 'job') {
+                        setViewingJobDetail(c);
+                      } else if (isWorker && c.businessUserId) {
+                        setViewingBusinessId(c.businessUserId);
+                      } else {
+                        setViewingProfileId(c.id);
+                      }
                     }}
                     className="group w-full flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100 hover:shadow-md hover:ring-blue-200 transition-all active:scale-[0.99] text-left"
                   >
@@ -589,13 +725,15 @@ export default function DiscoverPage() {
               );
             })}
           </ul>
+          )}
+          </FilteredListLayout>
         </div>
       )}
 
-      {/* SWIPE VIEW — single card */}
+      {/* SWIPE VIEW — single card (ΜΟΝΟ σε mobile) */}
       {discoverTab === 'discover' && !noCandidates && currentCandidate && discoverView === 'swipe' && (
 
-      <div className="mx-auto max-w-lg select-none">
+      <div className="mx-auto max-w-lg select-none lg:hidden">
         <Card
           className="overflow-hidden shadow-2xl touch-none"
           onPointerDown={(e) => {
@@ -867,6 +1005,8 @@ export default function DiscoverPage() {
         </p>
       </div>
       )}
+        </div>{/* /flex-1 */}
+      </div>{/* /lg:flex */}
 
       {/* Worker Profile Slide-over Panel */}
       {viewingProfileId && (

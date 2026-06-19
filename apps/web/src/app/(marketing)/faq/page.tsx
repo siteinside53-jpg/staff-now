@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 export const metadata = {
-  title: 'Συχνές Ερωτήσεις - StaffNow',
+  title: 'Συχνές Ερωτήσεις',
   description:
     'Βρες απαντήσεις στις πιο συχνές ερωτήσεις για το StaffNow. Εγγραφή, χρήση, τιμολόγηση και άλλα.',
   alternates: { canonical: '/faq' },

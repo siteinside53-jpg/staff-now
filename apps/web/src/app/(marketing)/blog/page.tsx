@@ -1,6 +1,6 @@
 import { NewsletterForm } from '@/components/marketing/newsletter-form';
 
-export const metadata = { title: 'Blog & Νέα | StaffNow', description: 'Άρθρα, συμβουλές και νέα για την εργασία, στελέχωση και το StaffNow.' };
+export const metadata = { title: 'Blog & Νέα', description: 'Άρθρα, συμβουλές και νέα για την εργασία, στελέχωση και το StaffNow.' };
 
 const categories = ['Όλα', 'Νέα', 'Συμβουλές', 'Product', 'Αγορά Εργασίας'];
 

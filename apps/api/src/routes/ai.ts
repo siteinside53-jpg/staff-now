@@ -3,6 +3,7 @@ import type { Env, AuthUser } from '../types';
 import { requireAuth } from '../middleware/auth';
 import { hasFeature } from '../middleware/subscription';
 import { success, error } from '../lib/response';
+import { openaiChatMessages } from '../lib/openai';
 
 const ai = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
 
@@ -797,6 +798,15 @@ CONTEXT ΧΡΗΣΤΗ: ${businessContext}`;
   ];
 
   try {
+    // 1) OpenAI (gpt-4o) — καλύτερη ποιότητα/Ελληνικά για το Pro Hiring Chat.
+    const viaOpenAI = await openaiChatMessages(c.env, messages, {
+      model: 'gpt-4o',
+      maxTokens: 500,
+      temperature: 0.6,
+    });
+    if (viaOpenAI) return success(c, { answer: viaOpenAI });
+
+    // 2) Fallback: Cloudflare Workers AI (δωρεάν, χωρίς key).
     const result = await c.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
       messages,
       max_tokens: 400,

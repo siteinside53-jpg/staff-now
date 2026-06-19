@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
 import { api } from '@/lib/api';
+import { API_URL } from '@/lib/config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,6 +16,24 @@ import { WorkerProfilePanel } from '@/components/dashboard/worker-profile-panel'
 import { BusinessProfilePanel } from '@/components/dashboard/business-profile-panel';
 import { LANGUAGES_COMMON } from '@staffnow/config';
 import { RolePicker } from '@/components/ui/role-picker';
+
+// Authed call προς το API για τα CV endpoints (δεν είναι στο api-client).
+async function cvApi<T = any>(method: string, path: string, body?: unknown): Promise<T> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('staffnow_token') : null;
+  const res = await fetch(`${API_URL}${path}`, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || (json && json.success === false)) {
+    throw new Error(json?.error?.message || 'Κάτι πήγε στραβά. Δοκίμασε ξανά.');
+  }
+  return (json?.data ?? json) as T;
+}
 
 interface WorkerForm {
   fullName: string;
@@ -51,6 +70,8 @@ export default function ProfilePage() {
   const [bizForm, setBizForm] = useState({ company_name: '', description: '', business_type: '' });
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [cvUrl, setCvUrl] = useState<string | null>(null);
+  const [cvText, setCvText] = useState('');
+  const [cvBusy, setCvBusy] = useState<null | 'gen' | 'save' | 'pdf'>(null);
   const [uploading, setUploading] = useState<string | null>(null);
   const [completeness, setCompleteness] = useState(0);
   const [badges, setBadges] = useState<string[]>([]);
@@ -133,6 +154,60 @@ export default function ProfilePage() {
       setUploading(null);
     }
   };
+
+  // ── AI CV ──
+  useEffect(() => {
+    if (!isWorker) return;
+    cvApi<{ cv?: string }>('GET', '/workers/me/cv')
+      .then((d) => { if (d?.cv) setCvText(d.cv); })
+      .catch(() => {});
+  }, [isWorker]);
+
+  async function generateCv() {
+    setCvBusy('gen');
+    try {
+      const d = await cvApi<{ cv?: string }>('POST', '/workers/ai/cv-generate');
+      setCvText(d?.cv || '');
+      toast.success('Το CV δημιουργήθηκε με AI! ✨');
+    } catch (e: any) {
+      toast.error(e?.message || 'Αποτυχία δημιουργίας CV');
+    } finally {
+      setCvBusy(null);
+    }
+  }
+
+  async function saveCvEdits() {
+    if (!cvText.trim()) return;
+    setCvBusy('save');
+    try {
+      await cvApi('PUT', '/workers/me/cv', { cv: cvText });
+      toast.success('Οι αλλαγές αποθηκεύτηκαν');
+    } catch (e: any) {
+      toast.error(e?.message || 'Αποτυχία αποθήκευσης');
+    } finally {
+      setCvBusy(null);
+    }
+  }
+
+  async function saveCvAsPdf() {
+    if (!cvText.trim()) {
+      toast.error('Δημιούργησε ή γράψε πρώτα ένα CV.');
+      return;
+    }
+    setCvBusy('pdf');
+    try {
+      await cvApi('PUT', '/workers/me/cv', { cv: cvText }); // sync τελευταίο κείμενο
+      const d = await cvApi<{ url?: string }>('POST', '/workers/me/cv/save-as-pdf');
+      if (d?.url) {
+        setCvUrl(d.url);
+        toast.success('Το PDF αποθηκεύτηκε στο προφίλ σου! 📄');
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Αποτυχία δημιουργίας PDF');
+    } finally {
+      setCvBusy(null);
+    }
+  }
 
   const saveWorker = async () => {
     setSaving(true);
@@ -361,6 +436,54 @@ export default function ProfilePage() {
       {/* CV UPLOAD */}
       <Card className="mb-6"><CardHeader><h2 className="text-lg font-semibold text-gray-900">📄 Βιογραφικό (CV)</h2></CardHeader>
         <CardContent>
+          {/* ── AI CV Generator ── */}
+          <div className="mb-5 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">✨ Δημιουργία CV με AI</p>
+                <p className="text-xs text-gray-500">Φτιάχνει αυτόματα βιογραφικό από τα στοιχεία του προφίλ σου.</p>
+              </div>
+              <button
+                type="button"
+                onClick={generateCv}
+                disabled={cvBusy === 'gen'}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:opacity-60"
+              >
+                {cvBusy === 'gen' ? 'Δημιουργία…' : cvText ? '🔄 Αναδημιουργία' : '✨ Δημιουργία'}
+              </button>
+            </div>
+
+            {cvText && (
+              <div className="mt-3">
+                <Textarea
+                  value={cvText}
+                  onChange={(e) => setCvText(e.target.value)}
+                  rows={10}
+                  className="w-full text-sm"
+                  placeholder="Το CV σου…"
+                />
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={saveCvEdits}
+                    disabled={cvBusy === 'save'}
+                    className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                  >
+                    {cvBusy === 'save' ? 'Αποθήκευση…' : '💾 Αποθήκευση αλλαγών'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={saveCvAsPdf}
+                    disabled={cvBusy === 'pdf'}
+                    className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-emerald-700 disabled:opacity-60"
+                  >
+                    {cvBusy === 'pdf' ? 'Δημιουργία PDF…' : '📄 Αποθήκευση ως PDF στο προφίλ'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           {cvUrl ? (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
               <div className="flex items-center gap-3">

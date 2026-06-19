@@ -1,5 +1,5 @@
 export const metadata = {
-  title: 'Πολιτική Cookies - StaffNow',
+  title: 'Πολιτική Cookies',
   description: 'Πληροφορίες σχετικά με τη χρήση cookies στο StaffNow.',
 };
 

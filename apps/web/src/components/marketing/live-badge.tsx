@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://staffnow-api-production.siteinside53.workers.dev';
 
@@ -9,69 +9,56 @@ interface Props {
 }
 
 /**
- * Pulsing "LIVE · N χρήστες online τώρα" chip.
- * Fetches real total_users from /public/activity stats, then drifts.
+ * "LIVE · N χρήστες online τώρα" chip με ΠΡΑΓΜΑΤΙΚΟ αριθμό.
+ *
+ * Διαβάζει το stats.onlineNow από /public/activity (ενεργές συνεδρίες
+ * τα τελευταία ~40s) και κάνει poll κάθε 12s ώστε ο αριθμός να
+ * ανεβοκατεβαίνει live καθώς μπαίνουν/βγαίνουν επισκέπτες.
+ * Δείχνει τουλάχιστον 1 (ο τρέχων επισκέπτης).
  */
 export function LiveBadge({ className = '' }: Props) {
-  const [count, setCount] = useState(0);
-  const [loaded, setLoaded] = useState(false);
+  const [count, setCount] = useState<number | null>(null);
   const [flash, setFlash] = useState(false);
+  const prev = useRef<number | null>(null);
 
-  // Fetch real stats on mount — με fail-safe timeout ώστε σε αργό δίκτυο
-  // (ή blocked CORS) να εμφανίζεται οπωσδήποτε με fallback count.
   useEffect(() => {
     let cancelled = false;
 
-    // Hard timeout: αν δεν φορτώσει σε 2s, δείξε fallback. Έτσι σε αργό
-    // mobile δίκτυο το badge δεν παραμένει αόρατο.
-    const fallbackTimer = setTimeout(() => {
-      if (!cancelled) {
-        setCount((c) => c || 1847);
-        setLoaded(true);
-      }
-    }, 2000);
-
-    (async () => {
+    async function fetchOnline() {
       try {
         const controller = new AbortController();
-        const abortTimer = setTimeout(() => controller.abort(), 4000);
+        const t = setTimeout(() => controller.abort(), 5000);
         const res = await fetch(`${API_BASE}/public/activity`, { signal: controller.signal });
-        clearTimeout(abortTimer);
+        clearTimeout(t);
         if (!res.ok) throw new Error();
         const json = await res.json();
-        const totalUsers = json?.data?.stats?.totalUsers || 0;
-        if (!cancelled) {
-          setCount(totalUsers > 0 ? totalUsers : 1847);
-          setLoaded(true);
+        const online = Number(json?.data?.stats?.onlineNow ?? 0);
+        if (cancelled) return;
+        const value = Math.max(1, online); // ο τρέχων επισκέπτης μετράει πάντα
+        if (prev.current !== null && value !== prev.current) {
+          setFlash(true);
+          setTimeout(() => setFlash(false), 600);
         }
+        prev.current = value;
+        setCount(value);
       } catch {
-        if (!cancelled) {
-          setCount(1847);
-          setLoaded(true);
+        if (!cancelled && prev.current === null) {
+          // Πρώτο load απέτυχε → δείξε τουλάχιστον 1
+          prev.current = 1;
+          setCount(1);
         }
       }
-    })();
+    }
 
+    fetchOnline();
+    const interval = setInterval(fetchOnline, 12_000);
     return () => {
       cancelled = true;
-      clearTimeout(fallbackTimer);
+      clearInterval(interval);
     };
   }, []);
 
-  // Drift counter after loaded
-  useEffect(() => {
-    if (!loaded) return;
-    const interval = setInterval(() => {
-      const delta = Math.floor(Math.random() * 12) - 3;
-      setCount((prev) => Math.max(100, prev + delta));
-      setFlash(true);
-      setTimeout(() => setFlash(false), 600);
-    }, 4000 + Math.random() * 3000);
-
-    return () => clearInterval(interval);
-  }, [loaded]);
-
-  if (!loaded) return null;
+  if (count === null) return null;
 
   return (
     <div
@@ -95,7 +82,7 @@ export function LiveBadge({ className = '' }: Props) {
         >
           {count.toLocaleString('el-GR')}
         </span>{' '}
-        χρήστες online
+        {count === 1 ? 'χρήστης online' : 'χρήστες online'}
       </span>
     </div>
   );

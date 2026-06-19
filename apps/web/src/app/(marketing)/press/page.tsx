@@ -1,4 +1,4 @@
-export const metadata = { title: 'Τύπος | StaffNow', description: 'Το StaffNow στα μέσα ενημέρωσης. Press kit, άρθρα και media resources.' };
+export const metadata = { title: 'Τύπος', description: 'Το StaffNow στα μέσα ενημέρωσης. Press kit, άρθρα και media resources.' };
 
 // Set `url` to an actual article URL to enable the link. Empty/undefined = non-clickable card.
 interface PressArticle {

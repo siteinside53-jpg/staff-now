@@ -1,5 +1,5 @@
 export const metadata = {
-  title: 'Όροι Χρήσης - StaffNow',
+  title: 'Όροι Χρήσης',
   description: 'Όροι χρήσης της πλατφόρμας StaffNow.',
 };
 

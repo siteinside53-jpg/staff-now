@@ -5,6 +5,7 @@ import type { Env, AuthUser } from '../types';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { checkSwipeLimit, checkActiveMatchesLimit } from '../middleware/subscription';
 import { success, error, paginated } from '../lib/response';
+import { openaiChat } from '../lib/openai';
 import { generateId } from '../lib/id';
 import { recordActivity, getRequestIp, getGeoFromRequest, recordDataChange, computeDiff } from '../lib/activity';
 
@@ -895,6 +896,16 @@ Bio: ${profile.bio || ''}
 Έξοδος: καθαρό κείμενο, ΕΛΛΗΝΙΚΑ, max 600 λέξεις. ΜΗΝ προσθέσεις στοιχεία που
 δεν υπάρχουν στο input.`;
 
+  // 1) OpenAI (gpt-4o) — καλύτερη ποιότητα/Ελληνικά. Χρησιμοποιείται μόνο αν
+  //    υπάρχει το secret OPENAI_API_KEY.
+  const viaOpenAI = await openaiChat(env, prompt, {
+    model: 'gpt-4o',
+    maxTokens: 1100,
+    temperature: 0.6,
+  });
+  if (viaOpenAI) return viaOpenAI;
+
+  // 2) Fallback: Cloudflare Workers AI (δωρεάν, χωρίς key).
   try {
     const aiRes: any = await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
       messages: [{ role: 'user', content: prompt }],

@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
 export const metadata = {
-  title: 'Για Εργαζόμενους - StaffNow',
+  title: 'Για Εργαζόμενους',
   description:
     'Βρες δουλειά γρήγορα σε κάθε κλάδο. Δημιούργησε προφίλ, κάνε swipe, βρες τον ιδανικό εργοδότη.',
   alternates: { canonical: '/for-workers' },

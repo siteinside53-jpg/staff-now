@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 export const metadata = {
-  title: 'Καριέρα - StaffNow',
+  title: 'Καριέρα',
   description:
     'Δουλειά στο StaffNow. Χτίζουμε το μέλλον της εργασίας. Δες τις ανοιχτές θέσεις και κάνε αίτηση.',
 };

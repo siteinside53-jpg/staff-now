@@ -44,7 +44,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 export const metadata = {
-  title: 'Όλοι οι κλάδοι & ειδικότητες | StaffNow',
+  title: 'Όλοι οι κλάδοι & ειδικότητες',
   description: `Δες και τις 24 κατηγορίες με ${TOTAL_ROLES}+ ειδικότητες που καλύπτει το StaffNow — από τουρισμό και εστίαση μέχρι IT, νομικά και ναυτιλία.`,
   alternates: { canonical: '/categories' },
 };

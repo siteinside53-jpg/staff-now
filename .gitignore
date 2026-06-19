@@ -37,3 +37,6 @@ coverage/
 # Misc
 *.log
 npm-debug.log*
+
+# Local SEO rebuild log
+scripts/seo-rebuild.log
