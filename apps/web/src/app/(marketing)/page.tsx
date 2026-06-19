@@ -464,19 +464,19 @@ export default function HomePage() {
             {/* Stats row */}
             <div className="mt-8 grid max-w-md grid-cols-2 gap-4 sm:grid-cols-4">
               <div className="flex flex-col items-center text-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-base">⭐</div>
-                <p className="mt-1.5 text-sm font-bold text-gray-900">4.8</p>
-                <p className="text-[10px] text-gray-500">Αξιολόγηση</p>
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-base">💶</div>
+                <p className="mt-1.5 text-sm font-bold text-gray-900">Δωρεάν</p>
+                <p className="text-[10px] text-gray-500">Για εργαζόμενους</p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-base">⬇</div>
-                <p className="mt-1.5 text-sm font-bold text-gray-900">50K+</p>
-                <p className="text-[10px] text-gray-500">Λήψεις</p>
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-base">⚡</div>
+                <p className="mt-1.5 text-sm font-bold text-gray-900">Σε λεπτά</p>
+                <p className="text-[10px] text-gray-500">Match υποψηφίων</p>
               </div>
               <div className="flex flex-col items-center text-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100 text-base">👥</div>
-                <p className="mt-1.5 text-sm font-bold text-gray-900">100K+</p>
-                <p className="text-[10px] text-gray-500">Χρήστες</p>
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100 text-base">🇬🇷</div>
+                <p className="mt-1.5 text-sm font-bold text-gray-900">Πανελλαδικά</p>
+                <p className="text-[10px] text-gray-500">Όλη η Ελλάδα</p>
               </div>
               <div className="flex flex-col items-center text-center">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-base">🔒</div>

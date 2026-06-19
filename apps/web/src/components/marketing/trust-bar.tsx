@@ -69,9 +69,9 @@ export function TrustBar() {
           </div>
           <div className="hidden sm:block h-8 w-px bg-gray-700" />
           <div className="flex items-center gap-2">
-            <span className="text-yellow-400 text-lg">&#9733;</span>
-            <span className="text-2xl font-extrabold text-white">4.8</span>
-            <span className="text-sm text-gray-400">Αξιολόγηση</span>
+            <span className="text-emerald-400 text-lg">&#10003;</span>
+            <span className="text-2xl font-extrabold text-white">Δωρεάν</span>
+            <span className="text-sm text-gray-400">Εγγραφή &amp; χρήση</span>
           </div>
           <div className="hidden sm:block h-8 w-px bg-gray-700" />
           <div className="flex items-center gap-2">
