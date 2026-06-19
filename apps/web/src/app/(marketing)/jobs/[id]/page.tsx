@@ -111,11 +111,25 @@ export default async function JobPage({ params }: Params) {
     };
   }
 
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Αρχική', item: 'https://staffnow.gr/' },
+      { '@type': 'ListItem', position: 2, name: 'Θέσεις εργασίας', item: 'https://staffnow.gr/find-job' },
+      { '@type': 'ListItem', position: 3, name: job.title, item: `https://staffnow.gr/jobs/${id}` },
+    ],
+  };
+
   return (
     <main className="min-h-screen bg-gray-50">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
       />
 
       <article className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14">

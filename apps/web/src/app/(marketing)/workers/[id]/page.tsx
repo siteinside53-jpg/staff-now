@@ -76,11 +76,25 @@ export default async function WorkerPage({ params }: Params) {
     address: { '@type': 'PostalAddress', addressLocality: loc, addressCountry: 'GR' },
   };
 
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Αρχική', item: 'https://staffnow.gr/' },
+      { '@type': 'ListItem', position: 2, name: 'Εργαζόμενοι', item: 'https://staffnow.gr/find-staff' },
+      { '@type': 'ListItem', position: 3, name: role, item: `https://staffnow.gr/workers/${id}` },
+    ],
+  };
+
   return (
     <main className="min-h-screen bg-gray-50">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
       />
 
       <article className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
