@@ -909,7 +909,6 @@ export const SALARY_TYPE_LABELS_EL: Record<string, string> = {
   monthly: 'Ανά μήνα',
   hourly: 'Ανά ώρα',
   daily: 'Ανά ημέρα',
-  negotiable: 'Συζητήσιμο',
 };
 
 export const SHIFT_TYPE_LABELS_EL: Record<string, string> = {

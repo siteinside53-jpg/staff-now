@@ -61,7 +61,7 @@ function salaryStr(j: Job): string {
   if (j.salaryMin && j.salaryMax) return `${j.salaryMin}-${j.salaryMax}${unit}`;
   if (j.salaryMin) return `Από ${j.salaryMin}${unit}`;
   if (j.salaryMax) return `Έως ${j.salaryMax}${unit}`;
-  return 'Συζητήσιμος';
+  return '—';
 }
 
 function timeAgoGreek(dateStr: string | null): string {

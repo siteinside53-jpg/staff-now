@@ -164,7 +164,7 @@ export default function JobsPage() {
     if (!form.branchId && branches.length > 0) { toast.error('Επέλεξε επιχείρηση'); return; }
     const hasBenefit = form.housing_provided || form.meals_provided || form.transport_provided || form.bonus_provided || form.insurance_provided || form.no_benefits;
     if (!hasBenefit) { toast.error('Επέλεξε τουλάχιστον μία παροχή'); return; }
-    if (form.salaryType !== 'negotiable' && !form.salaryMin && !form.salaryMax) { toast.error('Συμπλήρωσε μισθό ή επέλεξε "Συζητήσιμο"'); return; }
+    if (!form.salaryMin && !form.salaryMax) { toast.error('Συμπλήρωσε μισθό'); return; }
 
     setSaving(true);
     try {
@@ -363,26 +363,22 @@ export default function JobsPage() {
                 <select value={form.salaryType} onChange={(e) => f('salaryType', e.target.value)} className={sel}>
                   {Object.entries(SALARY_TYPE_LABELS_EL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select></div>
-              {form.salaryType !== 'negotiable' && (
-                <>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Μισθός από (€) *</label>
-                      <Input type="number" min="0" value={form.salaryMin} onChange={(e) => f('salaryMin', e.target.value)} placeholder="1200" /></div>
-                    <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Μισθός έως (€)</label>
-                      <Input type="number" min="0" value={form.salaryMax} onChange={(e) => f('salaryMax', e.target.value)} placeholder="1800" /></div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => f('salaryGross', true)}
-                      className={`flex-1 rounded-lg border-2 py-2.5 text-sm font-semibold transition-all ${form.salaryGross ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-                      Μικτά
-                    </button>
-                    <button onClick={() => f('salaryGross', false)}
-                      className={`flex-1 rounded-lg border-2 py-2.5 text-sm font-semibold transition-all ${!form.salaryGross ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
-                      Καθαρά
-                    </button>
-                  </div>
-                </>
-              )}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Μισθός από (€) *</label>
+                  <Input type="number" min="0" value={form.salaryMin} onChange={(e) => f('salaryMin', e.target.value)} placeholder="1200" /></div>
+                <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Μισθός έως (€)</label>
+                  <Input type="number" min="0" value={form.salaryMax} onChange={(e) => f('salaryMax', e.target.value)} placeholder="1800" /></div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => f('salaryGross', true)}
+                  className={`flex-1 rounded-lg border-2 py-2.5 text-sm font-semibold transition-all ${form.salaryGross ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                  Μικτά
+                </button>
+                <button onClick={() => f('salaryGross', false)}
+                  className={`flex-1 rounded-lg border-2 py-2.5 text-sm font-semibold transition-all ${!form.salaryGross ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                  Καθαρά
+                </button>
+              </div>
             </CardContent>
           </Card>
 
@@ -548,9 +544,8 @@ export default function JobsPage() {
                     <p className="mt-1 text-sm text-gray-500 line-clamp-2">{job.description}</p>
                     <div className="mt-2 flex flex-wrap gap-3 text-sm text-gray-400">
                       {job.city && <span>📍 {job.city}{job.region ? `, ${job.region}` : ''}</span>}
-                      {(job.salary_min || job.salary_max || job.salary_type === 'negotiable') && (() => {
-                        const unit = job.salary_type === 'hourly' ? '/ώρα' : job.salary_type === 'daily' ? '/ημέρα' : job.salary_type === 'negotiable' ? '' : '/μήνα';
-                        if (job.salary_type === 'negotiable') return <span>💰 Συζητήσιμο</span>;
+                      {(job.salary_min || job.salary_max) && (() => {
+                        const unit = job.salary_type === 'hourly' ? '/ώρα' : job.salary_type === 'daily' ? '/ημέρα' : '/μήνα';
                         const amount = job.salary_min && job.salary_max ? `${job.salary_min}-${job.salary_max}€` : job.salary_min ? `από ${job.salary_min}€` : `έως ${job.salary_max}€`;
                         return <span>💰 {amount}{unit}</span>;
                       })()}

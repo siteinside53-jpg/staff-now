@@ -89,7 +89,7 @@ export function JobPreviewPanel({ jobId, onClose, isOwner = true }: Props) {
             <div className="px-6 py-6 space-y-6 flex-1">
 
               {/* Salary */}
-              {(j.salary_min || j.salary_max || j.salary_type === 'negotiable') && (
+              {(j.salary_min || j.salary_max) && (
                 <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-emerald-800">Μισθός</p>
@@ -99,7 +99,7 @@ export function JobPreviewPanel({ jobId, onClose, isOwner = true }: Props) {
                     </p>
                   </div>
                   <p className="text-2xl font-bold text-emerald-700">
-                    {j.salary_type === 'negotiable' ? 'Συζητήσιμο' : j.salary_min && j.salary_max ? `${j.salary_min}-${j.salary_max}€` : `${j.salary_min || j.salary_max}€`}
+                    {j.salary_min && j.salary_max ? `${j.salary_min}-${j.salary_max}€` : `${j.salary_min || j.salary_max}€`}
                   </p>
                 </div>
               )}

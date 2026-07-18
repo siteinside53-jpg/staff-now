@@ -198,5 +198,5 @@ function salary(min?: number, max?: number, type?: string): string {
   if (min && max) return `${min}-${max} ${suf}`;
   if (min) return `Από ${min} ${suf}`;
   if (max) return `Έως ${max} ${suf}`;
-  return 'Συζητήσιμα';
+  return '—';
 }

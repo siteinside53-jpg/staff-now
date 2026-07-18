@@ -152,5 +152,5 @@ function salaryRange(min?: number, max?: number, type?: string): string {
   const suffix = type === 'hourly' ? '/ώρα' : type === 'daily' ? '/μέρα' : '€/μήνα';
   if (min && max) return `${min}-${max}${suffix.startsWith('€') ? suffix : '€' + suffix}`;
   if (min) return `Από ${min}€${suffix.startsWith('€') ? '' : suffix}`;
-  return 'Συζητήσιμα';
+  return '—';
 }

@@ -20,7 +20,7 @@ function salaryText(j: PublicJob): string {
   if (j.salary_min && j.salary_max) return `${j.salary_min}-${j.salary_max} ${unit}`;
   if (j.salary_min) return `Από ${j.salary_min} ${unit}`;
   if (j.salary_max) return `Έως ${j.salary_max} ${unit}`;
-  return 'Συζητήσιμος';
+  return '—';
 }
 
 function plainDescription(j: PublicJob): string {

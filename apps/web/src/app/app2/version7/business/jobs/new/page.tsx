@@ -180,7 +180,6 @@ export default function NewJob() {
                     { value: 'monthly', label: 'Ανά μήνα' },
                     { value: 'hourly', label: 'Ανά ώρα' },
                     { value: 'daily', label: 'Ανά μέρα' },
-                    { value: 'negotiable', label: 'Συζητήσιμο' },
                   ]}
                   value={salaryType}
                   onChange={(e) => setSalaryType(e.target.value)}
@@ -205,7 +204,7 @@ export default function NewJob() {
                 <Row k="Τίτλος" v={title || '—'} />
                 <Row k="Τοποθεσία" v={`${city || '—'}, ${region}`} />
                 <Row k="Απασχόληση" v={({ full_time: 'Πλήρης', part_time: 'Μερική', seasonal: 'Σεζόν' } as any)[employmentType]} />
-                <Row k="Μισθός" v={salaryMin || salaryMax ? `${salaryMin || '—'}-${salaryMax || '—'} ${({ monthly: '€/μήνα', hourly: '€/ώρα', daily: '€/μέρα', negotiable: 'συζητήσιμα' } as any)[salaryType]}` : 'Συζητήσιμα'} />
+                <Row k="Μισθός" v={salaryMin || salaryMax ? `${salaryMin || '—'}-${salaryMax || '—'} ${({ monthly: '€/μήνα', hourly: '€/ώρα', daily: '€/μέρα' } as any)[salaryType]}` : '—'} />
               </Card>
             </Section>
 

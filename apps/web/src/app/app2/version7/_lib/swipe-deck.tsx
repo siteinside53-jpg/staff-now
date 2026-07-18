@@ -609,7 +609,7 @@ function formatSalary(min: number | null, max: number | null, type: string): str
   if (min && max) return `${min}-${max} ${suf}`;
   if (min) return `Από ${min} ${suf}`;
   if (max) return `Έως ${max} ${suf}`;
-  return 'Συζητήσιμα';
+  return '—';
 }
 function humaniseEmployment(t?: string): string | null {
   if (!t) return null;

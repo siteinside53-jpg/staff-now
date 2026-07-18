@@ -27,8 +27,8 @@ const jobBaseSchema = z.object({
   employmentType: z.enum(["full_time", "part_time", "seasonal"]).optional(),
 
   // Section 4: Μισθός
-  salary_type: z.enum(["hourly", "monthly", "daily", "negotiable"]).optional(),
-  salaryType: z.enum(["hourly", "monthly", "daily", "negotiable"]).optional(),
+  salary_type: z.enum(["hourly", "monthly", "daily"]).optional(),
+  salaryType: z.enum(["hourly", "monthly", "daily"]).optional(),
   salary_min: z.number().positive().optional().nullable(),
   salary_max: z.number().positive().optional().nullable(),
   salaryMin: z.number().positive().optional().nullable(),

@@ -250,20 +250,16 @@ function EditJobInner() {
               <select value={form.salaryType} onChange={(e) => f('salaryType', e.target.value)} className={sel}>
                 {Object.entries(SALARY_TYPE_LABELS_EL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select></div>
-            {form.salaryType !== 'negotiable' && (
-              <>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Από (€)</label>
-                    <Input type="number" min="0" value={form.salaryMin} onChange={(e) => f('salaryMin', e.target.value)} placeholder="1200" /></div>
-                  <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Έως (€)</label>
-                    <Input type="number" min="0" value={form.salaryMax} onChange={(e) => f('salaryMax', e.target.value)} placeholder="1800" /></div>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => f('salaryGross', true)} className={`flex-1 rounded-lg border-2 py-2.5 text-sm font-semibold transition-all ${form.salaryGross ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500'}`}>Μικτά</button>
-                  <button onClick={() => f('salaryGross', false)} className={`flex-1 rounded-lg border-2 py-2.5 text-sm font-semibold transition-all ${!form.salaryGross ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500'}`}>Καθαρά</button>
-                </div>
-              </>
-            )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Από (€)</label>
+                <Input type="number" min="0" value={form.salaryMin} onChange={(e) => f('salaryMin', e.target.value)} placeholder="1200" /></div>
+              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Έως (€)</label>
+                <Input type="number" min="0" value={form.salaryMax} onChange={(e) => f('salaryMax', e.target.value)} placeholder="1800" /></div>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => f('salaryGross', true)} className={`flex-1 rounded-lg border-2 py-2.5 text-sm font-semibold transition-all ${form.salaryGross ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500'}`}>Μικτά</button>
+              <button onClick={() => f('salaryGross', false)} className={`flex-1 rounded-lg border-2 py-2.5 text-sm font-semibold transition-all ${!form.salaryGross ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500'}`}>Καθαρά</button>
+            </div>
           </CardContent></Card>
 
         {/* 5. Παροχές */}
