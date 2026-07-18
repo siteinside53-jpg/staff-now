@@ -76,7 +76,26 @@ const jobBaseSchema = z.object({
 
 // -- Create Job ---------------------------------------------------------------
 
-export const createJobSchema = jobBaseSchema;
+// Ο μισθός είναι υποχρεωτικός για πλήρη διαφάνεια — δεν επιτρέπεται "συζητήσιμος".
+export const createJobSchema = jobBaseSchema.superRefine((data, ctx) => {
+  const salaryType = data.salary_type ?? data.salaryType;
+  const salaryMin = data.salary_min ?? data.salaryMin;
+
+  if (!salaryType) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["salary_type"],
+      message: "Ο τύπος μισθού είναι υποχρεωτικός",
+    });
+  }
+  if (salaryMin == null || salaryMin <= 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["salary_min"],
+      message: "Ο μισθός είναι υποχρεωτικός — δεν επιτρέπεται συζητήσιμος μισθός",
+    });
+  }
+});
 
 export type CreateJobInput = z.infer<typeof createJobSchema>;
 

@@ -164,7 +164,8 @@ export default function JobsPage() {
     if (!form.branchId && branches.length > 0) { toast.error('Επέλεξε επιχείρηση'); return; }
     const hasBenefit = form.housing_provided || form.meals_provided || form.transport_provided || form.bonus_provided || form.insurance_provided || form.no_benefits;
     if (!hasBenefit) { toast.error('Επέλεξε τουλάχιστον μία παροχή'); return; }
-    if (!form.salaryMin && !form.salaryMax) { toast.error('Συμπλήρωσε μισθό'); return; }
+    if (!form.salaryMin || parseFloat(form.salaryMin) <= 0) { toast.error('Ο μισθός είναι υποχρεωτικός — συμπλήρωσε το «Μισθός από»'); return; }
+    if (form.salaryMax && parseFloat(form.salaryMax) < parseFloat(form.salaryMin)) { toast.error('Ο μέγιστος μισθός δεν μπορεί να είναι μικρότερος από τον ελάχιστο'); return; }
 
     setSaving(true);
     try {

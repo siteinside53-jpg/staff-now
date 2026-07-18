@@ -105,6 +105,8 @@ function EditJobInner() {
 
   const handleSave = async () => {
     if (!form.title) { toast.error('Συμπλήρωσε τον τίτλο'); return; }
+    if (!form.salaryMin || parseFloat(form.salaryMin) <= 0) { toast.error('Ο μισθός είναι υποχρεωτικός — συμπλήρωσε το «Μισθός από»'); return; }
+    if (form.salaryMax && parseFloat(form.salaryMax) < parseFloat(form.salaryMin)) { toast.error('Ο μέγιστος μισθός δεν μπορεί να είναι μικρότερος από τον ελάχιστο'); return; }
     setSaving(true);
     try {
       await api.jobs.update(jobId!, {
@@ -251,7 +253,7 @@ function EditJobInner() {
                 {Object.entries(SALARY_TYPE_LABELS_EL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select></div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Από (€)</label>
+              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Από (€) *</label>
                 <Input type="number" min="0" value={form.salaryMin} onChange={(e) => f('salaryMin', e.target.value)} placeholder="1200" /></div>
               <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Έως (€)</label>
                 <Input type="number" min="0" value={form.salaryMax} onChange={(e) => f('salaryMax', e.target.value)} placeholder="1800" /></div>
