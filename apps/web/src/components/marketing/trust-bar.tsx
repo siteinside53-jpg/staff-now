@@ -11,9 +11,17 @@ import { API_URL } from '@/lib/config';
  *
  * Τραβάει live· αν αποτύχει η API κρατάει το τελευταίο γνωστό fallback.
  */
+/**
+ * Dev-only demo counts. Στο localhost το production API μπλοκάρεται από CORS,
+ * οπότε δείχνουμε αντιπροσωπευτικούς αριθμούς αντί για "—", ώστε το trust bar
+ * να φαίνεται όπως στο staffnow.gr. Tree-shaken σε production.
+ */
+const DEV_DEMO_WORKERS = process.env.NODE_ENV !== 'production' ? 35 : null;
+const DEV_DEMO_BUSINESSES = process.env.NODE_ENV !== 'production' ? 21 : null;
+
 export function TrustBar() {
-  const [workers, setWorkers] = useState<number | null>(null);
-  const [businesses, setBusinesses] = useState<number | null>(null);
+  const [workers, setWorkers] = useState<number | null>(DEV_DEMO_WORKERS);
+  const [businesses, setBusinesses] = useState<number | null>(DEV_DEMO_BUSINESSES);
 
   useEffect(() => {
     let active = true;

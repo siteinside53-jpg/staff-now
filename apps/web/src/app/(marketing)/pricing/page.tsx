@@ -549,47 +549,64 @@ function ComparisonTable({ period }: { period: 'monthly' | 'yearly' }) {
     ['Dedicated Account Manager', [false, false, false, true]],
   ];
 
+  const priceLabel = (p: Plan) =>
+    p.monthly === 0 ? '0€' : `${period === 'monthly' ? p.monthly : Math.round(p.yearly / 12)}€/μ`;
+
+  const renderCell = (c: string | boolean) =>
+    typeof c === 'boolean' ? (
+      c ? <span className="text-emerald-600">✓</span> : <span className="text-gray-300">—</span>
+    ) : (
+      <span className="text-gray-700">{c}</span>
+    );
+
   return (
     <div className="mt-16 mx-auto max-w-5xl">
       <h2 className="text-center text-2xl font-bold text-gray-900">Αναλυτική σύγκριση πλάνων</h2>
-      <div className="mt-6 overflow-hidden rounded-2xl border border-gray-200 bg-white">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500"></th>
-                {PLANS.map((p) => (
-                  <th key={p.id} className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-gray-700">
-                    <div>{p.nameEl}</div>
-                    <div className="mt-0.5 text-sm font-extrabold text-gray-900 normal-case">
-                      {p.monthly === 0 ? '0€' : `${period === 'monthly' ? p.monthly : Math.round(p.yearly / 12)}€/μ`}
-                    </div>
-                  </th>
+
+      {/* Desktop / tablet: full table */}
+      <div className="mt-6 hidden overflow-hidden rounded-2xl border border-gray-200 bg-white sm:block">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500"></th>
+              {PLANS.map((p) => (
+                <th key={p.id} className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-gray-700">
+                  <div>{p.nameEl}</div>
+                  <div className="mt-0.5 text-sm font-extrabold text-gray-900 normal-case">{priceLabel(p)}</div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {rows.map(([label, cells]) => (
+              <tr key={label}>
+                <td className="px-4 py-3 text-sm font-semibold text-gray-700">{label}</td>
+                {cells.map((c, i) => (
+                  <td key={i} className="px-4 py-3 text-center">{renderCell(c)}</td>
                 ))}
               </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {rows.map(([label, cells]) => (
-                <tr key={label}>
-                  <td className="px-4 py-3 text-sm font-semibold text-gray-700">{label}</td>
-                  {cells.map((c, i) => (
-                    <td key={i} className="px-4 py-3 text-center">
-                      {typeof c === 'boolean' ? (
-                        c ? (
-                          <span className="text-emerald-600">✓</span>
-                        ) : (
-                          <span className="text-gray-300">—</span>
-                        )
-                      ) : (
-                        <span className="text-gray-700">{c}</span>
-                      )}
-                    </td>
-                  ))}
-                </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile: stacked per-feature, no horizontal scroll */}
+      <div className="mt-6 space-y-3 sm:hidden">
+        {rows.map(([label, cells]) => (
+          <div key={label} className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+            <p className="border-b border-gray-100 bg-gray-50 px-4 py-2.5 text-sm font-bold text-gray-800">{label}</p>
+            <div className="grid grid-cols-2 divide-x divide-y divide-gray-100">
+              {PLANS.map((p, i) => (
+                <div key={p.id} className="flex items-center justify-between gap-2 px-4 py-2.5">
+                  <span className="text-xs font-semibold text-gray-500">
+                    {p.nameEl} <span className="text-gray-400">· {priceLabel(p)}</span>
+                  </span>
+                  <span className="text-sm font-medium">{renderCell(cells[i])}</span>
+                </div>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

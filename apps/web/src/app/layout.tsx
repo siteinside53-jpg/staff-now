@@ -22,11 +22,11 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: 'StaffNow – Βρες Προσωπικό Τουρισμού & Εστίασης',
+    default: 'StaffNow – Βρες Προσωπικό & Δουλειά σε Κάθε Κλάδο | Match σε 24 Ώρες',
     template: '%s | StaffNow',
   },
   description:
-    'Η πλατφόρμα swipe-style αντιστοίχισης για τον τουρισμό και την εστίαση στην Ελλάδα. Βρες προσωπικό γρήγορα ή βρες δουλειά εύκολα.',
+    'Πλατφόρμα swipe-style που συνδέει εργοδότες & εργαζόμενους σε όλους τους κλάδους. Δες τον μισθό πριν κάνεις αίτηση. Πρόσληψη σε λιγότερο από 24 ώρες.',
   keywords: [
     // Greek primary
     'εύρεση προσωπικού',
@@ -86,8 +86,8 @@ export const metadata: Metadata = {
     ],
   },
   openGraph: {
-    title: 'StaffNow – Βρες Προσωπικό Τουρισμού Γρήγορα',
-    description: 'Swipe-style αντιστοίχιση επιχειρήσεων και εργαζομένων στον τουρισμό.',
+    title: 'StaffNow – Βρες Προσωπικό & Δουλειά σε Κάθε Κλάδο',
+    description: 'Swipe-style αντιστοίχιση εργοδοτών & εργαζομένων σε όλους τους κλάδους. Διαφάνεια μισθού & πρόσληψη σε λιγότερο από 24 ώρες.',
     url: 'https://staffnow.gr',
     siteName: 'StaffNow',
     locale: 'el_GR',
@@ -103,8 +103,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'StaffNow – Βρες Προσωπικό σε λίγα λεπτά',
-    description: 'Swipe-style αντιστοίχιση για τον τουρισμό & την εστίαση στην Ελλάδα.',
+    title: 'StaffNow – Βρες Προσωπικό & Δουλειά σε Κάθε Κλάδο',
+    description: 'Swipe-style αντιστοίχιση εργοδοτών & εργαζομένων σε κάθε κλάδο στην Ελλάδα. Δες τον μισθό πριν την αίτηση.',
     images: ['/og-image.png'],
   },
   robots: {

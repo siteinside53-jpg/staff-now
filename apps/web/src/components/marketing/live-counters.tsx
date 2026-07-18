@@ -4,6 +4,17 @@ import { useEffect, useState } from 'react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://staffnow-api-production.siteinside53.workers.dev';
 
+/**
+ * Dev-only demo stats. Στο localhost το production API μπλοκάρεται από CORS,
+ * οπότε δείχνουμε αντιπροσωπευτικούς αριθμούς για να φαίνεται το section όπως
+ * στο staffnow.gr. Το branch `NODE_ENV !== 'production'` κάνει tree-shake σε
+ * production build — ΔΕΝ φτάνει ποτέ στους πραγματικούς χρήστες.
+ */
+const DEV_DEMO_STATS =
+  process.env.NODE_ENV !== 'production'
+    ? { totalUsers: 68, totalJobs: 21, totalMatches: 10 }
+    : null;
+
 interface Counter {
   label: string;
   shortLabel: string;
@@ -28,7 +39,7 @@ function buildCounters(stats: { totalUsers: number; totalJobs: number; totalMatc
     {
       label: 'Εργαζόμενοι εγγεγραμμένοι',
       shortLabel: 'Χρήστες',
-      value: stats.totalUsers || 1847,
+      value: stats.totalUsers || 0,
       icon: '⚡',
       color: 'blue',
       min: 1, max: 5,
@@ -37,7 +48,7 @@ function buildCounters(stats: { totalUsers: number; totalJobs: number; totalMatc
     {
       label: 'Matches μέχρι τώρα',
       shortLabel: 'Matches',
-      value: stats.totalMatches || 342,
+      value: stats.totalMatches || 0,
       icon: '🎯',
       color: 'emerald',
       min: 1, max: 3,
@@ -46,7 +57,7 @@ function buildCounters(stats: { totalUsers: number; totalJobs: number; totalMatc
     {
       label: 'Ενεργές αγγελίες',
       shortLabel: 'Αγγελίες',
-      value: stats.totalJobs || 127,
+      value: stats.totalJobs || 0,
       icon: '💼',
       color: 'amber',
       min: 0, max: 2,
@@ -55,7 +66,7 @@ function buildCounters(stats: { totalUsers: number; totalJobs: number; totalMatc
     {
       label: 'Επιχειρήσεις ψάχνουν',
       shortLabel: 'Αναζητούν',
-      value: Math.max(Math.floor((stats.totalJobs || 89) * 0.7), 89),
+      value: Math.floor((stats.totalJobs || 0) * 0.7),
       icon: '🏢',
       color: 'purple',
       min: 0, max: 2,
@@ -65,10 +76,15 @@ function buildCounters(stats: { totalUsers: number; totalJobs: number; totalMatc
 }
 
 export function LiveCounters() {
-  const [counters, setCounters] = useState<Counter[]>(() => buildCounters({ totalUsers: 1847, totalJobs: 127, totalMatches: 342 }));
-  const [values, setValues] = useState<number[]>([1847, 342, 127, 89]);
-  const [flashingIndices, setFlashingIndices] = useState<Set<number>>(new Set());
-  const [loaded, setLoaded] = useState(false);
+  // Production: ξεκινά κρυφό, γεμίζει με πραγματικά δεδομένα.
+  // Dev: ξεκινά με demo ώστε το localhost να δείχνει το ίδιο section με το staffnow.gr.
+  const [counters, setCounters] = useState<Counter[] | null>(
+    DEV_DEMO_STATS ? buildCounters(DEV_DEMO_STATS) : null,
+  );
+  const [values, setValues] = useState<number[]>(
+    DEV_DEMO_STATS ? buildCounters(DEV_DEMO_STATS).map((c) => c.value) : [],
+  );
+  const [flashingIndices] = useState<Set<number>>(new Set());
 
   // Fetch real stats
   useEffect(() => {
@@ -83,10 +99,9 @@ export function LiveCounters() {
           const c = buildCounters(stats);
           setCounters(c);
           setValues(c.map((x) => x.value));
-          setLoaded(true);
         }
       } catch {
-        if (!cancelled) setLoaded(true);
+        /* κανένα fake — μένει κρυφό μέχρι να έρθουν πραγματικά */
       }
     })();
     return () => { cancelled = true; };
@@ -111,6 +126,9 @@ export function LiveCounters() {
     }, 25_000);
     return () => clearInterval(interval);
   }, []);
+
+  // Κρύβεται τελείως αν δεν υπάρχουν πραγματικά δεδομένα (ή όλα 0)
+  if (!counters || values.every((v) => !v)) return null;
 
   return (
     <>

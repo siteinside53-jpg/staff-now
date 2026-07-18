@@ -6,11 +6,12 @@ import { LiveWorkersHeroCard } from '@/components/marketing/live-workers';
 import { HeroGradient } from '@/components/marketing/hero-gradient';
 import { HowItWorksTabs } from '@/components/marketing/how-it-works-tabs';
 import { TrustBar } from '@/components/marketing/trust-bar';
+import { SwipeTeaser } from '@/components/marketing/swipe-teaser';
 
 export const metadata = {
-  title: { absolute: 'StaffNow - Βρες Προσωπικό & Δουλειά σε Λίγα Λεπτά' },
+  title: { absolute: 'StaffNow – Βρες Προσωπικό & Δουλειά σε Κάθε Κλάδο | Match σε 24 Ώρες' },
   description:
-    'Η πλατφόρμα που συνδέει επιχειρήσεις με εργαζόμενους — γρήγορα. Swipe, match & ξεκίνα. Τουρισμός, εστίαση, retail, logistics & πολλά ακόμα.',
+    'Πλατφόρμα swipe-style που συνδέει εργοδότες & εργαζόμενους σε όλους τους κλάδους. Δες τον μισθό πριν κάνεις αίτηση. Πρόσληψη σε λιγότερο από 24 ώρες.',
   alternates: { canonical: '/' },
 };
 
@@ -67,10 +68,6 @@ const testimonials = [
     initials: 'ΕΜ',
     color: 'bg-pink-100 text-pink-700',
   },
-];
-
-const trustedBy = [
-  'Costa Navarino', 'Public Group', 'Sani Resort', 'Everest', 'Grecotel', 'Sklavenitis',
 ];
 
 /* ── page ────────────────────────────────────────────────────── */
@@ -134,6 +131,9 @@ export default function HomePage() {
 
       {/* ====== ACTIVITY MARQUEE ====== */}
       <ActivityMarquee />
+
+      {/* ====== SWIPE TEASER (δοκίμασε πριν την εγγραφή) ====== */}
+      <SwipeTeaser />
 
       {/* ====== FOR BUSINESSES ====== */}
       <section className="bg-white py-20 sm:py-28">
@@ -344,16 +344,6 @@ export default function HomePage() {
               </div>
             ))}
           </div>
-
-          {/* Trusted by */}
-          <div className="mt-16 text-center">
-            <p className="text-sm font-medium text-gray-400 mb-6">Μας εμπιστεύονται</p>
-            <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
-              {trustedBy.map((name) => (
-                <span key={name} className="text-lg font-bold text-gray-300 hover:text-gray-500 transition-colors">{name}</span>
-              ))}
-            </div>
-          </div>
         </div>
       </section>
 
@@ -404,51 +394,51 @@ export default function HomePage() {
           {/* LEFT — text + store buttons + stats */}
           <div>
             <span className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-blue-700">
-              📱 Mobile App
+              📱 Έρχεται σύντομα
             </span>
             <h2 className="mt-4 text-4xl font-extrabold leading-tight text-gray-900 sm:text-5xl">
-              Κατέβασε την
+              Η εφαρμογή
               <br />
-              εφαρμογή <span className="text-blue-600">ΔΩΡΕΑΝ</span>
+              έρχεται <span className="text-blue-600">σύντομα</span>
             </h2>
             <p className="mt-5 max-w-xl text-base text-gray-600 sm:text-lg">
-              Βρες δουλειά ή προσωπικό απευθείας
+              Θα βρίσκεις δουλειά ή προσωπικό απευθείας
               <br />
               από το κινητό σου.
               <br />
               <br />
-              Swipe, match και επικοινώνησε άμεσα
+              Swipe, match και επικοινωνία άμεσα
               <br />
               — όπου κι αν είσαι.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              {/* App Store */}
-              <a
-                href="https://apps.apple.com/app/staffnow"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-3 rounded-2xl bg-black px-5 py-3 text-left shadow-lg shadow-black/10 transition-transform hover:scale-105 hover:bg-gray-900"
-                aria-label="Κατέβασε από το App Store"
+              {/* App Store — σύντομα */}
+              <div
+                className="relative inline-flex items-center gap-3 rounded-2xl bg-black/90 px-5 py-3 text-left shadow-lg shadow-black/10"
+                aria-label="App Store — σύντομα διαθέσιμο"
               >
-                <svg className="h-8 w-8 text-white" viewBox="0 0 24 24" fill="currentColor">
+                <span className="absolute -top-2 -right-2 rounded-full bg-blue-600 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow">
+                  Σύντομα
+                </span>
+                <svg className="h-8 w-8 text-white/80" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
                 </svg>
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-white/70 leading-none">Λήψη στο</p>
                   <p className="text-base font-bold text-white leading-tight">App Store</p>
                 </div>
-              </a>
+              </div>
 
-              {/* Google Play */}
-              <a
-                href="https://play.google.com/store/apps/details?id=gr.staffnow"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-3 rounded-2xl bg-black px-5 py-3 text-left shadow-lg shadow-black/10 transition-transform hover:scale-105 hover:bg-gray-900"
-                aria-label="Κατέβασε από το Google Play"
+              {/* Google Play — σύντομα */}
+              <div
+                className="relative inline-flex items-center gap-3 rounded-2xl bg-black/90 px-5 py-3 text-left shadow-lg shadow-black/10"
+                aria-label="Google Play — σύντομα διαθέσιμο"
               >
-                <svg className="h-8 w-8" viewBox="0 0 24 24">
+                <span className="absolute -top-2 -right-2 rounded-full bg-blue-600 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow">
+                  Σύντομα
+                </span>
+                <svg className="h-8 w-8 opacity-80" viewBox="0 0 24 24">
                   <path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 01-.61-.92V2.734a1 1 0 01.609-.92z" fill="#4285F4" />
                   <path d="M14.5 11.293l2.302-2.302-10.937-6.333 8.635 8.635z" fill="#FBBC04" />
                   <path d="M14.5 12.707l-8.635 8.634 10.937-6.332-2.302-2.302z" fill="#EA4335" />
@@ -458,7 +448,7 @@ export default function HomePage() {
                   <p className="text-[10px] uppercase tracking-wider text-white/70 leading-none">ΑΠΟΚΤΗΣΤΕ ΣΤΟ</p>
                   <p className="text-base font-bold text-white leading-tight">Google Play</p>
                 </div>
-              </a>
+              </div>
             </div>
 
             {/* Stats row */}

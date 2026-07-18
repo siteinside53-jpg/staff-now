@@ -33,6 +33,9 @@ interface DiscoverProfile {
   coverPhoto?: string;
   housingProvided?: boolean;
   mealsProvided?: boolean;
+  employmentType?: string;
+  region?: string;
+  salaryMin?: number;
   swipeStatus?: string | null;
   isMatched?: boolean;
   businessUserId?: string;
@@ -55,6 +58,16 @@ function timeAgo(dateStr?: string): string {
 // Κανονικοποίηση κειμένου για αναζήτηση/φίλτρα (πεζά + χωρίς τόνους)
 function normText(s: string): string {
   return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
+const EMPLOYMENT_LABELS: Record<string, string> = {
+  full_time: 'Full-time',
+  part_time: 'Part-time',
+  seasonal: 'Σεζόν',
+  freelance: 'Freelance',
+};
+function employmentLabel(t?: string): string {
+  return t ? EMPLOYMENT_LABELS[t] ?? t : '';
 }
 
 export default function DiscoverPage() {
@@ -83,7 +96,7 @@ export default function DiscoverPage() {
 
   // List-view filters (ίδια λογική με τις δημόσιες λίστες)
   const [listQuery, setListQuery] = useState('');
-  const [listSel, setListSel] = useState<Record<string, string[]>>({ location: [], role: [] });
+  const [listSel, setListSel] = useState<Record<string, string[]>>({ location: [], region: [], role: [], type: [], salary: [], perks: [] });
 
   const isWorker = user?.role === 'worker';
 
@@ -118,13 +131,66 @@ export default function DiscoverPage() {
       .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'el'));
   }, [candidates]);
 
+  // Τύπος απασχόλησης (μόνο για θέσεις — δηλ. στην όψη εργαζομένου)
+  const listTypeOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const c of candidates) if (c.employmentType) counts.set(c.employmentType, (counts.get(c.employmentType) || 0) + 1);
+    return Array.from(counts.entries())
+      .map(([v, n]) => ({ value: v, label: employmentLabel(v), count: n }))
+      .sort((a, b) => b.count - a.count);
+  }, [candidates]);
+
+  // Περιοχές / γειτονιές (όπως τα «Areas» του jobfind)
+  const listRegionOptions = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const c of candidates) {
+      const r = (c.region || '').trim();
+      if (!r) continue;
+      const n = normText(r);
+      if (!seen.has(n)) seen.set(n, r);
+    }
+    return Array.from(seen.entries())
+      .map(([n, label]) => ({
+        value: label,
+        label,
+        count: candidates.filter((c) => normText(c.region || '') === n).length,
+      }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'el'));
+  }, [candidates]);
+
+  // Μισθός — κλιμάκια ελάχιστου μηνιαίου (€+)
+  const listSalaryOptions = useMemo(() => {
+    const brackets = [800, 1000, 1200, 1500, 2000];
+    return brackets
+      .map((min) => ({
+        value: String(min),
+        label: `${min.toLocaleString('el-GR')}€+`,
+        count: candidates.filter((c) => (c.salaryMin ?? 0) >= min).length,
+      }))
+      .filter((o) => o.count > 0);
+  }, [candidates]);
+
+  // Παροχές (στέγη / φαγητό)
+  const listPerksOptions = useMemo(() => {
+    const housing = candidates.filter((c) => c.housingProvided).length;
+    const meals = candidates.filter((c) => c.mealsProvided).length;
+    return [
+      ...(housing > 0 ? [{ value: 'housing', label: '🏠 Στέγη', count: housing }] : []),
+      ...(meals > 0 ? [{ value: 'meals', label: '🍽️ Φαγητό', count: meals }] : []),
+    ];
+  }, [candidates]);
+
   const listGroups: FilterGroup[] = useMemo(
     () =>
       [
         { key: 'location', title: 'Πόλεις', options: listCityOptions, searchable: true },
+        { key: 'region', title: 'Περιοχές', options: listRegionOptions, searchable: true },
+        { key: 'type', title: 'Τύπος απασχόλησης', options: listTypeOptions },
         { key: 'role', title: 'Ειδικότητες', options: listRoleOptions },
+        { key: 'salary', title: 'Μισθός', options: listSalaryOptions },
+        { key: 'perks', title: 'Παροχές', options: listPerksOptions },
       ].filter((g) => g.options.length > 0),
-    [listCityOptions, listRoleOptions],
+    [listCityOptions, listRegionOptions, listTypeOptions, listRoleOptions, listSalaryOptions, listPerksOptions],
   );
 
   const filteredCandidates = useMemo(() => {
@@ -139,7 +205,18 @@ export default function DiscoverPage() {
         const cl = normText(c.location || '');
         if (!cityNorms.some((cn) => cl.includes(cn) || cn.includes(cl))) return false;
       }
+      if ((listSel.region ?? []).length) {
+        const rn = normText(c.region || '');
+        if (!(listSel.region ?? []).some((r) => normText(r) === rn)) return false;
+      }
       if ((listSel.role ?? []).length && !(c.tags ?? []).some((t) => listSel.role!.includes(t))) return false;
+      if ((listSel.type ?? []).length && !(c.employmentType && listSel.type!.includes(c.employmentType))) return false;
+      if ((listSel.salary ?? []).length) {
+        const minSel = Math.min(...listSel.salary!.map(Number));
+        if (!(c.salaryMin && c.salaryMin >= minSel)) return false;
+      }
+      if ((listSel.perks ?? []).includes('housing') && !c.housingProvided) return false;
+      if ((listSel.perks ?? []).includes('meals') && !c.mealsProvided) return false;
       return true;
     });
   }, [candidates, listQuery, listSel]);
@@ -153,7 +230,7 @@ export default function DiscoverPage() {
 
   function clearListFilters() {
     setListQuery('');
-    setListSel({ location: [], role: [] });
+    setListSel({ location: [], region: [], role: [], type: [], salary: [], perks: [] });
   }
 
   // Fetch AI match scores in parallel (non-blocking)
@@ -202,6 +279,9 @@ export default function DiscoverPage() {
           location: [j.company_address, j.company_area, j.display_city || j.city, j.display_region || j.region, j.company_postal_code].filter(Boolean).join(', '),
           bio: j.description,
           businessUserId: j.business_user_id || undefined,
+          employmentType: j.employment_type || undefined,
+          region: j.display_region || j.region || undefined,
+          salaryMin: j.salary_min || undefined,
           tags: j.roles || [j.employment_type].filter(Boolean),
           salary: j.salary_min && j.salary_max ? `${j.salary_min}-${j.salary_max}€/μήνα` : undefined,
           verified: false,
@@ -221,6 +301,8 @@ export default function DiscoverPage() {
           swipeStatus: w.swipe_status || null,
           isMatched: w.is_matched > 0,
           location: [w.city, w.region].filter(Boolean).join(', '),
+          region: w.region || undefined,
+          salaryMin: w.expected_monthly_salary || undefined,
           bio: w.bio,
           tags: w.roles || [],
           salary: w.expected_monthly_salary ? `${w.expected_monthly_salary}€/μήνα` : undefined,

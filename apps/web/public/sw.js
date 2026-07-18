@@ -132,3 +132,59 @@ self.addEventListener('message', (event) => {
     self.skipWaiting();
   }
 });
+
+// ---------- Web Push ----------
+// Payload (JSON, encrypted in transit) is produced by the API's notify helper:
+//   { title, body, url }
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { title: 'StaffNow', body: event.data ? event.data.text() : '' };
+  }
+
+  const title = data.title || 'StaffNow';
+  const options = {
+    body: data.body || '',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    tag: data.tag || undefined,
+    data: { url: data.url || '/dashboard' },
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Focus an existing tab (or open a new one) at the notification's target URL.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/dashboard';
+
+  event.waitUntil(
+    (async () => {
+      const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const client of allClients) {
+        try {
+          const url = new URL(client.url);
+          if (url.origin === self.location.origin && 'focus' in client) {
+            await client.focus();
+            if ('navigate' in client) {
+              try {
+                await client.navigate(targetUrl);
+              } catch {
+                /* navigation may be blocked cross-origin — focus is enough */
+              }
+            }
+            return;
+          }
+        } catch {
+          /* ignore malformed client URL */
+        }
+      }
+      if (self.clients.openWindow) {
+        await self.clients.openWindow(targetUrl);
+      }
+    })(),
+  );
+});

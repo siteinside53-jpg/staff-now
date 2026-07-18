@@ -4,18 +4,24 @@ import { useEffect, useState } from 'react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://staffnow-api-production.siteinside53.workers.dev';
 
-const FALLBACK_ACTIVITIES = [
-  '🟢 Νέα εγγραφή εργαζόμενου στην Αθήνα',
-  '🟢 Νέα αγγελία: Σερβιτόρος · Μύκονος',
-  '🟢 3 matches την τελευταία ώρα',
-  '🟢 Πωλητής εγγράφηκε στη Θεσσαλονίκη',
-  '🟢 Νέα αγγελία: Αποθηκάριος · Αθήνα',
-  '🟢 15 εργαζόμενοι εγγράφηκαν σήμερα',
-  '🟢 Bartender βρήκε δουλειά σε 4 ώρες',
-  '🟢 Νέα αγγελία: Καμαριέρα · Σαντορίνη',
-  '🟢 Retail πωλητής match με Fashion Store',
-  '🟢 Νέα αγγελία: Μάγειρας · Κρήτη',
-];
+/**
+ * Dev-only demo κίνηση. Στο localhost το production API μπλοκάρεται από CORS,
+ * οπότε δείχνουμε αντιπροσωπευτικά activities για να φαίνεται το marquee όπως
+ * στο staffnow.gr. Tree-shaken σε production — ΔΕΝ φτάνει στους χρήστες.
+ */
+const DEV_DEMO_ITEMS =
+  process.env.NODE_ENV !== 'production'
+    ? [
+        '🟢 Νέα εγγραφή: Σερβιτόρος/α · Θεσσαλονίκη · μόλις τώρα',
+        '💼 Νέα αγγελία: Μάγειρας · Αθήνα · πριν 3 λεπτά',
+        '🟢 Νέα εγγραφή: Ρεσεψιονίστ · Ρόδος · πριν 8 λεπτά',
+        '💼 Νέα αγγελία: Πωλητής · Πάτρα · πριν 12 λεπτά',
+        '🟢 Νέα εγγραφή: Bartender · Μύκονος · πριν 18 λεπτά',
+        '💼 Νέα αγγελία: Καμαριέρα · Κρήτη · πριν 25 λεπτά',
+        '🟢 Νέα εγγραφή: Οδηγός · Λάρισα · πριν 34 λεπτά',
+        '💼 Νέα αγγελία: Barista · Βόλος · πριν 41 λεπτά',
+      ]
+    : [];
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -28,7 +34,9 @@ function timeAgo(dateStr: string): string {
 }
 
 export function ActivityMarquee() {
-  const [items, setItems] = useState<string[]>(FALLBACK_ACTIVITIES);
+  // Production: ξεκινά άδειο, δείχνει μόνο πραγματικά activities.
+  // Dev: ξεκινά με demo ώστε το localhost να δείχνει κίνηση όπως το staffnow.gr.
+  const [items, setItems] = useState<string[]>(DEV_DEMO_ITEMS);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,11 +64,14 @@ export function ActivityMarquee() {
           setItems(realItems);
         }
       } catch {
-        // Keep fallback
+        // κανένα fake — μένει κρυφό μέχρι να έρθουν πραγματικά
       }
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // Κρύβεται τελείως αν δεν υπάρχουν πραγματικά activities
+  if (items.length === 0) return null;
 
   return (
     <div className="relative overflow-hidden border-y border-gray-800 bg-gray-950 py-2.5">

@@ -19,10 +19,60 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { API_URL } from '@/lib/config';
 
 const STORAGE_KEY = 'staffnow_push_optin';
 const DELAY_MS = 5000;
 const SNOOZE_DAYS = 14;
+
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
+
+// base64url (VAPID public key) → Uint8Array, as required by pushManager.subscribe.
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+/**
+ * Subscribe this browser to Web Push and register the subscription with the API.
+ * No-ops gracefully when the service worker, Push API, VAPID key, or auth token
+ * is unavailable (e.g. local dev where the SW is not registered).
+ */
+async function subscribeToPush(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  if (!VAPID_PUBLIC_KEY) return;
+
+  const token = localStorage.getItem('staffnow_token');
+  if (!token) return; // only logged-in users can be targeted
+
+  const registration = await navigator.serviceWorker.ready;
+  let subscription = await registration.pushManager.getSubscription();
+  if (!subscription) {
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as unknown as BufferSource,
+    });
+  }
+
+  const json = subscription.toJSON() as {
+    endpoint?: string;
+    keys?: { p256dh?: string; auth?: string };
+  };
+
+  await fetch(`${API_URL}/push/subscribe`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
+  });
+}
 
 function shouldShow(): boolean {
   if (typeof window === 'undefined') return false;
@@ -60,6 +110,15 @@ export function PushOptIn() {
     return () => clearTimeout(timer);
   }, []);
 
+  // If the user already granted permission (e.g. on a previous visit), make sure
+  // this browser is registered with the API. Runs once a user is authenticated.
+  useEffect(() => {
+    if (!user) return;
+    if (typeof window === 'undefined' || !('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
+    subscribeToPush().catch(() => {});
+  }, [user]);
+
   const remember = (choice: 'yes' | 'no' | 'never') => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ choice, at: new Date().toISOString() }));
@@ -73,10 +132,14 @@ export function PushOptIn() {
     try {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
-        // Push subscription εντοπίζεται από service worker — εδώ απλά
-        // dispatch-άρουμε event ώστε όποιος listener θέλει να κάνει register
-        // στον push server μπορεί να το κάνει.
         window.dispatchEvent(new CustomEvent('push:permission-granted'));
+        // Register the browser's push subscription with the API so it can send
+        // off-site notifications. Best-effort — failure must stay silent.
+        try {
+          await subscribeToPush();
+        } catch {
+          /* subscription/register failed — silent */
+        }
       }
     } catch {
       // user dismissed permission dialog — silent

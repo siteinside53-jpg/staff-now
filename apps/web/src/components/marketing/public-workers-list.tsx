@@ -118,19 +118,10 @@ const EXP_BUCKETS: { value: string; label: string; match: (y: number) => boolean
   { value: 'sr', label: '6+ έτη', match: (y) => y >= 6 },
 ];
 
-// Sample fallback μόνο αν η API δεν απαντήσει.
-const SAMPLE: Worker[] = [
-  { id: 'sample-1', name: 'Μαρία Κ.', role: 'Σερβιτόρος/α', city: 'Μύκονος', experienceYears: 5, verified: true, photo: null, avatarColor: colorFor('sample-1'), initials: 'ΜΚ' },
-  { id: 'sample-2', name: 'Αλέξης Ρ.', role: 'Bartender', city: 'Σαντορίνη', experienceYears: 3, verified: true, photo: null, avatarColor: colorFor('sample-2'), initials: 'ΑΡ' },
-  { id: 'sample-3', name: 'Κώστας Δ.', role: 'Σεφ', city: 'Κρήτη', experienceYears: 7, verified: true, photo: null, avatarColor: colorFor('sample-3'), initials: 'ΚΔ' },
-  { id: 'sample-4', name: 'Ελένη Μ.', role: 'Ρεσεψιονίστ', city: 'Αθήνα', experienceYears: 4, verified: false, photo: null, avatarColor: colorFor('sample-4'), initials: 'ΕΜ' },
-  { id: 'sample-5', name: 'Γιάννης Σ.', role: 'Καμαριέρα', city: 'Ρόδος', experienceYears: 2, verified: false, photo: null, avatarColor: colorFor('sample-5'), initials: 'ΓΣ' },
-];
-
 const EMPTY_SEL: Record<string, string[]> = { city: [], role: [], exp: [], avail: [] };
 
 export function PublicWorkersList() {
-  const [items, setItems] = useState<Worker[]>(SAMPLE);
+  const [items, setItems] = useState<Worker[]>([]);
   const [selected, setSelected] = useState<Worker | null>(null);
   const [gateOpen, setGateOpen] = useState(false);
   const [gateContext, setGateContext] = useState<{ workerId: string } | null>(null);
@@ -148,7 +139,7 @@ export function PublicWorkersList() {
       .then((d: { success: boolean; data: any[] }) => {
         if (!active) return;
         const raw = Array.isArray(d?.data) ? d.data : [];
-        if (raw.length === 0) return; // keep sample
+        if (raw.length === 0) { setItems([]); return; } // κανένα fake — μένει άδειο
         setItems(
           raw.map((w: any, i: number) => {
             const name = displayName(w.full_name || 'Εργαζόμενος');
@@ -171,7 +162,7 @@ export function PublicWorkersList() {
         );
       })
       .catch(() => {
-        /* keep sample on error/timeout */
+        /* κανένα fake — μένει άδειο σε σφάλμα/timeout */
       })
       .finally(() => clearTimeout(timeout));
 
@@ -271,6 +262,9 @@ export function PublicWorkersList() {
     setQuery('');
     setSel(EMPTY_SEL);
   }
+
+  // Κρύβεται τελείως όσο δεν υπάρχουν πραγματικά δεδομένα (κανένα fake fallback)
+  if (items.length === 0) return null;
 
   return (
     <>

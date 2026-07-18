@@ -88,19 +88,10 @@ function norm(s: string): string {
     .trim();
 }
 
-// Sample fallback μόνο αν η API δεν απαντήσει.
-const SAMPLE: Job[] = [
-  { id: 'sample-1', title: 'Σερβιτόρος/α', company: 'Sunset Beach Bar', city: 'Μύκονος', salaryMin: 1200, salaryMax: 1500, salaryType: 'monthly', employmentType: 'seasonal', housingProvided: true, mealsProvided: true, postedAgo: 'πριν 2 ώρες', createdAtMs: Date.now() - 2 * 3600e3, logo: null, roles: ['Σερβιτόρος/α'] },
-  { id: 'sample-2', title: 'Πωλητής/τρια', company: 'Fashion Store', city: 'Αθήνα', salaryMin: 900, salaryMax: 1200, salaryType: 'monthly', employmentType: 'full_time', housingProvided: false, mealsProvided: false, postedAgo: 'πριν 4 ώρες', createdAtMs: Date.now() - 4 * 3600e3, logo: null, roles: ['Πωλητής'] },
-  { id: 'sample-3', title: 'Αποθηκάριος', company: 'Express Logistics', city: 'Θεσσαλονίκη', salaryMin: 1100, salaryMax: 1400, salaryType: 'monthly', employmentType: 'full_time', housingProvided: false, mealsProvided: true, postedAgo: 'πριν 6 ώρες', createdAtMs: Date.now() - 6 * 3600e3, logo: null, roles: ['Αποθηκάριος'] },
-  { id: 'sample-4', title: 'Bartender', company: 'Rooftop Lounge', city: 'Σαντορίνη', salaryMin: 1400, salaryMax: 1700, salaryType: 'monthly', employmentType: 'seasonal', housingProvided: true, mealsProvided: true, postedAgo: 'πριν 8 ώρες', createdAtMs: Date.now() - 8 * 3600e3, logo: null, roles: ['Bartender'] },
-  { id: 'sample-5', title: 'Καμαριέρα', company: 'Grecotel Resort', city: 'Κρήτη', salaryMin: 1000, salaryMax: 1250, salaryType: 'monthly', employmentType: 'seasonal', housingProvided: true, mealsProvided: true, postedAgo: 'πριν 1 ημέρα', createdAtMs: Date.now() - 24 * 3600e3, logo: null, roles: ['Καμαριέρα'] },
-];
-
 const EMPTY_SEL: Record<string, string[]> = { city: [], type: [], role: [], perks: [] };
 
 export function PublicJobsList() {
-  const [items, setItems] = useState<Job[]>(SAMPLE);
+  const [items, setItems] = useState<Job[]>([]);
   const [selected, setSelected] = useState<Job | null>(null);
   const [gateOpen, setGateOpen] = useState(false);
   const [gateContext, setGateContext] = useState<{ jobId: string } | null>(null);
@@ -118,7 +109,7 @@ export function PublicJobsList() {
       .then((d: { success: boolean; data: any[] }) => {
         if (!active) return;
         const raw = Array.isArray(d?.data) ? d.data : [];
-        if (raw.length === 0) return; // keep sample
+        if (raw.length === 0) { setItems([]); return; } // κανένα fake — μένει άδειο
         setItems(
           raw.map((j: any, i: number) => ({
             id: String(j.id ?? `rj_${i}`),
@@ -142,7 +133,7 @@ export function PublicJobsList() {
         );
       })
       .catch(() => {
-        /* keep sample on error/timeout */
+        /* κανένα fake — μένει άδειο σε σφάλμα/timeout */
       })
       .finally(() => clearTimeout(timeout));
 
@@ -241,6 +232,9 @@ export function PublicJobsList() {
     setQuery('');
     setSel(EMPTY_SEL);
   }
+
+  // Κρύβεται τελείως όσο δεν υπάρχουν πραγματικά δεδομένα (κανένα fake fallback)
+  if (items.length === 0) return null;
 
   return (
     <>

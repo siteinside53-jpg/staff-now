@@ -35,7 +35,7 @@ interface Worker {
   id: string;
   name: string;
   role: string;
-  rating: number;
+  rating?: number;
   exp: string;
   initials: string;
   color: string;
@@ -97,34 +97,45 @@ function pickRandom<T extends { id: string }>(pool: T[], count: number, excludeI
   return shuffled.slice(0, count);
 }
 
-/* ── Fallback data ─────────────────────────────── */
+/* ── Dev-only demo lists ───────────────────────────
+ * Στο localhost το production API μπλοκάρεται από CORS, οπότε δείχνουμε
+ * αντιπροσωπευτικούς εργαζόμενους/θέσεις ώστε το live card να φαίνεται όπως
+ * στο staffnow.gr. Tree-shaken σε production — ΔΕΝ φτάνει στους χρήστες.
+ */
+const DEV_DEMO_WORKERS: Worker[] =
+  process.env.NODE_ENV !== 'production'
+    ? [
+        { id: 'dw1', name: 'Μαρία Κ.', role: 'Σερβιτόρος/α', exp: '3 χρόνια', initials: 'ΜΚ', color: COLORS[0], city: 'Θεσσαλονίκη' },
+        { id: 'dw2', name: 'Γιώργος Π.', role: 'Μάγειρας', exp: '5 χρόνια', initials: 'ΓΠ', color: COLORS[1], city: 'Αθήνα' },
+        { id: 'dw3', name: 'Ελένη Δ.', role: 'Ρεσεψιονίστ', exp: '2 χρόνια', initials: 'ΕΔ', color: COLORS[2], city: 'Ρόδος' },
+        { id: 'dw4', name: 'Νίκος Α.', role: 'Bartender', exp: '4 χρόνια', initials: 'ΝΑ', color: COLORS[3], city: 'Μύκονος' },
+        { id: 'dw5', name: 'Σοφία Μ.', role: 'Barista', exp: '1 χρόνος', initials: 'ΣΜ', color: COLORS[4], city: 'Πάτρα' },
+        { id: 'dw6', name: 'Δημήτρης Ρ.', role: 'Οδηγός', exp: '6 χρόνια', initials: 'ΔΡ', color: COLORS[5], city: 'Λάρισα' },
+      ]
+    : [];
 
-const FALLBACK_WORKERS: Worker[] = [
-  { id: 'f1', name: 'Μαρία Κ.', role: 'Σερβιτόρα', rating: 4.9, exp: '5 χρόνια', initials: 'ΜΚ', color: COLORS[0], city: 'Μύκονος' },
-  { id: 'f2', name: 'Αλέξης Ρ.', role: 'Πωλητής', rating: 4.8, exp: '3 χρόνια', initials: 'ΑΡ', color: COLORS[1], city: 'Αθήνα' },
-  { id: 'f3', name: 'Ελένα Μ.', role: 'Μαγείρισσα', rating: 4.7, exp: '3 χρόνια', initials: 'ΕΜ', color: COLORS[2], city: 'Κρήτη' },
-  { id: 'f4', name: 'Κώστας Δ.', role: 'Αποθηκάριος', rating: 4.9, exp: '7 χρόνια', initials: 'ΚΔ', color: COLORS[3], city: 'Θεσ/νίκη' },
-  { id: 'f5', name: 'Σοφία Τ.', role: 'Barista', rating: 4.8, exp: '4 χρόνια', initials: 'ΣΤ', color: COLORS[4], city: 'Πάτρα' },
-  { id: 'f6', name: 'Νίκος Δ.', role: 'Head Chef', rating: 4.8, exp: '10 χρόνια', initials: 'ΝΔ', color: COLORS[5], city: 'Σαντορίνη' },
-];
-
-const FALLBACK_JOBS: Job[] = [
-  { id: 'j1', title: 'Σερβιτόρος/α', company: 'Sunset Beach Bar', city: 'Μύκονος', salary: '1.200-1.500€', type: 'Σεζόν', color: 'bg-amber-50 text-amber-700' },
-  { id: 'j2', title: 'Πωλητής/τρια', company: 'Fashion Store', city: 'Αθήνα', salary: '900-1.200€', type: 'Full-time', color: 'bg-blue-50 text-blue-700' },
-  { id: 'j3', title: 'Αποθηκάριος', company: 'Express Logistics', city: 'Θεσ/νίκη', salary: '1.100-1.400€', type: 'Full-time', color: 'bg-blue-50 text-blue-700' },
-  { id: 'j4', title: 'Bartender', company: 'Hotel Poseidon', city: 'Ρόδος', salary: '1.400-1.800€', type: 'Full-time', color: 'bg-blue-50 text-blue-700' },
-  { id: 'j5', title: 'Μάγειρας', company: 'Ταβέρνα Θάλασσα', city: 'Κρήτη', salary: '1.300-1.600€', type: 'Σεζόν', color: 'bg-amber-50 text-amber-700' },
-  { id: 'j6', title: 'Καμαριέρα', company: 'Sani Resort', city: 'Χαλκιδική', salary: '1.000-1.300€', type: 'Σεζόν', color: 'bg-amber-50 text-amber-700' },
-];
+const DEV_DEMO_JOBS: Job[] =
+  process.env.NODE_ENV !== 'production'
+    ? [
+        { id: 'dj1', title: 'Σερβιτόρος/α', company: 'Sunset Beach Bar', city: 'Μύκονος', salary: '1000-1300€', type: 'Σεζόν', color: TYPE_COLORS.seasonal },
+        { id: 'dj2', title: 'Μάγειρας', company: 'Taverna Ελιά', city: 'Αθήνα', salary: '1400-1800€', type: 'Full-time', color: TYPE_COLORS.full_time },
+        { id: 'dj3', title: 'Ρεσεψιονίστ', company: 'Aegean Hotel', city: 'Ρόδος', salary: '1100-1400€', type: 'Σεζόν', color: TYPE_COLORS.seasonal },
+        { id: 'dj4', title: 'Πωλητής', company: 'Urban Store', city: 'Θεσσαλονίκη', salary: '900-1200€', type: 'Part-time', color: TYPE_COLORS.part_time },
+        { id: 'dj5', title: 'Barista', company: 'Coffee Lab', city: 'Πάτρα', salary: '850-1050€', type: 'Full-time', color: TYPE_COLORS.full_time },
+        { id: 'dj6', title: 'Καμαριέρα', company: 'Blue Villas', city: 'Κρήτη', salary: '1000-1250€', type: 'Σεζόν', color: TYPE_COLORS.seasonal },
+      ]
+    : [];
 
 /* ── Component ─────────────────────────────────── */
 
 export function LiveWorkersHeroCard() {
   const [tab, setTab] = useState<'workers' | 'jobs'>('workers');
-  const [allWorkers, setAllWorkers] = useState<Worker[]>(FALLBACK_WORKERS);
-  const [allJobs, setAllJobs] = useState<Job[]>(FALLBACK_JOBS);
-  const [displayedWorkers, setDisplayedWorkers] = useState<Worker[]>(() => pickRandom(FALLBACK_WORKERS, 4));
-  const [displayedJobs, setDisplayedJobs] = useState<Job[]>(() => pickRandom(FALLBACK_JOBS, 4));
+  // Production: ξεκινά άδειο, γεμίζει μόνο με πραγματικά δεδομένα.
+  // Dev: ξεκινά με demo ώστε το localhost να δείχνει το live card όπως το staffnow.gr.
+  const [allWorkers, setAllWorkers] = useState<Worker[]>(DEV_DEMO_WORKERS);
+  const [allJobs, setAllJobs] = useState<Job[]>(DEV_DEMO_JOBS);
+  const [displayedWorkers, setDisplayedWorkers] = useState<Worker[]>(DEV_DEMO_WORKERS.slice(0, 4));
+  const [displayedJobs, setDisplayedJobs] = useState<Job[]>(DEV_DEMO_JOBS.slice(0, 4));
   const [newWorkerIds, setNewWorkerIds] = useState<Set<string>>(new Set());
   const [newJobIds, setNewJobIds] = useState<Set<string>>(new Set());
 
@@ -152,7 +163,6 @@ export function LiveWorkersHeroCard() {
                 id: w.user_id || `rw_${i}`,
                 name: displayName,
                 role: ROLE_LABELS[roleKey] || roleKey || 'Εργαζόμενος',
-                rating: +(4.5 + Math.random() * 0.5).toFixed(1),
                 exp: expLabel(w.years_of_experience),
                 initials: getInitials(name),
                 color: COLORS[i % COLORS.length],
@@ -188,7 +198,7 @@ export function LiveWorkersHeroCard() {
             setDisplayedJobs(pickRandom(real, 4));
           }
         }
-      } catch { /* keep fallback */ }
+      } catch { /* κανένα fake — μένει άδειο μέχρι να έρθουν πραγματικά */ }
     })();
     return () => { cancelled = true; };
   }, []);
@@ -303,10 +313,12 @@ export function LiveWorkersHeroCard() {
                   </p>
                   <p className="text-xs text-gray-400 truncate">{w.role} · {w.exp}{w.city ? ` · ${w.city}` : ''}</p>
                 </div>
-                <div className="flex items-center gap-1 text-xs">
-                  <span className="text-yellow-400">★</span>
-                  <span className="text-white font-medium">{w.rating}</span>
-                </div>
+                {w.rating != null && (
+                  <div className="flex items-center gap-1 text-xs">
+                    <span className="text-yellow-400">★</span>
+                    <span className="text-white font-medium">{w.rating}</span>
+                  </div>
+                )}
               </div>
             );
           })}
