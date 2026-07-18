@@ -1,98 +1,144 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
 
-interface Activity {
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL || 'https://staffnow-api-production.siteinside53.workers.dev';
+
+/**
+ * The API bakes the raw role slug into the signup text ("Όνομα εγγράφηκε ως driver").
+ * Replace the trailing slug with its human Greek label. Falls back to the original
+ * text if the format doesn't match or the slug is unknown.
+ */
+function humanizeSignup(text: string): string {
+  const m = text.match(/^(.* εγγράφηκε ως )(.+)$/);
+  if (!m) return text;
+  const label = WORKER_JOB_ROLE_LABELS_EL[m[2].trim()];
+  return label ? `${m[1]}${label}` : text;
+}
+
+interface Toast {
   id: string;
   icon: string;
   text: string;
+  subtitle?: string;
   timeAgo: string;
-  color: 'emerald' | 'blue' | 'amber' | 'pink';
+  color: 'emerald' | 'blue';
 }
 
-// Pool of realistic Greek activities
-const ACTIVITY_POOL: Omit<Activity, 'id' | 'timeAgo'>[] = [
-  { icon: '🎯', text: 'Μαρία Κ. μόλις έκανε match με Beach Bar Oasis', color: 'emerald' },
-  { icon: '🔥', text: 'ThessMontarisma προσέλαβε μέσω StaffNow', color: 'amber' },
-  { icon: '✨', text: 'Νίκος Δ. βρήκε δουλειά σε 3 ώρες', color: 'emerald' },
-  { icon: '🆕', text: '15 εργαζόμενοι εγγράφηκαν την τελευταία ώρα', color: 'blue' },
-  { icon: '💼', text: 'Νέα αγγελία: Σερβιτόρος · Μύκονος · 1400€/μήνα', color: 'blue' },
-  { icon: '⚡', text: 'Σοφία Τ. συνδέθηκε με Mykonos Suites', color: 'emerald' },
-  { icon: '🔥', text: 'Athens Rooftop έκλεισε 3 θέσεις σε 24 ώρες', color: 'amber' },
-  { icon: '🎯', text: 'Γιώργος Π. προσλήφθηκε στο Σαντορίνη', color: 'emerald' },
-  { icon: '💼', text: 'Νέα αγγελία: Head Chef · Κρήτη · 2200€/μήνα', color: 'blue' },
-  { icon: '🏆', text: 'Top εργαζόμενος αυτής της εβδομάδας: Έλενα Μ.', color: 'amber' },
-  { icon: '✨', text: 'Taverna Dionysos προσέλαβε 2 σερβιτόρους', color: 'emerald' },
-  { icon: '🆕', text: '22 νέες θέσεις άνοιξαν στη Μύκονο σήμερα', color: 'pink' },
-  { icon: '🎯', text: 'Δημήτρης Β. ξεκινά σε 2 ημέρες στο Olive Grove', color: 'emerald' },
-  { icon: '🔥', text: 'Crete Beach Resort αναζητά 5 άτομα άμεσα', color: 'amber' },
-  { icon: '💼', text: 'Νέα αγγελία: Bartender · Αθήνα · 12€/ώρα', color: 'blue' },
-  { icon: '⚡', text: 'Κατερίνα Λ. έλαβε 4 προτάσεις εργασίας σήμερα', color: 'emerald' },
-];
-
-const TIME_AGO_OPTIONS = [
-  'μόλις τώρα',
-  'πριν 30 δευτ.',
-  'πριν 1 λεπτό',
-  'πριν 2 λεπτά',
-  'πριν 4 λεπτά',
-  'πριν 7 λεπτά',
-];
+// Raw activity item as returned by GET /public/activity
+interface ApiActivity {
+  id: string;
+  type: 'signup' | 'job';
+  icon?: string;
+  text: string;
+  location?: string;
+  company?: string;
+  createdAt?: string;
+}
 
 const COLOR_MAP = {
   emerald: 'bg-emerald-500 text-white',
   blue: 'bg-blue-500 text-white',
-  amber: 'bg-amber-500 text-white',
-  pink: 'bg-pink-500 text-white',
 };
 
-function pickRandom(): Activity {
-  const pool = ACTIVITY_POOL[Math.floor(Math.random() * ACTIVITY_POOL.length)];
-  const timeAgo = TIME_AGO_OPTIONS[Math.floor(Math.random() * TIME_AGO_OPTIONS.length)];
+function timeAgo(dateStr?: string): string {
+  if (!dateStr) return 'πρόσφατα';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'μόλις τώρα';
+  if (mins < 60) return `πριν ${mins} λεπτά`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `πριν ${hours} ${hours === 1 ? 'ώρα' : 'ώρες'}`;
+  const days = Math.floor(hours / 24);
+  return `πριν ${days} ${days === 1 ? 'μέρα' : 'μέρες'}`;
+}
+
+/** Map a real API activity into a toast. Returns null for anything unusable. */
+function toToast(a: ApiActivity): Toast | null {
+  if (!a || !a.text) return null;
+  if (a.type === 'job') {
+    const title = a.text.replace(/^Νέα αγγελία:\s*/i, '').trim();
+    const main = a.company ? `Νέα αγγελία από ${a.company}` : `Νέα αγγελία: ${title}`;
+    const subParts = a.company ? [title, a.location] : [a.location];
+    return {
+      id: a.id,
+      icon: '💼',
+      text: main,
+      subtitle: subParts.filter(Boolean).join(' · ') || undefined,
+      timeAgo: timeAgo(a.createdAt),
+      color: 'blue',
+    };
+  }
+  // signup
   return {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-    timeAgo,
-    ...pool,
+    id: a.id,
+    icon: '🆕',
+    text: humanizeSignup(a.text),
+    subtitle: a.location || undefined,
+    timeAgo: timeAgo(a.createdAt),
+    color: 'emerald',
   };
 }
 
 /**
- * Bottom-left toast notifications that appear every few seconds.
- * Mimics Booking.com / Airbnb style social proof popups.
+ * Bottom-left toast notifications that rotate through REAL platform activity
+ * (recent signups + job postings) fetched from GET /public/activity.
+ * No fabricated data — if there is no real activity, nothing renders.
  */
 export function LiveActivityToasts() {
-  const [activities, setActivities] = useState<Activity[]>([]);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [current, setCurrent] = useState<Toast | null>(null);
   const [dismissed, setDismissed] = useState(false);
+  const idxRef = useRef(0);
 
+  // Fetch real activity once on mount.
   useEffect(() => {
-    if (dismissed) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/public/activity`);
+        if (!res.ok) return;
+        const json = await res.json();
+        const activities: ApiActivity[] = json?.data?.activity ?? [];
+        const mapped = activities.map(toToast).filter((t): t is Toast => t !== null);
+        if (!cancelled && mapped.length > 0) setToasts(mapped);
+      } catch {
+        // no fake fallback — stays hidden until real data arrives
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-    // Show first toast after 3s
-    const first = setTimeout(() => {
-      setActivities([pickRandom()]);
-    }, 3000);
+  // Rotate through the real toasts.
+  useEffect(() => {
+    if (dismissed || toasts.length === 0) return;
 
-    // Then rotate: hide previous, show new every 8-12s
-    const interval = setInterval(() => {
-      setActivities([pickRandom()]);
-    }, 9000 + Math.random() * 3000);
+    const showNext = () => {
+      const t = toasts[idxRef.current % toasts.length];
+      idxRef.current += 1;
+      setCurrent(t);
+    };
 
+    const first = setTimeout(showNext, 3000);
+    const interval = setInterval(showNext, 9000 + Math.random() * 3000);
     return () => {
       clearTimeout(first);
       clearInterval(interval);
     };
-  }, [dismissed]);
+  }, [dismissed, toasts]);
 
-  // Auto-hide after 5.5s
+  // Auto-hide each toast after 5.5s.
   useEffect(() => {
-    if (activities.length === 0) return;
-    const t = setTimeout(() => setActivities([]), 5500);
+    if (!current) return;
+    const t = setTimeout(() => setCurrent(null), 5500);
     return () => clearTimeout(t);
-  }, [activities]);
+  }, [current]);
 
-  if (dismissed || activities.length === 0) return null;
-
-  const activity = activities[0];
+  if (dismissed || !current) return null;
 
   return (
     <div className="fixed bottom-4 left-4 z-40 max-w-[320px] sm:max-w-sm pointer-events-auto">
@@ -113,18 +159,23 @@ export function LiveActivityToasts() {
         </button>
 
         {/* Icon */}
-        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-lg shadow-sm ${COLOR_MAP[activity.color]}`}>
-          {activity.icon}
+        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-lg shadow-sm ${COLOR_MAP[current.color]}`}>
+          {current.icon}
         </div>
 
         {/* Content */}
         <div className="min-w-0 flex-1 pt-0.5">
           <p className="text-xs font-semibold text-gray-900 leading-snug line-clamp-2">
-            {activity.text}
+            {current.text}
           </p>
+          {current.subtitle && (
+            <p className="mt-0.5 text-[11px] text-gray-500 leading-snug line-clamp-1">
+              {current.subtitle}
+            </p>
+          )}
           <div className="mt-1 flex items-center gap-1.5">
             <span className="h-1 w-1 rounded-full bg-gray-300" />
-            <span className="text-[10px] text-gray-500">{activity.timeAgo}</span>
+            <span className="text-[10px] text-gray-500">{current.timeAgo}</span>
             <span className="text-[10px] text-gray-300">·</span>
             <span className="flex items-center gap-0.5 text-[10px] font-semibold text-blue-600">
               <span className="h-1 w-1 rounded-full bg-emerald-500 animate-pulse" />
