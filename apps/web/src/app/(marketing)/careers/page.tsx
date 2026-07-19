@@ -9,7 +9,7 @@ export const metadata = {
 const perks = [
   {
     title: 'Remote-first',
-    description: 'Δούλεψε από όπου θέλεις. Το γραφείο μας στην Αθήνα είναι πάντα ανοιχτό, αλλά δεν είναι υποχρεωτικό.',
+    description: 'Δούλεψε από όπου θέλεις. Το γραφείο μας στη Θεσσαλονίκη είναι πάντα ανοιχτό, αλλά δεν είναι υποχρεωτικό.',
     icon: (
       <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
@@ -68,15 +68,31 @@ const positions = [
   {
     title: 'Senior Full-Stack Engineer',
     department: 'Engineering',
-    location: 'Αθήνα / Remote',
+    location: 'Θεσσαλονίκη / Remote',
     type: 'Full-time',
     description:
       'Αναζητούμε έμπειρο full-stack engineer για να βοηθήσει στη δημιουργία και κλιμάκωση της πλατφόρμας μας. Next.js, TypeScript, PostgreSQL.',
   },
   {
+    title: 'Backend Engineer',
+    department: 'Engineering',
+    location: 'Θεσσαλονίκη / Remote',
+    type: 'Full-time',
+    description:
+      'Χτίζεις και κλιμακώνεις τα APIs και τις υποδομές που τροφοδοτούν την πλατφόρμα. Node.js/TypeScript, βάσεις δεδομένων, cloud.',
+  },
+  {
+    title: 'Mobile Engineer (iOS & Android)',
+    department: 'Engineering',
+    location: 'Θεσσαλονίκη / Remote',
+    type: 'Full-time',
+    description:
+      'Αναπτύσσεις και συντηρείς τις εφαρμογές μας για iOS και Android, ώστε εργαζόμενοι και επιχειρήσεις να συνδέονται από παντού.',
+  },
+  {
     title: 'Product Designer',
     department: 'Design',
-    location: 'Αθήνα / Remote',
+    location: 'Θεσσαλονίκη / Remote',
     type: 'Full-time',
     description:
       'Ψάχνουμε product designer με εμπειρία σε B2B/B2C platforms. Θα σχεδιάσεις το user experience για χιλιάδες χρήστες.',
@@ -84,18 +100,66 @@ const positions = [
   {
     title: 'Growth Marketing Manager',
     department: 'Marketing',
-    location: 'Αθήνα / Remote',
+    location: 'Θεσσαλονίκη / Remote',
     type: 'Full-time',
     description:
       'Θέλουμε growth marketer που θα οδηγήσει την επέκτασή μας. Performance marketing, SEO, content strategy και partnerships.',
   },
   {
+    title: 'Content & Social Media Manager',
+    department: 'Marketing',
+    location: 'Θεσσαλονίκη / Remote',
+    type: 'Full-time',
+    description:
+      'Δημιουργείς περιεχόμενο και διαχειρίζεσαι τα social media μας. Αφηγείσαι την ιστορία του StaffNow σε εργαζόμενους και επιχειρήσεις σε όλη την Ελλάδα.',
+  },
+  {
+    title: 'B2B Sales Representative',
+    department: 'Sales',
+    location: 'Θεσσαλονίκη / Remote',
+    type: 'Full-time',
+    description:
+      'Φέρνεις νέες επιχειρήσεις στην πλατφόρμα. Παρουσιάζεις το StaffNow, χτίζεις σχέσεις και κλείνεις συνεργασίες σε εστίαση, τουρισμό και retail.',
+  },
+  {
+    title: 'Regional Expansion Manager',
+    department: 'Sales',
+    location: 'Πανελλαδικά',
+    type: 'Full-time',
+    description:
+      'Ηγείσαι του launch του StaffNow σε νέες πόλεις καθώς επεκτεινόμαστε πανελλαδικά. Στρατηγική εισόδου, τοπικές συνεργασίες και growth ανά περιοχή.',
+  },
+  {
     title: 'Customer Success Lead',
     department: 'Operations',
-    location: 'Αθήνα',
+    location: 'Θεσσαλονίκη',
     type: 'Full-time',
     description:
       'Αναζητούμε CS lead που θα διασφαλίσει ότι οι επιχειρήσεις-πελάτες μας παίρνουν τη μέγιστη αξία από την πλατφόρμα.',
+  },
+  {
+    title: 'Customer Support Agent',
+    department: 'Operations',
+    location: 'Θεσσαλονίκη / Remote',
+    type: 'Full-time',
+    description:
+      'Στηρίζεις καθημερινά εργαζόμενους και επιχειρήσεις. Απαντάς σε ερωτήματα, λύνεις προβλήματα και διασφαλίζεις άριστη εμπειρία.',
+  },
+  {
+    title: 'Community Manager',
+    department: 'Operations',
+    location: 'Remote',
+    type: 'Full-time',
+    description:
+      'Χτίζεις και φροντίζεις την κοινότητα εργαζομένων και επιχειρήσεων του StaffNow. Engagement, feedback και εκδηλώσεις.',
+  },
+  {
+    title: 'People & Talent (HR)',
+    department: 'People',
+    location: 'Θεσσαλονίκη',
+    type: 'Full-time',
+    description:
+      'Βοηθάς να χτίσουμε την ομάδα καθώς μεγαλώνουμε. Recruiting, onboarding και κουλτούρα για μια ταχύτατα αναπτυσσόμενη startup.',
   },
 ];
 
