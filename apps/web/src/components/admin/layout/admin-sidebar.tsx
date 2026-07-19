@@ -31,6 +31,7 @@ const NAV: NavItem[] = [
   { href: '/admin/payments', label: 'Πληρωμές', icon: '💳', section: 'Οικονομικά' },
   { href: '/admin/analytics', label: 'KPIs / Analytics', icon: '📈', section: 'Οικονομικά' },
 
+  { href: '/admin/blog', label: 'Blog', icon: '📝', section: 'Διαχείριση' },
   { href: '/admin/settings', label: 'Ρυθμίσεις Πλατφόρμας', icon: '⚙️', section: 'Διαχείριση' },
   { href: '/admin/admin-users', label: 'Ομάδα Admin', icon: '🛡️', section: 'Διαχείριση' },
 ];

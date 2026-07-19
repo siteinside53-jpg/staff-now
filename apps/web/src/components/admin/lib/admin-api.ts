@@ -543,6 +543,59 @@ export const adminApi = {
       }>;
     }>(res);
   },
+
+  // ---------- Blog CMS ----------
+  async getBlogPosts() {
+    const res = await fetch(`${API_BASE}/blog/admin/posts`, { headers: authHeaders() });
+    return handle<{ items: any[] }>(res);
+  },
+
+  async createBlogPost(input: {
+    title: string;
+    content: string;
+    excerpt?: string;
+    category?: string;
+    coverImageUrl?: string;
+    author?: string;
+    readTime?: string;
+    status?: 'draft' | 'published';
+  }) {
+    const res = await fetch(`${API_BASE}/blog/admin/posts`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(input),
+    });
+    return handle<{ post: any }>(res);
+  },
+
+  async updateBlogPost(
+    id: string,
+    input: Partial<{
+      title: string;
+      content: string;
+      excerpt: string;
+      category: string;
+      coverImageUrl: string;
+      author: string;
+      readTime: string;
+      status: 'draft' | 'published';
+    }>,
+  ) {
+    const res = await fetch(`${API_BASE}/blog/admin/posts/${id}`, {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify(input),
+    });
+    return handle<{ post: any }>(res);
+  },
+
+  async deleteBlogPost(id: string) {
+    const res = await fetch(`${API_BASE}/blog/admin/posts/${id}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    return handle<{ deleted: boolean }>(res);
+  },
 };
 
 export { API_BASE };

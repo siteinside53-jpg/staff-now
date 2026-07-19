@@ -22,6 +22,7 @@ const PAGE_META: Record<string, { title: string; subtitle?: string }> = {
   '/admin/payments': { title: 'Πληρωμές', subtitle: 'Συναλλαγές και επιστροφές' },
   '/admin/analytics': { title: 'KPIs / Analytics', subtitle: 'Metrics και funnels' },
   '/admin/notifications': { title: 'Ειδοποιήσεις', subtitle: 'System events feed' },
+  '/admin/blog': { title: 'Blog', subtitle: 'Δημιουργία και διαχείριση άρθρων' },
   '/admin/settings': { title: 'Ρυθμίσεις Πλατφόρμας', subtitle: 'Pricing, categories, feature flags' },
   '/admin/admin-users': { title: 'Ομάδα Admin', subtitle: 'Roles και permissions' },
   '/admin/audit-log': { title: 'Audit Log', subtitle: 'Πλήρες ιστορικό admin ενεργειών' },

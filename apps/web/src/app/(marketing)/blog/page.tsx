@@ -1,65 +1,7 @@
 import { NewsletterForm } from '@/components/marketing/newsletter-form';
+import { BlogList } from '@/components/marketing/blog-list';
 
 export const metadata = { title: 'Blog & Νέα', description: 'Άρθρα, συμβουλές και νέα για την εργασία, στελέχωση και το StaffNow.' };
-
-const categories = ['Όλα', 'Νέα', 'Συμβουλές', 'Product', 'Αγορά Εργασίας'];
-
-const posts = [
-  {
-    category: 'Νέα',
-    title: 'Το StaffNow ξεπέρασε τους 10,000 εγγεγραμμένους χρήστες',
-    excerpt: 'Ένα σημαντικό ορόσημο για εμάς! Σε μόλις 6 μήνες, η κοινότητα μας μεγάλωσε πέρα από κάθε προσδοκία.',
-    date: '20 Μαρ 2026',
-    readTime: '3 λεπτά',
-    author: 'Αλέξανδρος Π.',
-    color: 'bg-blue-100 text-blue-700',
-  },
-  {
-    category: 'Συμβουλές',
-    title: 'Πώς να βρεις προσωπικό σε 24 ώρες',
-    excerpt: 'Ο πλήρης οδηγός για επιχειρήσεις που θέλουν να καλύψουν θέσεις γρήγορα χωρίς συμβιβασμούς στην ποιότητα.',
-    date: '15 Μαρ 2026',
-    readTime: '7 λεπτά',
-    author: 'Ελένη Α.',
-    color: 'bg-emerald-100 text-emerald-700',
-  },
-  {
-    category: 'Συμβουλές',
-    title: '5 τρόποι να ξεχωρίσεις ως εργαζόμενος στο StaffNow',
-    excerpt: 'Από το τέλειο προφίλ μέχρι τις σωστές δεξιότητες — τι κοιτάνε πραγματικά οι εργοδότες.',
-    date: '10 Μαρ 2026',
-    readTime: '5 λεπτά',
-    author: 'Μαρίνα Κ.',
-    color: 'bg-emerald-100 text-emerald-700',
-  },
-  {
-    category: 'Product',
-    title: 'Νέο: Matching με AI — Πώς λειτουργεί η νέα μηχανή αντιστοίχισης',
-    excerpt: 'Χρησιμοποιούμε machine learning για να σας προτείνουμε τα πιο σχετικά ταιριάσματα βάσει προφίλ και προτιμήσεων.',
-    date: '5 Μαρ 2026',
-    readTime: '4 λεπτά',
-    author: 'Δημήτρης Ν.',
-    color: 'bg-purple-100 text-purple-700',
-  },
-  {
-    category: 'Αγορά Εργασίας',
-    title: 'Αγορά Εργασίας 2026: Οι τάσεις που αλλάζουν τις προσλήψεις',
-    excerpt: 'Αύξηση ζήτησης, νέες τεχνολογίες και αλλαγές στην εργασιακή αγορά — τι περιμένουμε φέτος.',
-    date: '28 Φεβ 2026',
-    readTime: '6 λεπτά',
-    author: 'Ελένη Α.',
-    color: 'bg-amber-100 text-amber-700',
-  },
-  {
-    category: 'Νέα',
-    title: 'StaffNow mobile app: Διαθέσιμο σε iOS και Android',
-    excerpt: 'Κατέβασε την εφαρμογή και βρες δουλειά ή προσωπικό απευθείας από το κινητό σου.',
-    date: '20 Φεβ 2026',
-    readTime: '3 λεπτά',
-    author: 'Αλέξανδρος Π.',
-    color: 'bg-blue-100 text-blue-700',
-  },
-];
 
 export default function BlogPage() {
   return (
@@ -72,46 +14,7 @@ export default function BlogPage() {
         </div>
       </section>
 
-      <section className="py-20 bg-white">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          {/* Categories */}
-          <div className="flex flex-wrap gap-2 mb-12">
-            {categories.map((cat, i) => (
-              <button key={cat} className={`rounded-full px-5 py-2 text-sm font-medium transition-colors ${i === 0 ? 'bg-gray-950 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                {cat}
-              </button>
-            ))}
-          </div>
-
-          {/* Posts Grid */}
-          <div className="grid gap-8 md:grid-cols-2">
-            {posts.map((post) => (
-              <article key={post.title} className="rounded-2xl border border-gray-100 overflow-hidden">
-                {/* Color bar */}
-                <div className="h-2 bg-gradient-to-r from-blue-600 to-indigo-600" />
-                <div className="p-6">
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className={`text-xs font-semibold px-3 py-1 rounded-full ${post.color}`}>{post.category}</span>
-                    <span className="text-xs text-gray-400">{post.date}</span>
-                    <span className="text-xs text-gray-400">&middot; {post.readTime}</span>
-                  </div>
-                  <h2 className="text-xl font-bold text-gray-900">{post.title}</h2>
-                  <p className="mt-3 text-gray-600 text-sm leading-relaxed">{post.excerpt}</p>
-                  <div className="mt-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-600">
-                        {post.author.split(' ').map(n => n[0]).join('')}
-                      </div>
-                      <span className="text-xs font-medium text-gray-500">{post.author}</span>
-                    </div>
-                    <span className="text-xs font-semibold text-gray-400">Σύντομα</span>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
+      <BlogList />
 
       {/* Newsletter */}
       <section className="py-20 bg-gray-50">
