@@ -555,6 +555,10 @@ app.get('/public/activity', async (c) => {
     db.prepare(
       `SELECT
          (SELECT COUNT(*) FROM users WHERE status = 'active') as total_users,
+         (SELECT COUNT(*) FROM worker_profiles wp JOIN users u ON u.id = wp.user_id
+            WHERE u.status = 'active') as total_workers,
+         (SELECT COUNT(*) FROM business_profiles bp JOIN users u ON u.id = bp.user_id
+            WHERE u.status = 'active') as total_businesses,
          (SELECT COUNT(*) FROM job_listings WHERE status = 'published') as total_jobs,
          (SELECT COUNT(*) FROM matches) as total_matches,
          (
@@ -605,6 +609,8 @@ app.get('/public/activity', async (c) => {
       activity: activity.slice(0, 20),
       stats: {
         totalUsers: (stats as any)?.total_users || 0,
+        totalWorkers: (stats as any)?.total_workers || 0,
+        totalBusinesses: (stats as any)?.total_businesses || 0,
         totalJobs: (stats as any)?.total_jobs || 0,
         totalMatches: (stats as any)?.total_matches || 0,
         onlineNow: (stats as any)?.online_now || 0,
