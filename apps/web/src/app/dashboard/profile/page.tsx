@@ -212,7 +212,12 @@ export default function ProfilePage() {
   const saveWorker = async () => {
     setSaving(true);
     try {
-      const body: any = { fullName: wf.fullName, bio: wf.bio, city: wf.city, region: wf.region, availability: wf.availability || undefined, employmentType: wf.employmentType || undefined, willingToRelocate: wf.willingToRelocate, roles: wf.roles, languages: wf.languages, isVisible: wf.isVisible, skills: JSON.stringify(wf.skills) };
+      const body: any = { bio: wf.bio, availability: wf.availability || undefined, employmentType: wf.employmentType || undefined, willingToRelocate: wf.willingToRelocate, roles: wf.roles, languages: wf.languages, isVisible: wf.isVisible, skills: JSON.stringify(wf.skills) };
+      // fullName/city/region must be >= 2 chars server-side; omit when empty so a
+      // partially-filled (e.g. brand-new) profile can still be saved instead of 400-ing.
+      if (wf.fullName && wf.fullName.trim().length >= 2) body.fullName = wf.fullName.trim();
+      if (wf.city && wf.city.trim().length >= 2) body.city = wf.city.trim();
+      if (wf.region && wf.region.trim().length >= 2) body.region = wf.region.trim();
       if (photoUrl) body.photoUrl = photoUrl;
       if (wf.yearsOfExperience) body.yearsOfExperience = parseInt(wf.yearsOfExperience);
       if (wf.compensationType === 'hourly' && wf.expectedHourlyRate) body.expectedHourlyRate = parseFloat(wf.expectedHourlyRate);
