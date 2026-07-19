@@ -239,34 +239,6 @@ export default function PricingPage() {
           Όλες οι τιμές περιλαμβάνουν ΦΠΑ 24%. <strong>30 ημέρες δωρεάν δοκιμή — χωρίς κάρτα.</strong>
         </p>
 
-        {/* SEASONAL */}
-        <div className="mt-16 mx-auto max-w-4xl">
-          <div className="rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-cyan-50 p-6 sm:p-8">
-            <div className="flex flex-wrap items-start gap-6">
-              <div className="text-5xl">🌊</div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold uppercase tracking-wider text-blue-700">Seasonal Pass</p>
-                <h3 className="mt-1 text-2xl font-extrabold text-gray-900">
-                  Pro × 6 μήνες — μόνο <span className="text-blue-700">379€</span>
-                </h3>
-                <p className="mt-2 text-sm text-gray-700">
-                  Σχεδιασμένο για ελληνική φιλοξενία. Πληρώνεις μία φορά, καλύπτεις όλη τη σεζόν
-                  (Απρ–Σεπ ή Μάι–Οκτ). <strong>Έκπτωση 30%</strong> έναντι μηνιαίας Pro.
-                </p>
-                <p className="mt-1 text-xs text-blue-700">
-                  💡 Στο τέλος της σεζόν το πλάνο σταματά αυτόματα. Χωρίς αυτόματη ανανέωση.
-                </p>
-              </div>
-              <Link
-                href="/?register=1&plan=seasonal"
-                className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700"
-              >
-                Δες λεπτομέρειες
-              </Link>
-            </div>
-          </div>
-        </div>
-
         {/* ROI */}
         <RoiSection />
 
@@ -283,8 +255,8 @@ export default function PricingPage() {
               Δωρεάν για όλους — Premium αν θες extra
             </h2>
             <p className="mx-auto mt-3 max-w-2xl text-sm text-gray-600 sm:text-base">
-              Η βασική χρήση είναι 100% δωρεάν για πάντα. Με το <strong>Worker Premium</strong> παίρνεις προτεραιότητα,
-              AI εργαλεία και μηνιαία credits για να ξεχωρίζεις στους εργοδότες.
+              Η βασική χρήση είναι 100% δωρεάν για πάντα. Με το <strong>Worker Premium</strong> (εφάπαξ 4,99€)
+              παίρνεις προτεραιότητα και AI εργαλεία για να ξεχωρίζεις στους εργοδότες.
             </p>
           </div>
 
@@ -331,9 +303,9 @@ export default function PricingPage() {
                 <p className="text-xs font-bold uppercase tracking-wider text-blue-700">Worker Premium</p>
                 <div className="mt-2 flex items-baseline gap-1">
                   <span className="text-4xl font-extrabold text-gray-900">4,99€</span>
-                  <span className="text-gray-500">/μήνα</span>
+                  <span className="text-gray-500">εφάπαξ</span>
                 </div>
-                <p className="mt-1 text-xs text-emerald-700"><strong>49€/έτος</strong> · εξοικονομείς 11€</p>
+                <p className="mt-1 text-xs text-emerald-700"><strong>Πληρώνεις μία φορά</strong> · για πάντα, χωρίς συνδρομή</p>
                 <p className="mt-2 text-sm text-gray-700">Ξεχώρισε από τους χιλιάδες υποψηφίους — προτεραιότητα + AI εργαλεία.</p>
               </div>
               <ul className="mb-6 flex-1 space-y-2.5">
@@ -341,10 +313,10 @@ export default function PricingPage() {
                   'Όλα τα δωρεάν χαρακτηριστικά',
                   'Μπλε ✓ Premium badge στο προφίλ',
                   'Πρώτη εμφάνιση στις λίστες ανακάλυψης',
-                  '30 AI credits κάθε μήνα (ανανέωση αυτόματα)',
-                  'AI CV Generator — δωρεάν δημιουργία CV',
+                  'AI CV Generator — δημιουργία CV',
                   'AI Profile Optimizer — βελτίωση προφίλ',
-                  'Boost εφαρμογής σε αγγελίες',
+                  'Απεριόριστα boosts σε Discover & αγγελίες',
+                  'Advanced filters & read receipts',
                   'Unlimited likes — χωρίς ημερήσιο όριο',
                 ].map((f) => (
                   <li key={f} className="flex items-start gap-2.5">
@@ -357,10 +329,10 @@ export default function PricingPage() {
                 href="/?register=1&plan=worker_premium"
                 className="flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition-colors"
               >
-                Δοκίμασε Premium
+                Ξεκλείδωσε για πάντα
               </Link>
               <p className="mt-2 text-center text-[11px] text-gray-500">
-                Ακυρώνεις όποτε θες · Χωρίς δέσμευση
+                Εφάπαξ πληρωμή · Καμία μηνιαία χρέωση
               </p>
             </div>
           </div>

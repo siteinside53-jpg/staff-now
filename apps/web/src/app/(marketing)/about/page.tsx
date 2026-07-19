@@ -82,10 +82,10 @@ const team = [
 ];
 
 const stats = [
-  { value: '10,000+', label: 'Εγγεγραμμένοι εργαζόμενοι' },
-  { value: '1,000+', label: 'Ενεργές επιχειρήσεις' },
-  { value: '50,000+', label: 'Επιτυχημένα matches' },
-  { value: '< 24ω', label: 'Μέσος χρόνος πρόσληψης' },
+  { value: 'Δωρεάν', label: 'Εγγραφή για εργαζόμενους' },
+  { value: 'AI', label: 'Έξυπνο matching εργασίας' },
+  { value: 'Άμεσα', label: 'Σύνδεση με επιχειρήσεις' },
+  { value: '100%', label: 'Ελληνική πλατφόρμα' },
 ];
 
 export default function AboutPage() {
