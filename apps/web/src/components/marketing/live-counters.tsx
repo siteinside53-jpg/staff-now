@@ -12,7 +12,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://staffnow-api-produc
  */
 const DEV_DEMO_STATS =
   process.env.NODE_ENV !== 'production'
-    ? { totalUsers: 68, totalJobs: 21, totalMatches: 10 }
+    ? { totalUsers: 107, totalJobs: 10, totalMatches: 5, totalBusinesses: 29 }
     : null;
 
 interface Counter {
@@ -34,10 +34,10 @@ const COLOR_MAP = {
   purple:  { bg: 'bg-purple-500/10',  border: 'border-purple-500/20',  text: 'text-purple-400',  glow: 'text-purple-300' },
 };
 
-function buildCounters(stats: { totalUsers: number; totalJobs: number; totalMatches: number }): Counter[] {
+function buildCounters(stats: { totalUsers: number; totalJobs: number; totalMatches: number; totalBusinesses?: number }): Counter[] {
   return [
     {
-      label: 'Εργαζόμενοι εγγεγραμμένοι',
+      label: 'Χρήστες εγγεγραμμένοι',
       shortLabel: 'Χρήστες',
       value: stats.totalUsers || 0,
       icon: '⚡',
@@ -64,9 +64,9 @@ function buildCounters(stats: { totalUsers: number; totalJobs: number; totalMatc
       intervalMin: 6000, intervalMax: 10000,
     },
     {
-      label: 'Επιχειρήσεις ψάχνουν',
-      shortLabel: 'Αναζητούν',
-      value: Math.floor((stats.totalJobs || 0) * 0.7),
+      label: 'Επιχειρήσεις εγγεγραμμένες',
+      shortLabel: 'Επιχειρήσεις',
+      value: stats.totalBusinesses || 0,
       icon: '🏢',
       color: 'purple',
       min: 0, max: 2,

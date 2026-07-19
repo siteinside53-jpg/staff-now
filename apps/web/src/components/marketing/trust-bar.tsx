@@ -16,8 +16,8 @@ import { API_URL } from '@/lib/config';
  * οπότε δείχνουμε αντιπροσωπευτικούς αριθμούς αντί για "—", ώστε το trust bar
  * να φαίνεται όπως στο staffnow.gr. Tree-shaken σε production.
  */
-const DEV_DEMO_WORKERS = process.env.NODE_ENV !== 'production' ? 35 : null;
-const DEV_DEMO_BUSINESSES = process.env.NODE_ENV !== 'production' ? 21 : null;
+const DEV_DEMO_WORKERS = process.env.NODE_ENV !== 'production' ? 75 : null;
+const DEV_DEMO_BUSINESSES = process.env.NODE_ENV !== 'production' ? 29 : null;
 
 export function TrustBar() {
   const [workers, setWorkers] = useState<number | null>(DEV_DEMO_WORKERS);
@@ -28,27 +28,23 @@ export function TrustBar() {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 6000);
 
-    Promise.all([
-      fetch(`${API_URL}/public/workers?limit=200`, { signal: controller.signal })
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null),
-      fetch(`${API_URL}/public/jobs?limit=200`, { signal: controller.signal })
-        .then((r) => (r.ok ? r.json() : null))
-        .catch(() => null),
-    ])
-      .then(([w, j]) => {
+    // ΠΡΑΓΜΑΤΙΚΟΙ αριθμοί εγγεγραμμένων από /public/activity:
+    //  • totalWorkers   → ορατά προφίλ εργαζομένων (ενεργοί χρήστες)
+    //  • totalBusinesses → εγγεγραμμένες επιχειρήσεις (ενεργοί χρήστες)
+    // Τα endpoints /public/workers & /public/jobs κόβονται στα 50 και μετρούν
+    // μόνο επιχειρήσεις με ενεργή αγγελία, οπότε δεν δίνουν σωστά σύνολα.
+    fetch(`${API_URL}/public/activity`, { signal: controller.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null)
+      .then((res) => {
         if (!active) return;
-        const wData = Array.isArray(w?.data) ? w.data : [];
-        if (wData.length) setWorkers(wData.length);
-
-        const jData = Array.isArray(j?.data) ? j.data : [];
-        if (jData.length) {
-          const uniqueBiz = new Set(
-            jData
-              .map((row: any) => row.business_user_id || row.company_name)
-              .filter(Boolean),
-          );
-          setBusinesses(uniqueBiz.size);
+        const stats = res?.data?.stats;
+        if (!stats) return;
+        if (typeof stats.totalWorkers === 'number' && stats.totalWorkers > 0) {
+          setWorkers(stats.totalWorkers);
+        }
+        if (typeof stats.totalBusinesses === 'number' && stats.totalBusinesses > 0) {
+          setBusinesses(stats.totalBusinesses);
         }
       })
       .finally(() => clearTimeout(timeout));
