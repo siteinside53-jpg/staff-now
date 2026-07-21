@@ -228,6 +228,23 @@ export default function DiscoverPage() {
     });
   }, [candidates, listQuery, listSel]);
 
+  // List pagination — 50 ανά σελίδα με πλοήγηση (σελίδα 1, 2, 3…).
+  const LIST_PAGE_SIZE = 50;
+  const [listPage, setListPage] = useState(1);
+  const totalListPages = Math.max(1, Math.ceil(filteredCandidates.length / LIST_PAGE_SIZE));
+  // Επαναφορά στη σελίδα 1 όταν αλλάζουν φίλτρα/αναζήτηση ή τα δεδομένα.
+  useEffect(() => {
+    setListPage(1);
+  }, [listQuery, listSel, candidates]);
+  // Κράτα τη σελίδα εντός ορίων αν μικρύνει το σύνολο.
+  useEffect(() => {
+    if (listPage > totalListPages) setListPage(totalListPages);
+  }, [listPage, totalListPages]);
+  const pagedCandidates = useMemo(
+    () => filteredCandidates.slice((listPage - 1) * LIST_PAGE_SIZE, listPage * LIST_PAGE_SIZE),
+    [filteredCandidates, listPage],
+  );
+
   function toggleListFilter(group: string, value: string) {
     setListSel((prev) => {
       const cur = prev[group] ?? [];
@@ -297,18 +314,20 @@ export default function DiscoverPage() {
         setCandidates(mapped);
       } else {
         // Businesses see workers — φέρνουμε ΟΛΕΣ τις σελίδες (ο server επιστρέφει
-        // έως 50/σελίδα), αλλιώς έδειχνε μόνο τους πρώτους 20.
+        // έως 50/σελίδα). Δεν βασιζόμαστε μόνο στο meta.totalPages: συνεχίζουμε
+        // όσο μια σελίδα γυρίζει «γεμάτη» (perPage αποτελέσματα), ώστε να μη
+        // κολλάμε στους πρώτους 50 αν λείπει το meta.
         const perPage = 50;
         const rawWorkers: any[] = [];
         let pageNum = 1;
-        // Πρώτη σελίδα — παίρνουμε και το total για να ξέρουμε πόσες ακολουθούν.
-        const first = await api.workers.discover({ page: pageNum, limit: perPage }) as any;
-        rawWorkers.push(...(first?.data?.items || first?.data || []));
-        const totalPages = first?.meta?.totalPages || 1;
-        while (pageNum < totalPages) {
+        while (pageNum <= 40) {
+          const res = await api.workers.discover({ page: pageNum, limit: perPage }) as any;
+          const batch = res?.data?.items || res?.data || [];
+          rawWorkers.push(...batch);
+          const totalPages = res?.meta?.totalPages;
+          const done = totalPages ? pageNum >= totalPages : batch.length < perPage;
+          if (done) break;
           pageNum += 1;
-          const next = await api.workers.discover({ page: pageNum, limit: perPage }) as any;
-          rawWorkers.push(...(next?.data?.items || next?.data || []));
         }
         const mapped = rawWorkers
         .filter((w: any) => !w.swipe_status && !w.is_matched)
@@ -728,7 +747,7 @@ export default function DiscoverPage() {
             </div>
           ) : (
           <ul className="space-y-3">
-            {filteredCandidates.map((c) => {
+            {pagedCandidates.map((c) => {
               const photo = c.photoUrl || c.companyLogo || c.coverPhoto;
               // Προτεραιότητα στο ντετερμινιστικό match του server· fallback στο AI score.
               const score = typeof c.matchPercent === 'number' ? c.matchPercent : aiMatchScores[c.id];
@@ -835,6 +854,52 @@ export default function DiscoverPage() {
               );
             })}
           </ul>
+          )}
+          {filteredCandidates.length > 0 && totalListPages > 1 && (
+            <nav className="mt-6 flex items-center justify-center gap-1.5" aria-label="Σελιδοποίηση">
+              <button
+                type="button"
+                onClick={() => setListPage((p) => Math.max(1, p - 1))}
+                disabled={listPage <= 1}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                ← Προηγ.
+              </button>
+              {Array.from({ length: totalListPages }, (_, i) => i + 1)
+                .filter((n) => n === 1 || n === totalListPages || Math.abs(n - listPage) <= 1)
+                .reduce<number[]>((acc, n) => {
+                  if (acc.length && n - acc[acc.length - 1] > 1) acc.push(-1); // gap marker
+                  acc.push(n);
+                  return acc;
+                }, [])
+                .map((n, i) =>
+                  n === -1 ? (
+                    <span key={`gap-${i}`} className="px-1 text-gray-400">…</span>
+                  ) : (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setListPage(n)}
+                      aria-current={n === listPage ? 'page' : undefined}
+                      className={`min-w-[2.25rem] rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+                        n === listPage
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ),
+                )}
+              <button
+                type="button"
+                onClick={() => setListPage((p) => Math.min(totalListPages, p + 1))}
+                disabled={listPage >= totalListPages}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Επόμ. →
+              </button>
+            </nav>
           )}
           </FilteredListLayout>
         </div>
