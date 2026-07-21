@@ -608,7 +608,9 @@ workers.get('/:id', requireAuth, async (c) => {
 
   const profile = await db
     .prepare(
-      `SELECT wp.*, u.email, u.status as user_status, u.last_login_at as last_active_at,
+      `SELECT wp.*, u.email, u.status as user_status,
+              COALESCE(u.last_seen_at, u.last_login_at) as last_active_at,
+              u.last_seen_at,
               u.is_premium
        FROM worker_profiles wp
        JOIN users u ON u.id = wp.user_id
@@ -648,6 +650,36 @@ workers.get('/:id', requireAuth, async (c) => {
     .prepare('SELECT language FROM worker_profile_languages WHERE worker_profile_id = ?')
     .bind((profile as { id: string }).id)
     .all();
+
+  // Online status: last_seen_at (ISO string) within the last 3 minutes = online.
+  const lastSeen = p.last_seen_at ? Date.parse(p.last_seen_at) : NaN;
+  p.is_online = Number.isFinite(lastSeen) && Date.now() - lastSeen < 3 * 60 * 1000;
+
+  // Record a real profile view when a business opens someone else's profile.
+  if (!isSelf && !isAdmin && viewer.role === 'business') {
+    c.executionCtx.waitUntil(
+      db
+        .prepare(
+          'INSERT INTO profile_views (id, worker_id, viewer_id, viewer_role) VALUES (?, ?, ?, ?)'
+        )
+        .bind(generateId('pv'), workerId, viewer.id, 'business')
+        .run()
+        .catch(() => {})
+    );
+  }
+
+  // Distinct-business view counts (total + today) shown to both sides.
+  const viewsRow = await db
+    .prepare(
+      `SELECT
+         COUNT(DISTINCT viewer_id) as total,
+         COUNT(DISTINCT CASE WHEN date(created_at) = date('now') THEN viewer_id END) as today
+       FROM profile_views WHERE worker_id = ?`
+    )
+    .bind(workerId)
+    .first<{ total: number; today: number }>();
+  p.views_total = viewsRow?.total ?? 0;
+  p.views_today = viewsRow?.today ?? 0;
 
   return success(c, {
     profile: p,

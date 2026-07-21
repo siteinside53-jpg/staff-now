@@ -18,8 +18,10 @@ import branchRoutes from './routes/branches';
 import interestRoutes from './routes/interests';
 import aiRoutes from './routes/ai';
 import creditRoutes from './routes/credits';
+import pushRoutes from './routes/push';
+import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
 import { errorHandler } from './middleware/error-handler';
-import { rateLimiter } from './middleware/rate-limiter';
+import { globalRateLimiter } from './middleware/rate-limiter';
 import { requireAuth } from './middleware/auth';
 
 const app = new Hono<{ Bindings: Env }>();
@@ -44,7 +46,13 @@ app.use('*', async (c, next) => {
     maxAge: 86400,
   })(c, next);
 });
-app.use('*', rateLimiter());
+// The admin dashboard fires ~7 parallel requests per page plus 30s polling,
+// which trips the 60 req/60s global IP limiter. Admin routes are already
+// gated by requireAuth + requireRole('admin'), so exempt them here.
+const globalRl = globalRateLimiter();
+app.use('*', (c, next) =>
+  c.req.path.startsWith('/admin/') ? next() : globalRl(c, next),
+);
 app.onError(errorHandler);
 
 // Health check
@@ -68,6 +76,7 @@ app.route('/branches', branchRoutes);
 app.route('/interests', interestRoutes);
 app.route('/ai', aiRoutes);
 app.route('/credits', creditRoutes);
+app.route('/push', pushRoutes);
 
 // POST /activity/track — page-view / action ping from logged-in clients
 app.post('/activity/track', requireAuth, async (c) => {
@@ -275,8 +284,8 @@ app.get('/stats/dashboard', requireAuth, async (c) => {
       const [matchesR, unreadR, viewsR, pendingR] = await Promise.all([
         db.prepare("SELECT COUNT(*) as c FROM matches WHERE worker_id = ? AND status = 'active'").bind(uid).first<{c:number}>(),
         db.prepare("SELECT COUNT(*) as c FROM messages WHERE read_at IS NULL AND sender_id != ? AND conversation_id IN (SELECT id FROM conversations WHERE worker_id = ? AND status = 'active')").bind(uid, uid).first<{c:number}>(),
-        db.prepare("SELECT COUNT(*) as c FROM swipes WHERE target_id = ? AND target_type = 'worker' AND direction = 'like'").bind(uid).first<{c:number}>(),
-        db.prepare("SELECT COUNT(*) as c FROM swipes WHERE swiper_id = ? AND direction = 'like'").bind(uid).first<{c:number}>(),
+        db.prepare("SELECT COUNT(DISTINCT viewer_id) as c FROM profile_views WHERE worker_id = ?").bind(uid).first<{c:number}>(),
+        db.prepare("SELECT COUNT(*) as c FROM swipes s JOIN job_listings jl ON jl.id = s.target_id JOIN business_profiles bp ON bp.id = jl.business_id WHERE s.swiper_id = ? AND s.target_type = 'job' AND s.direction = 'like' AND bp.user_id NOT IN (SELECT business_id FROM matches WHERE worker_id = ? AND status = 'active')").bind(uid, uid).first<{c:number}>(),
       ]);
       return c.json({ success: true, data: {
         total_matches: matchesR?.c || 0,
@@ -578,12 +587,13 @@ app.get('/public/activity', async (c) => {
 
   for (const w of recentWorkers.results as any[]) {
     const firstName = (w.full_name || '').split(' ')[0] || 'Νέος';
-    const role = w.roles ? w.roles.split(',')[0] : '';
+    const roleSlug = w.roles ? w.roles.split(',')[0] : '';
+    const roleLabel = roleSlug ? (WORKER_JOB_ROLE_LABELS_EL[roleSlug] || '') : '';
     activity.push({
       id: `w_${w.created_at}`,
       type: 'signup',
       icon: '🆕',
-      text: `${firstName} εγγράφηκε${role ? ` ως ${role}` : ''}`,
+      text: `${firstName} εγγράφηκε${roleLabel ? ` ως ${roleLabel}` : ''}`,
       location: w.city || undefined,
       photoUrl: w.photo_url || undefined,
       createdAt: w.created_at,

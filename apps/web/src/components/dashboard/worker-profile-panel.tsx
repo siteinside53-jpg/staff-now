@@ -104,28 +104,10 @@ export function WorkerProfilePanel({ workerId, onClose, onLike, onSkip, totalCar
       ? `${p.expected_monthly_salary}€/μήνα`
       : null;
 
-  // Profile views — real from API swipes count, with animated drift for FOMO
-  const [viewsToday, setViewsToday] = useState(0);
-  useEffect(() => {
-    if (isSelfView || !workerId) return;
-    // Fetch real views count
-    (async () => {
-      try {
-        const token = localStorage.getItem('staffnow_token');
-        const API = process.env.NEXT_PUBLIC_API_URL || 'https://staffnow-api-production.siteinside53.workers.dev';
-        const res = await fetch(`${API}/stats/dashboard`, { headers: { 'Authorization': `Bearer ${token}` } });
-        const data = await res.json() as any;
-        setViewsToday(data?.data?.profile_views || Math.floor(Math.random() * 3) + 1);
-      } catch {
-        setViewsToday(Math.floor(Math.random() * 3) + 1);
-      }
-    })();
-    // Fake drift — increase by 1 every 15-30s for urgency
-    const interval = setInterval(() => {
-      setViewsToday((v) => v + 1);
-    }, 15000 + Math.random() * 15000);
-    return () => clearInterval(interval);
-  }, [workerId, isSelfView]);
+  // Real profile-view counts from the API (distinct businesses).
+  const viewsToday = Number(p.views_today) || 0;
+  const viewsTotal = Number(p.views_total) || 0;
+  const isOnline = !!p.is_online;
 
   const sendQuickMessage = async (text: string) => {
     if (!conversationId) {
@@ -215,10 +197,10 @@ export function WorkerProfilePanel({ workerId, onClose, onLike, onSkip, totalCar
 
                 {/* Status badges */}
                 <div className="mt-3 flex flex-wrap justify-center gap-2">
-                  {p.availability === 'immediate' && (
+                  {isOnline && (
                     <span className="flex items-center gap-1.5 rounded-full bg-emerald-500 px-3 py-1 text-xs font-bold text-white shadow-md">
                       <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
-                      Διαθέσιμος τώρα
+                      Online τώρα
                     </span>
                   )}
                   {p.verified === 1 && (
@@ -231,7 +213,7 @@ export function WorkerProfilePanel({ workerId, onClose, onLike, onSkip, totalCar
                       ⭐ Premium
                     </span>
                   )}
-                  {!isSelfView && (
+                  {!isSelfView && !isOnline && (
                     <span className="flex items-center gap-1 rounded-full bg-black/20 px-3 py-1 text-xs font-medium text-white/90">
                       ⚡ {formatActiveTime(p.last_active_at)}
                     </span>
@@ -240,11 +222,18 @@ export function WorkerProfilePanel({ workerId, onClose, onLike, onSkip, totalCar
               </div>
             </div>
 
-            {/* ====== URGENCY BANNER — only for businesses viewing workers ====== */}
+            {/* ====== VIEWS BANNER — real distinct-business counts ====== */}
             {!isSelfView && viewsToday > 0 && (
               <div className="bg-amber-50 border-b border-amber-100 px-6 py-2.5">
                 <p className="flex items-center justify-center gap-2 text-xs font-medium text-amber-800">
-                  🔥 Άλλες <span className="font-bold">{viewsToday}</span> {viewsToday === 1 ? 'επιχείρηση είδε' : 'επιχειρήσεις είδαν'} αυτό το προφίλ σήμερα
+                  🔥 <span className="font-bold">{viewsToday}</span> {viewsToday === 1 ? 'επιχείρηση είδε' : 'επιχειρήσεις είδαν'} αυτό το προφίλ σήμερα
+                </p>
+              </div>
+            )}
+            {isSelfView && viewsTotal > 0 && (
+              <div className="bg-emerald-50 border-b border-emerald-100 px-6 py-2.5">
+                <p className="flex items-center justify-center gap-2 text-xs font-medium text-emerald-800">
+                  👁️ <span className="font-bold">{viewsTotal}</span> {viewsTotal === 1 ? 'επιχείρηση έχει δει' : 'επιχειρήσεις έχουν δει'} το προφίλ σου συνολικά
                 </p>
               </div>
             )}
