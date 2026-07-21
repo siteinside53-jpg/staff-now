@@ -112,7 +112,10 @@ export function WorkerProfilePanel({ workerId, onClose, onLike, onSkip, totalCar
   // Personal data is unlocked for the worker themselves or after a mutual match.
   // The API strips the real values when locked but sends has_* existence flags,
   // so we can show "exists but locked" without exposing anything (GDPR).
-  const unlocked = !!isSelfView || !!p.is_matched;
+  // An existing conversation only exists after a match, so it's a reliable
+  // unlock signal too (and keeps the card correct even if the API build that
+  // sends `is_matched` hasn't rolled out yet).
+  const unlocked = !!isSelfView || !!p.is_matched || !!conversationId;
   const hasBio = !!p.bio || !!p.has_bio;
   const hasCv = !!p.cv_url || !!p.has_cv;
   const hasEmail = !!p.email || !!p.has_email;
