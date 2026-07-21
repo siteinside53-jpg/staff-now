@@ -633,12 +633,23 @@ workers.get('/:id', requireAuth, async (c) => {
     isMatched = !!match;
   }
 
-  // Strip sensitive fields unless self/admin/matched
+  // Existence flags + match state: let the client show "exists but locked"
+  // without exposing the actual value until the two sides match (GDPR).
   const p = profile as any;
-  if (!isSelf && !isAdmin && !isMatched) {
+  const unlocked = isSelf || isAdmin || isMatched;
+  p.is_matched = isMatched;
+  p.has_email = !!p.email;
+  p.has_phone = !!p.phone;
+  p.has_cv = !!p.cv_url || !!p.cv_text;
+  p.has_bio = !!p.bio;
+
+  // Strip sensitive fields (contact, CV, description) unless self/admin/matched.
+  if (!unlocked) {
     p.email = undefined;
     p.phone = undefined;
     p.cv_url = undefined;
+    p.cv_text = undefined;
+    p.bio = undefined;
   }
 
   const roles = await db

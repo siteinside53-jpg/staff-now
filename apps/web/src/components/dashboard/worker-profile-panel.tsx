@@ -109,6 +109,16 @@ export function WorkerProfilePanel({ workerId, onClose, onLike, onSkip, totalCar
   const viewsTotal = Number(p.views_total) || 0;
   const isOnline = !!p.is_online;
 
+  // Personal data is unlocked for the worker themselves or after a mutual match.
+  // The API strips the real values when locked but sends has_* existence flags,
+  // so we can show "exists but locked" without exposing anything (GDPR).
+  const unlocked = !!isSelfView || !!p.is_matched;
+  const hasBio = !!p.bio || !!p.has_bio;
+  const hasCv = !!p.cv_url || !!p.has_cv;
+  const hasEmail = !!p.email || !!p.has_email;
+  const hasPhone = !!p.phone || !!p.has_phone;
+  const hasContact = hasEmail || hasPhone;
+
   const sendQuickMessage = async (text: string) => {
     if (!conversationId) {
       toast.error('Πρέπει πρώτα να κάνετε match για να στείλετε μήνυμα');
@@ -287,12 +297,25 @@ export function WorkerProfilePanel({ workerId, onClose, onLike, onSkip, totalCar
             )}
 
             {/* ====== SHORT BIO ====== */}
-            {p.bio && (
+            {p.bio ? (
               <div className="px-6 py-5 border-b border-gray-100">
                 <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Σχετικά</h2>
                 <p className="text-[15px] leading-relaxed text-gray-700 line-clamp-3">{p.bio}</p>
               </div>
-            )}
+            ) : hasBio && !unlocked ? (
+              <div className="px-6 py-5 border-b border-gray-100">
+                <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">Σχετικά</h2>
+                <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-gray-50 p-4">
+                  <p className="select-none text-[15px] leading-relaxed text-gray-400 blur-[6px]">
+                    Η περιγραφή του εργαζόμενου είναι διαθέσιμη μετά το match και προστατεύεται σύμφωνα με τον GDPR.
+                  </p>
+                  <div className="absolute inset-0 flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-500">
+                    <span>🔒</span>
+                    <span>Διαθέσιμη μετά το match</span>
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             {/* ====== RATING CARD ====== */}
             <div className="px-6 py-5 border-b border-gray-100">
@@ -395,7 +418,7 @@ export function WorkerProfilePanel({ workerId, onClose, onLike, onSkip, totalCar
             )}
 
             {/* ====== CV SECTION ====== */}
-            {p.cv_url && (
+            {p.cv_url ? (
               <div className="px-6 py-5 border-b border-gray-100">
                 <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">Βιογραφικό</h2>
                 <div className="flex items-center gap-4 rounded-xl bg-gray-50 border border-gray-200 p-4">
@@ -429,6 +452,42 @@ export function WorkerProfilePanel({ workerId, onClose, onLike, onSkip, totalCar
                   </div>
                 </div>
               </div>
+            ) : hasCv && !unlocked ? (
+              <div className="px-6 py-5 border-b border-gray-100">
+                <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">Βιογραφικό</h2>
+                <div className="flex items-center gap-4 rounded-xl bg-gray-50 border border-dashed border-gray-300 p-4">
+                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-gray-200">
+                    <span className="text-xl">🔒</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-700">Το βιογραφικό υπάρχει</p>
+                    <p className="text-xs text-gray-500">Ξεκλειδώνει μετά το match</p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {/* ====== CONTACT (locked until match) ====== */}
+            {!isSelfView && hasContact && (
+              <div className="px-6 py-5 border-b border-gray-100">
+                <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">Στοιχεία επικοινωνίας</h2>
+                <div className="space-y-2.5">
+                  {hasEmail && (
+                    unlocked && p.email ? (
+                      <DetailRow icon="✉️" label="Email" value={p.email} />
+                    ) : (
+                      <LockedRow icon="✉️" label="Email" />
+                    )
+                  )}
+                  {hasPhone && (
+                    unlocked && p.phone ? (
+                      <DetailRow icon="📞" label="Τηλέφωνο" value={p.phone} />
+                    ) : (
+                      <LockedRow icon="📞" label="Τηλέφωνο" />
+                    )
+                  )}
+                </div>
+              </div>
             )}
 
             {/* ====== EXTRA INFO ====== */}
@@ -444,6 +503,19 @@ export function WorkerProfilePanel({ workerId, onClose, onLike, onSkip, totalCar
                 )}
               </div>
             </div>
+
+            {/* ====== GDPR NOTE (every card) ====== */}
+            {!isSelfView && (
+              <div className="px-6 py-4">
+                <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-gray-400">
+                  <span className="mt-px">🔒</span>
+                  <span>
+                    Τα προσωπικά στοιχεία (τηλέφωνο, email, βιογραφικό, περιγραφή) προστατεύονται
+                    σύμφωνα με τον GDPR{unlocked ? ' και είναι ορατά επειδή έχετε κάνει match.' : ' και εμφανίζονται μόνο μετά το αμοιβαίο match.'}
+                  </span>
+                </p>
+              </div>
+            )}
 
             {/* Bottom spacer for sticky CTA */}
             <div className="h-24" />
@@ -532,6 +604,20 @@ function DetailRow({ icon, label, value }: { icon: string; label: string; value:
         <span>{label}</span>
       </span>
       <span className="font-semibold text-gray-900">{value}</span>
+    </div>
+  );
+}
+
+function LockedRow({ icon, label }: { icon: string; label: string }) {
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <span className="flex items-center gap-2 text-gray-500">
+        <span>{icon}</span>
+        <span>{label}</span>
+      </span>
+      <span className="flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-500">
+        🔒 Μετά το match
+      </span>
     </div>
   );
 }
