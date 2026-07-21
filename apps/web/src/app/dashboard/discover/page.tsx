@@ -15,6 +15,12 @@ import { BusinessProfilePanel } from '@/components/dashboard/business-profile-pa
 import { JobDetailPanel } from '@/components/dashboard/job-detail-panel';
 import { FilteredListLayout, type FilterGroup } from '@/components/marketing/filtered-list-layout';
 import { GREEK_CITIES } from '@/lib/greek-cities';
+import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
+
+// Ελληνικό label ειδικότητας (fallback στο raw id αν λείπει)
+function roleLabel(r: string): string {
+  return WORKER_JOB_ROLE_LABELS_EL[r] || r;
+}
 
 interface DiscoverProfile {
   id: string;
@@ -41,6 +47,7 @@ interface DiscoverProfile {
   businessUserId?: string;
   isPremium?: boolean;
   isBoosted?: boolean;
+  matchPercent?: number | null;
 }
 
 function timeAgo(dateStr?: string): string {
@@ -289,10 +296,21 @@ export default function DiscoverPage() {
         }));
         setCandidates(mapped);
       } else {
-        // Businesses see workers
-        const res = await api.workers.discover() as any;
-        const items = res?.data?.items || res?.data || [];
-        const mapped = (Array.isArray(items) ? items : [])
+        // Businesses see workers — φέρνουμε ΟΛΕΣ τις σελίδες (ο server επιστρέφει
+        // έως 50/σελίδα), αλλιώς έδειχνε μόνο τους πρώτους 20.
+        const perPage = 50;
+        const rawWorkers: any[] = [];
+        let pageNum = 1;
+        // Πρώτη σελίδα — παίρνουμε και το total για να ξέρουμε πόσες ακολουθούν.
+        const first = await api.workers.discover({ page: pageNum, limit: perPage }) as any;
+        rawWorkers.push(...(first?.data?.items || first?.data || []));
+        const totalPages = first?.meta?.totalPages || 1;
+        while (pageNum < totalPages) {
+          pageNum += 1;
+          const next = await api.workers.discover({ page: pageNum, limit: perPage }) as any;
+          rawWorkers.push(...(next?.data?.items || next?.data || []));
+        }
+        const mapped = rawWorkers
         .filter((w: any) => !w.swipe_status && !w.is_matched)
         .map((w: any) => ({
           id: w.user_id || w.id,
@@ -310,6 +328,7 @@ export default function DiscoverPage() {
           verified: w.verified === 1,
           isPremium: w.is_premium === 1,
           isBoosted: w.is_boosted === 1,
+          matchPercent: typeof w.match_score === 'number' ? w.match_score : null,
           type: 'worker' as const,
         }));
         setCandidates(mapped);
@@ -711,7 +730,9 @@ export default function DiscoverPage() {
           <ul className="space-y-3">
             {filteredCandidates.map((c) => {
               const photo = c.photoUrl || c.companyLogo || c.coverPhoto;
-              const score = aiMatchScores[c.id];
+              // Προτεραιότητα στο ντετερμινιστικό match του server· fallback στο AI score.
+              const score = typeof c.matchPercent === 'number' ? c.matchPercent : aiMatchScores[c.id];
+              const specialties = (c.tags || []).filter(Boolean).map(roleLabel);
               return (
                 <li key={c.id}>
                   <button
@@ -763,6 +784,12 @@ export default function DiscoverPage() {
                           </span>
                         )}
                       </div>
+                      {specialties.length > 0 && (
+                        <p className="text-xs sm:text-sm font-semibold text-blue-700 truncate" title={specialties.join(' · ')}>
+                          {specialties.slice(0, 2).join(' · ')}
+                          {specialties.length > 2 ? ` +${specialties.length - 2}` : ''}
+                        </p>
+                      )}
                       {c.companyName && (
                         <p className="text-xs sm:text-sm text-gray-600 truncate">
                           🏢 {c.companyName}
@@ -791,8 +818,9 @@ export default function DiscoverPage() {
                                 ? 'bg-blue-500'
                                 : 'bg-gray-500'
                           }`}
+                          title="Ταίριασμα βάσει ειδικότητας, περιοχής & χαρακτηριστικών"
                         >
-                          🧠 {score}%
+                          🎯 {score}%
                         </span>
                       )}
                       <span
@@ -980,7 +1008,7 @@ export default function DiscoverPage() {
             {currentCandidate.tags && currentCandidate.tags.length > 0 && (
               <div className="mt-4 flex flex-wrap gap-2">
                 {currentCandidate.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary">{tag}</Badge>
+                  <Badge key={tag} variant="secondary">{roleLabel(tag)}</Badge>
                 ))}
               </div>
             )}

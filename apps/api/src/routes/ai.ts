@@ -406,11 +406,12 @@ ai.get('/match/workers', requireAuth, async (c) => {
     } catch {}
   }
 
-  scored.filter(Boolean)
+  const ranked = scored
+    .filter(Boolean)
     .sort((a: any, b: any) => b.matchPercent - a.matchPercent)
     .slice(0, limit);
 
-  return success(c, { matches: scored });
+  return success(c, { matches: ranked });
 });
 
 // =====================================================================

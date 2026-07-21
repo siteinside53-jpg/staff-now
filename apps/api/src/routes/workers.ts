@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { updateWorkerProfileSchema } from '@staffnow/validation';
+import { WORKER_JOB_ROLE_GROUPS } from '@staffnow/config';
 import type { Env, AuthUser } from '../types';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { checkSwipeLimit, checkActiveMatchesLimit } from '../middleware/subscription';
@@ -10,6 +11,60 @@ import { generateId } from '../lib/id';
 import { recordActivity, getRequestIp, getGeoFromRequest, recordDataChange, computeDiff } from '../lib/activity';
 
 const workers = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
+
+// ── Deterministic discover matching ───────────────────────────────────
+// role -> κατηγορίες (groups) στις οποίες ανήκει. Ένας ρόλος μπορεί να είναι
+// σε πολλές κατηγορίες (π.χ. waiter/bartender σε τουρισμό & εστίαση).
+const ROLE_CATEGORIES = new Map<string, Set<string>>();
+for (const g of WORKER_JOB_ROLE_GROUPS) {
+  for (const r of g.roles) {
+    const set = ROLE_CATEGORIES.get(r) ?? new Set<string>();
+    set.add(g.id);
+    ROLE_CATEGORIES.set(r, set);
+  }
+}
+
+// Σχέση ειδικότητας εργαζομένου με τις ειδικότητες που ζητά η επιχείρηση:
+// 'exact' = ίδιος ρόλος, 'category' = ίδια κατηγορία, 'none' = άσχετο.
+function roleRelation(workerRoles: string[], targetRoles: Set<string>): 'exact' | 'category' | 'none' {
+  if (targetRoles.size === 0 || workerRoles.length === 0) return 'none';
+  for (const wr of workerRoles) if (targetRoles.has(wr)) return 'exact';
+  const targetCats = new Set<string>();
+  for (const tr of targetRoles) {
+    const cats = ROLE_CATEGORIES.get(tr);
+    if (cats) for (const cat of cats) targetCats.add(cat);
+  }
+  for (const wr of workerRoles) {
+    const cats = ROLE_CATEGORIES.get(wr);
+    if (cats) for (const cat of cats) if (targetCats.has(cat)) return 'category';
+  }
+  return 'none';
+}
+
+// Ντετερμινιστικό match score (0-99) — καμία εξάρτηση από AI/embeddings ή πλάνο.
+// Ίδια ειδικότητα ζυγίζει πολύ περισσότερο από περιοχή/χαρακτηριστικά, ώστε οι
+// σχετικοί να είναι σαφώς πάνω από τους άσχετους.
+function computeMatchScore(opts: {
+  workerRoles: string[];
+  targetRoles: Set<string>;
+  workerRegion: string | null;
+  targetRegions: Set<string>;
+  verified: boolean;
+  yearsExperience: number;
+  availability: string | null;
+}): number {
+  const rel = roleRelation(opts.workerRoles, opts.targetRoles);
+  let score = rel === 'exact' ? 65 : rel === 'category' ? 40 : 8;
+
+  if (opts.targetRegions.size > 0 && opts.workerRegion && opts.targetRegions.has(opts.workerRegion)) {
+    score += 12;
+  }
+  if (opts.verified) score += 6;
+  if (opts.availability === 'immediate') score += 4;
+  score += Math.min(opts.yearsExperience || 0, 8);
+
+  return Math.max(5, Math.min(99, Math.round(score)));
+}
 
 // GET /me — worker's own profile with roles and languages
 workers.get('/me', requireAuth, requireRole('worker'), async (c) => {
@@ -167,18 +222,30 @@ workers.patch(
       .first<{ count: number }>();
 
     const fp = fullProfile as Record<string, unknown> | null;
+    // The scalar UPDATE below hasn't run yet, so `fullProfile` still holds the
+    // pre-update values. Overlay this request's pending scalar changes so
+    // completeness reflects the NEW values instead of lagging one request
+    // behind (which caused e.g. 20% → 90% jumps on a later no-op PATCH).
+    const pending: Record<string, unknown> = {};
+    for (let i = 0; i < updateFields.length; i++) {
+      const col = updateFields[i].split(' ')[0];
+      pending[col] = updateValues[i];
+    }
+    const eff = (col: string) => (col in pending ? pending[col] : fp?.[col]);
+
     // 10 evenly-weighted fields (10% each). The years_of_experience check
     // requires > 0 so the default 0 from registration doesn't inflate the
     // percentage. Keep this formula in sync with /admin/users (admin.ts).
+    const yoe = eff('years_of_experience');
     const completenessFields = [
-      fp?.full_name,
-      fp?.bio,
-      fp?.photo_url,
-      fp?.region,
-      fp?.city,
-      fp?.availability,
-      typeof fp?.years_of_experience === 'number' && (fp?.years_of_experience as number) > 0,
-      fp?.expected_hourly_rate || fp?.expected_monthly_salary,
+      eff('full_name'),
+      eff('bio'),
+      eff('photo_url'),
+      eff('region'),
+      eff('city'),
+      eff('availability'),
+      typeof yoe === 'number' && yoe > 0,
+      eff('expected_hourly_rate') || eff('expected_monthly_salary'),
       (rolesCount?.count || 0) > 0,
       (langsCount?.count || 0) > 0,
     ];
@@ -389,25 +456,39 @@ workers.get('/discover', requireAuth, requireRole('business'), async (c) => {
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-  // Count total
-  const countQuery = `
-    SELECT COUNT(DISTINCT wp.id) as total
-    FROM worker_profiles wp
-    JOIN users u ON u.id = wp.user_id
-    ${roleJoin}
-    ${langJoin}
-    ${whereClause}
-  `;
+  // ── Business target profile (ντετερμινιστικό matching) ─────────────
+  // Οι ειδικότητες/περιοχές που ζητά η επιχείρηση προκύπτουν από τις published
+  // αγγελίες της — αυτό είναι η «ειδικότητα που δηλώνει η μία μεριά».
+  const bp = await db
+    .prepare('SELECT id FROM business_profiles WHERE user_id = ?')
+    .bind(user.id)
+    .first<{ id: string }>();
 
-  const countResult = await db
-    .prepare(countQuery)
-    .bind(...params)
-    .first<{ total: number }>();
-
-  const total = countResult?.total || 0;
+  const targetRoles = new Set<string>();
+  const targetRegions = new Set<string>();
+  if (bp) {
+    const jobRows = await db
+      .prepare(`SELECT id, region FROM job_listings WHERE business_id = ? AND status = 'published'`)
+      .bind(bp.id)
+      .all();
+    for (const j of jobRows.results as { id: string; region: string | null }[]) {
+      if (j.region) targetRegions.add(j.region);
+    }
+    const jobIds = (jobRows.results as { id: string }[]).map((j) => j.id);
+    if (jobIds.length > 0) {
+      const ph = jobIds.map(() => '?').join(',');
+      const roleRows = await db
+        .prepare(`SELECT role FROM job_listing_roles WHERE job_listing_id IN (${ph})`)
+        .bind(...jobIds)
+        .all();
+      for (const r of roleRows.results as { role: string }[]) targetRoles.add(r.role);
+    }
+  }
+  const hasTarget = targetRoles.size > 0;
 
   // Discover ranking — boosted workers come first, then Premium subscribers,
-  // then verified, then completeness.
+  // then verified, then completeness. Αυτή η σειρά χρησιμοποιείται ως tiebreaker
+  // όταν υπάρχει match score, ή ως κύρια σειρά όταν η επιχείρηση δεν έχει αγγελίες.
   //
   //   • is_boosted: active 'discover' boost row in worker_boosts (24h window)
   //   • is_premium: cached flag στο users table (συγχρονίζεται από το
@@ -415,8 +496,9 @@ workers.get('/discover', requireAuth, requireRole('business'), async (c) => {
   //   • is_verified: identity-verified (worker_profiles.verified=1)
   //   • profile_completeness: how filled out the profile is
   //
-  // The boost row makes the Premium feature actually do something visible —
-  // χωρίς αυτό, ο worker πληρώνει 2 credits και δεν αλλάζει η θέση του.
+  // Δεν κάνουμε πλέον SQL LIMIT/OFFSET: φέρνουμε όλο το φιλτραρισμένο σύνολο,
+  // υπολογίζουμε match score, ταξινομούμε (σχετικοί πρώτοι) και κόβουμε σελίδα
+  // στη μνήμη — έτσι διορθώνεται και το «δείχνει μόνο 20».
   const dataQuery = `
     SELECT DISTINCT wp.*, u.email, u.status as user_status, u.is_premium,
       CASE WHEN active_boost.id IS NOT NULL THEN 1 ELSE 0 END as is_boosted,
@@ -435,37 +517,85 @@ workers.get('/discover', requireAuth, requireRole('business'), async (c) => {
     ${whereClause}
     ORDER BY is_boosted DESC, u.is_premium DESC, is_verified DESC,
              wp.profile_completeness DESC, wp.created_at DESC
-    LIMIT ? OFFSET ?
   `;
 
-  const dataParams = [...params, limit, offset];
   const results = await db
     .prepare(dataQuery)
-    .bind(...dataParams)
+    .bind(...params)
     .all();
 
-  // Fetch roles and languages for each worker
-  const workersWithDetails = await Promise.all(
-    results.results.map(async (worker: Record<string, unknown>) => {
-      const roles = await db
-        .prepare('SELECT role FROM worker_profile_roles WHERE worker_profile_id = ?')
-        .bind(worker.id as string)
-        .all();
+  const workerRows = results.results as Record<string, unknown>[];
 
-      const languages = await db
-        .prepare('SELECT language FROM worker_profile_languages WHERE worker_profile_id = ?')
-        .bind(worker.id as string)
-        .all();
+  // Bulk-fetch roles + languages για όλο το σύνολο (αποφυγή N+1)
+  const wpIds = workerRows.map((w) => w.id as string);
+  const rolesMap = new Map<string, string[]>();
+  const langsMap = new Map<string, { language: string }[]>();
+  if (wpIds.length > 0) {
+    const ph = wpIds.map(() => '?').join(',');
+    const roleRows = await db
+      .prepare(`SELECT worker_profile_id, role FROM worker_profile_roles WHERE worker_profile_id IN (${ph})`)
+      .bind(...wpIds)
+      .all();
+    for (const r of roleRows.results as { worker_profile_id: string; role: string }[]) {
+      const arr = rolesMap.get(r.worker_profile_id) ?? [];
+      arr.push(r.role);
+      rolesMap.set(r.worker_profile_id, arr);
+    }
+    const langRows = await db
+      .prepare(`SELECT worker_profile_id, language FROM worker_profile_languages WHERE worker_profile_id IN (${ph})`)
+      .bind(...wpIds)
+      .all();
+    for (const r of langRows.results as { worker_profile_id: string; language: string }[]) {
+      const arr = langsMap.get(r.worker_profile_id) ?? [];
+      arr.push({ language: r.language });
+      langsMap.set(r.worker_profile_id, arr);
+    }
+  }
 
-      return {
-        ...worker,
-        roles: roles.results.map((r: { role: string }) => r.role),
-        languages: languages.results,
-      };
-    })
-  );
+  const workersWithDetails = workerRows.map((worker) => {
+    const wpId = worker.id as string;
+    const roles = rolesMap.get(wpId) ?? [];
+    delete (worker as Record<string, unknown>).embedding; // μην στέλνουμε το 768-dim vector
+    const match_score = hasTarget
+      ? computeMatchScore({
+          workerRoles: roles,
+          targetRoles,
+          workerRegion: (worker.region as string) || null,
+          targetRegions,
+          verified: worker.is_verified === 1,
+          yearsExperience: Number(worker.years_of_experience) || 0,
+          availability: (worker.availability as string) || null,
+        })
+      : null;
+    return {
+      ...worker,
+      roles,
+      languages: langsMap.get(wpId) ?? [],
+      match_score,
+    };
+  });
 
-  return paginated(c, workersWithDetails, total, page, limit);
+  // Σχετικοί πρώτοι: ταξινόμηση με βάση το match score, με boost/premium/
+  // verified/completeness ως tiebreakers.
+  if (hasTarget) {
+    const num = (row: Record<string, unknown>, key: string): number => Number(row[key]) || 0;
+    workersWithDetails.sort((a, b) => {
+      const sa = a.match_score ?? 0;
+      const sb = b.match_score ?? 0;
+      if (sb !== sa) return sb - sa;
+      const ra = a as unknown as Record<string, unknown>;
+      const rb = b as unknown as Record<string, unknown>;
+      if (num(rb, 'is_boosted') !== num(ra, 'is_boosted')) return num(rb, 'is_boosted') - num(ra, 'is_boosted');
+      if (num(rb, 'is_premium') !== num(ra, 'is_premium')) return num(rb, 'is_premium') - num(ra, 'is_premium');
+      if (num(rb, 'is_verified') !== num(ra, 'is_verified')) return num(rb, 'is_verified') - num(ra, 'is_verified');
+      return num(rb, 'profile_completeness') - num(ra, 'profile_completeness');
+    });
+  }
+
+  const total = workersWithDetails.length;
+  const pageSlice = workersWithDetails.slice(offset, offset + limit);
+
+  return paginated(c, pageSlice, total, page, limit);
 });
 
 // GET /:id — get worker by ID (hides email/phone unless viewer is matched)
@@ -575,10 +705,16 @@ workers.post('/:id/like', requireAuth, requireRole('business'), async (c) => {
     .bind(swipeId, user.id, targetId, now)
     .run();
 
-  // Check for mutual match (worker liked this business)
+  // Check for mutual match: the worker has already liked a job posted by this
+  // business. Workers swipe jobs (target_type='job'), never the business
+  // directly, so we resolve the liked job back to its owning business user.
   const mutualSwipe = await db
     .prepare(
-      "SELECT id FROM swipes WHERE swiper_id = ? AND target_id = ? AND target_type = 'business' AND direction = 'like'"
+      `SELECT s.id FROM swipes s
+       JOIN job_listings jl ON jl.id = s.target_id
+       JOIN business_profiles bp ON bp.id = jl.business_id
+       WHERE s.swiper_id = ? AND bp.user_id = ? AND s.target_type = 'job' AND s.direction = 'like'
+       LIMIT 1`
     )
     .bind(targetId, user.id)
     .first();
@@ -802,40 +938,9 @@ workers.delete('/:id/favorite', requireAuth, requireRole('business'), async (c) 
 });
 
 // =====================================================================
-// WORKER PREMIUM-ish features (credits-based pay-as-you-go).
-// All require role=worker. Each action either consumes credits or, for
-// premium subscribers, is free / unlimited.
+// WORKER PREMIUM features (AI CV, Profile Optimizer, Boosts).
+// All require role=worker AND an active Premium (lifetime) unlock.
 // =====================================================================
-
-/**
- * Atomically debit credits for a worker action.
- * Returns the new balance, or throws AppError if not enough credits.
- *
- * Idempotency is best-effort — callers should use this from a single
- * request lifecycle (no retry loops) to avoid double-debits.
- */
-async function debitCredits(env: any, userId: string, amount: number, description: string) {
-  const row = await env.DB.prepare('SELECT balance FROM credits WHERE user_id = ?')
-    .bind(userId)
-    .first<{ balance: number }>();
-  if (!row || row.balance < amount) {
-    throw new Error('INSUFFICIENT_CREDITS');
-  }
-  const now = new Date().toISOString();
-  await env.DB.prepare(
-    `UPDATE credits SET balance = balance - ?, total_spent = total_spent + ?, updated_at = ?
-      WHERE user_id = ? AND balance >= ?`,
-  )
-    .bind(amount, amount, now, userId, amount)
-    .run();
-  await env.DB.prepare(
-    `INSERT INTO credit_transactions (id, user_id, amount, type, description, created_at)
-     VALUES (?, ?, ?, 'spend', ?, ?)`,
-  )
-    .bind(`ctx_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`, userId, -amount, description, now)
-    .run();
-  return row.balance - amount;
-}
 
 async function isPremium(env: any, userId: string): Promise<boolean> {
   // Source of truth: an active worker_premium subscription whose period
@@ -940,7 +1045,7 @@ async function saveCv(env: any, userId: string, cvText: string, source: 'ai' | '
 }
 
 // ---------------------------------------------------------------------
-// POST /workers/ai/cv-generate — first-time AI CV generation. 5 credits.
+// POST /workers/ai/cv-generate — first-time AI CV generation. Premium-only.
 //   The result is auto-saved to worker_profiles.cv_text so future
 //   edits/regenerations don't require regenerating from scratch.
 // ---------------------------------------------------------------------
@@ -949,8 +1054,7 @@ workers.post('/ai/cv-generate', requireAuth, requireRole('worker'), async (c) =>
   const env: any = c.env;
   const premium = await isPremium(env, user.id);
   if (!premium) {
-    try { await debitCredits(env, user.id, 5, 'AI CV Generator'); }
-    catch { return error(c, 'INSUFFICIENT_CREDITS', 'Δεν έχετε αρκετά credits (απαιτούνται 5).', 402); }
+    return error(c, 'PREMIUM_REQUIRED', 'Διαθέσιμο μόνο για συνδρομητές Premium.', 402);
   }
 
   const profile = await loadWorkerProfile(env, user.id);
@@ -965,15 +1069,14 @@ workers.post('/ai/cv-generate', requireAuth, requireRole('worker'), async (c) =>
 
 // ---------------------------------------------------------------------
 // POST /workers/ai/cv-regenerate — re-runs AI on existing profile data.
-//   Costs only 1 credit (vs 5 for first-time generate). Free for Premium.
+//   Premium-only.
 // ---------------------------------------------------------------------
 workers.post('/ai/cv-regenerate', requireAuth, requireRole('worker'), async (c) => {
   const user = c.get('user');
   const env: any = c.env;
   const premium = await isPremium(env, user.id);
   if (!premium) {
-    try { await debitCredits(env, user.id, 1, 'AI CV Regenerate'); }
-    catch { return error(c, 'INSUFFICIENT_CREDITS', 'Δεν έχετε αρκετά credits (απαιτείται 1).', 402); }
+    return error(c, 'PREMIUM_REQUIRED', 'Διαθέσιμο μόνο για συνδρομητές Premium.', 402);
   }
   const profile = await loadWorkerProfile(env, user.id);
   if (!profile) return error(c, 'NO_PROFILE', 'Συμπληρώστε πρώτα το προφίλ σας.', 400);
@@ -1220,15 +1323,14 @@ workers.get('/:id/cv', requireAuth, async (c) => {
 
 // ---------------------------------------------------------------------
 // POST /workers/ai/profile-optimize — rewrite the worker's bio for
-//   keyword density and clarity. Cost: 3 credits (free for Premium).
+//   keyword density and clarity. Premium-only.
 // ---------------------------------------------------------------------
 workers.post('/ai/profile-optimize', requireAuth, requireRole('worker'), async (c) => {
   const user = c.get('user');
   const env: any = c.env;
   const premium = await isPremium(env, user.id);
   if (!premium) {
-    try { await debitCredits(env, user.id, 3, 'AI Profile Optimizer'); }
-    catch { return error(c, 'INSUFFICIENT_CREDITS', 'Δεν έχετε αρκετά credits (απαιτούνται 3).', 402); }
+    return error(c, 'PREMIUM_REQUIRED', 'Διαθέσιμο μόνο για συνδρομητές Premium.', 402);
   }
 
   const profile = await env.DB.prepare(
@@ -1279,18 +1381,16 @@ Bio τώρα: ${profile?.bio || '(κενό)'}`;
 
 // ---------------------------------------------------------------------
 // POST /workers/boost/discover — 24h top placement στο /discover.
-//   Cost: 2 credits (free / unlimited για Premium).
+//   Premium-only (unlimited).
 // ---------------------------------------------------------------------
 workers.post('/boost/discover', requireAuth, requireRole('worker'), async (c) => {
   const user = c.get('user');
   const env: any = c.env;
   const premium = await isPremium(env, user.id);
-  let cost = 0;
   if (!premium) {
-    cost = 2;
-    try { await debitCredits(env, user.id, cost, 'Boost στο Discover (24h)'); }
-    catch { return error(c, 'INSUFFICIENT_CREDITS', 'Δεν έχετε αρκετά credits (απαιτούνται 2).', 402); }
+    return error(c, 'PREMIUM_REQUIRED', 'Διαθέσιμο μόνο για συνδρομητές Premium.', 402);
   }
+  const cost = 0;
   const id = `bst_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
   const expiresAt = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
   await env.DB.prepare(
@@ -1304,7 +1404,7 @@ workers.post('/boost/discover', requireAuth, requireRole('worker'), async (c) =>
 
 // ---------------------------------------------------------------------
 // POST /workers/boost/application — η αίτηση εμφανίζεται πρώτη στους
-//   applicants μιας συγκεκριμένης αγγελίας. Cost: 1 credit.
+//   applicants μιας συγκεκριμένης αγγελίας. Premium-only.
 // ---------------------------------------------------------------------
 workers.post('/boost/application', requireAuth, requireRole('worker'), async (c) => {
   const user = c.get('user');
@@ -1313,12 +1413,10 @@ workers.post('/boost/application', requireAuth, requireRole('worker'), async (c)
   if (!body?.jobId) return error(c, 'VALIDATION', 'Λείπει το jobId.', 400);
 
   const premium = await isPremium(env, user.id);
-  let cost = 0;
   if (!premium) {
-    cost = 1;
-    try { await debitCredits(env, user.id, cost, `Boost αίτησης για αγγελία ${body.jobId}`); }
-    catch { return error(c, 'INSUFFICIENT_CREDITS', 'Δεν έχετε αρκετά credits (απαιτείται 1).', 402); }
+    return error(c, 'PREMIUM_REQUIRED', 'Διαθέσιμο μόνο για συνδρομητές Premium.', 402);
   }
+  const cost = 0;
   const id = `bst_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
   // The boost lasts as long as the job is open — we use 30 days as upper bound.
   const expiresAt = new Date(Date.now() + 30 * 86_400_000).toISOString();
