@@ -3,11 +3,19 @@
 import { useEffect, useMemo, useState } from 'react';
 
 export type FilterOption = { value: string; label: string; count?: number };
+export type FilterCategory = {
+  id: string;
+  label: string;
+  count: number;
+  options: FilterOption[];
+};
 export type FilterGroup = {
   key: string;
   title: string;
   options: FilterOption[];
   searchable?: boolean; // εμφανίζει mini-search μέσα στο group (π.χ. πόλεις)
+  /** Ιεραρχική δομή κατηγορία → υποκατηγορίες (π.χ. Ειδικότητες όπως στο /categories) */
+  categorized?: FilterCategory[];
 };
 
 type Accent = 'emerald' | 'blue';
@@ -21,6 +29,8 @@ type Props = {
   /** Record<groupKey, επιλεγμένες τιμές[]> */
   selected: Record<string, string[]>;
   onToggle: (groupKey: string, value: string) => void;
+  /** Επιλογή/αποεπιλογή πολλών τιμών μαζί (π.χ. «όλη η κατηγορία») */
+  onToggleMany?: (groupKey: string, values: string[], select: boolean) => void;
   onClear: () => void;
   resultCount: number;
   resultNoun: [string, string]; // [ενικός, πληθυντικός]
@@ -34,15 +44,144 @@ const ACCENT = {
   blue: { check: 'accent-blue-600', btn: 'bg-blue-600 hover:bg-blue-700', text: 'text-blue-700', ring: 'focus:ring-blue-100 focus:border-blue-400' },
 };
 
+/** Ιεραρχικό φίλτρο κατηγορία → ειδικότητες (όπως το /categories του jobfind). */
+function CategorizedFilter({
+  groupKey,
+  categories,
+  selected,
+  onToggle,
+  onToggleMany,
+  accent,
+}: {
+  groupKey: string;
+  categories: FilterCategory[];
+  selected: string[];
+  onToggle: (g: string, v: string) => void;
+  onToggleMany?: (g: string, values: string[], select: boolean) => void;
+  accent: Accent;
+}) {
+  const a = ACCENT[accent];
+  const [q, setQ] = useState('');
+  const [openCat, setOpenCat] = useState<Record<string, boolean>>({});
+  const selSet = new Set(selected);
+  const nq = q.trim().toLowerCase();
+
+  // Fallback αν δεν δοθεί onToggleMany: εναλλαγή μία-μία (η κατάσταση ενημερώνεται σωστά).
+  const toggleMany =
+    onToggleMany ??
+    ((k: string, values: string[], select: boolean) => {
+      for (const v of values) {
+        const isSel = selSet.has(v);
+        if (select && !isSel) onToggle(k, v);
+        if (!select && isSel) onToggle(k, v);
+      }
+    });
+
+  const filtered = nq
+    ? categories
+        .map((cat) => ({
+          ...cat,
+          options: cat.label.toLowerCase().includes(nq)
+            ? cat.options
+            : cat.options.filter((o) => o.label.toLowerCase().includes(nq)),
+        }))
+        .filter((cat) => cat.options.length > 0)
+    : categories;
+
+  return (
+    <div className="mt-3">
+      <input
+        type="search"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Αναζήτηση ειδικότητας…"
+        className={`mb-2 w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 ${a.ring}`}
+      />
+      <div className="max-h-80 space-y-1 overflow-y-auto pr-1">
+        {filtered.map((cat) => {
+          const values = cat.options.map((o) => o.value);
+          const selectedInCat = values.filter((v) => selSet.has(v));
+          const allSel = values.length > 0 && selectedInCat.length === values.length;
+          const someSel = selectedInCat.length > 0 && !allSel;
+          const isOpen = (openCat[cat.id] ?? false) || nq.length > 0;
+          return (
+            <div key={cat.id}>
+              <div className="flex items-center gap-2.5">
+                <input
+                  type="checkbox"
+                  checked={allSel}
+                  ref={(el) => {
+                    if (el) el.indeterminate = someSel;
+                  }}
+                  onChange={() => toggleMany(groupKey, values, !allSel)}
+                  className={`h-4 w-4 rounded border-gray-300 ${a.check}`}
+                  aria-label={`Όλες οι ειδικότητες: ${cat.label}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setOpenCat((p) => ({ ...p, [cat.id]: !isOpen }))}
+                  className="flex flex-1 items-center justify-between gap-2 py-1 text-left"
+                >
+                  <span className="text-sm font-semibold text-gray-800">
+                    {cat.label}
+                    {selectedInCat.length > 0 && (
+                      <span className={`ml-1 ${a.text}`}>({selectedInCat.length})</span>
+                    )}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="text-xs text-gray-400 tabular-nums">{cat.count}</span>
+                    <svg
+                      className={`h-3.5 w-3.5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </span>
+                </button>
+              </div>
+              {isOpen && (
+                <div className="mb-1 ml-6 mt-0.5 space-y-0.5">
+                  {cat.options.map((o) => (
+                    <label
+                      key={o.value}
+                      className="flex cursor-pointer items-center gap-2.5 py-1 text-sm text-gray-600 hover:text-gray-900"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selSet.has(o.value)}
+                        onChange={() => onToggle(groupKey, o.value)}
+                        className={`h-4 w-4 rounded border-gray-300 ${a.check}`}
+                      />
+                      <span className="flex-1 truncate">{o.label}</span>
+                      {o.count != null && (
+                        <span className="text-xs text-gray-400 tabular-nums">{o.count}</span>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {filtered.length === 0 && (
+          <p className="py-1 text-xs text-gray-400">Κανένα αποτέλεσμα</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function FilterGroups({
   groups,
   selected,
   onToggle,
+  onToggleMany,
   accent,
 }: {
   groups: FilterGroup[];
   selected: Record<string, string[]>;
   onToggle: (g: string, v: string) => void;
+  onToggleMany?: (g: string, values: string[], select: boolean) => void;
   accent: Accent;
 }) {
   const a = ACCENT[accent];
@@ -81,7 +220,18 @@ function FilterGroups({
               </svg>
             </button>
 
-            {isOpen && (
+            {isOpen && g.categorized && (
+              <CategorizedFilter
+                groupKey={g.key}
+                categories={g.categorized}
+                selected={sel}
+                onToggle={onToggle}
+                onToggleMany={onToggleMany}
+                accent={accent}
+              />
+            )}
+
+            {isOpen && !g.categorized && (
               <div className="mt-3">
                 {g.searchable && (
                   <input
@@ -131,6 +281,7 @@ export function FilteredListLayout({
   groups,
   selected,
   onToggle,
+  onToggleMany,
   onClear,
   resultCount,
   resultNoun,
@@ -204,7 +355,7 @@ export function FilteredListLayout({
         <aside className="hidden lg:block w-64 flex-shrink-0">
           <div className="sticky top-6 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
             {sidebarHeader && <div className="mb-4">{sidebarHeader}</div>}
-            <FilterGroups groups={groups} selected={selected} onToggle={onToggle} accent={accent} />
+            <FilterGroups groups={groups} selected={selected} onToggle={onToggle} onToggleMany={onToggleMany} accent={accent} />
           </div>
         </aside>
 
@@ -223,7 +374,7 @@ export function FilteredListLayout({
             </div>
             <div className="flex-1 overflow-y-auto px-5 py-4">
               {sidebarHeader && <div className="mb-4">{sidebarHeader}</div>}
-              <FilterGroups groups={groups} selected={selected} onToggle={onToggle} accent={accent} />
+              <FilterGroups groups={groups} selected={selected} onToggle={onToggle} onToggleMany={onToggleMany} accent={accent} />
             </div>
             <div className="border-t border-gray-100 p-4 flex gap-2">
               {activeCount > 0 && (

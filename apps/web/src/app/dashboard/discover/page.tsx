@@ -13,13 +13,22 @@ import { PremiumTick } from '@/components/ui/premium-tick';
 import { WorkerProfilePanel } from '@/components/dashboard/worker-profile-panel';
 import { BusinessProfilePanel } from '@/components/dashboard/business-profile-panel';
 import { JobDetailPanel } from '@/components/dashboard/job-detail-panel';
-import { FilteredListLayout, type FilterGroup } from '@/components/marketing/filtered-list-layout';
+import { FilteredListLayout, type FilterGroup, type FilterCategory } from '@/components/marketing/filtered-list-layout';
 import { GREEK_CITIES } from '@/lib/greek-cities';
-import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
+import { WORKER_JOB_ROLE_LABELS_EL, WORKER_JOB_ROLE_GROUPS } from '@staffnow/config';
 
 // Ελληνικό label ειδικότητας (fallback στο raw id αν λείπει)
 function roleLabel(r: string): string {
   return WORKER_JOB_ROLE_LABELS_EL[r] || r;
+}
+
+// Αντίστροφος χάρτης ειδικότητα → κατηγορία (πρώτη κατηγορία που την περιέχει),
+// ώστε το φίλτρο «Ειδικότητες» να ομαδοποιείται όπως η σελίδα /categories.
+const ROLE_TO_CATEGORY = new Map<string, { id: string; label: string }>();
+for (const g of WORKER_JOB_ROLE_GROUPS) {
+  for (const r of g.roles) {
+    if (!ROLE_TO_CATEGORY.has(r)) ROLE_TO_CATEGORY.set(r, { id: g.id, label: g.label });
+  }
 }
 
 interface DiscoverProfile {
@@ -130,12 +139,45 @@ export default function DiscoverPage() {
       .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'el'));
   }, [candidates]);
 
-  const listRoleOptions = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const c of candidates) for (const t of c.tags ?? []) counts.set(t, (counts.get(t) || 0) + 1);
-    return Array.from(counts.entries())
-      .map(([v, n]) => ({ value: v, label: v, count: n }))
-      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'el'));
+  // Ειδικότητες ομαδοποιημένες σε κατηγορίες → υποκατηγορίες (όπως στο /categories).
+  // Το header κάθε κατηγορίας δείχνει πλήθος *διακριτών* αποτελεσμάτων· κάθε
+  // ειδικότητα δείχνει πόσες φορές εμφανίζεται.
+  const listRoleCategories = useMemo<FilterCategory[]>(() => {
+    const roleCounts = new Map<string, number>();
+    const catCandidates = new Map<string, Set<number>>();
+    candidates.forEach((c, idx) => {
+      for (const t of c.tags ?? []) {
+        roleCounts.set(t, (roleCounts.get(t) || 0) + 1);
+        const catId = ROLE_TO_CATEGORY.get(t)?.id ?? '__other';
+        let set = catCandidates.get(catId);
+        if (!set) { set = new Set(); catCandidates.set(catId, set); }
+        set.add(idx);
+      }
+    });
+
+    const catMap = new Map<string, FilterCategory>();
+    for (const [role, n] of roleCounts) {
+      const cat = ROLE_TO_CATEGORY.get(role);
+      const catId = cat?.id ?? '__other';
+      let entry = catMap.get(catId);
+      if (!entry) {
+        entry = {
+          id: catId,
+          label: cat?.label ?? 'Άλλο',
+          count: catCandidates.get(catId)?.size ?? 0,
+          options: [],
+        };
+        catMap.set(catId, entry);
+      }
+      entry.options.push({ value: role, label: roleLabel(role), count: n });
+    }
+
+    const cats = Array.from(catMap.values());
+    for (const cat of cats) {
+      cat.options.sort((a, b) => (b.count ?? 0) - (a.count ?? 0) || a.label.localeCompare(b.label, 'el'));
+    }
+    cats.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'el'));
+    return cats;
   }, [candidates]);
 
   // Τύπος απασχόλησης (μόνο για θέσεις — δηλ. στην όψη εργαζομένου)
@@ -193,11 +235,11 @@ export default function DiscoverPage() {
         { key: 'location', title: 'Πόλεις', options: listCityOptions, searchable: true },
         { key: 'region', title: 'Περιοχές', options: listRegionOptions, searchable: true },
         { key: 'type', title: 'Τύπος απασχόλησης', options: listTypeOptions },
-        { key: 'role', title: 'Ειδικότητες', options: listRoleOptions },
+        { key: 'role', title: 'Ειδικότητες', options: [], categorized: listRoleCategories },
         { key: 'salary', title: 'Μισθός', options: listSalaryOptions },
         { key: 'perks', title: 'Παροχές', options: listPerksOptions },
-      ].filter((g) => g.options.length > 0),
-    [listCityOptions, listRegionOptions, listTypeOptions, listRoleOptions, listSalaryOptions, listPerksOptions],
+      ].filter((g) => g.options.length > 0 || (g.categorized?.length ?? 0) > 0),
+    [listCityOptions, listRegionOptions, listTypeOptions, listRoleCategories, listSalaryOptions, listPerksOptions],
   );
 
   const filteredCandidates = useMemo(() => {
@@ -249,6 +291,16 @@ export default function DiscoverPage() {
     setListSel((prev) => {
       const cur = prev[group] ?? [];
       return { ...prev, [group]: cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value] };
+    });
+  }
+
+  // Επιλογή/αποεπιλογή πολλών τιμών μαζί (π.χ. ολόκληρη κατηγορία ειδικοτήτων).
+  function toggleManyListFilter(group: string, values: string[], select: boolean) {
+    setListSel((prev) => {
+      const cur = new Set(prev[group] ?? []);
+      if (select) values.forEach((v) => cur.add(v));
+      else values.forEach((v) => cur.delete(v));
+      return { ...prev, [group]: Array.from(cur) };
     });
   }
 
@@ -730,6 +782,7 @@ export default function DiscoverPage() {
             groups={listGroups}
             selected={listSel}
             onToggle={toggleListFilter}
+            onToggleMany={toggleManyListFilter}
             onClear={clearListFilters}
             resultCount={filteredCandidates.length}
             resultNoun={isWorker ? ['θέση', 'θέσεις'] : ['εργαζόμενος', 'εργαζόμενοι']}
