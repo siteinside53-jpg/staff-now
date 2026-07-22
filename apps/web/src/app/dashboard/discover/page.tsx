@@ -14,7 +14,7 @@ import { WorkerProfilePanel } from '@/components/dashboard/worker-profile-panel'
 import { BusinessProfilePanel } from '@/components/dashboard/business-profile-panel';
 import { JobDetailPanel } from '@/components/dashboard/job-detail-panel';
 import { FilteredListLayout, type FilterGroup, type FilterCategory } from '@/components/marketing/filtered-list-layout';
-import { GREEK_CITIES } from '@/lib/greek-cities';
+import { GREEK_CITIES, GREEK_CITY_AREAS } from '@/lib/greek-cities';
 import { WORKER_JOB_ROLE_LABELS_EL, WORKER_JOB_ROLE_GROUPS } from '@staffnow/config';
 
 // Ελληνικό label ειδικότητας (fallback στο raw id αν λείπει)
@@ -103,30 +103,65 @@ export default function DiscoverPage() {
 
   // List-view filters (ίδια λογική με τις δημόσιες λίστες)
   const [listQuery, setListQuery] = useState('');
-  const [listSel, setListSel] = useState<Record<string, string[]>>({ location: [], region: [], role: [], type: [], salary: [], perks: [] });
+  const [listSel, setListSel] = useState<Record<string, string[]>>({ location: [], role: [], type: [], salary: [], perks: [] });
 
   const isWorker = user?.role === 'worker';
 
   // ── Filter options & φιλτραρισμένη λίστα για το list view ──
-  const listCityOptions = useMemo(() => {
-    const seen = new Map<string, string>();
+  // Πόλεις ομαδοποιημένες με τις περιοχές τους (πόλη → περιοχές, όπως στο jobfind):
+  // κάθε πόλη «ανοίγει» και δείχνει όλες τις περιοχές της. Οι περιοχές προέρχονται
+  // από τη στατική λίστα (GREEK_CITY_AREAS) + όποιες εμφανίζονται στις αγγελίες.
+  const listCityCategories = useMemo<FilterCategory[]>(() => {
+    // Όλες οι πόλεις (στατική λίστα + όσες εμφανίζονται στις αγγελίες).
+    const cityByNorm = new Map<string, string>();
     for (const c of GREEK_CITIES) {
       const n = normText(c);
-      if (!seen.has(n)) seen.set(n, c);
+      if (!cityByNorm.has(n)) cityByNorm.set(n, c);
     }
     for (const c of candidates) {
       const n = normText(c.location || '');
-      if (n && !seen.has(n)) seen.set(n, c.location || '');
+      if (n && !cityByNorm.has(n)) cityByNorm.set(n, c.location || '');
     }
-    return Array.from(seen.entries())
-      .map(([n, label]) => ({
-        value: label,
-        label,
-        count: candidates.filter((c) => {
+
+    return Array.from(cityByNorm.values())
+      .map((city) => {
+        const cityNorm = normText(city);
+        const inCity = candidates.filter((c) => {
           const cl = normText(c.location || '');
-          return cl && (cl.includes(n) || n.includes(cl));
-        }).length,
-      }))
+          return cl && (cl.includes(cityNorm) || cityNorm.includes(cl));
+        });
+        const cityCount = inCity.length;
+
+        // Περιοχές: στατικές + δυναμικές (από τις αγγελίες αυτής της πόλης).
+        const areaByNorm = new Map<string, string>();
+        for (const a of GREEK_CITY_AREAS[city] ?? []) {
+          const n = normText(a);
+          if (!areaByNorm.has(n)) areaByNorm.set(n, a);
+        }
+        for (const c of inCity) {
+          const r = (c.region || '').trim();
+          const n = normText(r);
+          if (n && !areaByNorm.has(n)) areaByNorm.set(n, r);
+        }
+
+        const areaOptions = Array.from(areaByNorm.entries())
+          .map(([n, label]) => ({
+            value: label,
+            label,
+            count: candidates.filter((c) => {
+              const cr = normText(c.region || '');
+              return cr && (cr === n || cr.includes(n) || n.includes(cr));
+            }).length,
+          }))
+          .sort((a, b) => (b.count ?? 0) - (a.count ?? 0) || a.label.localeCompare(b.label, 'el'));
+
+        return {
+          id: city,
+          label: city,
+          count: cityCount,
+          options: [{ value: city, label: 'Όλη η πόλη', count: cityCount }, ...areaOptions],
+        };
+      })
       .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'el'));
   }, [candidates]);
 
@@ -165,24 +200,6 @@ export default function DiscoverPage() {
       .sort((a, b) => b.count - a.count);
   }, [candidates]);
 
-  // Περιοχές / γειτονιές (όπως τα «Areas» του jobfind)
-  const listRegionOptions = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const c of candidates) {
-      const r = (c.region || '').trim();
-      if (!r) continue;
-      const n = normText(r);
-      if (!seen.has(n)) seen.set(n, r);
-    }
-    return Array.from(seen.entries())
-      .map(([n, label]) => ({
-        value: label,
-        label,
-        count: candidates.filter((c) => normText(c.region || '') === n).length,
-      }))
-      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'el'));
-  }, [candidates]);
-
   // Μισθός — κλιμάκια ελάχιστου μηνιαίου (€+)
   const listSalaryOptions = useMemo(() => {
     const brackets = [800, 1000, 1200, 1500, 2000];
@@ -209,30 +226,33 @@ export default function DiscoverPage() {
     () =>
       [
         { key: 'role', title: 'Ειδικότητες', options: [], categorized: listRoleCategories },
-        { key: 'location', title: 'Πόλεις', options: listCityOptions, searchable: true },
-        { key: 'region', title: 'Περιοχές', options: listRegionOptions, searchable: true },
+        { key: 'location', title: 'Πόλεις', options: [], categorized: listCityCategories },
         { key: 'type', title: 'Τύπος απασχόλησης', options: listTypeOptions },
         { key: 'salary', title: 'Μισθός', options: listSalaryOptions },
         { key: 'perks', title: 'Παροχές', options: listPerksOptions },
       ].filter((g) => g.options.length > 0 || (g.categorized?.length ?? 0) > 0),
-    [listCityOptions, listRegionOptions, listTypeOptions, listRoleCategories, listSalaryOptions, listPerksOptions],
+    [listCityCategories, listTypeOptions, listRoleCategories, listSalaryOptions, listPerksOptions],
   );
 
   const filteredCandidates = useMemo(() => {
     const q = normText(listQuery);
-    const cityNorms = (listSel.location ?? []).map(normText);
+    // Οι επιλογές τοποθεσίας περιέχουν είτε ονόματα πόλεων είτε περιοχών —
+    // ταιριάζουμε και τα δύο πεδία (location + region) της αγγελίας.
+    const locNorms = (listSel.location ?? []).map(normText).filter(Boolean);
     return candidates.filter((c) => {
       if (q) {
         const hay = `${c.name} ${c.companyName ?? ''} ${c.location ?? ''} ${(c.tags ?? []).join(' ')}`;
         if (!normText(hay).includes(q)) return false;
       }
-      if (cityNorms.length) {
+      if (locNorms.length) {
         const cl = normText(c.location || '');
-        if (!cityNorms.some((cn) => cl.includes(cn) || cn.includes(cl))) return false;
-      }
-      if ((listSel.region ?? []).length) {
-        const rn = normText(c.region || '');
-        if (!(listSel.region ?? []).some((r) => normText(r) === rn)) return false;
+        const cr = normText(c.region || '');
+        const ok = locNorms.some(
+          (nv) =>
+            (cl && (cl.includes(nv) || nv.includes(cl))) ||
+            (cr && (cr === nv || cr.includes(nv) || nv.includes(cr))),
+        );
+        if (!ok) return false;
       }
       if ((listSel.role ?? []).length && !(c.tags ?? []).some((t) => listSel.role!.includes(t))) return false;
       if ((listSel.type ?? []).length && !(c.employmentType && listSel.type!.includes(c.employmentType))) return false;
@@ -282,7 +302,7 @@ export default function DiscoverPage() {
 
   function clearListFilters() {
     setListQuery('');
-    setListSel({ location: [], region: [], role: [], type: [], salary: [], perks: [] });
+    setListSel({ location: [], role: [], type: [], salary: [], perks: [] });
   }
 
   // Fetch AI match scores in parallel (non-blocking)
