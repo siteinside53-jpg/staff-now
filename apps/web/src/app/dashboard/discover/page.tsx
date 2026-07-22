@@ -112,54 +112,71 @@ export default function DiscoverPage() {
   // κάθε πόλη «ανοίγει» και δείχνει όλες τις περιοχές της. Οι περιοχές προέρχονται
   // από τη στατική λίστα (GREEK_CITY_AREAS) + όποιες εμφανίζονται στις αγγελίες.
   const listCityCategories = useMemo<FilterCategory[]>(() => {
-    // Όλες οι πόλεις (στατική λίστα + όσες εμφανίζονται στις αγγελίες).
-    const cityByNorm = new Map<string, string>();
+    // Τα locations των αγγελιών έχουν μορφή «Πόλη, Περιοχή» (π.χ. «Αθήνα, Νέα Σμύρνη»).
+    // Τα «σπάμε» ώστε κάθε πόλη να εμφανίζεται ΜΙΑ φορά ως κατηγορία και οι περιοχές
+    // της να κρέμονται από κάτω (όπως στο jobfind).
+    const canon = GREEK_CITIES.map((c) => ({ raw: c, norm: normText(c) }));
+    const resolveCity = (raw: string): string => {
+      const n = normText(raw);
+      if (!n) return '';
+      const hit = canon.find((cc) => cc.norm === n);
+      return hit ? hit.raw : raw.trim();
+    };
+    const parseLoc = (loc: string): { city: string; area: string } => {
+      const parts = (loc || '').split(',').map((p) => p.trim()).filter(Boolean);
+      if (!parts.length) return { city: '', area: '' };
+      return { city: resolveCity(parts[0]), area: parts.slice(1).join(', ') };
+    };
+
+    // Ομαδοποίηση υποψηφίων ανά πόλη (+ οι περιοχές από location & region).
+    type Agg = { label: string; count: number; areas: Map<string, { label: string; count: number }> };
+    const byCity = new Map<string, Agg>();
     for (const c of GREEK_CITIES) {
       const n = normText(c);
-      if (!cityByNorm.has(n)) cityByNorm.set(n, c);
+      if (!byCity.has(n)) byCity.set(n, { label: c, count: 0, areas: new Map() });
     }
-    for (const c of candidates) {
-      const n = normText(c.location || '');
-      if (n && !cityByNorm.has(n)) cityByNorm.set(n, c.location || '');
+    const addArea = (agg: Agg, label: string) => {
+      const raw = (label || '').trim();
+      const n = normText(raw);
+      if (!n) return;
+      const ex = agg.areas.get(n);
+      if (ex) ex.count += 1;
+      else agg.areas.set(n, { label: raw, count: 1 });
+    };
+    for (const cand of candidates) {
+      const { city, area } = parseLoc(cand.location || '');
+      if (!city) continue;
+      const cn = normText(city);
+      if (!byCity.has(cn)) byCity.set(cn, { label: city, count: 0, areas: new Map() });
+      const agg = byCity.get(cn)!;
+      agg.count += 1;
+      if (area) addArea(agg, area);
+      const reg = (cand.region || '').trim();
+      if (reg && normText(reg) !== normText(area)) addArea(agg, reg);
     }
 
-    return Array.from(cityByNorm.values())
-      .map((city) => {
-        const cityNorm = normText(city);
-        const inCity = candidates.filter((c) => {
-          const cl = normText(c.location || '');
-          return cl && (cl.includes(cityNorm) || cityNorm.includes(cl));
-        });
-        const cityCount = inCity.length;
-
-        // Περιοχές: στατικές + δυναμικές (από τις αγγελίες αυτής της πόλης).
-        const areaByNorm = new Map<string, string>();
-        for (const a of GREEK_CITY_AREAS[city] ?? []) {
+    return Array.from(byCity.values())
+      .map((agg) => {
+        // Περιοχές: στατικές (GREEK_CITY_AREAS, count 0) + δυναμικές (από τις αγγελίες).
+        const areaByNorm = new Map<string, { label: string; count: number }>();
+        for (const a of GREEK_CITY_AREAS[agg.label] ?? []) {
           const n = normText(a);
-          if (!areaByNorm.has(n)) areaByNorm.set(n, a);
+          if (!areaByNorm.has(n)) areaByNorm.set(n, { label: a, count: 0 });
         }
-        for (const c of inCity) {
-          const r = (c.region || '').trim();
-          const n = normText(r);
-          if (n && !areaByNorm.has(n)) areaByNorm.set(n, r);
+        for (const [n, a] of agg.areas) {
+          const ex = areaByNorm.get(n);
+          if (ex) ex.count += a.count;
+          else areaByNorm.set(n, a);
         }
-
-        const areaOptions = Array.from(areaByNorm.entries())
-          .map(([n, label]) => ({
-            value: label,
-            label,
-            count: candidates.filter((c) => {
-              const cr = normText(c.region || '');
-              return cr && (cr === n || cr.includes(n) || n.includes(cr));
-            }).length,
-          }))
-          .sort((a, b) => (b.count ?? 0) - (a.count ?? 0) || a.label.localeCompare(b.label, 'el'));
+        const areaOptions = Array.from(areaByNorm.values())
+          .map((a) => ({ value: a.label, label: a.label, count: a.count }))
+          .sort((x, y) => y.count - x.count || x.label.localeCompare(y.label, 'el'));
 
         return {
-          id: city,
-          label: city,
-          count: cityCount,
-          options: [{ value: city, label: 'Όλη η πόλη', count: cityCount }, ...areaOptions],
+          id: agg.label,
+          label: agg.label,
+          count: agg.count,
+          options: [{ value: agg.label, label: 'Όλη η πόλη', count: agg.count }, ...areaOptions],
         };
       })
       .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'el'));
