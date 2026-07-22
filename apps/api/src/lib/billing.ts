@@ -31,6 +31,16 @@ export interface PlanSpec {
   /** the Stripe Price ID env-var name; resolved at call site */
   stripePriceEnvMonthly: keyof Env;
   stripePriceEnvYearly: keyof Env;
+  /**
+   * One-time lifetime plan. When set, checkout runs in Stripe `mode: 'payment'`
+   * using `stripePriceEnvOnce`, and the webhook activates Premium with a
+   * far-future period end so it never lapses.
+   */
+  lifetime?: boolean;
+  /** one-time price in cents (gross of VAT), for lifetime plans */
+  onceCents?: number;
+  /** the Stripe one-time Price ID env-var name, for lifetime plans */
+  stripePriceEnvOnce?: keyof Env;
 }
 
 export const BILLING_PLANS: Record<string, PlanSpec> = {
@@ -38,8 +48,9 @@ export const BILLING_PLANS: Record<string, PlanSpec> = {
     id: 'business_basic',
     name: 'Business Basic',
     nameEl: 'Επιχείρηση Basic',
-    monthlyCents: 2900,
-    yearlyCents: 29000,
+    // Net 29€/261€ + ΦΠΑ 24% = gross 35,96€/323,64€.
+    monthlyCents: 3596,
+    yearlyCents: 32364,
     stripePriceEnvMonthly: 'STRIPE_PRICE_BUSINESS_BASIC_MONTHLY',
     stripePriceEnvYearly: 'STRIPE_PRICE_BUSINESS_BASIC_YEARLY',
   },
@@ -47,8 +58,9 @@ export const BILLING_PLANS: Record<string, PlanSpec> = {
     id: 'business_pro',
     name: 'Business Pro',
     nameEl: 'Επιχείρηση Pro',
-    monthlyCents: 7900,
-    yearlyCents: 71100, // -25%
+    // Net 79€/711€ (-25%) + ΦΠΑ 24% = gross 97,96€/881,64€.
+    monthlyCents: 9796,
+    yearlyCents: 88164,
     stripePriceEnvMonthly: 'STRIPE_PRICE_BUSINESS_PRO_MONTHLY',
     stripePriceEnvYearly: 'STRIPE_PRICE_BUSINESS_PRO_YEARLY',
   },
@@ -58,8 +70,9 @@ export const BILLING_PLANS: Record<string, PlanSpec> = {
     id: 'founding_pro',
     name: 'Founding Pro',
     nameEl: 'Pro (Founding)',
-    monthlyCents: 3900,
-    yearlyCents: 35100, // -25%
+    // Net 39€/351€ (-25%) + ΦΠΑ 24% = gross 48,36€/435,24€.
+    monthlyCents: 4836,
+    yearlyCents: 43524,
     stripePriceEnvMonthly: 'STRIPE_PRICE_FOUNDING_PRO_MONTHLY',
     stripePriceEnvYearly: 'STRIPE_PRICE_FOUNDING_PRO_YEARLY',
   },
@@ -67,8 +80,9 @@ export const BILLING_PLANS: Record<string, PlanSpec> = {
     id: 'business_elite',
     name: 'Business Elite',
     nameEl: 'Επιχείρηση Elite',
-    monthlyCents: 14900,
-    yearlyCents: 134100, // -25%
+    // Net 149€/1341€ (-25%) + ΦΠΑ 24% = gross 184,76€/1662,84€.
+    monthlyCents: 18476,
+    yearlyCents: 166284,
     stripePriceEnvMonthly: 'STRIPE_PRICE_BUSINESS_ELITE_MONTHLY',
     stripePriceEnvYearly: 'STRIPE_PRICE_BUSINESS_ELITE_YEARLY',
   },
@@ -76,8 +90,13 @@ export const BILLING_PLANS: Record<string, PlanSpec> = {
     id: 'worker_premium',
     name: 'Worker Premium',
     nameEl: 'Εργαζόμενος Premium',
+    // Lifetime one-time unlock — paid once, Premium never expires.
+    lifetime: true,
+    onceCents: 499,
+    stripePriceEnvOnce: 'STRIPE_PRICE_WORKER_PREMIUM_LIFETIME',
+    // Legacy recurring fields kept for type-compat; unused for lifetime checkout.
     monthlyCents: 499,
-    yearlyCents: 4499, // -25%
+    yearlyCents: 4499,
     stripePriceEnvMonthly: 'STRIPE_PRICE_WORKER_PREMIUM_MONTHLY',
     stripePriceEnvYearly: 'STRIPE_PRICE_WORKER_PREMIUM_YEARLY',
   },

@@ -9,6 +9,11 @@
  *
  * Yearly = monthly × 9 (i.e. -25% / 3 months free) → drives commitment, kills churn.
  *
+ * NOTE: all business `price*` values below are NET (χωρίς ΦΠΑ). The B2B pricing
+ * page shows them net "+ΦΠΑ 24%"; the actual Stripe charge and the invoice
+ * amounts in billing.ts are GROSS (net × 1.24). Worker Premium (4,99€) is B2C
+ * and is already gross.
+ *
  * The frontend reads from this file. The Stripe Price IDs are env-driven:
  *   STRIPE_PRICE_BUSINESS_BASIC_MONTHLY / _YEARLY
  *   STRIPE_PRICE_BUSINESS_PRO_MONTHLY   / _YEARLY
@@ -111,12 +116,18 @@ export const PLANS = {
     id: 'worker_premium' as const,
     name: 'Worker Premium',
     nameEl: 'Εργαζόμενος Premium',
+    /**
+     * One-time lifetime unlock. Paid once (€4.99), Premium never lapses.
+     * priceMonthly/priceYearly are kept only as legacy fields; the real
+     * price is priceOnce and `lifetime: true` signals one-time checkout.
+     */
+    lifetime: true,
+    priceOnce: 4.99,
     priceMonthly: 4.99,
-    priceYearly: 44.99, // -25%
+    priceYearly: 4.99,
     badge: null,
     features: {
       premiumTick: true,
-      monthlyCreditsBonus: 30,
       unlimitedBoosts: true,
       advancedFilters: true,
       profileViewsStats: true,

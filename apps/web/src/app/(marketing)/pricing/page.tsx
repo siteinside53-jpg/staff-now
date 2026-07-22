@@ -32,6 +32,8 @@ interface Plan {
   description: string;
   monthly: number;
   yearly: number;
+  /** Κανονική τιμή όταν το plan προσφέρεται δωρεάν στο launch (καθαρή, χωρίς ΦΠΑ). */
+  normallyMonthly?: number;
   badge?: 'popular' | 'enterprise';
   cta: string;
   features: { label: string; on: boolean }[];
@@ -44,6 +46,7 @@ const PLANS: Plan[] = [
     description: 'Δοκίμασε πώς δουλεύει χωρίς δέσμευση.',
     monthly: 0,
     yearly: 0,
+    normallyMonthly: 19,
     cta: 'Ξεκίνα δωρεάν',
     features: [
       { label: '1 ενεργή αγγελία', on: true },
@@ -112,6 +115,14 @@ const PLANS: Plan[] = [
 
 function fmtMoney(n: number): string {
   return n === 0 ? '0€' : `${n}€`;
+}
+
+const VAT_PERCENT = 24;
+
+/** Μικτή τιμή (με ΦΠΑ) από καθαρή, μορφοποιημένη με ελληνικό κόμμα: 79 → "97,96€". */
+function fmtGross(net: number): string {
+  const gross = net * (1 + VAT_PERCENT / 100);
+  return `${gross.toFixed(2).replace('.', ',')}€`;
 }
 
 export default function PricingPage() {
@@ -236,7 +247,7 @@ export default function PricingPage() {
         </div>
 
         <p className="mt-4 text-center text-xs text-gray-500">
-          Όλες οι τιμές περιλαμβάνουν ΦΠΑ 24%. <strong>30 ημέρες δωρεάν δοκιμή — χωρίς κάρτα.</strong>
+          Οι τιμές επιχειρήσεων είναι καθαρές — προστίθεται ΦΠΑ 24%. <strong>30 ημέρες δωρεάν δοκιμή — χωρίς κάρτα.</strong>
         </p>
 
         {/* ROI */}
@@ -392,15 +403,38 @@ function PlanCard({ plan, period }: { plan: Plan; period: 'monthly' | 'yearly' }
 
       <div className="mb-4">
         <p className="text-xs font-bold uppercase tracking-wider text-gray-400">{plan.nameEl}</p>
-        <div className="mt-2 flex items-baseline gap-1">
-          <span className="text-4xl font-extrabold text-gray-900">{fmtMoney(showMonthly)}</span>
-          {plan.monthly > 0 && <span className="text-gray-500">/μήνα</span>}
-        </div>
-        {period === 'yearly' && plan.monthly > 0 && (
-          <p className="mt-1 text-xs text-emerald-700">
-            <strong>{fmtMoney(yearlyTotal)}/έτος</strong> · εξοικονομείς{' '}
-            {plan.monthly * 12 - yearlyTotal}€
-          </p>
+        {plan.monthly === 0 ? (
+          <>
+            <div className="mt-2 flex items-baseline gap-2">
+              {plan.normallyMonthly && (
+                <span className="text-xl font-bold text-gray-400 line-through">
+                  {plan.normallyMonthly}€
+                </span>
+              )}
+              <span className="text-4xl font-extrabold text-emerald-600">Δωρεάν</span>
+            </div>
+            {plan.normallyMonthly && (
+              <p className="mt-1 text-xs font-semibold text-emerald-700">
+                🚀 Launch offer — δωρεάν μέχρι την επίσημη έναρξη
+              </p>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="mt-2 flex items-baseline gap-1">
+              <span className="text-4xl font-extrabold text-gray-900">{fmtMoney(showMonthly)}</span>
+              <span className="text-gray-500">/μήνα</span>
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              +ΦΠΑ 24% · {fmtGross(showMonthly)} με ΦΠΑ
+            </p>
+            {period === 'yearly' && (
+              <p className="mt-1 text-xs text-emerald-700">
+                <strong>{fmtMoney(yearlyTotal)}/έτος</strong> · εξοικονομείς{' '}
+                {plan.monthly * 12 - yearlyTotal}€
+              </p>
+            )}
+          </>
         )}
         <p className="mt-2 text-sm text-gray-600">{plan.description}</p>
       </div>
@@ -522,7 +556,7 @@ function ComparisonTable({ period }: { period: 'monthly' | 'yearly' }) {
   ];
 
   const priceLabel = (p: Plan) =>
-    p.monthly === 0 ? '0€' : `${period === 'monthly' ? p.monthly : Math.round(p.yearly / 12)}€/μ`;
+    p.monthly === 0 ? 'Δωρεάν' : `${period === 'monthly' ? p.monthly : Math.round(p.yearly / 12)}€/μ +ΦΠΑ`;
 
   const renderCell = (c: string | boolean) =>
     typeof c === 'boolean' ? (
