@@ -143,7 +143,7 @@ const organizationSchema = {
   contactPoint: {
     '@type': 'ContactPoint',
     contactType: 'customer support',
-    email: 'support@staffnow.gr',
+    email: 'info@staffnow.gr',
     availableLanguage: ['Greek', 'English'],
   },
   sameAs: ['https://staffnow.gr'],

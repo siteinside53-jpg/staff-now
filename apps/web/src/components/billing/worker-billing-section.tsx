@@ -4,17 +4,14 @@
  * /dashboard/billing — worker view.
  *
  *   • Free core (matching, messaging, browsing) — clearly stated
- *   • Worker Premium upgrade CTA (4.99 €/μήνα → Premium Tick + perks)
- *   • Credits balance + buy more
- *   • AI Tools: AI CV Generator, AI Profile Optimizer
- *   • Boosts: Discover boost (24h), Application boost (per-job)
- *   • Recent credit transactions
+ *   • Worker Premium: one-time €4.99 lifetime unlock → Premium Tick + all perks
+ *   • AI Tools: AI CV Generator, AI Profile Optimizer (Premium-only)
+ *   • Boosts: Discover boost (24h) (Premium-only)
  */
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { useCredits } from '@/components/credits/credits-context';
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -26,25 +23,12 @@ interface BillingMe {
 }
 
 export function WorkerBillingSection() {
-  const { balance, packages, refresh, buyPackage } = useCredits();
   const [billingMe, setBillingMe] = useState<BillingMe | null>(null);
-  const [history, setHistory] = useState<any[]>([]);
-  const [buying, setBuying] = useState<string | null>(null);
   const [running, setRunning] = useState<string | null>(null);
   const [aiOutput, setAiOutput] = useState<{ kind: 'cv' | 'opt'; text: string } | null>(null);
   const [editingCv, setEditingCv] = useState(false);
   const [editCvDraft, setEditCvDraft] = useState('');
 
-  const loadHistory = async () => {
-    try {
-      const token = localStorage.getItem('staffnow_token');
-      const res = await fetch(`${API_BASE}/credits/history?limit=10`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const j = (await res.json()) as any;
-      if (j.success) setHistory(j.data || []);
-    } catch {}
-  };
   const loadBilling = async () => {
     try {
       const token = localStorage.getItem('staffnow_token');
@@ -68,21 +52,11 @@ export function WorkerBillingSection() {
     } catch {}
   };
 
-  useEffect(() => { loadHistory(); loadBilling(); loadSavedCv(); }, []);
+  useEffect(() => { loadBilling(); loadSavedCv(); }, []);
 
   const isPremium =
     billingMe?.subscription?.plan_id === 'worker_premium' &&
     billingMe?.subscription?.status === 'active';
-  const periodEnd: string | null = billingMe?.subscription?.current_period_end || null;
-
-  const onBuy = async (id: string) => {
-    setBuying(id);
-    try {
-      const r = await buyPackage(id);
-      if (r.ok) { toast.success(r.message || 'Έτοιμο'); await refresh(); await loadHistory(); }
-      else toast.error(r.message || 'Αποτυχία');
-    } finally { setBuying(null); }
-  };
 
   const upgradeToPremium = async () => {
     const token = localStorage.getItem('staffnow_token');
@@ -91,7 +65,6 @@ export function WorkerBillingSection() {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         planId: 'worker_premium',
-        period: 'monthly',
         documentType: 'receipt',
         successUrl: window.location.origin + '/dashboard/billing?premium=1',
         cancelUrl: window.location.origin + '/dashboard/billing?canceled=1',
@@ -120,8 +93,6 @@ export function WorkerBillingSection() {
       const text = j.data?.cv || j.data?.bio || '';
       setAiOutput({ kind, text });
       toast.success('Έτοιμο');
-      await refresh();
-      await loadHistory();
     } finally {
       setRunning(null);
     }
@@ -188,8 +159,6 @@ export function WorkerBillingSection() {
         return;
       }
       toast.success(`${label} ενεργό μέχρι ${new Date(j.data.expiresAt).toLocaleString('el-GR')}`);
-      await refresh();
-      await loadHistory();
     } finally {
       setRunning(null);
     }
@@ -206,13 +175,11 @@ export function WorkerBillingSection() {
               <p className="text-xs font-bold uppercase tracking-wider text-amber-700">Worker Premium</p>
               <h3 className="mt-1 text-lg font-bold text-gray-900">Είσαι Premium! ✓</h3>
               <p className="mt-1 text-xs text-gray-700">
-                Premium Tick · 30 credits/μήνα · απεριόριστα boosts · advanced filters
+                Premium Tick · AI εργαλεία · απεριόριστα boosts · advanced filters
               </p>
-              {periodEnd && (
-                <p className="mt-1 text-xs text-amber-700">
-                  Ανανέωση: <strong>{new Date(periodEnd).toLocaleDateString('el-GR')}</strong>
-                </p>
-              )}
+              <p className="mt-1 text-xs text-amber-700">
+                Ξεκλειδωμένο <strong>για πάντα</strong> — καμία ανανέωση, καμία χρέωση.
+              </p>
             </div>
           </div>
         </div>
@@ -225,11 +192,14 @@ export function WorkerBillingSection() {
                 Αναβάθμιση
               </p>
               <h3 className="mt-1 text-xl font-extrabold text-gray-900">
-                Worker Premium — μόνο <span className="text-amber-700">4,99€/μήνα</span>
+                Worker Premium — <span className="text-amber-700">εφάπαξ 4,99€ · για πάντα</span>
               </h3>
+              <p className="mt-0.5 text-xs text-gray-500">
+                Πληρώνεις μία φορά. Το ξεκλειδώνεις για πάντα — χωρίς μηνιαία συνδρομή.
+              </p>
               <ul className="mt-2 space-y-0.5 text-sm text-gray-700">
                 <li>✓ <strong>Premium Tick</strong> δίπλα στο όνομά σου (πάντα)</li>
-                <li>✓ 30 credits/μήνα δωρεάν (αξίας ~10€)</li>
+                <li>✓ AI CV Generator & AI Profile Optimizer</li>
                 <li>✓ Απεριόριστα boosts στο Discover</li>
                 <li>✓ Advanced filters & profile views statistics</li>
                 <li>✓ Read receipts στα μηνύματα</li>
@@ -240,34 +210,18 @@ export function WorkerBillingSection() {
               onClick={upgradeToPremium}
               className="rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-amber-600/25 hover:bg-amber-700"
             >
-              Αναβάθμιση
+              Ξεκλείδωσε για πάντα
             </button>
           </div>
         </div>
       )}
-
-      {/* ----- Credits balance ----- */}
-      <div className="rounded-2xl bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 p-6 text-white shadow-lg">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-semibold text-white/70">Τα credits σου</p>
-            <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-4xl font-extrabold tabular-nums">{balance}</span>
-              <span className="text-lg">💎</span>
-            </div>
-            <p className="text-[11px] text-white/70">
-              Χρησιμοποίησέ τα για AI CV, optimization, ή boost στο Discover
-            </p>
-          </div>
-        </div>
-      </div>
 
       {/* ----- AI Tools ----- */}
       <div className="rounded-2xl border border-gray-200 bg-white p-5">
         <p className="text-xs font-bold uppercase tracking-wider text-gray-500">🤖 AI Εργαλεία</p>
         <p className="mt-1 text-xs text-gray-500">
           Φτιάξε επαγγελματικό CV ή βελτίωσε το προφίλ σου με τη βοήθεια AI.
-          {isPremium ? ' (δωρεάν για Premium)' : ''}
+          {isPremium ? '' : ' Διαθέσιμα με Premium.'}
         </p>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -284,7 +238,7 @@ export function WorkerBillingSection() {
                 Δημιουργία πλήρους βιογραφικού από τα στοιχεία προφίλ.
               </p>
               <span className="mt-1 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 ring-1 ring-amber-200">
-                {isPremium ? 'Δωρεάν για Premium' : '5 credits 💎'}
+                {isPremium ? 'Ενεργό' : 'Μόνο Premium ✨'}
               </span>
             </div>
             {running === 'cv' && (
@@ -305,7 +259,7 @@ export function WorkerBillingSection() {
                 Βελτίωση bio με keywords για να σε βρίσκουν πιο εύκολα οι businesses.
               </p>
               <span className="mt-1 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 ring-1 ring-amber-200">
-                {isPremium ? 'Δωρεάν για Premium' : '3 credits 💎'}
+                {isPremium ? 'Ενεργό' : 'Μόνο Premium ✨'}
               </span>
             </div>
             {running === 'opt' && (
@@ -351,7 +305,7 @@ export function WorkerBillingSection() {
                       onClick={() => runAi('/workers/ai/cv-regenerate', 'cv')}
                       className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-800 hover:bg-amber-100 disabled:opacity-50"
                     >
-                      {running === 'cv' ? '...' : '🔄 Ξανά'} <span className="ml-0.5 opacity-70">({isPremium ? 'δωρεάν' : '1 💎'})</span>
+                      {running === 'cv' ? '...' : '🔄 Ξανά'}
                     </button>
                     <button
                       type="button"
@@ -428,7 +382,7 @@ export function WorkerBillingSection() {
         <p className="text-xs font-bold uppercase tracking-wider text-gray-500">🚀 Boost ορατότητας</p>
         <p className="mt-1 text-xs text-gray-500">
           Εμφανίσου πρώτος στις κάρτες των businesses ή στους applicants μιας αγγελίας.
-          {isPremium ? ' (απεριόριστα για Premium)' : ''}
+          {isPremium ? ' (απεριόριστα για Premium)' : ' Διαθέσιμο με Premium.'}
         </p>
 
         <button
@@ -444,62 +398,15 @@ export function WorkerBillingSection() {
             </p>
           </div>
           <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-blue-700 ring-1 ring-blue-200">
-            {isPremium ? 'Δωρεάν' : '2 💎'}
+            {isPremium ? 'Ενεργό' : 'Μόνο Premium ✨'}
           </span>
         </button>
       </div>
 
-      {/* ----- Buy more credits ----- */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-5">
-        <p className="text-xs font-bold uppercase tracking-wider text-gray-500">💎 Αγορά credits</p>
-        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {packages.map((pkg) => (
-            <button
-              key={pkg.id}
-              type="button"
-              onClick={() => onBuy(pkg.id)}
-              disabled={buying !== null}
-              className="relative rounded-xl border border-gray-200 bg-white p-3 text-center transition-all hover:border-blue-300 hover:shadow-sm disabled:opacity-50"
-            >
-              <p className="text-xl font-extrabold text-gray-900">{pkg.credits}</p>
-              <p className="text-[10px] text-gray-500">credits</p>
-              <p className="mt-1 text-sm font-bold text-gray-900">{pkg.priceDisplay}</p>
-              {buying === pkg.id && (
-                <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/80">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-                </div>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ----- Recent transactions ----- */}
-      {history.length > 0 && (
-        <div className="rounded-2xl border border-gray-200 bg-white p-5">
-          <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Τελευταίες κινήσεις</p>
-          <ul className="mt-3 divide-y divide-gray-100">
-            {history.slice(0, 8).map((t: any) => (
-              <li key={t.id} className="flex items-center justify-between gap-3 py-2 text-xs">
-                <div className="min-w-0 flex-1 truncate">
-                  <p className="text-sm text-gray-900 truncate">{t.description}</p>
-                  <p className="text-[10px] text-gray-500">
-                    {new Date(t.created_at).toLocaleString('el-GR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                </div>
-                <span className={`flex-shrink-0 font-bold tabular-nums ${t.amount > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  {t.amount > 0 ? '+' : ''}{t.amount} 💎
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       {/* Bottom note */}
       <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-xs text-emerald-900">
-        💚 <strong>Η εύρεση εργασίας είναι 100% δωρεάν.</strong> Όλα τα credits/Premium είναι
-        προαιρετικά — για να ξεχωρίσεις, όχι για να βρεις δουλειά. Μπορείς πάντα να χρησιμοποιείς
+        💚 <strong>Η εύρεση εργασίας είναι 100% δωρεάν.</strong> Το Premium είναι
+        προαιρετικό — για να ξεχωρίσεις, όχι για να βρεις δουλειά. Μπορείς πάντα να χρησιμοποιείς
         το StaffNow χωρίς να πληρώσεις τίποτα. {' '}
         <Link href="/pricing" className="font-bold underline">Δες όλα τα πλάνα →</Link>
       </div>

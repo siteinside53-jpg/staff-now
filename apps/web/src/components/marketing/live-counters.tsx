@@ -12,7 +12,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://staffnow-api-produc
  */
 const DEV_DEMO_STATS =
   process.env.NODE_ENV !== 'production'
-    ? { totalUsers: 107, totalJobs: 10, totalMatches: 5, totalBusinesses: 29 }
+    ? { totalUsers: 130, totalJobs: 10, totalMatches: 6, totalBusinesses: 34 }
     : null;
 
 interface Counter {

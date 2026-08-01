@@ -2,12 +2,15 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || 'https://staffnow-api-production.siteinside53.workers.dev';
 
 /** Πόσες κάρτες μπορεί να δει ο επισκέπτης πριν το κλείδωμα εγγραφής. */
 const FREE_SWIPES = 3;
+
+type Mode = 'jobs' | 'workers';
 
 interface Job {
   id: string;
@@ -27,14 +30,28 @@ interface Job {
   roles?: string[];
 }
 
-/** Η κύρια εικόνα της κάρτας: cover φωτογραφία → λογότυπο → καμία. */
+interface Worker {
+  user_id: string;
+  full_name: string;
+  photo_url: string | null;
+  city: string | null;
+  region: string | null;
+  years_of_experience: number | null;
+  availability: string | null;
+  employment_type: string | null;
+  verified?: number | boolean;
+  bio?: string | null;
+  roles?: string[];
+}
+
+/** Η κύρια εικόνα της κάρτας αγγελίας: cover φωτογραφία → λογότυπο → καμία. */
 function heroImage(j: Job): string | null {
   return j.company_cover_photo || j.company_logo || null;
 }
 
-/** Αγγελίες με εικόνα πρώτες, μετά οι υπόλοιπες (σταθερή σειρά ανά ημερομηνία). */
-function withImagesFirst(list: Job[]): Job[] {
-  return [...list].sort((a, b) => (heroImage(b) ? 1 : 0) - (heroImage(a) ? 1 : 0));
+/** Στοιχεία με εικόνα πρώτα, μετά τα υπόλοιπα (σταθερή σειρά). */
+function withImagesFirst<T>(list: T[], img: (x: T) => string | null): T[] {
+  return [...list].sort((a, b) => (img(b) ? 1 : 0) - (img(a) ? 1 : 0));
 }
 
 /**
@@ -42,7 +59,7 @@ function withImagesFirst(list: Job[]): Job[] {
  * Το `process.env.NODE_ENV !== 'production'` γίνεται tree-shake στο production build,
  * οπότε ΠΟΤΕ δεν φτάνει στους πραγματικούς χρήστες — εκεί δείχνει μόνο πραγματικά.
  */
-const DEV_DEMO: Job[] =
+const DEV_DEMO_JOBS: Job[] =
   process.env.NODE_ENV !== 'production'
     ? [
         { id: 'demo-1', title: 'Σερβιτόρος/α', city: 'Μύκονος', region: 'Κυκλάδες', employment_type: 'seasonal', salary_min: 1200, salary_max: 1500, salary_type: 'monthly', housing_provided: 1, meals_provided: 1, created_at: new Date(Date.now() - 2 * 3600e3).toISOString(), display_company_name: 'Sunset Beach Bar', company_cover_photo: 'https://images.unsplash.com/photo-1544148103-0773bf10d330?w=600&h=400&fit=crop', roles: ['waiter'] },
@@ -53,12 +70,31 @@ const DEV_DEMO: Job[] =
       ]
     : [];
 
+const DEV_DEMO_WORKERS: Worker[] =
+  process.env.NODE_ENV !== 'production'
+    ? [
+        { user_id: 'demo-w1', full_name: 'Μαρία Κ.', photo_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=600&fit=crop', city: 'Μύκονος', region: 'Κυκλάδες', years_of_experience: 5, availability: 'immediate', employment_type: 'seasonal', verified: 1, roles: ['waiter', 'bartender'] },
+        { user_id: 'demo-w2', full_name: 'Γιώργος Π.', photo_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=600&fit=crop', city: 'Αθήνα', region: 'Αττική', years_of_experience: 8, availability: 'within_7_days', employment_type: 'full_time', verified: 1, roles: ['chef'] },
+        { user_id: 'demo-w3', full_name: 'Ελένη Δ.', photo_url: null, city: 'Θεσσαλονίκη', region: 'Θεσσαλονίκη', years_of_experience: 2, availability: 'part_time', employment_type: 'part_time', verified: 0, roles: ['retail_seller'] },
+        { user_id: 'demo-w4', full_name: 'Νίκος Α.', photo_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=600&fit=crop', city: 'Πάτρα', region: 'Αχαΐα', years_of_experience: 3, availability: 'immediate', employment_type: 'full_time', verified: 0, roles: ['barista'] },
+        { user_id: 'demo-w5', full_name: 'Σοφία Μ.', photo_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&h=600&fit=crop', city: 'Χανιά', region: 'Κρήτη', years_of_experience: 6, availability: 'seasonal', employment_type: 'seasonal', verified: 1, roles: ['receptionist', 'housekeeping'] },
+      ]
+    : [];
+
 const EMPLOYMENT_LABELS: Record<string, string> = {
   full_time: 'Πλήρης',
   part_time: 'Μερική',
   seasonal: 'Σεζόν',
   contract: 'Σύμβαση',
   temporary: 'Προσωρινή',
+};
+
+const AVAILABILITY_LABELS: Record<string, string> = {
+  immediate: 'Άμεσα διαθέσιμος/η',
+  within_7_days: 'Εντός 7 ημερών',
+  seasonal: 'Εποχιακά',
+  part_time: 'Μερική απασχόληση',
+  full_time: 'Πλήρης απασχόληση',
 };
 
 function timeAgo(iso: string): string {
@@ -85,15 +121,103 @@ function salaryText(j: Job): string | null {
   return `${j.salary_min ?? j.salary_max} ${suffix}`;
 }
 
-function initials(name?: string | null): string {
+function initials(name?: string | null, fallback = '💼'): string {
   const n = (name || '').trim();
-  if (!n) return '💼';
+  if (!n) return fallback;
   const parts = n.split(/\s+/);
-  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
+  return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || fallback;
+}
+
+function roleLabel(role: string): string {
+  return WORKER_JOB_ROLE_LABELS_EL[role] || role;
+}
+
+/** Ενιαίο μοντέλο κάρτας ώστε το ίδιο JSX να δείχνει και αγγελία και προφίλ. */
+interface CardView {
+  hero: string | null;
+  heroFallback: string;
+  heroGradient: string;
+  /** `contain` δείχνει ολόκληρη τη φωτογραφία (προφίλ εργαζομένων) χωρίς κόψιμο. */
+  heroFit: 'cover' | 'contain';
+  heroHeight: string;
+  badgeLeft: { icon: string; text: string; tone: string } | null;
+  badgeRight: string | null;
+  avatar: string | null;
+  avatarFallback: string;
+  overlayTitle: string;
+  overlaySub: string;
+  title: string;
+  highlight: { icon: string; text: string } | null;
+  pills: { text: string; cls: string }[];
+}
+
+function jobToCard(j: Job): CardView {
+  const pills: CardView['pills'] = [];
+  if (j.housing_provided) pills.push({ text: '🏠 Στέγαση', cls: 'bg-purple-50 text-purple-700' });
+  if (j.meals_provided) pills.push({ text: '🍽️ Γεύματα', cls: 'bg-emerald-50 text-emerald-700' });
+  const salary = salaryText(j);
+  return {
+    hero: heroImage(j),
+    heroFallback: initials(j.display_company_name),
+    heroGradient: 'from-blue-500 to-indigo-600',
+    heroFit: 'cover',
+    heroHeight: 'h-44',
+    badgeLeft: { icon: '🕒', text: timeAgo(j.created_at), tone: 'text-amber-700' },
+    badgeRight: j.employment_type ? EMPLOYMENT_LABELS[j.employment_type] || null : null,
+    avatar: j.company_logo || null,
+    avatarFallback: initials(j.display_company_name),
+    overlayTitle: j.display_company_name || 'Επιχείρηση',
+    overlaySub: [j.city, j.region].filter(Boolean).join(' · ') || 'Ελλάδα',
+    title: j.title,
+    highlight: salary ? { icon: '💶', text: salary } : null,
+    pills,
+  };
+}
+
+function workerToCard(w: Worker): CardView {
+  const roles = w.roles || [];
+  const years = w.years_of_experience || 0;
+  const primaryRole = roles[0];
+  const employmentLabel = w.employment_type ? EMPLOYMENT_LABELS[w.employment_type] : undefined;
+  const availabilityLabel = w.availability ? AVAILABILITY_LABELS[w.availability] : undefined;
+  const pills: CardView['pills'] = roles
+    .slice(1, 3)
+    .map((r) => ({ text: roleLabel(r), cls: 'bg-blue-50 text-blue-700' }));
+  if (employmentLabel) {
+    pills.push({ text: employmentLabel, cls: 'bg-gray-100 text-gray-700' });
+  }
+  return {
+    hero: w.photo_url,
+    heroFallback: initials(w.full_name, '👤'),
+    heroGradient: 'from-emerald-500 to-teal-600',
+    heroFit: 'contain',
+    heroHeight: 'h-64',
+    badgeLeft: availabilityLabel
+      ? {
+          icon: w.availability === 'immediate' ? '⚡' : '🗓️',
+          text: availabilityLabel,
+          tone: w.availability === 'immediate' ? 'text-emerald-700' : 'text-gray-700',
+        }
+      : null,
+    badgeRight: w.verified ? '✓ Επαληθευμένος' : null,
+    avatar: null,
+    avatarFallback: initials(w.full_name, '👤'),
+    overlayTitle: w.full_name || 'Εργαζόμενος',
+    overlaySub: [w.city, w.region].filter(Boolean).join(' · ') || 'Ελλάδα',
+    title: primaryRole ? roleLabel(primaryRole) : 'Εργαζόμενος',
+    highlight: years > 0
+      ? { icon: '⭐', text: `${years} ${years === 1 ? 'χρόνος' : 'χρόνια'} εμπειρία` }
+      : null,
+    pills,
+  };
 }
 
 export function SwipeTeaser() {
-  const [jobs, setJobs] = useState<Job[]>(() => withImagesFirst(DEV_DEMO));
+  const [mode, setMode] = useState<Mode>('jobs');
+  const [jobs, setJobs] = useState<Job[]>(() => withImagesFirst(DEV_DEMO_JOBS, heroImage));
+  const [workers, setWorkers] = useState<Worker[]>(() =>
+    withImagesFirst(DEV_DEMO_WORKERS, (w) => w.photo_url)
+  );
   const [index, setIndex] = useState(0);
   const [seen, setSeen] = useState(0);
   const [gated, setGated] = useState(false);
@@ -102,33 +226,59 @@ export function SwipeTeaser() {
   const startX = useRef<number | null>(null);
 
   // Πραγματικά δεδομένα από το API (στο production). Στο localhost μπλοκάρει το CORS
-  // και κρατάμε το DEV_DEMO ώστε να φαίνεται το UX τοπικά.
+  // και κρατάμε τα DEV_DEMO ώστε να φαίνεται το UX τοπικά.
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      try {
-        const res = await fetch(`${API_BASE}/public/jobs?limit=30`);
-        if (!res.ok) return;
-        const json = await res.json();
-        const data: Job[] = json?.data ?? [];
-        if (!cancelled && data.length > 0) {
-          setJobs(withImagesFirst(data)); // αγγελίες με εικόνα πρώτες
-          setIndex(0);
-        }
-      } catch {
-        /* κρατάμε το DEV_DEMO τοπικά· στο prod απλά δεν εμφανίζεται */
-      }
+      const [jobsRes, workersRes] = await Promise.allSettled([
+        fetch(`${API_BASE}/public/jobs?limit=30`).then((r) => (r.ok ? r.json() : null)),
+        fetch(`${API_BASE}/public/workers?limit=30`).then((r) => (r.ok ? r.json() : null)),
+      ]);
+      if (cancelled) return;
+
+      const jobData: Job[] =
+        jobsRes.status === 'fulfilled' ? jobsRes.value?.data ?? [] : [];
+      const workerData: Worker[] =
+        workersRes.status === 'fulfilled' ? workersRes.value?.data ?? [] : [];
+
+      if (jobData.length > 0) setJobs(withImagesFirst(jobData, heroImage));
+      if (workerData.length > 0) setWorkers(withImagesFirst(workerData, (w) => w.photo_url));
+
+      // Αν δεν υπάρχουν αγγελίες αλλά υπάρχουν προφίλ, ξεκινάμε από τα προφίλ.
+      if (jobData.length === 0 && workerData.length > 0) setMode('workers');
+      setIndex(0);
     })();
     return () => { cancelled = true; };
   }, []);
 
-  const total = jobs.length;
-  const current = jobs[index];
-  const next = jobs[index + 1];
+  const cards: CardView[] = useMemo(
+    () => (mode === 'jobs' ? jobs.map(jobToCard) : workers.map(workerToCard)),
+    [mode, jobs, workers]
+  );
 
-  const remaining = useMemo(() => Math.max(total - seen, 0), [total, seen]);
+  const total = cards.length;
+  const current = cards[index];
+  const next = cards[index + 1];
+  const remaining = Math.max(total - seen, 0);
 
-  if (total === 0) return null; // κανένα fake — κρύβεται αν δεν υπάρχουν δεδομένα
+  const hasJobs = jobs.length > 0;
+  const hasWorkers = workers.length > 0;
+  const showToggle = hasJobs && hasWorkers;
+
+  // κανένα fake — κρύβεται εντελώς αν δεν υπάρχουν δεδομένα
+  if (!hasJobs && !hasWorkers) return null;
+  if (total === 0) return null;
+
+  function switchMode(m: Mode) {
+    if (m === mode) return;
+    setMode(m);
+    setIndex(0);
+    setSeen(0);
+    setGated(false);
+    setDrag(0);
+    setLeaving(null);
+    startX.current = null;
+  }
 
   function commit(dir: 'left' | 'right') {
     if (leaving) return;
@@ -167,6 +317,7 @@ export function SwipeTeaser() {
   const rotate = drag / 18;
   const likeOpacity = Math.min(Math.max(drag / 90, 0), 1);
   const nopeOpacity = Math.min(Math.max(-drag / 90, 0), 1);
+  const isJobs = mode === 'jobs';
 
   return (
     <section className="bg-gray-950 py-16 sm:py-24">
@@ -178,12 +329,48 @@ export function SwipeTeaser() {
               🔥 Δοκίμασέ το τώρα
             </span>
             <h2 className="mt-5 text-3xl font-extrabold text-white sm:text-4xl leading-tight">
-              Κάνε swipe σε πραγματικές θέσεις
+              {isJobs ? 'Κάνε swipe σε πραγματικές θέσεις' : 'Κάνε swipe σε πραγματικά προφίλ'}
             </h2>
             <p className="mt-4 text-lg text-gray-400 leading-relaxed max-w-md mx-auto lg:mx-0">
-              Δες τι υπάρχει αυτή τη στιγμή κοντά σου. Swipe δεξιά αν σ&apos;αρέσει,
-              αριστερά για πάσο. Χωρίς εγγραφή — μέχρι να θες να στείλεις ενδιαφέρον.
+              {isJobs
+                ? 'Δες τι υπάρχει αυτή τη στιγμή κοντά σου. Swipe δεξιά αν σ\u2019αρέσει, αριστερά για πάσο. Χωρίς εγγραφή — μέχρι να θες να στείλεις ενδιαφέρον.'
+                : 'Δες ποιοι είναι διαθέσιμοι αυτή τη στιγμή κοντά σου. Swipe δεξιά αν σου κάνει, αριστερά για πάσο. Χωρίς εγγραφή — μέχρι να θες να επικοινωνήσεις.'}
             </p>
+
+            {/* Segmented control — ψάχνω εργασία / ψάχνω προσωπικό */}
+            {showToggle && (
+              <div
+                role="tablist"
+                aria-label="Τι ψάχνεις"
+                className="mt-6 inline-flex rounded-2xl bg-white/5 p-1 ring-1 ring-white/10"
+              >
+                <button
+                  role="tab"
+                  aria-selected={isJobs}
+                  onClick={() => switchMode('jobs')}
+                  className={`whitespace-nowrap rounded-xl px-3 py-2.5 text-xs font-bold transition sm:px-5 sm:text-sm ${
+                    isJobs
+                      ? 'bg-white text-gray-900 shadow'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  🔎 Ψάχνω εργασία
+                </button>
+                <button
+                  role="tab"
+                  aria-selected={!isJobs}
+                  onClick={() => switchMode('workers')}
+                  className={`whitespace-nowrap rounded-xl px-3 py-2.5 text-xs font-bold transition sm:px-5 sm:text-sm ${
+                    !isJobs
+                      ? 'bg-white text-gray-900 shadow'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  🏢 Ψάχνω προσωπικό
+                </button>
+              </div>
+            )}
+
             <div className="mt-6 flex items-center justify-center gap-6 lg:justify-start text-sm text-gray-500">
               <span>👉 Σύρε την κάρτα ή χρησιμοποίησε τα κουμπιά</span>
             </div>
@@ -197,7 +384,7 @@ export function SwipeTeaser() {
             )}
 
             {gated ? (
-              <GateCard total={total} seen={seen} remaining={remaining} />
+              <GateCard mode={mode} total={total} seen={seen} remaining={remaining} />
             ) : current ? (
               <div
                 onPointerDown={onPointerDown}
@@ -227,51 +414,68 @@ export function SwipeTeaser() {
                 </div>
 
                 <div className="flex h-full flex-col">
-                  {/* Hero εικόνα αγγελίας (cover → logo → χρωματιστό fallback) */}
-                  <div className="relative h-44 w-full flex-shrink-0 overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600">
-                    {heroImage(current) ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={heroImage(current)!}
-                        alt=""
-                        draggable={false}
-                        className="h-full w-full object-cover"
-                      />
+                  {/* Hero εικόνα (φωτογραφία → χρωματιστό fallback) */}
+                  <div className={`relative w-full flex-shrink-0 overflow-hidden bg-gradient-to-br ${current.heroGradient} ${current.heroHeight}`}>
+                    {current.hero ? (
+                      <>
+                        {current.heroFit === 'contain' && (
+                          // Θολό γέμισμα πίσω από τη φωτογραφία ώστε να μη μένουν κενές λωρίδες.
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={current.hero}
+                            alt=""
+                            aria-hidden
+                            draggable={false}
+                            className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-xl"
+                          />
+                        )}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={current.hero}
+                          alt=""
+                          draggable={false}
+                          className={`relative h-full w-full ${current.heroFit === 'contain' ? 'object-contain' : 'object-cover'}`}
+                        />
+                      </>
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-5xl font-black text-white/90">
-                        {initials(current.display_company_name)}
+                        {current.heroFallback}
                       </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-transparent" />
 
                     {/* Urgency badges πάνω στην εικόνα */}
                     <div className="absolute left-3 top-3 flex flex-wrap items-center gap-2">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-xs font-bold text-amber-700 shadow-sm">
-                        🕒 {timeAgo(current.created_at)}
-                      </span>
-                      {current.employment_type && EMPLOYMENT_LABELS[current.employment_type] && (
+                      {current.badgeLeft && (
+                        <span className={`inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-xs font-bold shadow-sm ${current.badgeLeft.tone}`}>
+                          {current.badgeLeft.icon} {current.badgeLeft.text}
+                        </span>
+                      )}
+                      {current.badgeRight && (
                         <span className="rounded-full bg-white/95 px-2.5 py-1 text-xs font-bold text-blue-700 shadow-sm">
-                          {EMPLOYMENT_LABELS[current.employment_type]}
+                          {current.badgeRight}
                         </span>
                       )}
                     </div>
 
-                    {/* Επωνυμία + περιοχή κάτω αριστερά */}
+                    {/* Όνομα + περιοχή κάτω αριστερά */}
                     <div className="absolute inset-x-3 bottom-2.5 flex items-center gap-2">
-                      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white text-[11px] font-black text-blue-700 shadow">
-                        {current.company_logo ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={current.company_logo} alt="" className="h-full w-full object-cover" />
-                        ) : (
-                          initials(current.display_company_name)
-                        )}
-                      </div>
+                      {(current.avatar || isJobs) && (
+                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white text-[11px] font-black text-blue-700 shadow">
+                          {current.avatar ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={current.avatar} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            current.avatarFallback
+                          )}
+                        </div>
+                      )}
                       <div className="min-w-0">
                         <p className="truncate text-sm font-bold text-white drop-shadow">
-                          {current.display_company_name || 'Επιχείρηση'}
+                          {current.overlayTitle}
                         </p>
                         <p className="truncate text-[11px] text-white/80 drop-shadow">
-                          {[current.city, current.region].filter(Boolean).join(' · ') || 'Ελλάδα'}
+                          {current.overlaySub}
                         </p>
                       </div>
                     </div>
@@ -284,17 +488,16 @@ export function SwipeTeaser() {
                     </h3>
 
                     <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                      {salaryText(current) && (
+                      {current.highlight && (
                         <span className="inline-flex items-center gap-1 rounded-xl bg-gray-900 px-3 py-1.5 text-base font-bold text-white">
-                          💶 {salaryText(current)}
+                          {current.highlight.icon} {current.highlight.text}
                         </span>
                       )}
-                      {current.housing_provided ? (
-                        <span className="rounded-full bg-purple-50 px-2.5 py-1 text-xs font-bold text-purple-700">🏠 Στέγαση</span>
-                      ) : null}
-                      {current.meals_provided ? (
-                        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">🍽️ Γεύματα</span>
-                      ) : null}
+                      {current.pills.map((p) => (
+                        <span key={p.text} className={`rounded-full px-2.5 py-1 text-xs font-bold ${p.cls}`}>
+                          {p.text}
+                        </span>
+                      ))}
                     </div>
 
                     <div className="mt-auto flex items-center justify-between pt-5">
@@ -327,26 +530,44 @@ export function SwipeTeaser() {
   );
 }
 
-function GateCard({ total, seen, remaining }: { total: number; seen: number; remaining: number }) {
+function GateCard({
+  mode,
+  total,
+  seen,
+  remaining,
+}: {
+  mode: Mode;
+  total: number;
+  seen: number;
+  remaining: number;
+}) {
+  const isJobs = mode === 'jobs';
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl bg-gradient-to-br from-blue-600 to-indigo-700 p-8 text-center shadow-2xl">
       <div className="text-5xl">🔥</div>
       <h3 className="mt-4 text-2xl font-extrabold text-white leading-tight">
-        Είδες {seen} από {total} θέσεις
+        Είδες {seen} από {total} {isJobs ? 'θέσεις' : 'προφίλ'}
       </h3>
       <p className="mt-2 text-blue-100">
         {remaining > 0
-          ? `Άλλες ${remaining} θέσεις σε περιμένουν. Κάνε εγγραφή για να τις δεις όλες και να στείλεις ενδιαφέρον.`
-          : 'Κάνε εγγραφή για να στείλεις ενδιαφέρον και να σε βρίσκουν οι επιχειρήσεις.'}
+          ? isJobs
+            ? `Άλλες ${remaining} θέσεις σε περιμένουν. Κάνε εγγραφή για να τις δεις όλες και να στείλεις ενδιαφέρον.`
+            : `Άλλα ${remaining} προφίλ σε περιμένουν. Κάνε εγγραφή για να τα δεις όλα και να επικοινωνήσεις.`
+          : isJobs
+            ? 'Κάνε εγγραφή για να στείλεις ενδιαφέρον και να σε βρίσκουν οι επιχειρήσεις.'
+            : 'Κάνε εγγραφή για να επικοινωνήσεις με τους υποψήφιους και να ανεβάσεις αγγελία.'}
       </p>
       <Link
-        href="/auth/register?role=worker"
+        href={isJobs ? '/auth/register?role=worker' : '/auth/register?role=business'}
         className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-white px-6 py-3.5 text-base font-bold text-blue-700 shadow-lg transition hover:bg-blue-50"
       >
         Δωρεάν εγγραφή →
       </Link>
-      <Link href="/find-job" className="mt-3 text-sm font-medium text-blue-100 underline-offset-2 hover:underline">
-        Δες όλες τις θέσεις
+      <Link
+        href={isJobs ? '/find-job' : '/find-staff'}
+        className="mt-3 text-sm font-medium text-blue-100 underline-offset-2 hover:underline"
+      >
+        {isJobs ? 'Δες όλες τις θέσεις' : 'Δες όλα τα προφίλ'}
       </Link>
     </div>
   );

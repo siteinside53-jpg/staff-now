@@ -119,7 +119,7 @@ export function UpgradeModal({ currentPlanId, currentPeriod, onClose, onManualTr
           <div>
             <h2 className="text-xl font-bold text-gray-900">Επιλέξτε πλάνο</h2>
             <p className="mt-1 text-xs text-gray-500">
-              Όλες οι τιμές είναι σε ευρώ και περιλαμβάνουν ΦΠΑ 24%. Σύγκρινε χαρακτηριστικά πλάνων.
+              Οι τιμές είναι καθαρές (χωρίς ΦΠΑ) — προστίθεται ΦΠΑ 24%. Σύγκρινε χαρακτηριστικά πλάνων.
             </p>
           </div>
           <button
@@ -219,6 +219,9 @@ export function UpgradeModal({ currentPlanId, currentPeriod, onClose, onManualTr
                             {fmtMoney(monthlyHeadlineCents)}
                           </span>
                           <span className="ml-1 text-xs font-medium text-gray-500">/ μήνα</span>
+                        </p>
+                        <p className="mt-1 text-[11px] text-gray-500">
+                          +ΦΠΑ 24% · {fmtMoney(Math.round(monthlyHeadlineCents * 1.24))} με ΦΠΑ
                         </p>
                         {period === 'yearly' && yearlyTotalCents > 0 && (
                           <p className="mt-1 text-[11px] text-gray-500">
