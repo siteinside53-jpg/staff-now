@@ -137,9 +137,12 @@ interface CardView {
   hero: string | null;
   heroFallback: string;
   heroGradient: string;
-  /** `contain` δείχνει ολόκληρη τη φωτογραφία (προφίλ εργαζομένων) χωρίς κόψιμο. */
-  heroFit: 'cover' | 'contain';
-  heroHeight: string;
+  /**
+   * Σημείο εστίασης του crop. Η κάρτα έχει πάντα τις ίδιες διαστάσεις και η
+   * εικόνα μπαίνει με `object-cover`, οπότε ποτέ δεν παραμορφώνεται — απλώς
+   * κόβεται. Στα προφίλ εστιάζουμε ψηλότερα, εκεί που βρίσκεται το πρόσωπο.
+   */
+  heroPosition: string;
   badgeLeft: { icon: string; text: string; tone: string } | null;
   badgeRight: string | null;
   avatar: string | null;
@@ -160,8 +163,7 @@ function jobToCard(j: Job): CardView {
     hero: heroImage(j),
     heroFallback: initials(j.display_company_name),
     heroGradient: 'from-blue-500 to-indigo-600',
-    heroFit: 'cover',
-    heroHeight: 'h-44',
+    heroPosition: 'object-center',
     badgeLeft: { icon: '🕒', text: timeAgo(j.created_at), tone: 'text-amber-700' },
     badgeRight: j.employment_type ? EMPLOYMENT_LABELS[j.employment_type] || null : null,
     avatar: j.company_logo || null,
@@ -190,8 +192,9 @@ function workerToCard(w: Worker): CardView {
     hero: w.photo_url,
     heroFallback: initials(w.full_name, '👤'),
     heroGradient: 'from-emerald-500 to-teal-600',
-    heroFit: 'contain',
-    heroHeight: 'h-64',
+    // Σε πορτραίτα το πρόσωπο πέφτει στο πάνω τρίτο· το 28% το κρατά ολόκληρο
+    // στο κάδρο αντί να κόβεται το κεφάλι από ένα κεντραρισμένο crop.
+    heroPosition: 'object-[50%_28%]',
     badgeLeft: availabilityLabel
       ? {
           icon: w.availability === 'immediate' ? '⚡' : '🗓️',
@@ -415,28 +418,15 @@ export function SwipeTeaser() {
 
                 <div className="flex h-full flex-col">
                   {/* Hero εικόνα (φωτογραφία → χρωματιστό fallback) */}
-                  <div className={`relative w-full flex-shrink-0 overflow-hidden bg-gradient-to-br ${current.heroGradient} ${current.heroHeight}`}>
+                  <div className={`relative h-52 w-full flex-shrink-0 overflow-hidden bg-gradient-to-br ${current.heroGradient}`}>
                     {current.hero ? (
-                      <>
-                        {current.heroFit === 'contain' && (
-                          // Θολό γέμισμα πίσω από τη φωτογραφία ώστε να μη μένουν κενές λωρίδες.
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={current.hero}
-                            alt=""
-                            aria-hidden
-                            draggable={false}
-                            className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-xl"
-                          />
-                        )}
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={current.hero}
-                          alt=""
-                          draggable={false}
-                          className={`relative h-full w-full ${current.heroFit === 'contain' ? 'object-contain' : 'object-cover'}`}
-                        />
-                      </>
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={current.hero}
+                        alt=""
+                        draggable={false}
+                        className={`h-full w-full object-cover ${current.heroPosition}`}
+                      />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-5xl font-black text-white/90">
                         {current.heroFallback}
