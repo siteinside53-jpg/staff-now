@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth';
 import { checkActiveMatchesLimit } from '../middleware/subscription';
 import { success } from '../lib/response';
 import { generateId } from '../lib/id';
+import { notifyUser } from '../lib/notify';
 
 const interests = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
 
@@ -223,6 +224,27 @@ interests.post('/like-back/:swiperId', requireAuth, async (c) => {
     .prepare("INSERT INTO notifications (id, user_id, type, title, body, data, created_at) VALUES (?, ?, 'new_match', ?, ?, ?, ?)")
     .bind(generateId('nt'), businessId, `🎉 Νέο match με τον/την ${workerName}`, 'Μπορείτε να ξεκινήσετε συνομιλία!', JSON.stringify({ matchId, convId }), now)
     .run();
+
+  // Off-site notifications (push + email) — best-effort, non-blocking.
+  const convPath = `/dashboard/messages?c=${convId}`;
+  c.executionCtx.waitUntil(
+    Promise.allSettled([
+      notifyUser(c.env, {
+        userId: workerId,
+        title: `🎉 Νέο match με ${bizName}`,
+        body: 'Μπορείτε να ξεκινήσετε συνομιλία!',
+        url: convPath,
+        ctaText: 'Άνοιγμα συνομιλίας',
+      }),
+      notifyUser(c.env, {
+        userId: businessId,
+        title: `🎉 Νέο match με τον/την ${workerName}`,
+        body: 'Μπορείτε να ξεκινήσετε συνομιλία!',
+        url: convPath,
+        ctaText: 'Άνοιγμα συνομιλίας',
+      }),
+    ]),
+  );
 
   return c.json({ success: true, data: { matched: true, matchId, conversationId: convId } });
 });

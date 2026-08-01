@@ -49,10 +49,17 @@ app.use('*', async (c, next) => {
 // The admin dashboard fires ~7 parallel requests per page plus 30s polling,
 // which trips the 60 req/60s global IP limiter. Admin routes are already
 // gated by requireAuth + requireRole('admin'), so exempt them here.
+// NOTE: never `return next()` from a middleware — Hono's `next()` resolves to
+// the Context, not a Response, and returning it makes Hono build a Response
+// from it (status is a method → RangeError → 500). Always `await next()`.
 const globalRl = globalRateLimiter();
-app.use('*', (c, next) =>
-  c.req.path.startsWith('/admin/') ? next() : globalRl(c, next),
-);
+app.use('*', async (c, next) => {
+  if (c.req.path.startsWith('/admin/')) {
+    await next();
+    return;
+  }
+  return globalRl(c, next);
+});
 app.onError(errorHandler);
 
 // Health check

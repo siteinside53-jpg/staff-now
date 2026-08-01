@@ -278,6 +278,23 @@ auth.patch('/me/settings', requireAuth, async (c) => {
   return success(c, updated);
 });
 
+// DELETE /me — permanently delete the authenticated user's account
+auth.delete('/me', requireAuth, async (c) => {
+  const user = c.get('user');
+  const db = c.env.DB;
+
+  // Remove rows that reference users(id) WITHOUT ON DELETE CASCADE first, then
+  // delete the user (every other table cascades). Batched so it's atomic.
+  await db.batch([
+    db.prepare('DELETE FROM credit_transactions WHERE user_id = ?').bind(user.id),
+    db.prepare('DELETE FROM credits WHERE user_id = ?').bind(user.id),
+    db.prepare('UPDATE plan_overrides SET updated_by = NULL WHERE updated_by = ?').bind(user.id),
+    db.prepare('DELETE FROM users WHERE id = ?').bind(user.id),
+  ]);
+
+  return success(c, { message: 'Ο λογαριασμός διαγράφηκε.' });
+});
+
 // POST /forgot-password
 auth.post('/forgot-password', passwordResetRateLimiter, async (c) => {
   const body = await c.req.json();

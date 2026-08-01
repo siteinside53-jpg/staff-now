@@ -83,16 +83,16 @@ notifications.post('/:id/read', requireAuth, async (c) => {
   const db = c.env.DB;
 
   const notification = await db
-    .prepare('SELECT id, user_id, read FROM notifications WHERE id = ?')
+    .prepare('SELECT id, user_id, read_at FROM notifications WHERE id = ?')
     .bind(notificationId)
-    .first<{ id: string; user_id: string; read: number }>();
+    .first<{ id: string; user_id: string; read_at: string | null }>();
 
   if (!notification) {
-    return error(c, 'Η ειδοποίηση δεν βρέθηκε', 404);
+    return error(c, 'NOT_FOUND', 'Η ειδοποίηση δεν βρέθηκε', 404);
   }
 
   if (notification.user_id !== user.id) {
-    return error(c, 'Δεν έχετε πρόσβαση σε αυτή την ειδοποίηση', 403);
+    return error(c, 'FORBIDDEN', 'Δεν έχετε πρόσβαση σε αυτή την ειδοποίηση', 403);
   }
 
   if (notification.read_at) {

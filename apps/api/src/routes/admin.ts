@@ -7,11 +7,31 @@ import { resolveAllPlans, resolvePlan } from '../lib/plans';
 import type { PlanId } from '@staffnow/config';
 import { PLANS } from '@staffnow/config';
 import { hashPassword } from '../lib/password';
+import { notifyUser } from '../lib/notify';
 
 const admin = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
 
-// All routes require admin role
-admin.use('*', requireAuth, requireRole('admin'));
+// All routes require admin role.
+// Exception: the SSE streams authenticate via a ?token= query param because
+// EventSource() can't send custom headers. requireAuth only reads the token
+// from the Authorization header / cookie, so it would always reject them.
+// These two routes verify the token themselves, so we skip the global gate.
+admin.use('*', async (c, next) => {
+  const path = c.req.path;
+  // NOTE: never `return next()` — Hono's `next()` resolves to the Context, not a
+  // Response, and returning it makes Hono build a Response from it (its `status`
+  // is a method, not a number) → RangeError → 500.
+  if (path.endsWith('/security/stream') || path.endsWith('/analytics/stream')) {
+    await next();
+    return;
+  }
+  return requireAuth(c, async () => {
+    // requireAuth ignores what its `next` returns, so surface a 403 from
+    // requireRole on the context instead of letting it get swallowed.
+    const res = await requireRole('admin')(c, next);
+    if (res) c.res = res;
+  });
+});
 
 // =====================================================================
 // Shared analytics queries — used by REST endpoints (/stats,
@@ -1674,16 +1694,26 @@ const NAV_SECTIONS = [
 ] as const;
 type NavSection = (typeof NAV_SECTIONS)[number];
 
+// Stored in D1 (admin_app_state) rather than KV: nav-seen writes on every
+// section open and KV's 1000 writes/day quota was leaving the badges stuck.
 async function loadNavSeen(env: Env): Promise<Record<string, string>> {
   try {
-    const raw = await env.KV.get('admin:nav_seen');
-    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+    const row = await env.DB.prepare(
+      "SELECT value FROM admin_app_state WHERE key = 'nav_seen'",
+    ).first<{ value: string }>();
+    return row?.value ? (JSON.parse(row.value) as Record<string, string>) : {};
   } catch {
     return {};
   }
 }
 async function saveNavSeen(env: Env, state: Record<string, string>) {
-  await env.KV.put('admin:nav_seen', JSON.stringify(state));
+  await env.DB.prepare(
+    `INSERT INTO admin_app_state (key, value, updated_at)
+     VALUES ('nav_seen', ?, datetime('now'))
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+  )
+    .bind(JSON.stringify(state))
+    .run();
 }
 
 admin.get('/nav-counts', async (c) => {
@@ -3566,6 +3596,149 @@ admin.get('/billing/overview', async (c) => {
     failed24h: failed24h?.c || 0,
     pendingTransfers: pendingTransfers?.c || 0,
     refunded30dCents: refunded30d?.s || 0,
+  });
+});
+
+// =====================================================================
+// POST /backfill-digest — one-time recovery digest.
+//
+// Off-site notifications (push/email) went live only recently. Users who
+// received interests ("αιτήματα") or messages BEFORE that never got an
+// off-site alert, so a business could have people interested and never know.
+// This sends ONE catch-up email (+ push if subscribed) per affected user
+// summarising their backlog: how many pending interests + unread messages
+// are waiting.
+//
+// Domain-safe + idempotent:
+//   • one email per user (a digest, not one-per-event),
+//   • throttled under the `backfill_digest_v1` email category with a ~1-year
+//     cooldown, and pre-checked against notification_email_log so a re-run
+//     never re-sends (push included),
+//   • dry-run by DEFAULT — nothing is sent unless ?dryRun=false is passed.
+//
+// Query params: dryRun (default true), windowDays (default 90, 1..365),
+// limit (default 500, 1..2000).
+// =====================================================================
+admin.post('/backfill-digest', async (c) => {
+  const dryRun = c.req.query('dryRun') !== 'false';
+  const windowDays = Math.max(1, Math.min(365, parseInt(c.req.query('windowDays') || '90', 10) || 90));
+  const limit = Math.max(1, Math.min(2000, parseInt(c.req.query('limit') || '500', 10) || 500));
+  const windowExpr = `-${windowDays} day`;
+  const db = c.env.DB;
+
+  const rows = await db
+    .prepare(
+      `WITH biz_pending AS (
+         SELECT bp.user_id AS uid, COUNT(*) AS cnt
+         FROM swipes s
+         JOIN job_listings jl ON jl.id = s.target_id
+         JOIN business_profiles bp ON bp.id = jl.business_id
+         WHERE s.target_type = 'job' AND s.direction = 'like'
+           AND s.created_at >= datetime('now', ?)
+           AND NOT EXISTS (SELECT 1 FROM matches m WHERE m.worker_id = s.swiper_id AND m.business_id = bp.user_id AND m.status = 'active')
+         GROUP BY bp.user_id
+       ),
+       wrk_pending AS (
+         SELECT s.target_id AS uid, COUNT(*) AS cnt
+         FROM swipes s
+         WHERE s.target_type = 'worker' AND s.direction = 'like'
+           AND s.created_at >= datetime('now', ?)
+           AND NOT EXISTS (SELECT 1 FROM matches m WHERE m.worker_id = s.target_id AND m.business_id = s.swiper_id AND m.status = 'active')
+         GROUP BY s.target_id
+       ),
+       pending AS (
+         SELECT uid, SUM(cnt) AS cnt FROM (SELECT * FROM biz_pending UNION ALL SELECT * FROM wrk_pending) GROUP BY uid
+       ),
+       unread AS (
+         SELECT recipient AS uid, COUNT(*) AS cnt FROM (
+           SELECT CASE WHEN m.sender_id = c.worker_id THEN c.business_id ELSE c.worker_id END AS recipient
+           FROM messages m JOIN conversations c ON c.id = m.conversation_id
+           WHERE m.read_at IS NULL
+         ) GROUP BY recipient
+       ),
+       recips AS (SELECT uid FROM pending UNION SELECT uid FROM unread)
+       SELECT u.id AS user_id, u.role AS role, u.email AS email,
+         COALESCE(p.cnt, 0) AS pending_interests,
+         COALESCE(ur.cnt, 0) AS unread_messages
+       FROM recips r
+       JOIN users u ON u.id = r.uid AND u.status = 'active' AND COALESCE(NULLIF(u.email, ''), NULL) IS NOT NULL
+       LEFT JOIN pending p ON p.uid = r.uid
+       LEFT JOIN unread ur ON ur.uid = r.uid
+       ORDER BY (COALESCE(p.cnt, 0) + COALESCE(ur.cnt, 0)) DESC
+       LIMIT ?`,
+    )
+    .bind(windowExpr, windowExpr, limit)
+    .all<{ user_id: string; role: string; email: string; pending_interests: number; unread_messages: number }>();
+
+  const recipients = rows.results || [];
+  const COOLDOWN_MIN = 525_600; // ~1 year — effectively once-only.
+
+  let candidates = 0;
+  let sent = 0;
+  let skipped = 0;
+  let failed = 0;
+  let totalPending = 0;
+  let totalUnread = 0;
+  const sample: Array<Record<string, unknown>> = [];
+
+  for (const r of recipients) {
+    const pending = Number(r.pending_interests) || 0;
+    const unread = Number(r.unread_messages) || 0;
+    if (pending === 0 && unread === 0) continue;
+    candidates++;
+    totalPending += pending;
+    totalUnread += unread;
+
+    const parts: string[] = [];
+    if (pending > 0) parts.push(`${pending} ${pending === 1 ? 'νέο ενδιαφέρον' : 'νέα ενδιαφέροντα'}`);
+    if (unread > 0) parts.push(`${unread} ${unread === 1 ? 'αδιάβαστο μήνυμα' : 'αδιάβαστα μηνύματα'}`);
+    const summary = parts.join(' και ');
+    const title = `Έχετε ${summary} στο StaffNow`;
+    const body = `${summary} περιμένουν την απάντησή σας. Συνδεθείτε για να δείτε ποιος ενδιαφέρεται.`;
+    const path = pending > 0 ? '/dashboard/interests' : '/dashboard/messages';
+    const ctaText = pending > 0 ? 'Δες τα αιτήματα' : 'Δες τα μηνύματα';
+
+    if (dryRun) {
+      if (sample.length < 50) sample.push({ userId: r.user_id, role: r.role, email: r.email, pending, unread, title });
+      continue;
+    }
+
+    try {
+      // Idempotency: if this digest was already sent, skip entirely (incl. push).
+      const already = await db
+        .prepare('SELECT 1 AS x FROM notification_email_log WHERE user_id = ? AND category = ?')
+        .bind(r.user_id, 'backfill_digest_v1')
+        .first();
+      if (already) {
+        skipped++;
+        continue;
+      }
+      await notifyUser(c.env, {
+        userId: r.user_id,
+        title,
+        body,
+        url: path,
+        ctaText,
+        emailCategory: 'backfill_digest_v1',
+        emailCooldownMinutes: COOLDOWN_MIN,
+      });
+      sent++;
+    } catch {
+      failed++;
+    }
+  }
+
+  return success(c, {
+    dryRun,
+    windowDays,
+    limit,
+    candidates,
+    totalPendingInterests: totalPending,
+    totalUnreadMessages: totalUnread,
+    sent,
+    skipped,
+    failed,
+    sample: dryRun ? sample : undefined,
   });
 });
 

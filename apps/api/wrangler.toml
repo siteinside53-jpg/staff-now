@@ -9,10 +9,30 @@ type = "Data"
 globs = ["**/*.ttf"]
 fallthrough = true
 
+# Native Rate Limiting binding (no KV writes). Global limiter: 60 req / 60s per IP.
+# NOTE: unsafe bindings are NOT inherited by named environments, so they are
+# re-declared under [env.staging] and [env.production] with distinct namespace_ids.
+[[unsafe.bindings]]
+name = "RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "1003"
+simple = { limit = 60, period = 60 }
+
 [vars]
 ENVIRONMENT = "development"
 CORS_ORIGIN = "http://localhost:3002,http://localhost:3000,http://127.0.0.1:3002"
 API_URL = "http://localhost:8787"
+# Off-site notifications (Web Push + Email).
+#   VAPID_PUBLIC_KEY  — public key clients subscribe with (must match the web
+#                       app's NEXT_PUBLIC_VAPID_PUBLIC_KEY). Non-secret.
+#   VAPID_SUBJECT     — VAPID contact (mailto: or https URL). Non-secret.
+#   EMAIL_FROM        — verified Resend sender. Non-secret.
+# Secrets (set with `wrangler secret put <NAME>`, never commit):
+#   VAPID_PRIVATE_KEY, EMAIL_API_KEY
+# Generate a VAPID keypair once with: npx web-push generate-vapid-keys
+VAPID_PUBLIC_KEY = ""
+VAPID_SUBJECT = "mailto:no-reply@staffnow.gr"
+EMAIL_FROM = "StaffNow <no-reply@staffnow.gr>"
 
 [[d1_databases]]
 binding = "DB"
@@ -37,7 +57,7 @@ binding = "AI"
 crons = ["15 3 * * *"]
 
 [env.staging]
-vars = { ENVIRONMENT = "staging", CORS_ORIGIN = "https://staging.staffnow.gr", API_URL = "https://api-staging.staffnow.gr" }
+vars = { ENVIRONMENT = "staging", CORS_ORIGIN = "https://staging.staffnow.gr", API_URL = "https://api-staging.staffnow.gr", VAPID_PUBLIC_KEY = "", VAPID_SUBJECT = "mailto:no-reply@staffnow.gr", EMAIL_FROM = "StaffNow <no-reply@staffnow.gr>" }
 
 [[env.staging.d1_databases]]
 binding = "DB"
@@ -52,8 +72,14 @@ bucket_name = "staffnow-uploads-staging"
 binding = "KV"
 id = "YOUR_STAGING_KV_NAMESPACE_ID"
 
+[[env.staging.unsafe.bindings]]
+name = "RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "1002"
+simple = { limit = 60, period = 60 }
+
 [env.production]
-vars = { ENVIRONMENT = "production", CORS_ORIGIN = "https://staffnow.gr,https://www.staffnow.gr,https://staffnow.pages.dev", API_URL = "https://api.staffnow.gr" }
+vars = { ENVIRONMENT = "production", CORS_ORIGIN = "https://staffnow.gr,https://www.staffnow.gr,https://staffnow.pages.dev", API_URL = "https://api.staffnow.gr", VAPID_PUBLIC_KEY = "BNb1lsiiSlXtF3fztALP1F0h9MenWZVqWnWTVQrSUoHuZVkH_-QEE2sXMXg4xs5Xfa4DmFSiO0-rHTCyEBySjMk", VAPID_SUBJECT = "mailto:no-reply@staffnow.gr", EMAIL_FROM = "StaffNow <no-reply@staffnow.gr>" }
 
 [[env.production.d1_databases]]
 binding = "DB"
@@ -70,3 +96,9 @@ id = "817d9666ea2e46288a31b02d6a914a10"
 
 [env.production.ai]
 binding = "AI"
+
+[[env.production.unsafe.bindings]]
+name = "RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "1001"
+simple = { limit = 60, period = 60 }

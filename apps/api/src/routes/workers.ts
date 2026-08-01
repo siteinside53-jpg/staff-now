@@ -9,8 +9,14 @@ import { success, error, paginated } from '../lib/response';
 import { openaiChat } from '../lib/openai';
 import { generateId } from '../lib/id';
 import { recordActivity, getRequestIp, getGeoFromRequest, recordDataChange, computeDiff } from '../lib/activity';
+import { notifyUser } from '../lib/notify';
 
 const workers = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
+
+// D1/SQLite επιτρέπει το πολύ 100 bound variables ανά statement. Όπου χτίζουμε
+// `IN (?, ?, ...)` από λίστα IDs, σπάμε τη λίστα σε batches αυτού του μεγέθους
+// ώστε να μη σκάει «too many SQL variables».
+const SQL_VARS_BATCH = 90;
 
 // ── Deterministic discover matching ───────────────────────────────────
 // role -> κατηγορίες (groups) στις οποίες ανήκει. Ένας ρόλος μπορεί να είναι
@@ -286,6 +292,84 @@ workers.patch(
       .bind(profile.id)
       .all();
 
+    // Phase 2 — announce a newly-matchable worker to businesses that have open
+    // jobs matching the worker's region + role. Fires exactly ONCE, guarded by
+    // `match_announced_at`, so later profile edits never re-notify (domain-safe).
+    const up = updated as Record<string, unknown> | null;
+    const workerRegion = (up?.region as string) || null;
+    const workerRoles = updatedRoles.results
+      .map((r: { role: string }) => r.role)
+      .filter((r): r is string => typeof r === 'string' && r.length > 0);
+    if (up && !up.match_announced_at && workerRegion && workerRoles.length > 0 && up.is_visible !== 0) {
+      // Mark immediately (guarded on NULL) to prevent a double-fire from
+      // concurrent PATCHes before the async matching below runs.
+      await db
+        .prepare(
+          'UPDATE worker_profiles SET match_announced_at = ? WHERE id = ? AND match_announced_at IS NULL',
+        )
+        .bind(now, profile.id)
+        .run();
+
+      const workerName = (up.full_name as string) || 'Νέος υποψήφιος';
+      c.executionCtx.waitUntil(
+        (async () => {
+          try {
+            const ph = workerRoles.map(() => '?').join(', ');
+            const matches = await db
+              .prepare(
+                `SELECT DISTINCT bp.user_id AS user_id
+                 FROM job_listings jl
+                 JOIN job_listing_roles jlr ON jlr.job_listing_id = jl.id
+                 JOIN business_profiles bp ON bp.id = jl.business_id
+                 JOIN users u ON u.id = bp.user_id AND u.status = 'active'
+                 WHERE jl.status = 'published' AND jl.region = ? AND jlr.role IN (${ph})
+                 LIMIT 100`,
+              )
+              .bind(workerRegion, ...workerRoles)
+              .all<{ user_id: string }>();
+
+            const recipients = matches.results || [];
+            if (recipients.length === 0) return;
+
+            const title = `🧑‍💼 Νέος υποψήφιος: ${workerName}`;
+            const notifBody = `${workerRoles[0]} · ${workerRegion}`;
+            const nowTs = new Date().toISOString();
+            const path = '/dashboard/discover';
+
+            await Promise.allSettled(
+              recipients.map(async (r) => {
+                await db
+                  .prepare(
+                    `INSERT INTO notifications (id, user_id, type, title, body, data, created_at)
+                     VALUES (?, ?, 'new_worker', ?, ?, ?, ?)`,
+                  )
+                  .bind(
+                    generateId('nt'),
+                    r.user_id,
+                    title,
+                    notifBody,
+                    JSON.stringify({ workerId: user.id }),
+                    nowTs,
+                  )
+                  .run();
+                await notifyUser(c.env, {
+                  userId: r.user_id,
+                  title,
+                  body: notifBody,
+                  url: path,
+                  ctaText: 'Δες το προφίλ',
+                  emailCategory: 'new_worker',
+                  emailCooldownMinutes: 60,
+                });
+              }),
+            );
+          } catch {
+            /* non-fatal */
+          }
+        })(),
+      );
+    }
+
     // Auto-embed profile for AI matching (fire-and-forget)
     try {
       const rolesList = updatedRoles.results.map((r: any) => r.role);
@@ -475,11 +559,12 @@ workers.get('/discover', requireAuth, requireRole('business'), async (c) => {
       if (j.region) targetRegions.add(j.region);
     }
     const jobIds = (jobRows.results as { id: string }[]).map((j) => j.id);
-    if (jobIds.length > 0) {
-      const ph = jobIds.map(() => '?').join(',');
+    for (let i = 0; i < jobIds.length; i += SQL_VARS_BATCH) {
+      const batch = jobIds.slice(i, i + SQL_VARS_BATCH);
+      const ph = batch.map(() => '?').join(',');
       const roleRows = await db
         .prepare(`SELECT role FROM job_listing_roles WHERE job_listing_id IN (${ph})`)
-        .bind(...jobIds)
+        .bind(...batch)
         .all();
       for (const r of roleRows.results as { role: string }[]) targetRoles.add(r.role);
     }
@@ -530,21 +615,27 @@ workers.get('/discover', requireAuth, requireRole('business'), async (c) => {
   const wpIds = workerRows.map((w) => w.id as string);
   const rolesMap = new Map<string, string[]>();
   const langsMap = new Map<string, { language: string }[]>();
-  if (wpIds.length > 0) {
-    const ph = wpIds.map(() => '?').join(',');
-    const roleRows = await db
-      .prepare(`SELECT worker_profile_id, role FROM worker_profile_roles WHERE worker_profile_id IN (${ph})`)
-      .bind(...wpIds)
-      .all();
+  // D1/SQLite δέχεται max 100 bound variables ανά statement, οπότε σπάμε το
+  // IN (...) σε batches — αλλιώς σκάει «too many SQL variables» μόλις οι
+  // ενεργοί εργαζόμενοι ξεπεράσουν τα 100.
+  for (let i = 0; i < wpIds.length; i += SQL_VARS_BATCH) {
+    const batch = wpIds.slice(i, i + SQL_VARS_BATCH);
+    const ph = batch.map(() => '?').join(',');
+    const [roleRows, langRows] = await Promise.all([
+      db
+        .prepare(`SELECT worker_profile_id, role FROM worker_profile_roles WHERE worker_profile_id IN (${ph})`)
+        .bind(...batch)
+        .all(),
+      db
+        .prepare(`SELECT worker_profile_id, language FROM worker_profile_languages WHERE worker_profile_id IN (${ph})`)
+        .bind(...batch)
+        .all(),
+    ]);
     for (const r of roleRows.results as { worker_profile_id: string; role: string }[]) {
       const arr = rolesMap.get(r.worker_profile_id) ?? [];
       arr.push(r.role);
       rolesMap.set(r.worker_profile_id, arr);
     }
-    const langRows = await db
-      .prepare(`SELECT worker_profile_id, language FROM worker_profile_languages WHERE worker_profile_id IN (${ph})`)
-      .bind(...wpIds)
-      .all();
     for (const r of langRows.results as { worker_profile_id: string; language: string }[]) {
       const arr = langsMap.get(r.worker_profile_id) ?? [];
       arr.push({ language: r.language });
@@ -738,6 +829,20 @@ workers.post('/:id/like', requireAuth, requireRole('business'), async (c) => {
      VALUES (?, ?, 'system', ?, ?, ?, ?)`
   ).bind(generateId(), targetId, `❤️ Η ${bizNameForNotif} ενδιαφέρθηκε για το προφίλ σου`, 'Πάτησε για να δεις την επιχείρηση', JSON.stringify({ businessId: user.id }), now).run();
 
+  // Off-site alert (push + throttled email) so the worker hears about the
+  // interest even when StaffNow is closed.
+  c.executionCtx.waitUntil(
+    notifyUser(c.env, {
+      userId: targetId,
+      title: `❤️ Η ${bizNameForNotif} ενδιαφέρθηκε για το προφίλ σου`,
+      body: 'Δες την επιχείρηση και κάνε like πίσω για να ξεκινήσετε συνομιλία.',
+      url: '/dashboard/interests',
+      ctaText: 'Δες τα ενδιαφέροντα',
+      emailCategory: 'interest',
+      emailCooldownMinutes: 30,
+    }),
+  );
+
   // Create swipe
   const swipeId = generateId();
   await db
@@ -837,6 +942,30 @@ workers.post('/:id/like', requireAuth, requireRole('business'), async (c) => {
         now
       )
       .run();
+
+    // Off-site match alerts for both parties (push + throttled email).
+    c.executionCtx.waitUntil(
+      Promise.allSettled([
+        notifyUser(c.env, {
+          userId: targetId,
+          title: `🎉 Νέο match με ${bizName}`,
+          body: 'Έχετε νέο ταίριασμα! Μπορείτε να ξεκινήσετε συνομιλία.',
+          url: `/dashboard/messages?c=${conversationId}`,
+          ctaText: 'Άνοιγμα συνομιλίας',
+          emailCategory: 'match',
+          emailCooldownMinutes: 5,
+        }),
+        notifyUser(c.env, {
+          userId: user.id,
+          title: `🎉 Νέο match με τον/την ${workerName}`,
+          body: 'Έχετε νέο ταίριασμα! Μπορείτε να ξεκινήσετε συνομιλία.',
+          url: `/dashboard/messages?c=${conversationId}`,
+          ctaText: 'Άνοιγμα συνομιλίας',
+          emailCategory: 'match',
+          emailCooldownMinutes: 5,
+        }),
+      ]),
+    );
   }
 
   const swIp = getRequestIp(c);

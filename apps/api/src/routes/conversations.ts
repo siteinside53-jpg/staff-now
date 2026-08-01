@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth';
 import { success, error, paginated } from '../lib/response';
 import { generateId } from '../lib/id';
 import { recordActivity, getRequestIp, getGeoFromRequest } from '../lib/activity';
+import { notifyUser } from '../lib/notify';
 
 const conversations = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
 
@@ -278,56 +279,84 @@ conversations.post('/:id/messages', requireAuth, async (c) => {
     )
     .run();
 
-  // Update conversation's last_message_at + unhide for both users (if hidden)
-  await db
-    .prepare('UPDATE conversations SET last_message_at = ?, hidden_by = NULL WHERE id = ?')
-    .bind(now, conversationId)
-    .run();
-
-  // Determine recipient
+  // At this point the message is durably persisted. Everything below is
+  // secondary: none of it must be allowed to turn a saved message into a 500
+  // (that used to lose the very first message of a fresh conversation and
+  // confuse the client into re-sending). We compute the recipient purely,
+  // then run the remaining DB writes best-effort.
   const recipientId =
     conversation.worker_id === user.id
       ? conversation.business_id
       : conversation.worker_id;
 
-  // Get sender display name
+  const trimmed = body.content.trim();
   let senderName = 'Χρήστης';
-  if (user.role === 'worker') {
-    const wp = await db
+
+  try {
+    // Update conversation's last_message_at + unhide for both users (if hidden)
+    await db
+      .prepare('UPDATE conversations SET last_message_at = ?, hidden_by = NULL WHERE id = ?')
+      .bind(now, conversationId)
+      .run();
+
+    // Get sender display name
+    if (user.role === 'worker') {
+      const wp = await db
+        .prepare("SELECT full_name FROM worker_profiles WHERE user_id = ?")
+        .bind(user.id)
+        .first<{ full_name: string }>();
+      if (wp) senderName = wp.full_name || '';
+    } else {
+      const bp = await db
+        .prepare('SELECT company_name FROM business_profiles WHERE user_id = ?')
+        .bind(user.id)
+        .first<{ company_name: string }>();
+      if (bp) senderName = bp.company_name;
+    }
+
+    // Create notification for recipient
+    await db
       .prepare(
-        "SELECT full_name FROM worker_profiles WHERE user_id = ?"
+        `INSERT INTO notifications (id, user_id, type, title, body, data, created_at)
+         VALUES (?, ?, 'new_message', ?, ?, ?, ?)`
       )
-      .bind(user.id)
-      .first<{ full_name: string }>();
-    if (wp) senderName = wp.full_name || '';
-  } else {
-    const bp = await db
-      .prepare('SELECT company_name FROM business_profiles WHERE user_id = ?')
-      .bind(user.id)
-      .first<{ company_name: string }>();
-    if (bp) senderName = bp.company_name;
+      .bind(
+        generateId(),
+        recipientId,
+        `💬 Έχεις νέο μήνυμα από ${senderName}`,
+        `${senderName}: ${trimmed.substring(0, 100)}${trimmed.length > 100 ? '...' : ''}`,
+        JSON.stringify({ conversationId, messageId, matchId: conversation.match_id }),
+        now
+      )
+      .run();
+  } catch {
+    // Best-effort: message is already saved, so never fail the request here.
   }
 
-  // Create notification for recipient
-  await db
-    .prepare(
-      `INSERT INTO notifications (id, user_id, type, title, body, data, created_at)
-       VALUES (?, ?, 'new_message', ?, ?, ?, ?)`
-    )
-    .bind(
-      generateId(),
-      recipientId,
-      `💬 Έχεις νέο μήνυμα από ${senderName}`,
-      `${senderName}: ${body.content.trim().substring(0, 100)}${body.content.trim().length > 100 ? '...' : ''}`,
-      JSON.stringify({ conversationId, messageId, matchId: conversation.match_id }),
-      now
-    )
-    .run();
+  // Return the message we just wrote (constructed, not re-read — a transient
+  // read failure must not mask a successful send).
+  const message = {
+    id: messageId,
+    conversation_id: conversationId,
+    sender_id: user.id,
+    content: trimmed,
+    read_at: null,
+    created_at: now,
+  };
 
-  const message = await db
-    .prepare('SELECT * FROM messages WHERE id = ?')
-    .bind(messageId)
-    .first();
+  // Off-site notification (push + email) to the recipient — best-effort.
+  const preview = trimmed.substring(0, 100);
+  c.executionCtx.waitUntil(
+    notifyUser(c.env, {
+      userId: recipientId,
+      title: `💬 Νέο μήνυμα από ${senderName}`,
+      body: `${preview}${body.content.trim().length > 100 ? '…' : ''}`,
+      url: `/dashboard/messages?c=${conversationId}`,
+      ctaText: 'Απάντηση',
+      emailCategory: `msg:${conversationId}`,
+      emailCooldownMinutes: 10,
+    }),
+  );
 
   c.executionCtx.waitUntil(
     recordActivity(c.env, {

@@ -41,6 +41,34 @@ export const rateLimiter = (config?: Partial<RateLimitConfig>) =>
     await next();
   });
 
+// Global limiter backed by Cloudflare's native Rate Limiting binding.
+// Unlike the KV-based limiter above, this performs NO KV writes, so it does not
+// consume the daily KV-write quota on every request. Falls back to allowing the
+// request through if the binding is unavailable (e.g. local dev without it).
+export const globalRateLimiter = () =>
+  createMiddleware<{ Bindings: Env }>(async (c, next) => {
+    const limiter = c.env.RATE_LIMITER;
+    if (limiter) {
+      const ip =
+        c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
+      try {
+        const { success } = await limiter.limit({ key: ip });
+        if (!success) {
+          return c.json(
+            { success: false, error: { code: 'RATE_LIMITED', message: 'Πολλές προσπάθειες. Δοκιμάστε αργότερα.' } },
+            429,
+          );
+        }
+      } catch {
+        // If the limiter fails, allow the request through.
+      }
+    }
+    await next();
+  });
+
+// Auth-specific limiters stay on KV: their windows (15min / 1hr) exceed the
+// native binding's max period (60s), and they only fire on a handful of auth
+// endpoints, so they don't meaningfully consume the KV-write quota.
 export const authRateLimiter = rateLimiter({
   windowMs: 900_000,
   maxRequests: 10,

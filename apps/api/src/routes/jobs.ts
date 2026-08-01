@@ -8,6 +8,7 @@ import { PLANS } from '@staffnow/config';
 import { success, error, paginated } from '../lib/response';
 import { generateId } from '../lib/id';
 import { recordActivity, getRequestIp, getGeoFromRequest, recordDataChange, computeDiff } from '../lib/activity';
+import { notifyUser } from '../lib/notify';
 
 const jobs = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
 
@@ -323,6 +324,78 @@ jobs.post(
         });
       })(),
     );
+
+    // Notify matching workers about the new job (in-app + push + email).
+    // Bounded: same region AND overlapping role, active users, capped. Skipped
+    // when the job has no region/roles to match on. Best-effort, non-blocking.
+    const jobRegion = body.region || null;
+    const roleList: string[] =
+      body.roles && Array.isArray(body.roles) ? body.roles.filter((r) => typeof r === 'string') : [];
+
+    if (jobRegion && roleList.length > 0) {
+      c.executionCtx.waitUntil(
+        (async () => {
+          try {
+            const placeholders = roleList.map(() => '?').join(', ');
+            const matches = await db
+              .prepare(
+                `SELECT DISTINCT u.id AS user_id
+                 FROM worker_profiles wp
+                 JOIN users u ON u.id = wp.user_id AND u.status = 'active'
+                 JOIN worker_profile_roles wpr ON wpr.worker_profile_id = wp.id
+                 WHERE wp.region = ? AND wpr.role IN (${placeholders})
+                 LIMIT 100`,
+              )
+              .bind(jobRegion, ...roleList)
+              .all<{ user_id: string }>();
+
+            const recipients = matches.results || [];
+            if (recipients.length === 0) return;
+
+            const bizProfile = await db
+              .prepare('SELECT company_name FROM business_profiles WHERE id = ?')
+              .bind(bp.id)
+              .first<{ company_name: string }>();
+            const companyName = bizProfile?.company_name || 'μια επιχείρηση';
+
+            const title = `💼 Νέα αγγελία: ${body.title}`;
+            const notifBody = `${companyName} · ${jobRegion}`;
+            const nowTs = new Date().toISOString();
+            const jobPath = `/dashboard/swipe`;
+
+            await Promise.allSettled(
+              recipients.map(async (r) => {
+                await db
+                  .prepare(
+                    `INSERT INTO notifications (id, user_id, type, title, body, data, created_at)
+                     VALUES (?, ?, 'new_job', ?, ?, ?, ?)`,
+                  )
+                  .bind(
+                    generateId('nt'),
+                    r.user_id,
+                    title,
+                    notifBody,
+                    JSON.stringify({ jobId }),
+                    nowTs,
+                  )
+                  .run();
+                await notifyUser(c.env, {
+                  userId: r.user_id,
+                  title,
+                  body: notifBody,
+                  url: jobPath,
+                  ctaText: 'Δες την αγγελία',
+                  emailCategory: 'new_job',
+                  emailCooldownMinutes: 60,
+                });
+              }),
+            );
+          } catch {
+            /* non-fatal */
+          }
+        })(),
+      );
+    }
 
     return success(
       c,
@@ -856,6 +929,20 @@ jobs.post('/:id/like', requireAuth, requireRole('worker'), async (c) => {
     `INSERT INTO notifications (id, user_id, type, title, body, data, created_at)
      VALUES (?, ?, 'system', ?, ?, ?, ?)`
   ).bind(generateId(), bizUserIdEarly, `❤️ ${workerName} ενδιαφέρθηκε για την αγγελία σου`, job.title, JSON.stringify({ jobId, workerId: user.id }), now).run();
+
+  // Off-site notify (push + email, throttled) so the business hears about the
+  // interest even when StaffNow is not open.
+  c.executionCtx.waitUntil(
+    notifyUser(c.env, {
+      userId: bizUserIdEarly,
+      title: `❤️ ${workerName} ενδιαφέρθηκε για την αγγελία σου`,
+      body: `${job.title} — δες το προφίλ και κάνε like πίσω για να ξεκινήσετε συνομιλία.`,
+      url: '/dashboard/interests',
+      ctaText: 'Δες τα ενδιαφέροντα',
+      emailCategory: 'interest',
+      emailCooldownMinutes: 30,
+    }),
+  );
 
   // Create swipe
   await db

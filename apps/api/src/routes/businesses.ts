@@ -7,6 +7,7 @@ import { checkSwipeLimit, checkActiveMatchesLimit } from '../middleware/subscrip
 import { success, error, paginated } from '../lib/response';
 import { generateId } from '../lib/id';
 import { recordDataChange, computeDiff, getRequestIp, getGeoFromRequest } from '../lib/activity';
+import { notifyUser } from '../lib/notify';
 
 const businesses = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
 
@@ -24,12 +25,15 @@ businesses.get('/me', requireAuth, requireRole('business'), async (c) => {
     return error(c, 'Το προφίλ δεν βρέθηκε', 404);
   }
 
-  // Get count of active jobs
+  // Get count of active jobs.
+  // job_listings.business_id stores business_profiles.id (NOT user_id), so we
+  // must bind the profile id — binding user.id always returned 0 and disagreed
+  // with /stats/dashboard (which joins via bp.user_id).
   const jobCount = await db
     .prepare(
       "SELECT COUNT(*) as count FROM job_listings WHERE business_id = ? AND status = 'published'"
     )
-    .bind(user.id)
+    .bind((profile as any).id)
     .first<{ count: number }>();
 
   return success(c, {
@@ -72,96 +76,40 @@ businesses.patch(
     const updateFields: string[] = [];
     const updateValues: (string | number | null)[] = [];
 
-    const allowedFields = [
-      'company_name',
-      'description',
-      'industry',
-      'website',
-      'phone',
-      'logo_url',
-      'cover_url',
-      'region',
-      'city',
-      'country',
-      'address',
-      'company_size',
-      'founded_year',
-      'tax_id',
-      'contact_name',
-      'contact_email',
-      'contact_phone',
-    ];
-
+    // Maps validated camelCase input keys to their actual business_profiles columns.
     const fieldMap: Record<string, string> = {
       companyName: 'company_name',
+      businessType: 'business_type',
+      region: 'region',
+      address: 'address',
+      phone: 'phone',
+      website: 'website',
+      description: 'description',
       logoUrl: 'logo_url',
-      coverUrl: 'cover_url',
-      companySize: 'company_size',
-      foundedYear: 'founded_year',
-      taxId: 'tax_id',
-      contactName: 'contact_name',
-      contactEmail: 'contact_email',
-      contactPhone: 'contact_phone',
+      staffHousing: 'staff_housing',
+      mealsProvided: 'meals_provided',
+      transportationAssistance: 'transportation_assistance',
+      salaryRangeMin: 'salary_range_min',
+      salaryRangeMax: 'salary_range_max',
     };
 
+    const booleanFields = new Set([
+      'staff_housing',
+      'meals_provided',
+      'transportation_assistance',
+    ]);
+
     for (const [key, value] of Object.entries(body)) {
-      const dbField = fieldMap[key] || key;
-      if (allowedFields.includes(dbField) && value !== undefined) {
+      const dbField = fieldMap[key];
+      if (dbField && value !== undefined) {
         updateFields.push(`${dbField} = ?`);
-        updateValues.push(value as string | number | null);
+        // D1 does not bind booleans directly; store as 0/1.
+        updateValues.push(
+          booleanFields.has(dbField) ? (value ? 1 : 0) : (value as string | number | null),
+        );
       }
     }
 
-    // Recalculate profile completeness
-    const fullProfile = await db
-      .prepare('SELECT * FROM business_profiles WHERE id = ?')
-      .bind(profile.id)
-      .first();
-
-    const fp = fullProfile as Record<string, unknown> | null;
-    const completenessFields = [
-      fp?.company_name,
-      fp?.description,
-      fp?.industry,
-      fp?.phone,
-      fp?.logo_url,
-      fp?.region,
-      fp?.country,
-      fp?.company_size,
-      fp?.contact_name,
-      fp?.contact_email,
-    ];
-
-    // Merge current values with update
-    const merged = { ...fp };
-    for (const [key, value] of Object.entries(body)) {
-      const dbField = fieldMap[key] || key;
-      if (allowedFields.includes(dbField)) {
-        merged[dbField] = value;
-      }
-    }
-
-    const mergedCompletenessFields = [
-      merged.company_name,
-      merged.description,
-      merged.industry,
-      merged.phone,
-      merged.logo_url,
-      merged.region,
-      merged.country,
-      merged.company_size,
-      merged.contact_name,
-      merged.contact_email,
-    ];
-
-    const filledCount = mergedCompletenessFields.filter(
-      (f) => f !== null && f !== undefined && f !== ''
-    ).length;
-
-    const completeness = Math.round((filledCount / mergedCompletenessFields.length) * 100);
-
-    updateFields.push('profile_completeness = ?');
-    updateValues.push(completeness);
     updateFields.push('updated_at = ?');
     updateValues.push(now);
 
@@ -282,11 +230,12 @@ businesses.get('/discover', requireAuth, requireRole('worker'), async (c) => {
   // Get active job count for each business
   const businessesWithJobCount = await Promise.all(
     results.results.map(async (biz: Record<string, unknown>) => {
+      // business_id stores business_profiles.id (NOT user_id) — bind biz.id.
       const jobCount = await db
         .prepare(
           "SELECT COUNT(*) as count FROM job_listings WHERE business_id = ? AND status = 'published'"
         )
-        .bind(biz.user_id as string)
+        .bind(biz.id as string)
         .first<{ count: number }>();
 
       return {
@@ -422,6 +371,41 @@ businesses.post('/:id/like', requireAuth, requireRole('worker'), checkSwipeLimit
     .bind(swipeId, user.id, targetId, now)
     .run();
 
+  // Notify the business about the incoming interest (in-app + off-site). This
+  // event previously produced NO notification at all on a one-way like.
+  const workerForNotif = await db
+    .prepare('SELECT full_name FROM worker_profiles WHERE user_id = ?')
+    .bind(user.id)
+    .first<{ full_name: string }>();
+  const workerNameForNotif = workerForNotif?.full_name || 'Ένας εργαζόμενος';
+
+  await db
+    .prepare(
+      `INSERT INTO notifications (id, user_id, type, title, body, data, created_at)
+       VALUES (?, ?, 'system', ?, ?, ?, ?)`
+    )
+    .bind(
+      generateId('nt'),
+      targetId,
+      `❤️ ${workerNameForNotif} ενδιαφέρθηκε για την επιχείρησή σου`,
+      'Πάτησε για να δεις το προφίλ του',
+      JSON.stringify({ workerId: user.id }),
+      now
+    )
+    .run();
+
+  c.executionCtx.waitUntil(
+    notifyUser(c.env, {
+      userId: targetId,
+      title: `❤️ ${workerNameForNotif} ενδιαφέρθηκε για την επιχείρησή σου`,
+      body: 'Δες το προφίλ του και κάνε like πίσω για να ξεκινήσετε συνομιλία.',
+      url: '/dashboard/interests',
+      ctaText: 'Δες τα ενδιαφέροντα',
+      emailCategory: 'interest',
+      emailCooldownMinutes: 30,
+    }),
+  );
+
   // Check for mutual match (business liked this worker)
   const mutualSwipe = await db
     .prepare(
@@ -496,6 +480,31 @@ businesses.post('/:id/like', requireAuth, requireRole('worker'), checkSwipeLimit
         now
       )
       .run();
+
+    // Off-site notify both parties about the new match (best-effort).
+    const convPath = `/dashboard/messages?c=${conversationId}`;
+    c.executionCtx.waitUntil(
+      Promise.allSettled([
+        notifyUser(c.env, {
+          userId: user.id,
+          title: '🎉 Νέο ταίριασμα!',
+          body: 'Ταιριάξατε με μια επιχείρηση. Ξεκινήστε τη συνομιλία!',
+          url: convPath,
+          ctaText: 'Άνοιγμα συνομιλίας',
+          emailCategory: 'match',
+          emailCooldownMinutes: 5,
+        }),
+        notifyUser(c.env, {
+          userId: targetId,
+          title: '🎉 Νέο ταίριασμα!',
+          body: 'Ταιριάξατε με έναν εργαζόμενο. Ξεκινήστε τη συνομιλία!',
+          url: convPath,
+          ctaText: 'Άνοιγμα συνομιλίας',
+          emailCategory: 'match',
+          emailCooldownMinutes: 5,
+        }),
+      ]),
+    );
   }
 
   return success(c, { swiped: true, matched, matchId }, matched ? 201 : 200);

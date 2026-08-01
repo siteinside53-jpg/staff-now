@@ -170,6 +170,11 @@ async function handleCheckoutCompleted(env: Env, session: any) {
 
   if (!planId) return;
 
+  // Lifetime one-time purchase (e.g. worker_premium): no Stripe subscription,
+  // Premium must never lapse → activate with a far-future period end.
+  const isLifetime =
+    session.metadata?.lifetime === '1' || BILLING_PLANS[planId]?.lifetime === true;
+
   const stripeSubId: string | null = session.subscription || null;
   const customerId: string | null = session.customer || null;
 
@@ -177,12 +182,15 @@ async function handleCheckoutCompleted(env: Env, session: any) {
   if (stripeSubId) {
     stripeSub = await fetchStripe<any>(env, `/subscriptions/${stripeSubId}`);
   }
+  const LIFETIME_PERIOD_END = '2999-12-31T00:00:00.000Z';
   const periodStart = stripeSub?.current_period_start
     ? new Date(stripeSub.current_period_start * 1000).toISOString()
     : new Date().toISOString();
-  const periodEnd = stripeSub?.current_period_end
-    ? new Date(stripeSub.current_period_end * 1000).toISOString()
-    : new Date(Date.now() + 30 * 86_400_000).toISOString();
+  const periodEnd = isLifetime
+    ? LIFETIME_PERIOD_END
+    : stripeSub?.current_period_end
+      ? new Date(stripeSub.current_period_end * 1000).toISOString()
+      : new Date(Date.now() + 30 * 86_400_000).toISOString();
 
   await activateSubscription(env, {
     userId,
@@ -202,12 +210,13 @@ async function handleCheckoutCompleted(env: Env, session: any) {
       `SELECT status FROM founding_member_pending_checkouts WHERE id = ?`,
     ).bind(foundingClaimId).first<{ status: string }>();
     if (claim?.status === 'pending') {
+      // Consume the spot now — this is the only place spots_used increments.
+      // Guard against overselling past spots_total.
       await env.DB.prepare(
         `UPDATE founding_members_counter
-            SET spots_pending = MAX(0, spots_pending - 1),
-                spots_used = spots_used + 1,
+            SET spots_used = spots_used + 1,
                 updated_at = datetime('now')
-          WHERE id = 1`,
+          WHERE id = 1 AND spots_used < spots_total`,
       ).run();
       await env.DB.prepare(
         `UPDATE founding_member_pending_checkouts
@@ -249,79 +258,12 @@ async function handleCheckoutCompleted(env: Env, session: any) {
       userId,
       docType,
       totalCents: amountCents,
-      description: `Συνδρομή ${plan?.nameEl || planId}`,
+      description: isLifetime
+        ? `${plan?.nameEl || planId} — εφάπαξ (lifetime)`
+        : `Συνδρομή ${plan?.nameEl || planId}`,
       planId,
     });
   }
-
-  // Worker Premium → grant 30 bonus credits on activation. Monthly
-  // renewals also top up the same amount via handleInvoicePaid below.
-  if (planId === 'worker_premium') {
-    await grantPremiumMonthlyCredits(env, userId, 30);
-  }
-}
-
-/**
- * Grants the monthly Premium credit bonus.
- * Idempotent within a 25-day window — guards against double-credit when
- * Stripe sends both `checkout.session.completed` AND `invoice.paid` for
- * the same activation, or when admins resend webhooks.
- */
-async function grantPremiumMonthlyCredits(env: Env, userId: string, amount: number) {
-  // Skip if we already credited a Premium bonus in the past 25 days.
-  const recent = await env.DB.prepare(
-    `SELECT id FROM credit_transactions
-      WHERE user_id = ? AND type = 'bonus'
-        AND description LIKE 'Worker Premium — %'
-        AND created_at > datetime('now', '-25 days')
-      LIMIT 1`,
-  ).bind(userId).first();
-  if (recent) return;
-
-  const now = new Date().toISOString();
-  const existing = await env.DB.prepare(`SELECT id FROM credits WHERE user_id = ?`)
-    .bind(userId)
-    .first();
-  if (!existing) {
-    await env.DB.prepare(
-      `INSERT INTO credits (id, user_id, balance, total_purchased, total_spent, created_at, updated_at)
-       VALUES (?, ?, 0, 0, 0, ?, ?)`,
-    )
-      .bind(generateId('crd'), userId, now, now)
-      .run();
-  }
-  await env.DB.prepare(
-    `UPDATE credits SET balance = balance + ?, updated_at = ? WHERE user_id = ?`,
-  ).bind(amount, now, userId).run();
-
-  await env.DB.prepare(
-    `INSERT INTO credit_transactions (id, user_id, amount, type, description, created_at)
-     VALUES (?, ?, ?, 'bonus', ?, ?)`,
-  )
-    .bind(
-      generateId('ctx'),
-      userId,
-      amount,
-      `Worker Premium — μηνιαία credits (${amount})`,
-      now,
-    )
-    .run();
-
-  try {
-    await env.DB.prepare(
-      `INSERT INTO notifications (id, user_id, type, title, body, read, created_at, updated_at)
-       VALUES (?, ?, 'billing', ?, ?, 0, ?, ?)`,
-    )
-      .bind(
-        generateId('ntf'),
-        userId,
-        '✨ Worker Premium ενεργό',
-        `Προστέθηκαν ${amount} credits στον λογαριασμό σου ως μέρος του Premium.`,
-        now,
-        now,
-      )
-      .run();
-  } catch {}
 }
 
 /**
@@ -489,11 +431,6 @@ async function handleInvoicePaid(env: Env, invoice: any) {
     description: `Συνδρομή ${planId ? BILLING_PLANS[planId]?.nameEl || planId : ''}`,
     planId,
   });
-
-  // Monthly renewal of Worker Premium → top up 30 credits.
-  if (planId === 'worker_premium') {
-    await grantPremiumMonthlyCredits(env, userId, 30);
-  }
 }
 
 async function handleInvoiceFailed(env: Env, invoice: any) {
@@ -602,8 +539,8 @@ billing.get('/plans', (c) => success(c, { plans: PLANS, vatPercent: VAT_RATE_PER
 
 /**
  * GET /billing/founding-spots — public counter for the Founding Members banner.
- * `pending` = checkouts in progress (user clicked "Πάρε τη θέση σου" but Stripe not yet confirmed).
- * `remaining` reflects spots still available right now (total - pending - used).
+ * A spot is only consumed on a completed Stripe purchase, so `remaining` counts
+ * against `used` only (clicks/abandoned checkouts never affect the banner).
  */
 billing.get('/founding-spots', async (c) => {
   const row = await c.env.DB
@@ -612,7 +549,7 @@ billing.get('/founding-spots', async (c) => {
   const total = row?.spots_total ?? 100;
   const pending = row?.spots_pending ?? 0;
   const used = row?.spots_used ?? 0;
-  const remaining = Math.max(0, total - pending - used);
+  const remaining = Math.max(0, total - used);
   return success(c, { total, used, pending, remaining, available: remaining > 0 });
 });
 
@@ -762,14 +699,22 @@ billing.post('/checkout', requireAuth, async (c) => {
     return error(c, 'FORBIDDEN', 'Αυτό το πλάνο είναι μόνο για εργαζόμενους.', 403);
   }
 
+  // Lifetime plans (e.g. worker_premium) are charged once via mode='payment'
+  // using a one-time Stripe Price. Everything else is a recurring subscription.
+  const isLifetime = plan.lifetime === true;
   const period = body.period === 'yearly' ? 'yearly' : 'monthly';
-  const priceEnvKey = period === 'yearly' ? plan.stripePriceEnvYearly : plan.stripePriceEnvMonthly;
-  const priceId = (c.env as any)[priceEnvKey];
+  const priceEnvKey = isLifetime
+    ? (plan.stripePriceEnvOnce as keyof Env)
+    : period === 'yearly'
+      ? plan.stripePriceEnvYearly
+      : plan.stripePriceEnvMonthly;
+  const priceId = priceEnvKey ? (c.env as any)[priceEnvKey] : undefined;
   if (!priceId) return error(c, 'CONFIG_ERROR', 'Λείπει το Stripe Price ID στο config.', 500);
 
-  // Founding Members: atomically claim a spot before launching the Stripe session.
-  // We use a conditional UPDATE that only succeeds if remaining > 0. If it fails,
-  // either we ran out of spots OR the user already has a pending claim.
+  // Founding Members: a spot is consumed ONLY after a successful Stripe purchase
+  // (see the webhook finalize step), never when the user merely clicks checkout.
+  // Here we just record a pending row so the webhook can flag the subscription as
+  // founding — it does NOT reserve a counter spot.
   let foundingClaimId: string | null = null;
   if (body.planId === 'founding_pro') {
     // Only businesses can claim founding (they're the paying side).
@@ -783,22 +728,30 @@ billing.post('/checkout', requireAuth, async (c) => {
     if (existingFounding) {
       return error(c, 'ALREADY_FOUNDING', 'Είσαι ήδη Founding Member.', 409);
     }
-    // Atomic claim: increment pending only if remaining > 0
-    const upd = await c.env.DB.prepare(
-      `UPDATE founding_members_counter
-         SET spots_pending = spots_pending + 1, updated_at = datetime('now')
-       WHERE id = 1
-         AND (spots_total - spots_pending - spots_used) > 0`,
-    ).run();
-    const changed = (upd.meta as any)?.changes ?? 0;
-    if (changed === 0) {
+    // Availability is measured against actually-purchased spots only.
+    const cnt = await c.env.DB.prepare(
+      `SELECT spots_total, spots_used FROM founding_members_counter WHERE id = 1`,
+    ).first<{ spots_total: number; spots_used: number }>();
+    if (cnt && cnt.spots_used >= cnt.spots_total) {
       return error(c, 'FOUNDING_FULL', 'Δυστυχώς εξαντλήθηκαν οι 100 θέσεις Founding Members.', 409);
     }
-    foundingClaimId = generateId('fmc');
-    await c.env.DB.prepare(
-      `INSERT INTO founding_member_pending_checkouts (id, user_id, status, created_at)
-       VALUES (?, ?, 'pending', datetime('now'))`,
-    ).bind(foundingClaimId, user.id).run();
+    // Reuse any existing pending row for this user (the UNIQUE(user_id, status)
+    // constraint allows only one), otherwise create a fresh one. No counter change.
+    const existingPending = await c.env.DB.prepare(
+      `SELECT id FROM founding_member_pending_checkouts WHERE user_id = ? AND status = 'pending'`,
+    ).bind(user.id).first<{ id: string }>();
+    if (existingPending) {
+      foundingClaimId = existingPending.id;
+      await c.env.DB.prepare(
+        `UPDATE founding_member_pending_checkouts SET stripe_session_id = NULL, created_at = datetime('now') WHERE id = ?`,
+      ).bind(foundingClaimId).run();
+    } else {
+      foundingClaimId = generateId('fmc');
+      await c.env.DB.prepare(
+        `INSERT INTO founding_member_pending_checkouts (id, user_id, status, created_at)
+         VALUES (?, ?, 'pending', datetime('now'))`,
+      ).bind(foundingClaimId, user.id).run();
+    }
   }
 
   const documentType: 'invoice' | 'receipt' =
@@ -810,6 +763,18 @@ billing.post('/checkout', requireAuth, async (c) => {
   if (!userRow) return error(c, 'NOT_FOUND', 'Ο χρήστης δεν βρέθηκε.', 404);
 
   let customerId = userRow.stripe_customer_id;
+  // A stored customer may belong to a different Stripe account (e.g. after a
+  // TEST→LIVE key switch) and no longer resolve there. Validate it first and
+  // treat an unresolvable/deleted customer as missing so we recreate it below.
+  if (customerId) {
+    const check = await fetch(`https://api.stripe.com/v1/customers/${customerId}`, {
+      headers: { Authorization: `Bearer ${c.env.STRIPE_SECRET_KEY}` },
+    });
+    const checkJson = (await check.json()) as { deleted?: boolean; error?: unknown };
+    if (checkJson.error || checkJson.deleted) {
+      customerId = null;
+    }
+  }
   if (!customerId) {
     const r = await fetch('https://api.stripe.com/v1/customers', {
       method: 'POST',
@@ -834,20 +799,45 @@ billing.post('/checkout', requireAuth, async (c) => {
     customer: customerId!,
     'line_items[0][price]': priceId,
     'line_items[0][quantity]': '1',
-    mode: 'subscription',
+    mode: isLifetime ? 'payment' : 'subscription',
     success_url: body.successUrl,
     cancel_url: body.cancelUrl,
     'metadata[user_id]': user.id,
     'metadata[plan_id]': body.planId,
     'metadata[document_type]': documentType,
-    'subscription_data[metadata][user_id]': user.id,
-    'subscription_data[metadata][plan_id]': body.planId,
     allow_promotion_codes: 'true',
     billing_address_collection: 'required',
   });
+  if (isLifetime) {
+    // One-time payment: attach plan metadata to the PaymentIntent so the
+    // webhook can identify it, and mark it non-recurring for our own records.
+    params.append('metadata[lifetime]', '1');
+    params.append('payment_intent_data[metadata][user_id]', user.id);
+    params.append('payment_intent_data[metadata][plan_id]', body.planId);
+  } else {
+    params.append('subscription_data[metadata][user_id]', user.id);
+    params.append('subscription_data[metadata][plan_id]', body.planId);
+  }
   if (foundingClaimId) {
     params.append('metadata[founding_claim_id]', foundingClaimId);
     params.append('subscription_data[metadata][founding_claim_id]', foundingClaimId);
+  }
+
+  // Attach the Greek 24% VAT tax rate so Stripe invoices show the VAT breakdown.
+  //  - Business subscriptions use NET prices → attach the EXCLUSIVE rate, so
+  //    Stripe adds 24% on top and displays net + VAT + gross. Falls back to the
+  //    inclusive rate if the exclusive one isn't configured yet.
+  //  - Worker Premium (lifetime, B2C) keeps its GROSS price with the INCLUSIVE
+  //    rate, so the amount is split without adding tax on top.
+  if (isLifetime) {
+    if (c.env.STRIPE_TAX_RATE_ID) {
+      params.append('line_items[0][tax_rates][0]', c.env.STRIPE_TAX_RATE_ID);
+    }
+  } else {
+    const subRate = c.env.STRIPE_TAX_RATE_ID_EXCL || c.env.STRIPE_TAX_RATE_ID;
+    if (subRate) {
+      params.append('subscription_data[default_tax_rates][0]', subRate);
+    }
   }
 
   const r = await fetch('https://api.stripe.com/v1/checkout/sessions', {
@@ -860,11 +850,8 @@ billing.post('/checkout', requireAuth, async (c) => {
   });
   const j = (await r.json()) as { url: string; id: string; error?: { message: string } };
   if (j.error) {
-    // If Stripe rejects, release the founding claim so the spot returns to the pool.
+    // No counter spot was reserved, so just mark this pending checkout released.
     if (foundingClaimId) {
-      await c.env.DB.prepare(
-        `UPDATE founding_members_counter SET spots_pending = MAX(0, spots_pending - 1), updated_at = datetime('now') WHERE id = 1`,
-      ).run();
       await c.env.DB.prepare(
         `UPDATE founding_member_pending_checkouts SET status = 'released', finalized_at = datetime('now') WHERE id = ?`,
       ).bind(foundingClaimId).run();
