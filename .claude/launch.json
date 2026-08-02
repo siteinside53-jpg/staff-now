@@ -12,6 +12,18 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@staffnow/api", "dev"],
       "port": 8787
+    },
+    {
+      "name": "web-static",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dlx", "serve", "apps/web/out", "-l", "3005"],
+      "port": 3005
+    },
+    {
+      "name": "design-preview",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dlx", "serve", "design-preview", "-l", "4010"],
+      "port": 4010
     }
   ]
 }
