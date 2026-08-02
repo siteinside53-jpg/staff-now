@@ -32,7 +32,7 @@ export function paginated<T>(
   });
 }
 
-type ErrorStatus = 400 | 401 | 403 | 404 | 409 | 429 | 500;
+type ErrorStatus = 400 | 401 | 403 | 404 | 409 | 410 | 429 | 500;
 
 const STATUS_CODES: Record<number, string> = {
   400: 'BAD_REQUEST',
@@ -40,6 +40,7 @@ const STATUS_CODES: Record<number, string> = {
   403: 'FORBIDDEN',
   404: 'NOT_FOUND',
   409: 'CONFLICT',
+  410: 'GONE',
   429: 'RATE_LIMITED',
   500: 'INTERNAL_ERROR',
 };

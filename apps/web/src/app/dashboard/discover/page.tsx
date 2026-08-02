@@ -16,6 +16,7 @@ import { JobDetailPanel } from '@/components/dashboard/job-detail-panel';
 import { FilteredListLayout, type FilterGroup, type FilterCategory } from '@/components/marketing/filtered-list-layout';
 import { GREEK_CITIES, GREEK_CITY_AREAS } from '@/lib/greek-cities';
 import { WORKER_JOB_ROLE_LABELS_EL, WORKER_JOB_ROLE_GROUPS } from '@staffnow/config';
+import { durationLabel, expiresLabel, netOf, whenLabel } from '@/lib/shift-display';
 
 // Ελληνικό label ειδικότητας (fallback στο raw id αν λείπει)
 function roleLabel(r: string): string {
@@ -48,6 +49,14 @@ interface DiscoverProfile {
   isPremium?: boolean;
   isBoosted?: boolean;
   matchPercent?: number | null;
+  // Έκτακτη βάρδια
+  listingKind?: 'job' | 'shift';
+  shiftDate?: string;
+  shiftDays?: number;
+  shiftStartTime?: string;
+  shiftEndTime?: string;
+  shiftPositions?: number;
+  shiftStartUtc?: string;
 }
 
 function timeAgo(dateStr?: string): string {
@@ -319,6 +328,14 @@ export default function DiscoverPage() {
     });
   }, [candidates, listQuery, listSel]);
 
+  // Το countdown της έκτακτης βάρδιας πρέπει να «ζει» — αλλιώς παγώνει στη
+  // στιγμή που φορτώθηκε η σελίδα.
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNowTick(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
   // List pagination — 50 ανά σελίδα με πλοήγηση (σελίδα 1, 2, 3…).
   const LIST_PAGE_SIZE = 50;
   const [listPage, setListPage] = useState(1);
@@ -411,6 +428,13 @@ export default function DiscoverPage() {
           salary: j.salary_min && j.salary_max ? `${j.salary_min}-${j.salary_max}€/μήνα` : undefined,
           verified: false,
           type: 'job' as const,
+          listingKind: (j.listing_kind === 'shift' ? 'shift' : 'job') as 'job' | 'shift',
+          shiftDate: j.shift_date || undefined,
+          shiftDays: j.shift_days ?? undefined,
+          shiftStartTime: j.shift_start_time || undefined,
+          shiftEndTime: j.shift_end_time || undefined,
+          shiftPositions: j.shift_positions ?? undefined,
+          shiftStartUtc: j.shift_start_utc || undefined,
         }));
         setCandidates(mapped);
       } else {
@@ -854,6 +878,9 @@ export default function DiscoverPage() {
               // Προτεραιότητα στο ντετερμινιστικό match του server· fallback στο AI score.
               const score = typeof c.matchPercent === 'number' ? c.matchPercent : aiMatchScores[c.id];
               const specialties = (c.tags || []).filter(Boolean).map(roleLabel);
+              const isShift = c.listingKind === 'shift';
+              const countdown = isShift ? expiresLabel(c.shiftStartUtc, new Date(nowTick)) : null;
+              const shiftNet = isShift ? netOf(c.salaryMin) : null;
               return (
                 <li key={c.id}>
                   <button
@@ -867,7 +894,11 @@ export default function DiscoverPage() {
                         setViewingProfileId(c.id);
                       }
                     }}
-                    className="group w-full flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-gray-100 hover:shadow-md hover:ring-blue-200 transition-all active:scale-[0.99] text-left"
+                    className={`group w-full flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 transition-all active:scale-[0.99] text-left ${
+                      isShift
+                        ? 'border-l-4 border-red-600 ring-red-100 hover:shadow-md hover:ring-red-200'
+                        : 'ring-gray-100 hover:shadow-md hover:ring-blue-200'
+                    }`}
                   >
                     {/* Avatar / Logo */}
                     <div className="relative h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0 overflow-hidden rounded-2xl bg-gradient-to-br from-purple-200 via-pink-200 to-rose-200 flex items-center justify-center">
@@ -904,6 +935,12 @@ export default function DiscoverPage() {
                             ⭐ Premium
                           </span>
                         )}
+                        {isShift && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+                            {whenLabel(c.shiftDate, new Date(nowTick))}
+                          </span>
+                        )}
                       </div>
                       {specialties.length > 0 && (
                         <p className="text-xs sm:text-sm font-semibold text-blue-700 truncate" title={specialties.join(' · ')}>
@@ -921,15 +958,43 @@ export default function DiscoverPage() {
                           📍 {c.location}
                         </p>
                       )}
-                      {(c.salary || c.experience) && (
-                        <p className="mt-0.5 text-xs font-semibold text-emerald-600 truncate">
-                          {c.salary || c.experience}
-                        </p>
+                      {isShift ? (
+                        <>
+                          <p className="mt-0.5 text-xs font-semibold text-gray-700 truncate">
+                            🕒 {c.shiftStartTime}–{c.shiftEndTime} ·{' '}
+                            {durationLabel({
+                              shift_start_time: c.shiftStartTime,
+                              shift_end_time: c.shiftEndTime,
+                              shift_days: c.shiftDays,
+                              shift_positions: c.shiftPositions,
+                            })}
+                          </p>
+                          {c.salaryMin && (
+                            <p className="mt-0.5 text-xs font-semibold text-emerald-600 truncate">
+                              💰 {c.salaryMin}€ μικτά
+                              {shiftNet ? ` · ≈ ${shiftNet}€ καθαρά (ενδεικτικά)` : ''}
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        (c.salary || c.experience) && (
+                          <p className="mt-0.5 text-xs font-semibold text-emerald-600 truncate">
+                            {c.salary || c.experience}
+                          </p>
+                        )
                       )}
                     </div>
 
                     {/* Right column: AI score + chevron */}
                     <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                      {countdown && (
+                        <span
+                          className="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-[11px] font-bold text-red-700 ring-1 ring-red-200"
+                          title="Χρόνος μέχρι την έναρξη της βάρδιας"
+                        >
+                          ⏳ λήγει {countdown}
+                        </span>
+                      )}
                       {typeof score === 'number' && score > 0 && (
                         <span
                           className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold text-white shadow-sm ${

@@ -7,6 +7,7 @@ import { HeroGradient } from '@/components/marketing/hero-gradient';
 import { HowItWorksTabs } from '@/components/marketing/how-it-works-tabs';
 import { TrustBar } from '@/components/marketing/trust-bar';
 import { SwipeTeaser } from '@/components/marketing/swipe-teaser';
+import { UrgentShifts } from '@/components/marketing/urgent-shifts';
 
 export const metadata = {
   title: { absolute: 'StaffNow – Βρες Προσωπικό & Δουλειά σε Κάθε Κλάδο | Match σε 24 Ώρες' },
@@ -134,6 +135,9 @@ export default function HomePage() {
 
       {/* ====== SWIPE TEASER (δοκίμασε πριν την εγγραφή) ====== */}
       <SwipeTeaser />
+
+      {/* ====== ΕΚΤΑΚΤΗ ΒΑΡΔΙΑ (εμφανίζεται μόνο αν υπάρχουν ανοιχτές) ====== */}
+      <UrgentShifts />
 
       {/* ====== FOR BUSINESSES ====== */}
       <section className="bg-white py-20 sm:py-28">

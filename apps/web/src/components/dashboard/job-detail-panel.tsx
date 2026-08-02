@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { API_URL } from '@/lib/config';
 import { Spinner } from '@/components/ui/spinner';
-import { Badge } from '@/components/ui/badge';
 import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
+import { durationLabel, expiresLabel, netOf, whenLabel } from '@/lib/shift-display';
 
 interface Props {
   jobId: string;
@@ -49,8 +50,7 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
         if (bizUserId) {
           const token = localStorage.getItem('staffnow_token');
           const headers: any = { 'Authorization': `Bearer ${token}` };
-          const base = 'https://staffnow-api-production.siteinside53.workers.dev';
-          const bizRes = await fetch(`${base}/businesses/${bizUserId}`, { headers }).then(r => r.json()) as any;
+          const bizRes = await fetch(`${API_URL}/businesses/${bizUserId}`, { headers }).then(r => r.json()) as any;
           if (bizRes.success && bizRes.data) {
             setBusiness(bizRes.data.profile || bizRes.data);
             setBusinessJobs(bizRes.data.activeJobs || []);
@@ -160,15 +160,35 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100">
                   <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
                 </div>
-                <h2 className="text-lg font-bold text-gray-900">Θέση Εργασίας</h2>
+                <h2 className="text-lg font-bold text-gray-900">
+                  {j.listing_kind === 'shift' ? 'Έκτακτη βάρδια' : 'Θέση Εργασίας'}
+                </h2>
               </div>
 
               {/* Job Title */}
               <h3 className="text-xl font-bold text-gray-900 mb-2">{j.title || 'Χωρίς τίτλο'}</h3>
 
+              {/* Έκτακτη βάρδια — πότε & διάρκεια */}
+              {j.listing_kind === 'shift' && j.shift_date && (
+                <div className="mb-4 rounded-xl border-l-4 border-red-600 bg-red-50 p-4">
+                  <p className="text-sm font-bold text-red-700">
+                    🚨 {whenLabel(j.shift_date)} · {j.shift_start_time}–{j.shift_end_time}
+                  </p>
+                  <p className="mt-0.5 text-xs text-red-600">
+                    {durationLabel({
+                      shift_start_time: j.shift_start_time,
+                      shift_end_time: j.shift_end_time,
+                      shift_days: j.shift_days,
+                      shift_positions: j.shift_positions,
+                    })}
+                    {expiresLabel(j.shift_start_utc) ? ` · λήγει ${expiresLabel(j.shift_start_utc)}` : ''}
+                  </p>
+                </div>
+              )}
+
               {/* Job meta info */}
               <div className="flex flex-wrap items-center gap-2 mb-4 text-sm">
-                {j.employment_type && (
+                {j.listing_kind !== 'shift' && j.employment_type && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-semibold text-blue-700">
                     {j.employment_type === 'seasonal' ? '☀️' : j.employment_type === 'full_time' ? '📅' : '⏰'} {empLabels[j.employment_type] || j.employment_type}
                   </span>
@@ -189,8 +209,17 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
               {(j.salary_min || j.salary_max) && (
                 <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 flex items-center justify-between mb-4">
                   <div>
-                    <p className="text-sm font-medium text-emerald-800">Μισθός</p>
-                    <p className="text-xs text-emerald-600">{j.salary_type === 'hourly' ? 'Ανά ώρα' : 'Ανά μήνα'}</p>
+                    <p className="text-sm font-medium text-emerald-800">
+                      {j.listing_kind === 'shift' ? 'Αμοιβή βάρδιας' : 'Μισθός'}
+                    </p>
+                    <p className="text-xs text-emerald-600">
+                      {j.salary_type === 'hourly' ? 'Ανά ώρα' : j.salary_type === 'daily' ? 'Ανά βάρδια (μικτά)' : 'Ανά μήνα'}
+                    </p>
+                    {j.listing_kind === 'shift' && netOf(j.salary_min) !== null && (
+                      <p className="mt-1 text-xs text-emerald-700">
+                        ≈ <strong>{netOf(j.salary_min)}€ καθαρά</strong> (ενδεικτικά) · δηλώνεται στην ΕΡΓΑΝΗ
+                      </p>
+                    )}
                   </div>
                   <p className="text-2xl font-bold text-emerald-700">
                     {j.salary_min && j.salary_max ? `${j.salary_min}-${j.salary_max}€` : `${j.salary_min || j.salary_max}€`}
@@ -296,8 +325,8 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
                           </div>
                           {(bj.salary_min || bj.salary_max) && (
                             <div className="text-right">
-                              <p className="font-bold text-emerald-600 text-sm">{bj.salary_min}-{bj.salary_max}€</p>
-                              <p className="text-[10px] text-gray-400">{bj.salary_type === 'hourly' ? 'την ώρα' : 'τον μήνα'}</p>
+                              <p className="font-bold text-emerald-600 text-sm">{bj.salary_min}{bj.salary_max ? `-${bj.salary_max}` : ''}€</p>
+                              <p className="text-[10px] text-gray-400">{bj.salary_type === 'hourly' ? 'την ώρα' : bj.salary_type === 'daily' ? 'ανά βάρδια' : 'τον μήνα'}</p>
                             </div>
                           )}
                         </div>
@@ -387,7 +416,11 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
                         : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20'
                     }`}
                   >
-                    {swipeStatus === 'like' ? '✓ Δηλώθηκε' : '♥ Ενδιαφέρομαι'}
+                    {swipeStatus === 'like'
+                      ? '✓ Δηλώθηκε'
+                      : j.listing_kind === 'shift'
+                        ? '🚨 Δήλωσε διαθεσιμότητα'
+                        : '♥ Ενδιαφέρομαι'}
                   </button>
                 </div>
               ) : (

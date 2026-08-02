@@ -388,7 +388,10 @@ app.get('/public/workers', async (c) => {
   return c.json({ success: true, data: workers });
 });
 
-// GET /public/jobs — browse jobs without auth
+// GET /public/jobs — browse jobs without auth.
+// Μόνο μόνιμες αγγελίες: αυτό το endpoint τροφοδοτεί το generateStaticParams()
+// και το sitemap του static export. Οι βάρδιες λήγουν σε ώρες και θα παρήγαγαν
+// νεκρές στατικές σελίδες. Για βάρδιες υπάρχει το /public/shifts.
 app.get('/public/jobs', async (c) => {
   const db = c.env.DB;
   const limit = Math.min(parseInt(c.req.query('limit') || '30', 10), 50);
@@ -405,7 +408,7 @@ app.get('/public/jobs', async (c) => {
        FROM job_listings j
        LEFT JOIN business_profiles bp ON bp.id = j.business_id
        LEFT JOIN business_branches br ON br.user_id = bp.user_id
-       WHERE j.status = 'published'
+       WHERE j.status = 'published' AND j.listing_kind = 'job'
        ORDER BY j.created_at DESC
        LIMIT ?`
     )
@@ -426,6 +429,43 @@ app.get('/public/jobs', async (c) => {
   }
 
   return c.json({ success: true, data: jobs });
+});
+
+// GET /public/shifts — έκτακτες βάρδιες που δεν έχουν ξεκινήσει ακόμα.
+// Το shift_start_utc είναι σε μορφή D1 ('YYYY-MM-DD HH:MM:SS' σε UTC), οπότε
+// συγκρίνεται απευθείας με datetime('now').
+app.get('/public/shifts', async (c) => {
+  const db = c.env.DB;
+  const limit = Math.min(parseInt(c.req.query('limit') || '6', 10), 20);
+
+  const results = await db
+    .prepare(
+      `SELECT j.id, j.title, j.city, j.region, j.hours_per_day,
+         j.salary_min, j.salary_type,
+         j.shift_date, j.shift_days, j.shift_start_time, j.shift_end_time,
+         j.shift_positions, j.shift_start_utc,
+         bp.company_name, bp.user_id as business_user_id,
+         COALESCE(br.logo_url, bp.logo_url) as company_logo,
+         COALESCE(NULLIF(br.name, ''), bp.company_name) as display_company_name,
+         COALESCE(br.city, j.city) as display_city,
+         (SELECT GROUP_CONCAT(role) FROM job_listing_roles WHERE job_listing_id = j.id) as roles_csv
+       FROM job_listings j
+       LEFT JOIN business_profiles bp ON bp.id = j.business_id
+       LEFT JOIN business_branches br ON br.user_id = bp.user_id
+       WHERE j.status = 'published' AND j.listing_kind = 'shift'
+         AND j.shift_start_utc > datetime('now')
+       ORDER BY j.shift_start_utc ASC
+       LIMIT ?`
+    )
+    .bind(limit)
+    .all();
+
+  const shifts = (results.results as any[]).map(({ roles_csv, ...s }) => ({
+    ...s,
+    roles: roles_csv ? String(roles_csv).split(',') : [],
+  }));
+
+  return c.json({ success: true, data: shifts });
 });
 
 // GET /public/businesses — browse businesses without auth (for workers)
@@ -528,7 +568,7 @@ app.get('/public/businesses/:id/jobs', async (c) => {
          j.bonus_provided, j.insurance_provided,
          j.created_at, j.status
        FROM job_listings j
-       WHERE j.business_id = ? AND j.status = 'published'
+       WHERE j.business_id = ? AND j.status = 'published' AND j.listing_kind = 'job'
        ORDER BY j.created_at DESC`
     )
     .bind(bp.id)
@@ -567,7 +607,7 @@ app.get('/public/activity', async (c) => {
       `SELECT j.title, j.city, bp.company_name, j.created_at
        FROM job_listings j
        LEFT JOIN business_profiles bp ON bp.id = j.business_id
-       WHERE j.status = 'published'
+       WHERE j.status = 'published' AND j.listing_kind = 'job'
        ORDER BY j.created_at DESC LIMIT 10`
     ).all(),
     db.prepare(
@@ -650,7 +690,28 @@ app.notFound((c) =>
 //   - downgrades subscriptions whose grace period expired,
 //   - marks manual-bank-transfer orders past `expires_at` as expired.
 // =====================================================================
-async function scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext) {
+/** Πρέπει να ταιριάζει με το πρώτο cron του wrangler.toml. */
+const DAILY_CRON = '15 3 * * *';
+
+async function scheduled(event: ScheduledEvent, env: Env, _ctx: ExecutionContext) {
+  // Ωριαίο: αρχειοθέτηση βαρδιών που έχουν ήδη ξεκινήσει. Απαραίτητο — μια
+  // ληγμένη βάρδια που μένει 'published' κρατάει για πάντα θέση στο όριο
+  // αγγελιών του πλάνου και κλειδώνει μια δωρεάν επιχείρηση στη μία αγγελία.
+  try {
+    const res = await env.DB.prepare(
+      `UPDATE job_listings
+          SET status = 'archived', updated_at = datetime('now')
+        WHERE listing_kind = 'shift' AND status = 'published'
+          AND shift_start_utc IS NOT NULL AND shift_start_utc <= datetime('now')`,
+    ).run();
+    console.log('[cron] archived started shifts:', (res.meta as any)?.changes ?? 0);
+  } catch (err) {
+    console.error('[cron] shift archive failed', err);
+  }
+
+  // Τα υπόλοιπα (billing) τρέχουν μόνο μία φορά την ημέρα.
+  if (event.cron && event.cron !== DAILY_CRON) return;
+
   try {
     const { downgradeExpiredSubscriptions } = await import('./lib/billing');
     const r = await downgradeExpiredSubscriptions(env);

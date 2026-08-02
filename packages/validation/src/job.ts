@@ -70,6 +70,25 @@ const jobBaseSchema = z.object({
   // Section 10: Ειδικότητες
   roles: z.array(workerJobRoleSchema).optional(),
 
+  // Section 11: Έκτακτη βάρδια
+  // Το shift_start_utc είναι παράγωγο (υπολογίζεται server-side) και ποτέ δεν
+  // δέχεται τιμή από τον client — γι' αυτό δεν υπάρχει εδώ.
+  listing_kind: z.enum(["job", "shift"]).optional().default("job"),
+  shift_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Μη έγκυρη ημερομηνία βάρδιας")
+    .optional(),
+  shift_days: z.number().int().min(1).max(14).optional(),
+  shift_start_time: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Μη έγκυρη ώρα έναρξης")
+    .optional(),
+  shift_end_time: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Μη έγκυρη ώρα λήξης")
+    .optional(),
+  shift_positions: z.number().int().min(1).max(20).optional(),
+
   // Meta
   branch_id: z.string().optional(),
 });
@@ -80,19 +99,61 @@ const jobBaseSchema = z.object({
 export const createJobSchema = jobBaseSchema.superRefine((data, ctx) => {
   const salaryType = data.salary_type ?? data.salaryType;
   const salaryMin = data.salary_min ?? data.salaryMin;
+  const isShift = data.listing_kind === "shift";
 
-  if (!salaryType) {
+  if (isShift) {
+    // Η βάρδια πληρώνεται πάντα ημερησίως.
+    if (salaryType && salaryType !== "daily") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["salary_type"],
+        message: "Η έκτακτη βάρδια πληρώνεται ανά βάρδια (ημερήσια αμοιβή)",
+      });
+    }
+  } else if (!salaryType) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["salary_type"],
       message: "Ο τύπος μισθού είναι υποχρεωτικός",
     });
   }
+
   if (salaryMin == null || salaryMin <= 0) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["salary_min"],
-      message: "Ο μισθός είναι υποχρεωτικός — δεν επιτρέπεται συζητήσιμος μισθός",
+      message: isShift
+        ? "Η αμοιβή της βάρδιας είναι υποχρεωτική"
+        : "Ο μισθός είναι υποχρεωτικός — δεν επιτρέπεται συζητήσιμος μισθός",
+    });
+  }
+
+  if (!isShift) return;
+
+  const required = [
+    ["shift_date", data.shift_date, "Η ημερομηνία της βάρδιας είναι υποχρεωτική"],
+    ["shift_start_time", data.shift_start_time, "Η ώρα έναρξης είναι υποχρεωτική"],
+    ["shift_end_time", data.shift_end_time, "Η ώρα λήξης είναι υποχρεωτική"],
+  ] as const;
+  for (const [path, value, message] of required) {
+    if (!value) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
+    }
+  }
+
+  if (data.hours_per_day == null || data.hours_per_day <= 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["hours_per_day"],
+      message: "Η διάρκεια της βάρδιας είναι υποχρεωτική",
+    });
+  }
+
+  if (!data.roles || data.roles.length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["roles"],
+      message: "Επίλεξε τουλάχιστον μία ειδικότητα",
     });
   }
 });

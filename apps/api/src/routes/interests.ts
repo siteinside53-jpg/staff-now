@@ -50,6 +50,8 @@ interests.get('/received', requireAuth, async (c) => {
            COALESCE(wp.photo_url, u.avatar_url) as photo_url,
            wp.city, wp.region, wp.bio, wp.years_of_experience, wp.availability,
            jl.title as job_title,
+           jl.listing_kind, jl.shift_date, jl.shift_start_time, jl.shift_end_time,
+           jl.shift_positions, jl.shift_start_utc,
            (SELECT COUNT(*) FROM matches WHERE worker_id = s.swiper_id AND business_id = ? AND status = 'active') as is_matched,
            (SELECT COUNT(*) FROM blocks WHERE (blocker_id = ? AND blocked_id = s.swiper_id) OR (blocker_id = s.swiper_id AND blocked_id = ?)) as is_blocked
          FROM swipes s
@@ -61,7 +63,7 @@ interests.get('/received', requireAuth, async (c) => {
            AND s.direction = 'like'
            AND s.swiper_id NOT IN (SELECT blocked_id FROM blocks WHERE blocker_id = ?)
            AND s.swiper_id NOT IN (SELECT blocker_id FROM blocks WHERE blocked_id = ?)
-         ORDER BY s.created_at DESC
+         ORDER BY (jl.listing_kind = 'shift') DESC, s.created_at DESC
          LIMIT 50`
       )
       .bind(user.id, user.id, user.id, user.id, user.id, user.id)

@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Spinner } from '@/components/ui/spinner';
 import { JobPreviewPanel } from '@/components/dashboard/job-preview-panel';
 import { EmptyState } from '@/components/ui/empty-state';
+import { whenLabel } from '@/lib/shift-display';
 import {
   WORKER_JOB_ROLE_LABELS_EL,
   LANGUAGES_COMMON,
@@ -273,9 +274,19 @@ export default function JobsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Αγγελίες</h1>
           <p className="mt-1 text-gray-600">{jobs.length > 0 ? `${jobs.length} αγγελίες` : 'Δεν έχεις αγγελίες'}</p>
         </div>
-        <Button onClick={() => { setForm({ ...EMPTY_FORM }); setPositions([{ ...EMPTY_POS }]); setShowForm(!showForm); }}>
-          {showForm ? 'Ακύρωση' : '+ Νέα Αγγελία'}
-        </Button>
+        <div className="flex gap-2">
+          {!showForm && (
+            <a
+              href="/dashboard/jobs/shift"
+              className="inline-flex h-10 items-center rounded-lg border border-red-300 bg-red-50 px-4 text-sm font-semibold text-red-700 transition-colors hover:bg-red-100"
+            >
+              🚨 Έκτακτη βάρδια
+            </a>
+          )}
+          <Button onClick={() => { setForm({ ...EMPTY_FORM }); setPositions([{ ...EMPTY_POS }]); setShowForm(!showForm); }}>
+            {showForm ? 'Ακύρωση' : '+ Νέα Αγγελία'}
+          </Button>
+        </div>
       </div>
 
       {/* ====== CREATE FORM ====== */}
@@ -536,6 +547,11 @@ export default function JobsPage() {
                         job.status === 'archived' ? 'bg-gray-400' : 'bg-yellow-400'
                       }`} title={statusLabels[job.status] || job.status} />
                       <h3 className="text-lg font-semibold text-gray-900">{job.title}</h3>
+                      {job.listing_kind === 'shift' && (
+                        <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-bold text-white">
+                          🚨 ΕΚΤΑΚΤΗ ΒΑΡΔΙΑ
+                        </span>
+                      )}
                       <Badge variant={job.status === 'published' ? 'default' : 'secondary'} className={
                         job.status === 'paused' ? 'bg-red-100 text-red-700 border-red-200' : ''
                       }>
@@ -544,6 +560,12 @@ export default function JobsPage() {
                     </div>
                     <p className="mt-1 text-sm text-gray-500 line-clamp-2">{job.description}</p>
                     <div className="mt-2 flex flex-wrap gap-3 text-sm text-gray-400">
+                      {job.listing_kind === 'shift' && job.shift_date && (
+                        <span className="font-semibold text-red-600">
+                          📅 {whenLabel(job.shift_date)} · {job.shift_start_time}–{job.shift_end_time}
+                          {(job.shift_positions ?? 1) > 1 ? ` · ${job.shift_positions} άτομα` : ''}
+                        </span>
+                      )}
                       {job.city && <span>📍 {job.city}{job.region ? `, ${job.region}` : ''}</span>}
                       {(job.salary_min || job.salary_max) && (() => {
                         const unit = job.salary_type === 'hourly' ? '/ώρα' : job.salary_type === 'daily' ? '/ημέρα' : '/μήνα';
@@ -573,7 +595,7 @@ export default function JobsPage() {
                         )}
                       </button>
                     )}
-                    {job.status === 'published' && (
+                    {job.status === 'published' && job.listing_kind !== 'shift' && (
                       <button
                         onClick={() => handleBoost(job.id)}
                         title="🚀 Boost (5 credits · 7 ημέρες) — Pro+ only"

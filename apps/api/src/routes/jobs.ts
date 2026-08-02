@@ -9,6 +9,7 @@ import { success, error, paginated } from '../lib/response';
 import { generateId } from '../lib/id';
 import { recordActivity, getRequestIp, getGeoFromRequest, recordDataChange, computeDiff } from '../lib/activity';
 import { notifyUser } from '../lib/notify';
+import { athensWallClockToD1Utc, nowD1Utc } from '../lib/shift-time';
 
 const jobs = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
 
@@ -43,10 +44,19 @@ jobs.get('/', requireAuth, async (c) => {
   } else {
     // Workers see published jobs, exclude matched ones
     conditions.push("j.status = 'published'");
+    // Οι βάρδιες που έχουν ήδη ξεκινήσει δεν εμφανίζονται ποτέ.
+    conditions.push("(j.listing_kind = 'job' OR j.shift_start_utc > datetime('now'))");
     conditions.push(
       `j.business_id NOT IN (SELECT bp2.id FROM business_profiles bp2 JOIN matches mt ON mt.business_id = bp2.user_id WHERE mt.worker_id = ? AND mt.status = 'active')`
     );
     params.push(user.id);
+
+    // ?kind=shift → μόνο έκτακτες βάρδιες, ?kind=job → μόνο μόνιμες αγγελίες
+    const kind = c.req.query('kind');
+    if (kind === 'shift' || kind === 'job') {
+      conditions.push('j.listing_kind = ?');
+      params.push(kind);
+    }
   }
 
   if (region) {
@@ -135,7 +145,7 @@ jobs.get('/', requireAuth, async (c) => {
        ) active_boost ON active_boost.job_id = j.id
        ${roleJoin}
        ${whereClause}
-       ORDER BY is_boosted DESC, is_premium DESC, j.created_at DESC
+       ORDER BY (j.listing_kind = 'shift') DESC, is_boosted DESC, is_premium DESC, j.created_at DESC
        LIMIT ? OFFSET ?`
     )
     .bind(...params, limit, offset)
@@ -174,6 +184,7 @@ jobs.get('/favorites/list', requireAuth, async (c) => {
      JOIN business_profiles bp ON bp.id = j.business_id
      LEFT JOIN business_branches br ON br.user_id = bp.user_id
      WHERE f.user_id = ? AND f.target_type = 'job' AND j.status = 'published'
+       AND (j.listing_kind = 'job' OR j.shift_start_utc > datetime('now'))
      ORDER BY f.created_at DESC LIMIT 50`
   ).bind(user.id).all();
 
@@ -230,6 +241,22 @@ jobs.post(
       );
     }
 
+    // ── Έκτακτη βάρδια ────────────────────────────────────────────────────
+    // Η ώρα που δίνει ο χρήστης είναι τοπική Ελλάδας· την κρατάμε ως έχει για
+    // εμφάνιση και αποθηκεύουμε επιπλέον την έναρξη σε UTC (μορφή D1) ώστε να
+    // συγκρίνεται σωστά με datetime('now').
+    const isShift = body.listing_kind === 'shift';
+    let shiftStartUtc: string | null = null;
+    if (isShift) {
+      shiftStartUtc = athensWallClockToD1Utc(body.shift_date!, body.shift_start_time!);
+      if (!shiftStartUtc) {
+        return error(c, 'Μη έγκυρη ημερομηνία ή ώρα βάρδιας', 400);
+      }
+      if (shiftStartUtc <= nowD1Utc()) {
+        return error(c, 'Η βάρδια δεν μπορεί να ξεκινά στο παρελθόν', 400);
+      }
+    }
+
     await db
       .prepare(
         `INSERT INTO job_listings (
@@ -238,18 +265,22 @@ jobs.post(
           housing_provided, meals_provided, transport_provided, bonus_provided, insurance_provided, no_benefits,
           hours_per_day, days_per_week, has_day_off, day_off_description, shift_type,
           experience_required, requires_drivers_license, requires_physical_fitness, requires_communication_skills,
-          languages, start_date, end_date, status, branch_id, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published', ?, ?, ?)`
+          languages, start_date, end_date, status, branch_id,
+          listing_kind, shift_date, shift_days, shift_start_time, shift_end_time, shift_positions, shift_start_utc,
+          created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
         jobId, bp.id,
         body.title, body.description || '',
         body.region || null, body.city || null, body.address || null, body.postal_code || null,
         body.requires_relocation ? 1 : 0,
-        body.employment_type || body.employmentType || 'seasonal',
+        // Το CHECK του 0015 δέχεται μόνο full_time/part_time/seasonal — μια
+        // βάρδια είναι part_time.
+        isShift ? 'part_time' : body.employment_type || body.employmentType || 'seasonal',
         body.salary_min || body.salaryMin || null,
-        body.salary_max || body.salaryMax || null,
-        body.salary_type || body.salaryType || 'monthly',
+        isShift ? null : body.salary_max || body.salaryMax || null,
+        isShift ? 'daily' : body.salary_type || body.salaryType || 'monthly',
         body.salary_gross !== false ? 1 : 0,
         body.housing_provided || body.housingProvided ? 1 : 0,
         body.meals_provided || body.mealsProvided ? 1 : 0,
@@ -268,6 +299,13 @@ jobs.post(
         body.start_date || body.startDate || null,
         body.end_date || body.endDate || null,
         body.branch_id || null,
+        isShift ? 'shift' : 'job',
+        isShift ? body.shift_date! : null,
+        isShift ? body.shift_days ?? 1 : null,
+        isShift ? body.shift_start_time! : null,
+        isShift ? body.shift_end_time! : null,
+        isShift ? body.shift_positions ?? 1 : null,
+        shiftStartUtc,
         now, now
       )
       .run();
@@ -358,21 +396,29 @@ jobs.post(
               .first<{ company_name: string }>();
             const companyName = bizProfile?.company_name || 'μια επιχείρηση';
 
-            const title = `💼 Νέα αγγελία: ${body.title}`;
-            const notifBody = `${companyName} · ${jobRegion}`;
+            const title = isShift
+              ? `🚨 Έκτακτη βάρδια: ${body.title}`
+              : `💼 Νέα αγγελία: ${body.title}`;
+            const notifBody = isShift
+              ? `${companyName} · ${jobRegion} · ${body.shift_date} ${body.shift_start_time}–${body.shift_end_time}`
+              : `${companyName} · ${jobRegion}`;
             const nowTs = new Date().toISOString();
             const jobPath = `/dashboard/swipe`;
+            // 'new_job' δεν είναι στο CHECK του notifications.type (migration
+            // 0008) — για τις βάρδιες χρησιμοποιούμε 'system' που είναι έγκυρο.
+            const notifType = isShift ? 'system' : 'new_job';
 
             await Promise.allSettled(
               recipients.map(async (r) => {
                 await db
                   .prepare(
                     `INSERT INTO notifications (id, user_id, type, title, body, data, created_at)
-                     VALUES (?, ?, 'new_job', ?, ?, ?, ?)`,
+                     VALUES (?, ?, ?, ?, ?, ?, ?)`,
                   )
                   .bind(
                     generateId('nt'),
                     r.user_id,
+                    notifType,
                     title,
                     notifBody,
                     JSON.stringify({ jobId }),
@@ -384,9 +430,9 @@ jobs.post(
                   title,
                   body: notifBody,
                   url: jobPath,
-                  ctaText: 'Δες την αγγελία',
-                  emailCategory: 'new_job',
-                  emailCooldownMinutes: 60,
+                  ctaText: isShift ? 'Δήλωσε διαθεσιμότητα' : 'Δες την αγγελία',
+                  emailCategory: isShift ? 'urgent_shift' : 'new_job',
+                  emailCooldownMinutes: isShift ? 15 : 60,
                 });
               }),
             );
@@ -488,6 +534,10 @@ jobs.patch(
       'experience_required', 'requires_drivers_license', 'requires_physical_fitness',
       'requires_communication_skills', 'languages',
       'start_date', 'end_date', 'branch_id',
+      // Έκτακτη βάρδια. Το listing_kind δεν αλλάζει μετά τη δημιουργία (θα
+      // άλλαζε το νόημα υπαρχόντων swipes) και το shift_start_utc είναι
+      // παράγωγο — ξαναϋπολογίζεται παρακάτω.
+      'shift_date', 'shift_days', 'shift_start_time', 'shift_end_time', 'shift_positions',
     ];
 
     const booleanFields = [
@@ -526,6 +576,22 @@ jobs.patch(
     if (body.languages !== undefined) {
       updateFields.push('languages = ?');
       updateValues.push(body.languages ? JSON.stringify(body.languages) : null);
+    }
+
+    // Το shift_start_utc είναι παράγωγο — ξαναϋπολογίζεται όποτε αλλάξει η
+    // ημερομηνία ή η ώρα έναρξης της βάρδιας.
+    if (
+      beforeJob?.listing_kind === 'shift' &&
+      (body.shift_date !== undefined || body.shift_start_time !== undefined)
+    ) {
+      const nextDate = (body.shift_date as string) ?? beforeJob.shift_date;
+      const nextTime = (body.shift_start_time as string) ?? beforeJob.shift_start_time;
+      const nextUtc = athensWallClockToD1Utc(nextDate, nextTime);
+      if (!nextUtc) {
+        return error(c, 'Μη έγκυρη ημερομηνία ή ώρα βάρδιας', 400);
+      }
+      updateFields.push('shift_start_utc = ?');
+      updateValues.push(nextUtc);
     }
 
     // Update roles if provided
@@ -701,15 +767,19 @@ jobs.post('/:id/boost', requireAuth, requireRole('business'), async (c) => {
 
   // 2. Verify ownership
   const job = await db
-    .prepare('SELECT id, business_id, status FROM job_listings WHERE id = ?')
+    .prepare('SELECT id, business_id, status, listing_kind FROM job_listings WHERE id = ?')
     .bind(jobId)
-    .first<{ id: string; business_id: string; status: string }>();
+    .first<{ id: string; business_id: string; status: string; listing_kind: string }>();
   if (!job) return error(c, 'Η αγγελία δεν βρέθηκε', 404);
   const ownsJob = await db
     .prepare('SELECT id FROM business_profiles WHERE id = ? AND user_id = ?')
     .bind(job.business_id, user.id)
     .first();
   if (!ownsJob) return error(c, 'Δεν έχετε δικαίωμα boost αυτής της αγγελίας', 403);
+  // Το boost διαρκεί 7 μέρες, η βάρδια λίγες ώρες — θα ξόδευε credits στο κενό.
+  if (job.listing_kind === 'shift') {
+    return error(c, 'Οι έκτακτες βάρδιες δεν υποστηρίζουν boost', 400);
+  }
 
   // 3. Check if already boosted (active boost, not expired)
   const existing = await db
@@ -893,12 +963,29 @@ jobs.post('/:id/like', requireAuth, requireRole('worker'), async (c) => {
 
   // Get job and verify it's published
   const job = await db
-    .prepare("SELECT id, business_id, title FROM job_listings WHERE id = ? AND status = 'published'")
+    .prepare(
+      `SELECT id, business_id, title, listing_kind, shift_date, shift_start_time, shift_end_time, shift_start_utc
+       FROM job_listings WHERE id = ? AND status = 'published'`,
+    )
     .bind(jobId)
-    .first<{ id: string; business_id: string; title: string }>();
+    .first<{
+      id: string;
+      business_id: string;
+      title: string;
+      listing_kind: string;
+      shift_date: string | null;
+      shift_start_time: string | null;
+      shift_end_time: string | null;
+      shift_start_utc: string | null;
+    }>();
 
   if (!job) {
     return error(c, 'Η αγγελία δεν βρέθηκε', 404);
+  }
+
+  const isShift = job.listing_kind === 'shift';
+  if (isShift && (!job.shift_start_utc || job.shift_start_utc <= nowD1Utc())) {
+    return error(c, 'Η βάρδια έχει ήδη ξεκινήσει', 410);
   }
 
   // Check duplicate swipe
@@ -924,23 +1011,32 @@ jobs.post('/:id/like', requireAuth, requireRole('worker'), async (c) => {
   const workerInfo = await db.prepare('SELECT full_name FROM worker_profiles WHERE user_id = ?').bind(user.id).first<{ full_name: string }>();
   const workerName = workerInfo?.full_name || 'Νέος υποψήφιος';
 
-  // Notify business about interest
+  // Notify business about interest. Για τις έκτακτες βάρδιες το μήνυμα είναι
+  // πιο επείγον και ο περιορισμός email πιο χαλαρός — η επιχείρηση πρέπει να
+  // διαλέξει άτομο μέσα σε ώρες.
+  const notifTitle = isShift
+    ? `🚨 ${workerName} δήλωσε διαθεσιμότητα για τη βάρδια σου`
+    : `❤️ ${workerName} ενδιαφέρθηκε για την αγγελία σου`;
+  const notifBody = isShift
+    ? `${job.title} · ${job.shift_date} ${job.shift_start_time}–${job.shift_end_time} — διάλεξε ποιον θα πάρεις.`
+    : `${job.title} — δες το προφίλ και κάνε like πίσω για να ξεκινήσετε συνομιλία.`;
+
   await db.prepare(
     `INSERT INTO notifications (id, user_id, type, title, body, data, created_at)
      VALUES (?, ?, 'system', ?, ?, ?, ?)`
-  ).bind(generateId(), bizUserIdEarly, `❤️ ${workerName} ενδιαφέρθηκε για την αγγελία σου`, job.title, JSON.stringify({ jobId, workerId: user.id }), now).run();
+  ).bind(generateId(), bizUserIdEarly, notifTitle, job.title, JSON.stringify({ jobId, workerId: user.id }), now).run();
 
   // Off-site notify (push + email, throttled) so the business hears about the
   // interest even when StaffNow is not open.
   c.executionCtx.waitUntil(
     notifyUser(c.env, {
       userId: bizUserIdEarly,
-      title: `❤️ ${workerName} ενδιαφέρθηκε για την αγγελία σου`,
-      body: `${job.title} — δες το προφίλ και κάνε like πίσω για να ξεκινήσετε συνομιλία.`,
+      title: notifTitle,
+      body: notifBody,
       url: '/dashboard/interests',
-      ctaText: 'Δες τα ενδιαφέροντα',
-      emailCategory: 'interest',
-      emailCooldownMinutes: 30,
+      ctaText: isShift ? 'Διάλεξε άτομο' : 'Δες τα ενδιαφέροντα',
+      emailCategory: isShift ? 'shift_availability' : 'interest',
+      emailCooldownMinutes: isShift ? 5 : 30,
     }),
   );
 
