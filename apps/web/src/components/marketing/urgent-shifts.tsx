@@ -4,8 +4,10 @@
  * «Έκτακτη βάρδια» — marketing section στην αρχική.
  *
  * Δείχνει τις πραγματικές ανοιχτές βάρδιες από το `GET /public/shifts`.
- * Αν δεν υπάρχει καμία, το section ΔΕΝ εμφανίζεται καθόλου — καμία ψεύτικη
- * αγγελία σε πραγματικούς χρήστες.
+ * Αν δεν υπάρχει καμία, η ενότητα παραμένει ορατή — αλλιώς κανείς δεν μαθαίνει
+ * ότι υπάρχει η δυνατότητα — αλλά με μία κάρτα ρητά σημασμένη ως
+ * «ΠΑΡΑΔΕΙΓΜΑ»: γκρι, χωρίς countdown, χωρίς κουμπί δήλωσης. Ποτέ δεν
+ * παρουσιάζεται ψεύτικη αγγελία σαν πραγματική.
  *
  * Το countdown («λήγει σε 3ω») ΠΡΕΠΕΙ να υπολογίζεται client-side: το site
  * είναι static export (`output: 'export'`), οπότε ό,τι υπολογιστεί σε render
@@ -36,29 +38,48 @@ interface PublicShift {
 }
 
 /**
- * Δείγμα μόνο για τοπική ανάπτυξη. Το `process.env.NODE_ENV !== 'production'`
- * γίνεται tree-shake στο production build, οπότε ΠΟΤΕ δεν φτάνει στους
- * πραγματικούς χρήστες.
+ * Παραδείγματα που εμφανίζονται ΜΟΝΟ όταν δεν υπάρχει καμία πραγματική βάρδια,
+ * ώστε ο επισκέπτης να καταλάβει ότι υπάρχει η δυνατότητα. Εμφανίζονται πάντα
+ * με τη σήμανση «ΠΑΡΑΔΕΙΓΜΑ» και χωρίς κουμπί δήλωσης διαθεσιμότητας.
  */
-const DEV_DEMO_SHIFTS: PublicShift[] =
-  process.env.NODE_ENV !== 'production'
-    ? [
-        {
-          id: 'demo-1',
-          title: 'Σερβιτόρος',
-          display_company_name: 'Ουζερί «Το Στέκι»',
-          display_city: 'Γλυφάδα',
-          salary_min: 70,
-          shift_date: null,
-          shift_days: 1,
-          shift_start_time: '18:00',
-          shift_end_time: '02:00',
-          shift_positions: 1,
-          shift_start_utc: null,
-          roles: ['waiter'],
-        },
-      ]
-    : [];
+const EXAMPLE_SHIFTS: PublicShift[] = [
+  {
+    id: 'example-1',
+    title: 'Σερβιτόρος',
+    display_company_name: 'Ουζερί «Το Στέκι»',
+    display_city: 'Γλυφάδα',
+    salary_min: 70,
+    shift_days: 1,
+    shift_start_time: '18:00',
+    shift_end_time: '02:00',
+    shift_positions: 1,
+    roles: ['waiter'],
+  },
+  {
+    id: 'example-2',
+    title: 'Bartender',
+    display_company_name: 'Beach bar',
+    display_city: 'Βούλα',
+    salary_min: 90,
+    shift_days: 2,
+    shift_start_time: '20:00',
+    shift_end_time: '04:00',
+    shift_positions: 2,
+    roles: ['bartender'],
+  },
+  {
+    id: 'example-3',
+    title: 'Βοηθός κουζίνας',
+    display_company_name: 'Ταβέρνα',
+    display_city: 'Θεσσαλονίκη',
+    salary_min: 60,
+    shift_days: 1,
+    shift_start_time: '17:00',
+    shift_end_time: '01:00',
+    shift_positions: 1,
+    roles: ['kitchen_assistant'],
+  },
+];
 
 const ROLE_EMOJI: Record<string, string> = {
   waiter: '🍽️',
@@ -102,10 +123,9 @@ export function UrgentShifts() {
         });
         const json = res.ok ? await res.json() : null;
         if (cancelled) return;
-        const data: PublicShift[] = json?.data ?? [];
-        setShifts(data.length > 0 ? data : DEV_DEMO_SHIFTS);
+        setShifts(json?.data ?? []);
       } catch {
-        if (!cancelled) setShifts(DEV_DEMO_SHIFTS);
+        // Χωρίς δίκτυο μένουμε στα παραδείγματα.
       } finally {
         clearTimeout(timeout);
       }
@@ -127,12 +147,13 @@ export function UrgentShifts() {
 
   const now = nowTick > 0 ? new Date(nowTick) : new Date(0);
   // Κρύβουμε όσες ξεκίνησαν όσο ο χρήστης έχει ανοιχτή τη σελίδα.
-  // Τα demo (χωρίς shift_start_utc) περνάνε πάντα.
-  const visible = shifts.filter(
+  const live = shifts.filter(
     (s) => !s.shift_start_utc || nowTick === 0 || expiresLabel(s.shift_start_utc, now) !== null,
   );
 
-  if (visible.length === 0) return null;
+  // Χωρίς πραγματικές βάρδιες δείχνουμε παραδείγματα — σημασμένα ως τέτοια.
+  const isExample = live.length === 0;
+  const visible = isExample ? EXAMPLE_SHIFTS : live;
 
   return (
     <section className="border-t border-gray-200 bg-gradient-to-b from-red-50/60 to-white py-20 sm:py-24">
@@ -150,11 +171,17 @@ export function UrgentShifts() {
             Μία βάρδια, όχι θέση εργασίας. Ανεβάζεις ώρα και αμοιβή — βρίσκεις άτομο μέσα σε λεπτά.
             Χωρίς βιογραφικά, χωρίς δέσμευση.
           </p>
+          {isExample && (
+            <p className="mt-5 inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-600">
+              Δεν υπάρχει ενεργή βάρδια αυτή τη στιγμή — έτσι φαίνονται
+            </p>
+          )}
         </div>
 
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {visible.map((s) => {
-            const countdown = nowTick > 0 ? expiresLabel(s.shift_start_utc, now) : null;
+            const countdown =
+              !isExample && nowTick > 0 ? expiresLabel(s.shift_start_utc, now) : null;
             const net = netOf(s.salary_min);
             const company = s.display_company_name || s.company_name || 'Επιχείρηση';
             const city = s.display_city || s.city || s.region;
@@ -167,7 +194,10 @@ export function UrgentShifts() {
                 className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
               >
                 {/* κόκκινη ράχη — το οπτικό σήμα της βάρδιας */}
-                <span className="absolute inset-y-0 left-0 w-1 bg-red-600" aria-hidden />
+                <span
+                  className={`absolute inset-y-0 left-0 w-1 ${isExample ? 'bg-gray-300' : 'bg-red-600'}`}
+                  aria-hidden
+                />
 
                 {countdown && (
                   <span className="absolute right-4 top-5 text-[11.5px] font-extrabold text-red-600">
@@ -176,10 +206,16 @@ export function UrgentShifts() {
                 )}
 
                 <div className="pl-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-[11.5px] font-extrabold uppercase tracking-wide text-red-600">
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-600" />
-                    {when}
-                  </span>
+                  {isExample ? (
+                    <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-[11.5px] font-extrabold uppercase tracking-wide text-gray-500">
+                      Παράδειγμα
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-[11.5px] font-extrabold uppercase tracking-wide text-red-600">
+                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-600" />
+                      {when}
+                    </span>
+                  )}
 
                   <h3 className="mt-3 flex items-center gap-2 text-lg font-bold text-gray-900">
                     <span aria-hidden>{shiftEmoji(s.roles)}</span>
@@ -213,12 +249,18 @@ export function UrgentShifts() {
                     </div>
                   ) : null}
 
-                  <Link
-                    href="/auth/register?role=worker"
-                    className="mt-5 block w-full rounded-xl bg-gray-900 py-3 text-center text-sm font-bold text-white transition-colors hover:bg-red-600"
-                  >
-                    Δήλωσε διαθεσιμότητα
-                  </Link>
+                  {isExample ? (
+                    <div className="mt-5 w-full rounded-xl border border-dashed border-gray-300 py-3 text-center text-sm font-semibold text-gray-400">
+                      Δείγμα αγγελίας
+                    </div>
+                  ) : (
+                    <Link
+                      href="/auth/register?role=worker"
+                      className="mt-5 block w-full rounded-xl bg-gray-900 py-3 text-center text-sm font-bold text-white transition-colors hover:bg-red-600"
+                    >
+                      Δήλωσε διαθεσιμότητα
+                    </Link>
+                  )}
                 </div>
               </article>
             );
