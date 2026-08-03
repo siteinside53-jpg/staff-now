@@ -1294,7 +1294,7 @@ export default function DiscoverPage() {
         >
           {/* ── ΕΙΚΟΝΑ (πάνω μέρος της κάρτας) ── */}
           <div
-            className={`relative h-1/2 flex-shrink-0 overflow-hidden ${
+            className={`relative flex-shrink-0 overflow-hidden ${isJobCard ? 'h-1/2' : 'h-[58%]'} ${
               cover
                 ? ''
                 : isJobCard
@@ -1304,13 +1304,31 @@ export default function DiscoverPage() {
           >
             {cover ? (
               <>
-                {/* object-top στα προφίλ: σε κάθετη φωτογραφία κρατά το πρόσωπο μέσα στο κάδρο */}
-                <img
-                  src={cover}
-                  alt=""
-                  draggable={false}
-                  className={`h-full w-full object-cover ${isJobCard ? '' : 'object-top'}`}
-                />
+                {isJobCard ? (
+                  <img src={cover} alt="" draggable={false} className="h-full w-full object-cover" />
+                ) : (
+                  /*
+                    Φωτογραφία εργαζόμενου: φαίνεται ΟΛΟΚΛΗΡΗ και κεντραρισμένη
+                    (object-contain), ώστε να μην κόβεται ποτέ το πρόσωπο. Ο κενός
+                    χώρος δεξιά-αριστερά γεμίζει με θολή εκδοχή της ίδιας φωτογραφίας,
+                    οπότε η κάρτα παραμένει γεμάτη από άκρη σε άκρη.
+                  */
+                  <>
+                    <img
+                      src={cover}
+                      alt=""
+                      aria-hidden="true"
+                      draggable={false}
+                      className="absolute inset-0 h-full w-full scale-125 object-cover blur-2xl"
+                    />
+                    <img
+                      src={cover}
+                      alt=""
+                      draggable={false}
+                      className="relative h-full w-full object-contain"
+                    />
+                  </>
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/15" />
               </>
             ) : (
