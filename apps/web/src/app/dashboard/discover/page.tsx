@@ -1076,8 +1076,15 @@ export default function DiscoverPage() {
       {discoverTab === 'discover' && !noCandidates && currentCandidate && discoverView === 'swipe' && (
 
       <div className="mx-auto max-w-lg select-none lg:hidden">
+        {/*
+          touch-pan-y κι όχι touch-none: η κάρτα πιάνει σχεδόν όλη την οθόνη στο κινητό,
+          οπότε με `none` το δάχτυλο δεν μπορούσε να κυλήσει τη σελίδα και τα κουμπιά από
+          κάτω ήταν απρόσιτα. Η απόφαση swipe κοιτά μόνο οριζόντια μετατόπιση, άρα το
+          κάθετο σύρσιμο μπορεί να πάει με ασφάλεια στο browser (το onPointerCancel
+          μηδενίζει ήδη τη μετατόπιση όταν το αναλαμβάνει εκείνο).
+        */}
         <Card
-          className="overflow-hidden rounded-[26px] border-slate-200 shadow-card touch-none"
+          className="overflow-hidden rounded-[26px] border-slate-200 shadow-card touch-pan-y"
           onPointerDown={(e) => {
             const target = e.target as HTMLElement;
             if (target.closest('button, a, [data-no-drag]')) return;
@@ -1139,7 +1146,7 @@ export default function DiscoverPage() {
         >
           {/* Header */}
           <div
-            className={`relative px-6 pb-8 pt-10 text-center text-white ${
+            className={`relative px-6 pb-5 pt-6 text-center text-white sm:pb-8 sm:pt-10 ${
               currentCandidate.coverPhoto ? '' : 'bg-gradient-to-br from-blue-500 to-indigo-600'
             }`}
             style={
@@ -1173,14 +1180,14 @@ export default function DiscoverPage() {
               <img
                 src={currentCandidate.photoUrl || currentCandidate.companyLogo}
                 alt=""
-                className="mx-auto h-24 w-24 rounded-full object-cover border-2 border-white/40 shadow-lg bg-white"
+                className="mx-auto h-16 w-16 rounded-full object-cover border-2 border-white/40 shadow-lg bg-white sm:h-24 sm:w-24"
               />
             ) : currentCandidate.coverPhoto ? null : (
-              <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-white/20 text-3xl font-bold shadow-lg backdrop-blur-sm">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white/20 text-2xl font-bold shadow-lg backdrop-blur-sm sm:h-24 sm:w-24 sm:text-3xl">
                 {currentCandidate.name?.charAt(0)?.toUpperCase() || '?'}
               </div>
             )}
-            <h2 className="mt-4 inline-flex items-center justify-center gap-2 text-2xl font-bold drop-shadow">
+            <h2 className="mt-3 inline-flex items-center justify-center gap-2 text-xl font-bold drop-shadow sm:mt-4 sm:text-2xl">
               {currentCandidate.name}
               {currentCandidate.isPremium && <PremiumTick size="lg" />}
             </h2>
@@ -1217,7 +1224,7 @@ export default function DiscoverPage() {
             </div>
           </div>
 
-          <CardContent className="p-6">
+          <CardContent className="p-5 sm:p-6">
             {/* Time + conditions */}
             <div className="flex flex-wrap items-center gap-2 mb-4 text-xs">
               {currentCandidate.createdAt && (
