@@ -6,7 +6,6 @@ import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PremiumTick } from '@/components/ui/premium-tick';
@@ -554,6 +553,40 @@ export default function DiscoverPage() {
 
   const currentCandidate = candidates[currentIndex];
 
+  /*
+    Ενέργεια από τη λίστα. Το handleAction παρακάτω δουλεύει με τον δείκτη του
+    swipe (πάντα «η τρέχουσα κάρτα»), ενώ εδώ ο χρήστης πατάει σε συγκεκριμένη
+    γραμμή — γι' αυτό αφαιρούμε το στοιχείο αντί να προχωρήσουμε τον δείκτη.
+  */
+  const listAction = async (c: DiscoverProfile, action: 'like' | 'skip') => {
+    if (actionLoading) return;
+    setActionLoading(true);
+    const drop = () => {
+      setCandidates((prev) => prev.filter((x) => x.id !== c.id));
+      setCurrentIndex((i) => Math.max(0, Math.min(i, candidates.length - 2)));
+    };
+    try {
+      if (action === 'like') {
+        const res = (isWorker ? await api.jobs.like(c.id) : await api.workers.like(c.id)) as any;
+        toast.success(
+          res?.data?.matched
+            ? '🎉 Match! Μπορείτε τώρα να ξεκινήσετε συνομιλία!'
+            : '❤️ Ενδιαφέρον καταχωρήθηκε!',
+        );
+      }
+      drop();
+    } catch (err: any) {
+      if (err?.status === 409 || err?.code === 'CONFLICT') {
+        toast.info('Έχεις ήδη δείξει ενδιαφέρον.');
+      } else {
+        toast.error(err?.message || 'Κάτι πήγε στραβά. Δοκίμασε ξανά.');
+      }
+      drop();
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleAction = async (action: 'like' | 'skip') => {
     if (!currentCandidate || actionLoading) return;
     setActionLoading(true);
@@ -632,13 +665,13 @@ export default function DiscoverPage() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-3 lg:mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Εύρεση</h1>
         {discoverTab === 'discover' && !noCandidates && <span className="text-sm text-gray-500">{currentIndex + 1} / {candidates.length}</span>}
       </div>
 
       {/* Tabs — σε desktop πάνε αριστερά (sidebar). Εδώ μένουν μόνο για mobile. */}
-      <div className="mb-6 lg:hidden">
+      <div className="mb-4 lg:hidden">
         {renderTabs(false)}
       </div>
 
@@ -825,7 +858,7 @@ export default function DiscoverPage() {
 
       {/* Swipe/Λίστα toggle — ΜΟΝΟ σε mobile (σε desktop δείχνουμε πάντα λίστα) */}
       {discoverTab === 'discover' && !noCandidates && (
-        <div className="mx-auto max-w-lg mb-4 flex items-center justify-center lg:hidden">
+        <div className="mx-auto max-w-lg mb-3 flex items-center justify-center lg:hidden">
           <div className="inline-flex rounded-full bg-gray-100 p-1 text-xs font-bold shadow-inner">
             <button
               onClick={() => setDiscoverView('swipe')}
@@ -883,6 +916,18 @@ export default function DiscoverPage() {
               const shiftNet = isShift ? netOf(c.salaryMin) : null;
               return (
                 <li key={c.id}>
+                  {/*
+                    Η γραμμή είναι <div> κι όχι <button>, γιατί στο κινητό κρύβει
+                    και δύο δικά της κουμπιά (Πέρασε / Ενδιαφέρον) — κουμπί μέσα
+                    σε κουμπί δεν επιτρέπεται σε HTML.
+                  */}
+                  <div
+                    className={`group overflow-hidden rounded-2xl bg-white shadow-sm ring-1 transition-all ${
+                      isShift
+                        ? 'border-l-4 border-red-600 ring-red-100 hover:shadow-md hover:ring-red-200'
+                        : 'ring-gray-100 hover:shadow-md hover:ring-blue-200'
+                    }`}
+                  >
                   <button
                     onClick={() => {
                       // Άνοιξε απευθείας την καρτέλα (δουλεύει και σε desktop όπου δεν υπάρχει swipe)
@@ -894,14 +939,10 @@ export default function DiscoverPage() {
                         setViewingProfileId(c.id);
                       }
                     }}
-                    className={`group w-full flex items-center gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 transition-all active:scale-[0.99] text-left ${
-                      isShift
-                        ? 'border-l-4 border-red-600 ring-red-100 hover:shadow-md hover:ring-red-200'
-                        : 'ring-gray-100 hover:shadow-md hover:ring-blue-200'
-                    }`}
+                    className="w-full flex items-start sm:items-center gap-3 sm:gap-4 p-4 transition-transform active:scale-[0.99] text-left"
                   >
                     {/* Avatar / Logo */}
-                    <div className="relative h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0 overflow-hidden rounded-2xl bg-gradient-to-br from-purple-200 via-pink-200 to-rose-200 flex items-center justify-center">
+                    <div className="relative h-14 w-14 sm:h-20 sm:w-20 flex-shrink-0 overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-purple-200 via-pink-200 to-rose-200 flex items-center justify-center">
                       {photo ? (
                         <img src={photo} alt="" className="h-full w-full object-cover" />
                       ) : (
@@ -919,7 +960,7 @@ export default function DiscoverPage() {
                     {/* Main info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <p className="text-sm sm:text-base font-bold text-gray-900 truncate">
+                        <p className="text-base font-bold text-gray-900 truncate">
                           {c.name}
                         </p>
                         {c.verified && (
@@ -949,6 +990,16 @@ export default function DiscoverPage() {
                         {countdown && (
                           <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700 ring-1 ring-red-200 sm:hidden">
                             ⏳ λήγει {countdown}
+                          </span>
+                        )}
+                        {/* Στο κινητό η δεξιά στήλη κρύβεται, οπότε το ποσοστό έρχεται εδώ */}
+                        {typeof score === 'number' && score > 0 && (
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold text-white sm:hidden ${
+                              score >= 80 ? 'bg-emerald-500' : score >= 60 ? 'bg-blue-500' : 'bg-gray-500'
+                            }`}
+                          >
+                            🎯 {score}%
                           </span>
                         )}
                       </div>
@@ -996,8 +1047,8 @@ export default function DiscoverPage() {
                       )}
                     </div>
 
-                    {/* Right column: AI score + chevron */}
-                    <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                    {/* Right column: AI score + chevron — μόνο από tablet κι επάνω */}
+                    <div className="hidden sm:flex flex-col items-end gap-1.5 flex-shrink-0">
                       {countdown && (
                         <span
                           className="hidden sm:inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-[11px] font-bold text-red-700 ring-1 ring-red-200"
@@ -1028,6 +1079,30 @@ export default function DiscoverPage() {
                       </span>
                     </div>
                   </button>
+
+                  {/* Γρήγορες ενέργειες — μόνο στο κινητό, όπως στη λίστα του v5 */}
+                  <div className="flex items-center gap-2 border-t border-gray-100 px-4 py-3 sm:hidden">
+                    <button
+                      type="button"
+                      onClick={() => listAction(c, 'skip')}
+                      disabled={actionLoading}
+                      aria-label="Πέρασε"
+                      className="inline-flex h-10 w-12 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition-transform active:scale-90 disabled:opacity-50"
+                    >
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => listAction(c, 'like')}
+                      disabled={actionLoading || c.swipeStatus === 'like'}
+                      className="flex-1 rounded-full bg-emerald-600 py-2.5 text-sm font-bold text-white transition-transform active:scale-95 disabled:bg-gray-300"
+                    >
+                      {c.swipeStatus === 'like' ? '✓ Δηλώθηκε' : '❤️ Ενδιαφέρον'}
+                    </button>
+                  </div>
+                  </div>
                 </li>
               );
             })}
@@ -1084,9 +1159,34 @@ export default function DiscoverPage() {
       )}
 
       {/* SWIPE VIEW — single card (ΜΟΝΟ σε mobile) */}
-      {discoverTab === 'discover' && !noCandidates && currentCandidate && discoverView === 'swipe' && (
+      {discoverTab === 'discover' && !noCandidates && currentCandidate && discoverView === 'swipe' && (() => {
+        const cover = currentCandidate.coverPhoto;
+        const avatar = currentCandidate.photoUrl || currentCandidate.companyLogo;
+        const isJobCard = currentCandidate.type === 'job';
+        const isShift = currentCandidate.listingKind === 'shift';
+        const countdown = isShift ? expiresLabel(currentCandidate.shiftStartUtc, new Date(nowTick)) : null;
+        const shiftNet = isShift ? netOf(currentCandidate.salaryMin) : null;
+        const score = typeof currentCandidate.matchPercent === 'number'
+          ? currentCandidate.matchPercent
+          : aiMatchScores[currentCandidate.id];
+        const hasNext = !!candidates[currentIndex + 1];
+        return (
 
       <div className="mx-auto max-w-lg select-none lg:hidden">
+        {/*
+          Η κάρτα παίρνει όσο ύψος περισσεύει από την οθόνη (αφαιρώντας header,
+          καρτέλες, διακόπτη Swipe/Λίστα, κουμπιά και κάτω μπάρα). Με clamp δεν
+          γίνεται ποτέ πιο κοντή από 410px ούτε πιο ψηλή από 600px, ώστε να
+          δουλεύει και σε μικρά κινητά και σε tablet.
+        */}
+        <div className="relative" style={{ height: 'clamp(240px, calc(100dvh - 420px), 600px)' }}>
+          {/* Φάντασμα της επόμενης κάρτας — δίνει την αίσθηση του «σωρού» */}
+          {hasNext && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-3 top-3 bottom-0 rounded-[26px] border border-slate-200 bg-white opacity-60 shadow-lg"
+            />
+          )}
         {/*
           touch-pan-y κι όχι touch-none: η κάρτα πιάνει σχεδόν όλη την οθόνη στο κινητό,
           οπότε με `none` το δάχτυλο δεν μπορούσε να κυλήσει τη σελίδα και τα κουμπιά από
@@ -1095,7 +1195,7 @@ export default function DiscoverPage() {
           μηδενίζει ήδη τη μετατόπιση όταν το αναλαμβάνει εκείνο).
         */}
         <Card
-          className="overflow-hidden rounded-[26px] border-slate-200 shadow-card touch-pan-y"
+          className="relative flex h-full flex-col overflow-hidden rounded-[26px] border-slate-200 shadow-2xl touch-pan-y"
           onPointerDown={(e) => {
             const target = e.target as HTMLElement;
             if (target.closest('button, a, [data-no-drag]')) return;
@@ -1155,132 +1255,163 @@ export default function DiscoverPage() {
             cursor: dragging ? 'grabbing' : 'grab',
           }}
         >
-          {/* Header */}
+          {/* ── ΕΙΚΟΝΑ (πάνω μέρος της κάρτας) ── */}
           <div
-            className={`relative px-6 pb-5 pt-6 text-center text-white sm:pb-8 sm:pt-10 ${
-              currentCandidate.coverPhoto ? '' : 'bg-gradient-to-br from-blue-500 to-indigo-600'
+            className={`relative h-1/2 flex-shrink-0 overflow-hidden ${
+              cover
+                ? ''
+                : isJobCard
+                  ? 'bg-gradient-to-br from-blue-500 via-indigo-600 to-purple-700'
+                  : 'bg-gradient-to-br from-pink-500 via-rose-500 to-red-500'
             }`}
-            style={
-              currentCandidate.coverPhoto
-                ? {
-                    backgroundImage: `url(${currentCandidate.coverPhoto})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                  }
-                : undefined
-            }
           >
-            {/* Swipe overlays */}
+            {cover ? (
+              <>
+                <img src={cover} alt="" className="h-full w-full object-cover" draggable={false} />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/15" />
+              </>
+            ) : (
+              <div className="flex h-full items-center justify-center">
+                {avatar ? (
+                  <img
+                    src={avatar}
+                    alt=""
+                    draggable={false}
+                    className="h-28 w-28 rounded-full border-4 border-white/40 bg-white object-cover shadow-2xl"
+                  />
+                ) : (
+                  <span className="text-8xl drop-shadow-lg" aria-hidden="true">{isJobCard ? '💼' : '👤'}</span>
+                )}
+              </div>
+            )}
+
+            {/* Σφραγίδες swipe */}
             <div
-              className="pointer-events-none absolute top-6 left-6 z-20 rounded-2xl border-4 border-emerald-400 px-4 py-1.5 text-xl font-black text-emerald-400 -rotate-12"
+              className="pointer-events-none absolute top-8 left-8 z-20 rounded-2xl border-4 border-emerald-400 px-4 py-1.5 text-2xl font-black text-emerald-400 -rotate-[20deg]"
               style={{ opacity: Math.max(0, Math.min(1, offsetX / 100)) }}
             >
               LIKE
             </div>
             <div
-              className="pointer-events-none absolute top-6 right-6 z-20 rounded-2xl border-4 border-rose-400 px-4 py-1.5 text-xl font-black text-rose-400 rotate-12"
+              className="pointer-events-none absolute top-8 right-8 z-20 rounded-2xl border-4 border-rose-400 px-4 py-1.5 text-2xl font-black text-rose-400 rotate-[20deg]"
               style={{ opacity: Math.max(0, Math.min(1, -offsetX / 100)) }}
             >
               NOPE
             </div>
-            {currentCandidate.coverPhoto && (
-              <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/45 to-black/60" />
-            )}
-            <div className="relative">
-            {currentCandidate.photoUrl || currentCandidate.companyLogo ? (
-              <img
-                src={currentCandidate.photoUrl || currentCandidate.companyLogo}
-                alt=""
-                className="mx-auto h-16 w-16 rounded-full object-cover border-2 border-white/40 shadow-lg bg-white sm:h-24 sm:w-24"
-              />
-            ) : currentCandidate.coverPhoto ? null : (
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white/20 text-2xl font-bold shadow-lg backdrop-blur-sm sm:h-24 sm:w-24 sm:text-3xl">
-                {currentCandidate.name?.charAt(0)?.toUpperCase() || '?'}
-              </div>
-            )}
-            <h2 className="mt-3 inline-flex items-center justify-center gap-2 text-xl font-bold drop-shadow sm:mt-4 sm:text-2xl">
-              {currentCandidate.name}
-              {currentCandidate.isPremium && <PremiumTick size="lg" />}
-            </h2>
-            {currentCandidate.companyName && (
-              <p className="mt-1 text-sm text-white/90 drop-shadow">🏢 {currentCandidate.companyName}</p>
-            )}
-            <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
+
+            {/* Πάνω δεξιά: έκτακτη βάρδια / boost / verified */}
+            <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-1.5">
+              {isShift && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-3 py-1 text-[11px] font-bold text-white shadow-lg">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+                  {whenLabel(currentCandidate.shiftDate, new Date(nowTick))}
+                </span>
+              )}
+              {countdown && (
+                <span className="rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-sm">
+                  ⏳ λήγει {countdown}
+                </span>
+              )}
               {currentCandidate.isBoosted && (
-                <Badge className="bg-amber-500/30 text-amber-100">🚀 Boosted</Badge>
+                <span className="rounded-full bg-amber-500/90 px-2.5 py-1 text-[11px] font-bold text-white shadow">🚀 Boosted</span>
               )}
               {currentCandidate.verified && (
-                <Badge className="bg-green-500/20 text-green-100">✓ Verified</Badge>
+                <span className="rounded-full bg-emerald-500/90 px-2.5 py-1 text-[11px] font-bold text-white shadow">✓ Verified</span>
               )}
             </div>
-            {currentCandidate.location && (
-              <p className="mt-2 flex items-center justify-center gap-1 text-sm text-white/90 drop-shadow">
-                📍 {currentCandidate.location}
-              </p>
+
+            {/* Κάτω αριστερά: πόσο πρόσφατη είναι η αγγελία */}
+            {!isShift && currentCandidate.createdAt && (
+              <span className="absolute bottom-4 left-4 z-10 rounded-full bg-black/40 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
+                🕐 {timeAgo(currentCandidate.createdAt)}
+              </span>
             )}
-            {/* AI Match Score Badge */}
-            {aiMatchScores[currentCandidate.id] > 0 && (
-              <div className="mt-3 flex justify-center">
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-bold shadow-lg backdrop-blur-sm ${
-                  aiMatchScores[currentCandidate.id] >= 80
-                    ? 'bg-emerald-500/90 text-white'
-                    : aiMatchScores[currentCandidate.id] >= 60
-                      ? 'bg-blue-500/90 text-white'
-                      : 'bg-white/20 text-white'
-                }`}>
-                  🧠 AI Match: {aiMatchScores[currentCandidate.id]}%
-                </span>
-              </div>
+
+            {/* Κάτω δεξιά: ποσοστό ταιριάσματος */}
+            {typeof score === 'number' && score > 0 && (
+              <span
+                className={`absolute bottom-4 right-4 z-10 rounded-full px-3 py-1 text-[11px] font-bold text-white shadow-lg backdrop-blur-sm ${
+                  score >= 80 ? 'bg-emerald-500/90' : score >= 60 ? 'bg-blue-500/90' : 'bg-black/45'
+                }`}
+                title="Ταίριασμα βάσει ειδικότητας, περιοχής & χαρακτηριστικών"
+              >
+                🎯 {score}%
+              </span>
             )}
-            </div>
           </div>
 
-          <CardContent className="p-5 sm:p-6">
-            {/* Time + conditions */}
-            <div className="flex flex-wrap items-center gap-2 mb-4 text-xs">
-              {currentCandidate.createdAt && (
-                <span className="text-gray-400">🕐 {timeAgo(currentCandidate.createdAt)}</span>
-              )}
-              {currentCandidate.housingProvided && (
-                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700 font-medium">🏠 Διαμονή</span>
-              )}
-              {currentCandidate.mealsProvided && (
-                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700 font-medium">🍽️ Σίτιση</span>
-              )}
+          {/*
+            ── ΠΛΗΡΟΦΟΡΙΕΣ (κάτω μέρος) ──
+            Σκόπιμα ΔΕΝ είναι flex column: σε flex στήλη τα <p> με truncate
+            συμπιέζονταν σε ύψος 0 και εξαφανίζονταν η εταιρεία κι η περιοχή.
+          */}
+          <div className="min-h-0 flex-1 overflow-y-auto p-5">
+            <div className="flex items-start gap-1.5">
+              <h2 className="min-w-0 flex-1 text-xl font-extrabold leading-tight text-gray-900">
+                {currentCandidate.name}
+              </h2>
+              {currentCandidate.isPremium && <PremiumTick size="lg" />}
             </div>
+
+            {currentCandidate.companyName && (
+              <p className="mt-0.5 truncate text-sm font-medium text-gray-500">🏢 {currentCandidate.companyName}</p>
+            )}
+            {currentCandidate.location && (
+              <p className="mt-0.5 truncate text-sm text-gray-500">📍 {currentCandidate.location}</p>
+            )}
+
+            {isShift ? (
+              <>
+                <p className="mt-2 text-sm font-semibold text-gray-700">
+                  🕒 {currentCandidate.shiftStartTime}–{currentCandidate.shiftEndTime} ·{' '}
+                  {durationLabel({
+                    shift_start_time: currentCandidate.shiftStartTime,
+                    shift_end_time: currentCandidate.shiftEndTime,
+                    shift_days: currentCandidate.shiftDays,
+                    shift_positions: currentCandidate.shiftPositions,
+                  })}
+                </p>
+                {currentCandidate.salaryMin && (
+                  <p className="mt-1 text-xl font-bold text-emerald-600">
+                    {currentCandidate.salaryMin}€ μικτά
+                    {shiftNet && (
+                      <span className="ml-1 text-xs font-semibold text-emerald-700/70">
+                        ≈ {shiftNet}€ καθαρά (ενδεικτικά)
+                      </span>
+                    )}
+                  </p>
+                )}
+              </>
+            ) : (
+              (currentCandidate.salary || currentCandidate.experience) && (
+                <p className="mt-2 text-xl font-bold text-emerald-600">
+                  {currentCandidate.salary || currentCandidate.experience}
+                </p>
+              )
+            )}
 
             {currentCandidate.bio && (
-              <p className="text-gray-600 leading-relaxed line-clamp-4">
-                {currentCandidate.bio}
-              </p>
+              <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-gray-600">{currentCandidate.bio}</p>
             )}
 
-            {currentCandidate.tags && currentCandidate.tags.length > 0 && (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {currentCandidate.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary">{roleLabel(tag)}</Badge>
-                ))}
-              </div>
-            )}
-
-            <div className="mt-4 grid grid-cols-2 gap-4">
-              {currentCandidate.experience && (
-                <div className="rounded-lg bg-gray-50 p-3">
-                  <p className="text-xs font-medium text-gray-500">Εμπειρία</p>
-                  <p className="mt-1 text-sm font-semibold text-gray-900">{currentCandidate.experience}</p>
-                </div>
+            {/* Ετικέτες: ειδικότητες + παροχές */}
+            <div className="flex flex-wrap gap-1.5 pt-3">
+              {(currentCandidate.tags || []).slice(0, 4).map((tag) => (
+                <span key={tag} className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
+                  {roleLabel(tag)}
+                </span>
+              ))}
+              {currentCandidate.housingProvided && (
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">🏠 Διαμονή</span>
               )}
-              {currentCandidate.salary && (
-                <div className="rounded-lg bg-gray-50 p-3">
-                  <p className="text-xs font-medium text-gray-500">Μισθός</p>
-                  <p className="mt-1 text-sm font-semibold text-gray-900">{currentCandidate.salary}</p>
-                </div>
+              {currentCandidate.mealsProvided && (
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">🍽️ Σίτιση</span>
               )}
             </div>
 
-            {/* Status badge */}
+            {/* Κατάσταση + chat όταν υπάρχει match */}
             {(currentCandidate.isMatched || currentCandidate.swipeStatus) && (
-              <div className="mt-3 text-center">
+              <div className="mt-3">
                 <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
                   currentCandidate.isMatched
                     ? 'bg-blue-50 text-blue-700 border border-blue-200'
@@ -1293,20 +1424,23 @@ export default function DiscoverPage() {
               </div>
             )}
 
-            {/* Matched → chat link */}
             {currentCandidate.isMatched && (
-              <div className="mt-4">
-                <a data-no-drag onClick={(e) => e.stopPropagation()} href="/dashboard/messages" className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white hover:bg-blue-700">
-                  💬 Άνοιξε Chat
-                </a>
-              </div>
+              <a
+                data-no-drag
+                onClick={(e) => e.stopPropagation()}
+                href="/dashboard/messages"
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                💬 Άνοιξε Chat
+              </a>
             )}
-          </CardContent>
+          </div>
         </Card>
+        </div>
 
         {/* Bottom action bar — ❌ Πέρασε | 📁 Αποθήκευση | ❤️ Like */}
         {!currentCandidate.isMatched && (
-          <div className="mt-5 flex items-center justify-center gap-5" data-no-drag>
+          <div className="mt-4 flex items-center justify-center gap-6" data-no-drag>
             {/* Skip */}
             <button
               data-no-drag
@@ -1314,9 +1448,9 @@ export default function DiscoverPage() {
               disabled={actionLoading}
               aria-label="Πέρασε"
               title="Πέρασε"
-              className="group h-16 w-16 inline-flex items-center justify-center rounded-full bg-white shadow-lg ring-1 ring-gray-200 text-rose-500 hover:text-white hover:bg-rose-500 hover:ring-rose-500 active:scale-90 transition-all disabled:opacity-50"
+              className="h-14 w-14 inline-flex items-center justify-center rounded-full bg-white shadow-lg ring-1 ring-gray-200 text-rose-500 hover:text-white hover:bg-rose-500 hover:ring-rose-500 active:scale-90 transition-all disabled:opacity-50"
             >
-              <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -1332,9 +1466,9 @@ export default function DiscoverPage() {
               }}
               aria-label="Αποθήκευση"
               title="Αποθήκευση"
-              className={`h-14 w-14 inline-flex items-center justify-center rounded-full bg-blue-600 text-white shadow-lg ring-1 ring-blue-700 hover:bg-blue-700 active:scale-90 transition-all ${savedBounce ? 'animate-savedBounce' : ''}`}
+              className={`h-12 w-12 inline-flex items-center justify-center rounded-full bg-white text-blue-600 shadow-lg ring-1 ring-gray-200 hover:bg-blue-600 hover:text-white hover:ring-blue-600 active:scale-90 transition-all ${savedBounce ? 'animate-savedBounce' : ''}`}
             >
-              <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M19.5 21a3 3 0 0 0 3-3v-9a3 3 0 0 0-3-3h-5.379a.75.75 0 0 1-.53-.22L11.47 3.66A2.25 2.25 0 0 0 9.879 3H4.5a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h15Z" />
               </svg>
             </button>
@@ -1346,13 +1480,13 @@ export default function DiscoverPage() {
               disabled={actionLoading || currentCandidate.swipeStatus === 'like'}
               aria-label="Ενδιαφέρομαι"
               title="Ενδιαφέρομαι"
-              className={`h-16 w-16 inline-flex items-center justify-center rounded-full shadow-lg ring-1 active:scale-90 transition-all ${
+              className={`h-16 w-16 inline-flex items-center justify-center rounded-full text-white shadow-xl active:scale-90 transition-all ${
                 currentCandidate.swipeStatus === 'like'
-                  ? 'bg-gray-300 ring-gray-300 text-white cursor-not-allowed'
-                  : 'bg-white text-emerald-600 ring-gray-200 hover:bg-emerald-500 hover:text-white hover:ring-emerald-500'
+                  ? 'bg-gray-300 cursor-not-allowed'
+                  : 'bg-gradient-to-br from-emerald-400 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700'
               }`}
             >
-              <svg className="h-7 w-7" fill="currentColor" viewBox="0 0 24 24">
+              <svg className="h-8 w-8" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 0 1-.383-.218 25.18 25.18 0 0 1-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0 1 12 5.052 5.5 5.5 0 0 1 16.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 0 1-4.244 3.17 15.247 15.247 0 0 1-.383.219l-.022.012-.007.004-.003.001a.752.752 0 0 1-.704 0l-.003-.001Z" />
               </svg>
             </button>
@@ -1360,11 +1494,12 @@ export default function DiscoverPage() {
         )}
 
         {/* Hint */}
-        <p className="mt-3 text-center text-[11px] text-gray-400">
+        <p className="mt-2 text-center text-[11px] text-gray-400">
           👆 Πάτα για προφίλ · 👈 Σύρε αριστερά (skip) · Σύρε δεξιά 👉 (like)
         </p>
       </div>
-      )}
+        );
+      })()}
         </div>{/* /flex-1 */}
       </div>{/* /lg:flex */}
 
