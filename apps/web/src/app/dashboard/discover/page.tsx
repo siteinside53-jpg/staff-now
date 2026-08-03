@@ -48,6 +48,10 @@ interface DiscoverProfile {
   isPremium?: boolean;
   isBoosted?: boolean;
   matchPercent?: number | null;
+  // Πόσοι διαφορετικοί άνθρωποι άνοιξαν σήμερα το προφίλ (πραγματικός αριθμός).
+  viewsToday?: number;
+  // 'immediate' = διαθέσιμος άμεσα (το δηλώνει ο ίδιος ο εργαζόμενος)
+  availability?: string;
   // Έκτακτη βάρδια
   listingKind?: 'job' | 'shift';
   shiftDate?: string;
@@ -491,6 +495,8 @@ export default function DiscoverPage() {
           isPremium: w.is_premium === 1,
           isBoosted: w.is_boosted === 1,
           matchPercent: typeof w.match_score === 'number' ? w.match_score : null,
+          viewsToday: Number(w.views_today) || 0,
+          availability: w.availability || undefined,
           type: 'worker' as const,
         }));
         setCandidates(mapped);
@@ -1308,26 +1314,19 @@ export default function DiscoverPage() {
                   <img src={cover} alt="" draggable={false} className="h-full w-full object-cover" />
                 ) : (
                   /*
-                    Φωτογραφία εργαζόμενου: φαίνεται ΟΛΟΚΛΗΡΗ και κεντραρισμένη
-                    (object-contain), ώστε να μην κόβεται ποτέ το πρόσωπο. Ο κενός
-                    χώρος δεξιά-αριστερά γεμίζει με θολή εκδοχή της ίδιας φωτογραφίας,
-                    οπότε η κάρτα παραμένει γεμάτη από άκρη σε άκρη.
+                    Φωτογραφία εργαζόμενου: γεμίζει ΟΛΟ το πλαίσιο από άκρη σε άκρη,
+                    χωρίς θολές μπάρες. Το κάδρο δεν είναι στο κέντρο αλλά ψηλότερα
+                    (25% από πάνω) — εκεί βρίσκεται το πρόσωπο στις περισσότερες
+                    φωτογραφίες προφίλ, οπότε δεν κόβεται. Το objectPosition μπαίνει
+                    ως inline style και όχι ως κλάση, για να μη χαθεί σε build.
                   */
-                  <>
-                    <img
-                      src={cover}
-                      alt=""
-                      aria-hidden="true"
-                      draggable={false}
-                      className="absolute inset-0 h-full w-full scale-125 object-cover blur-2xl"
-                    />
-                    <img
-                      src={cover}
-                      alt=""
-                      draggable={false}
-                      className="relative h-full w-full object-contain"
-                    />
-                  </>
+                  <img
+                    src={cover}
+                    alt=""
+                    draggable={false}
+                    className="h-full w-full object-cover"
+                    style={{ objectPosition: 'center 25%' }}
+                  />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/15" />
               </>
@@ -1379,12 +1378,38 @@ export default function DiscoverPage() {
               {currentCandidate.verified && (
                 <span className="rounded-full bg-emerald-500/90 px-2.5 py-1 text-[11px] font-bold text-white shadow">✓ Verified</span>
               )}
+              {/*
+                «Άμεσα» = ο ίδιος ο εργαζόμενος έχει δηλώσει στο προφίλ του ότι
+                μπορεί να ξεκινήσει αμέσως (availability = 'immediate'). Δεν είναι
+                εκτίμηση δική μας. Στις αγγελίες δεν υπάρχει αντίστοιχο πεδίο,
+                γι' αυτό δεν εμφανίζεται εκεί.
+              */}
+              {!isJobCard && currentCandidate.availability === 'immediate' && (
+                <span
+                  className="inline-flex animate-pulse items-center gap-1 rounded-full bg-red-500 px-3 py-1 text-[11px] font-bold text-white shadow-lg"
+                  title="Δήλωσε ότι είναι διαθέσιμος άμεσα"
+                >
+                  🔥 Άμεσα
+                </span>
+              )}
             </div>
 
             {/* Κάτω αριστερά: πόσο πρόσφατη είναι η αγγελία */}
-            {!isShift && currentCandidate.createdAt && (
+            {isJobCard && !isShift && currentCandidate.createdAt && (
               <span className="absolute bottom-4 left-4 z-10 rounded-full bg-black/40 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
                 🕐 {timeAgo(currentCandidate.createdAt)}
+              </span>
+            )}
+
+            {/*
+              Κάτω αριστερά στα προφίλ εργαζομένων: πόσοι διαφορετικοί άνθρωποι
+              άνοιξαν σήμερα το προφίλ. Είναι πραγματικός αριθμός από τη βάση
+              (profile_views). Αν δεν το είδε κανείς σήμερα, το ματάκι ΔΕΝ
+              εμφανίζεται καθόλου — δεν δείχνουμε ποτέ «0» ούτε νούμερο-βιτρίνα.
+            */}
+            {!isJobCard && (currentCandidate.viewsToday ?? 0) > 0 && (
+              <span className="absolute bottom-4 left-4 z-10 inline-flex items-center gap-1 rounded-full bg-black/40 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
+                👁️ {currentCandidate.viewsToday} σήμερα
               </span>
             )}
 
@@ -1434,7 +1459,7 @@ export default function DiscoverPage() {
                 </p>
                 {currentCandidate.salaryMin && (
                   <p className="mt-1 text-xl font-bold text-emerald-600">
-                    {currentCandidate.salaryMin}€ μικτά
+                    💰 {currentCandidate.salaryMin}€ μικτά
                     {shiftNet && (
                       <span className="ml-1 text-xs font-semibold text-emerald-700/70">
                         ≈ {shiftNet}€ καθαρά (ενδεικτικά)
@@ -1446,7 +1471,8 @@ export default function DiscoverPage() {
             ) : (
               (currentCandidate.salary || currentCandidate.experience) && (
                 <p className="mt-2 text-xl font-bold text-emerald-600">
-                  {currentCandidate.salary || currentCandidate.experience}
+                  {/* Το 💰 μπαίνει μόνο σε αμοιβή — όχι στα «χρόνια εμπειρίας». */}
+                  {currentCandidate.salary ? `💰 ${currentCandidate.salary}` : currentCandidate.experience}
                 </p>
               )
             )}
