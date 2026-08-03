@@ -101,11 +101,19 @@ export default function SettingsPage() {
     }
     setSavingPassword(true);
     try {
-      await api.auth.changePassword(data.currentPassword, data.newPassword);
+      await api.auth.changePassword({
+        currentPassword: data.currentPassword,
+        password: data.newPassword,
+        confirmPassword: data.confirmPassword,
+      });
       toast.success('Ο κωδικός αλλάχτηκε επιτυχώς!');
       passwordForm.reset();
-    } catch {
-      toast.error('Αποτυχία αλλαγής κωδικού. Ελέγξτε τον τρέχοντα κωδικό.');
+    } catch (err) {
+      // Δείχνουμε το μήνυμα του διακομιστή (π.χ. «Ο τρέχων κωδικός δεν είναι
+      // σωστός», «τουλάχιστον 8 χαρακτήρες»). Πριν έδειχνε πάντα «ελέγξτε τον
+      // τρέχοντα κωδικό», που κατηγορούσε τον χρήστη ακόμη κι όταν το πρόβλημα
+      // ήταν αλλού.
+      toast.error((err as Error)?.message || 'Αποτυχία αλλαγής κωδικού. Δοκίμασε ξανά.');
     } finally {
       setSavingPassword(false);
     }

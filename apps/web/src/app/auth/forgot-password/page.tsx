@@ -29,7 +29,7 @@ export default function ForgotPasswordPage() {
   const onSubmit = async (data: ForgotPasswordFormData) => {
     setIsSubmitting(true);
     try {
-      await api.auth.forgotPassword(data.email);
+      await api.auth.forgotPassword({ email: data.email });
       setIsSubmitted(true);
       toast.success('Στάλθηκε email επαναφοράς κωδικού!');
     } catch {

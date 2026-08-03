@@ -6,6 +6,7 @@ export {
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  changePasswordSchema,
 } from "./auth";
 
 export type {
@@ -13,6 +14,7 @@ export type {
   LoginInput,
   ForgotPasswordInput,
   ResetPasswordInput,
+  ChangePasswordInput,
 } from "./auth";
 
 // -- Worker Schemas -----------------------------------------------------------

@@ -78,3 +78,24 @@ export const resetPasswordSchema = z
   });
 
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
+// -- Change Password ----------------------------------------------------------
+// Αλλαγή κωδικού από συνδεδεμένο χρήστη (Ρυθμίσεις). Διαφέρει από το reset:
+// εδώ δεν υπάρχει token από email, αλλά ζητάμε τον τρέχοντα κωδικό ως απόδειξη
+// ότι όντως ο κάτοχος του λογαριασμού κάθεται μπροστά στην οθόνη.
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Εισάγετε τον τρέχοντα κωδικό σας"),
+    password: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Οι κωδικοί δεν ταιριάζουν",
+    path: ["confirmPassword"],
+  })
+  .refine((data) => data.password !== data.currentPassword, {
+    message: "Ο νέος κωδικός πρέπει να είναι διαφορετικός από τον τρέχοντα",
+    path: ["password"],
+  });
+
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

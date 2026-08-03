@@ -7,7 +7,13 @@ import { signJWT } from '../lib/jwt';
 import { generateId } from '../lib/id';
 import { success, error } from '../lib/response';
 import { recordActivity, startSession, endSession, getRequestIp, getGeoFromRequest } from '../lib/activity';
-import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from '@staffnow/validation';
+import { sendEmail, emailLayout } from '../lib/email';
+import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, changePasswordSchema } from '@staffnow/validation';
+
+// Το site είναι στατικό και σερβίρεται πάντα από αυτό το domain, όπως ακριβώς
+// και στο lib/notify.ts. Ο σύνδεσμος επαναφοράς πρέπει να δείχνει στο site,
+// όχι στο API.
+const WEB_ORIGIN = 'https://staffnow.gr';
 
 const auth = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
 
@@ -317,11 +323,32 @@ auth.post('/forgot-password', passwordResetRateLimiter, async (c) => {
       .bind(resetToken, expiresAt, user.id)
       .run();
 
-    // Send reset email via email service (token kept server-side only)
+    // Αποστολή του συνδέσμου επαναφοράς. Μέχρι τώρα ο κωδικός δημιουργούνταν
+    // αλλά δεν έφευγε ποτέ email, οπότε όποιος ξεχνούσε τον κωδικό του δεν
+    // μπορούσε να ξαναμπεί. Η αποστολή είναι best-effort (όπως στο notify.ts):
+    // αν αποτύχει ο πάροχος email, δεν ρίχνουμε το αίτημα.
+    const resetUrl = `${WEB_ORIGIN}/auth/reset-password?token=${encodeURIComponent(resetToken)}`;
+
     if (c.env.ENVIRONMENT !== 'production') {
       // eslint-disable-next-line no-console
-      console.log(`[DEV] Password reset requested for ${email}`);
+      console.log(`[DEV] Password reset for ${email}: ${resetUrl}`);
     }
+
+    await sendEmail(
+      { apiKey: c.env.EMAIL_API_KEY, from: c.env.EMAIL_FROM || 'StaffNow <no-reply@staffnow.gr>' },
+      {
+        to: email,
+        subject: 'Επαναφορά κωδικού StaffNow',
+        html: emailLayout({
+          title: 'Επαναφορά κωδικού',
+          body: 'Ζητήθηκε επαναφορά του κωδικού σου στο StaffNow. Πάτησε το κουμπί για να ορίσεις νέο κωδικό. Ο σύνδεσμος ισχύει για 1 ώρα.<br><br>Αν δεν το ζήτησες εσύ, αγνόησε αυτό το email — ο κωδικός σου παραμένει ο ίδιος.',
+          ctaText: 'Ορισμός νέου κωδικού',
+          ctaUrl: resetUrl,
+          icon: '🔑',
+          tint: '#dbeafe',
+        }),
+      },
+    );
   }
 
   return success(c, { message: 'Αν υπάρχει λογαριασμός με αυτό το email, θα λάβετε οδηγίες επαναφοράς.' });
@@ -355,6 +382,59 @@ auth.post('/reset-password', passwordResetRateLimiter, async (c) => {
     .run();
 
   return success(c, { message: 'Ο κωδικός σας ενημερώθηκε επιτυχώς.' });
+});
+
+// POST /change-password — αλλαγή κωδικού από συνδεδεμένο χρήστη (Ρυθμίσεις).
+// Η οθόνη Ρυθμίσεων καλούσε αυτή τη λειτουργία ενώ δεν υπήρχε, οπότε το κουμπί
+// αποτύγχανε πάντα και έδειχνε «ελέγξτε τον τρέχοντα κωδικό» — κατηγορώντας
+// άδικα τον χρήστη.
+//
+// Χρησιμοποιεί τον authRateLimiter (10 ανά 15′) και όχι τον passwordReset
+// (3 ανά ώρα): τα όρια μετριούνται ανά IP, όχι ανά χρήστη. Με 3/ώρα, ένας
+// χρήστης που θα έγραφε λάθος τον τρέχοντα κωδικό του τρεις φορές θα κλείδωνε
+// για μία ώρα — και σε γραφείο με κοινή σύνδεση θα κλείδωναν όλοι μαζί.
+auth.post('/change-password', requireAuth, authRateLimiter, async (c) => {
+  const authUser = c.get('user');
+  const db = c.env.DB;
+
+  const body = await c.req.json();
+  const parsed = changePasswordSchema.safeParse(body);
+  if (!parsed.success) {
+    return error(c, 'VALIDATION_ERROR', parsed.error.issues[0]?.message || 'Μη έγκυρα δεδομένα.', 400);
+  }
+
+  const { currentPassword, password } = parsed.data;
+
+  const user = await db
+    .prepare('SELECT id, password_hash FROM users WHERE id = ?')
+    .bind(authUser.id)
+    .first<{ id: string; password_hash: string | null }>();
+
+  // Λογαριασμοί μέσω Google δεν έχουν κωδικό — δεν υπάρχει τι να αλλάξει.
+  if (!user || !user.password_hash) {
+    return error(c, 'BAD_REQUEST', 'Ο λογαριασμός σας δεν έχει κωδικό. Συνδέεστε μέσω Google.', 400);
+  }
+
+  const valid = await verifyPassword(currentPassword, user.password_hash, c.env.PASSWORD_SALT);
+  if (!valid) {
+    // ΠΡΟΣΟΧΗ: σκόπιμα 400 και όχι 401. Ο client (packages/api-client) σβήνει το
+    // token σε κάθε 401 και στέλνει τον χρήστη στη σύνδεση. Με 401 εδώ, ένα απλό
+    // τυπογραφικό στον τρέχοντα κωδικό θα πετούσε τον χρήστη έξω από τον
+    // λογαριασμό του. Η συνεδρία είναι έγκυρη· λάθος είναι μόνο το πεδίο.
+    return error(c, 'VALIDATION_ERROR', 'Ο τρέχων κωδικός δεν είναι σωστός.', 400);
+  }
+
+  const passwordHash = await hashPassword(password, c.env.PASSWORD_SALT);
+
+  // Ακυρώνουμε και τυχόν εκκρεμή σύνδεσμο επαναφοράς: αν κάποιος είχε ζητήσει
+  // «ξέχασα τον κωδικό» και μετά τον άλλαξε κανονικά, ο παλιός σύνδεσμος του
+  // email δεν πρέπει να δουλεύει πια.
+  await db
+    .prepare("UPDATE users SET password_hash = ?, password_reset_token = NULL, password_reset_expires_at = NULL, updated_at = datetime('now') WHERE id = ?")
+    .bind(passwordHash, user.id)
+    .run();
+
+  return success(c, { message: 'Ο κωδικός σας άλλαξε επιτυχώς.' });
 });
 
 // ============================================================================
