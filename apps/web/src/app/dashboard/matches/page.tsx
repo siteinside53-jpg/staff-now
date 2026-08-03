@@ -115,7 +115,12 @@ export default function MatchesPage() {
           description={tab === 'active' ? 'Κάνε like στην Ανακάλυψη για νέα matches!' : ''}
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/*
+            grid-cols-[minmax(0,1fr)]: στο κινητό η μία στήλη είναι «auto», δηλαδή
+            δεν στενεύει κάτω από το περιεχόμενό της κι η κάρτα ξεπερνούσε την οθόνη.
+            Τα sm:/lg: της Tailwind χρησιμοποιούν ήδη minmax(0,1fr) και ήταν εντάξει.
+          */}
           {filtered.map((m: any) => {
             const name = isWorker
               ? (m.business_name || m.company_name || 'Επιχείρηση')

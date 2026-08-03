@@ -538,9 +538,14 @@ export default function JobsPage() {
           {jobs.map((job: any) => (
             <Card key={job.id} className={`transition-shadow ${job.status === 'paused' ? 'opacity-75 border-orange-200' : 'hover:shadow-md'}`}>
               <CardContent className="p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
+                {/*
+                  Στο κινητό ο τίτλος και τα κουμπιά δεν χωράνε στην ίδια σειρά
+                  (154px τα κουμπιά από τα ~300 της κάρτας), γι' αυτό τυλίγονται.
+                  Το min-w-0 επιτρέπει στη στήλη του κειμένου να στενέψει.
+                */}
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0 w-full sm:w-auto sm:flex-1">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                       <span className={`flex-shrink-0 h-3 w-3 rounded-full ${
                         job.status === 'published' ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' :
                         job.status === 'paused' ? 'bg-red-500 shadow-sm shadow-red-500/50' :
@@ -583,7 +588,7 @@ export default function JobsPage() {
                       </div>
                     )}
                   </div>
-                  <div className="flex flex-shrink-0 gap-1.5">
+                  <div className="ml-auto flex flex-shrink-0 gap-1.5">
                     {(job.status === 'published' || job.status === 'paused') && (
                       <button onClick={() => handlePauseResume(job.id, job.status)}
                         title={job.status === 'published' ? 'Παύση' : 'Επανεκκίνηση'}
