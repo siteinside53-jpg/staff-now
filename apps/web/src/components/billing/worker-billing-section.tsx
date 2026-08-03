@@ -205,10 +205,13 @@ export function WorkerBillingSection() {
                 <li>✓ Read receipts στα μηνύματα</li>
               </ul>
             </div>
+            {/* Στο κινητό το κουμπί πιάνει όλη τη γραμμή. Χωρίς αυτό, το `flex-1
+                min-w-0` του κειμένου το άφηνε να συρρικνωθεί στα ~40px για να
+                χωρέσει το κουμπί δίπλα του, και τα γράμματα ξεχείλιζαν από κάτω. */}
             <button
               type="button"
               onClick={upgradeToPremium}
-              className="rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-amber-600/25 hover:bg-amber-700"
+              className="w-full rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-amber-600/25 hover:bg-amber-700 sm:w-auto"
             >
               Ξεκλείδωσε για πάντα
             </button>
@@ -389,7 +392,7 @@ export function WorkerBillingSection() {
           type="button"
           disabled={!!running}
           onClick={() => boost('/workers/boost/discover', 'Boost Discover', 'boost-d')}
-          className="mt-4 flex w-full items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4 text-left transition-all hover:border-blue-300 hover:shadow-sm disabled:opacity-50"
+          className="mt-4 flex w-full flex-col items-start gap-2 rounded-xl border border-gray-200 bg-white p-4 text-left transition-all hover:border-blue-300 hover:shadow-sm disabled:opacity-50 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
         >
           <div>
             <p className="text-sm font-bold text-gray-900">Boost στο Discover (24 ώρες)</p>
@@ -397,7 +400,9 @@ export function WorkerBillingSection() {
               Μπες στις πρώτες κάρτες όλων των businesses που ψάχνουν.
             </p>
           </div>
-          <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-blue-700 ring-1 ring-blue-200">
+          {/* whitespace-nowrap: αλλιώς στο κινητό το κείμενο σπάει μέσα στο
+              στρογγυλό σήμα και βγαίνει παραμορφωμένο οβάλ τριών σειρών. */}
+          <span className="whitespace-nowrap rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-blue-700 ring-1 ring-blue-200">
             {isPremium ? 'Ενεργό' : 'Μόνο Premium ✨'}
           </span>
         </button>
