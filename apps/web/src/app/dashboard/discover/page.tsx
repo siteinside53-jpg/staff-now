@@ -890,7 +890,7 @@ export default function DiscoverPage() {
 
       {/* Swipe/Λίστα toggle — ΜΟΝΟ σε mobile (σε desktop δείχνουμε πάντα λίστα) */}
       {discoverTab === 'discover' && !noCandidates && (
-        <div className="relative mx-auto max-w-lg mb-3 flex items-center justify-center lg:hidden">
+        <div className="relative mx-auto max-w-lg mb-2 flex items-center justify-center lg:hidden">
           <div className="inline-flex rounded-full bg-gray-100 p-1 text-xs font-bold shadow-inner">
             <button
               onClick={() => setDiscoverView('swipe')}
@@ -1213,16 +1213,30 @@ export default function DiscoverPage() {
           ? currentCandidate.matchPercent
           : aiMatchScores[currentCandidate.id];
         const hasNext = !!candidates[currentIndex + 1];
+        /*
+          Το -mb-5 ακυρώνει μέρος του κάτω κενού που βάζει το layout του πίνακα
+          ελέγχου (80px, ώστε να μην κρύβονται τα περιεχόμενα πίσω από την κάτω
+          μπάρα των 54px). Στο swipe η οθόνη είναι ακριβώς μία «σελίδα», οπότε
+          αυτό το περίσσευμα έκανε τη σελίδα να κυλάει λίγα pixel και η κάρτα
+          τρανταζόταν κατά το σύρσιμο. Αφορά μόνο αυτή την προβολή.
+        */
         return (
 
-      <div className="mx-auto max-w-lg select-none lg:hidden">
+      <div className="mx-auto -mb-5 max-w-lg select-none lg:hidden">
         {/*
           Η κάρτα παίρνει όσο ύψος περισσεύει από την οθόνη (αφαιρώντας header,
-          καρτέλες, διακόπτη Swipe/Λίστα, κουμπιά και κάτω μπάρα). Με clamp δεν
-          γίνεται ποτέ πιο κοντή από 410px ούτε πιο ψηλή από 600px, ώστε να
-          δουλεύει και σε μικρά κινητά και σε tablet.
+          διακόπτη Swipe/Λίστα, κουμπιά, βοηθητικό κείμενο και κάτω μπάρα).
+
+          Το 295 είναι το άθροισμα όλων αυτών. Ό,τι βρίσκεται κάτω από την κάρτα
+          έχει σταθερό ύψος, οπότε το περιθώριο ασφαλείας ως την κάτω μπάρα
+          (8px) βγαίνει το ίδιο σε κάθε μέγεθος οθόνης. Ήταν 324 και άφηνε 29px
+          αχρησιμοποίητα — η κάρτα φαινόταν μαζεμένη, ειδικά στους εργαζόμενους
+          όπου η φωτογραφία είναι κάθετη και κοβόταν πολύ.
+
+          Με clamp δεν γίνεται ποτέ πιο κοντή από 260px ούτε πιο ψηλή από 680px,
+          ώστε να δουλεύει και σε μικρά κινητά και σε tablet.
         */}
-        <div className="relative" style={{ height: 'clamp(260px, calc(100dvh - 324px), 620px)' }}>
+        <div className="relative" style={{ height: 'clamp(260px, calc(100dvh - 295px), 680px)' }}>
           {/* Φάντασμα της επόμενης κάρτας — δίνει την αίσθηση του «σωρού» */}
           {hasNext && (
             <div
@@ -1540,7 +1554,7 @@ export default function DiscoverPage() {
 
         {/* Bottom action bar — ❌ Πέρασε | 📁 Αποθήκευση | ❤️ Like */}
         {!currentCandidate.isMatched && (
-          <div className="mt-4 flex items-center justify-center gap-6" data-no-drag>
+          <div className="mt-3 flex items-center justify-center gap-6" data-no-drag>
             {/* Skip */}
             <button
               data-no-drag
@@ -1593,9 +1607,13 @@ export default function DiscoverPage() {
           </div>
         )}
 
-        {/* Hint */}
+        {/*
+          Hint — σκόπιμα σύντομο ώστε να χωράει σε ΜΙΑ γραμμή ακόμη και σε οθόνη
+          375px. Με τις παλιές αγγλικές διευκρινίσεις «(skip)»/«(like)» έπιανε δύο
+          γραμμές στα μικρά κινητά κι έσπρωχνε τα κουμπιά πίσω από την κάτω μπάρα.
+        */}
         <p className="mt-2 text-center text-[11px] text-gray-400">
-          👆 Πάτα για προφίλ · 👈 Σύρε αριστερά (skip) · Σύρε δεξιά 👉 (like)
+          👆 Πάτα για προφίλ · 👈 Πέρασε · Ενδιαφέρομαι 👉
         </p>
       </div>
         );
