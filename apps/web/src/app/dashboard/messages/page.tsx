@@ -11,6 +11,20 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { WorkerProfilePanel } from '@/components/dashboard/worker-profile-panel';
 import { BusinessProfilePanel } from '@/components/dashboard/business-profile-panel';
 
+// Στο κινητό η συνομιλία πιάνει όλη την οθόνη, οπότε η μπάρα γραφής ακουμπά
+// στο κάτω άκρο. Το env(safe-area-inset-bottom) την κρατά πάνω από τη γραμμή
+// πλοήγησης του τηλεφώνου (π.χ. το home indicator του iPhone).
+const SAFE_BOTTOM = { paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.5rem)' };
+
+function ChatMenuItem({ icon, label, onClick, color = 'text-gray-900' }: { icon: string; label: string; onClick: () => void; color?: string }) {
+  return (
+    <button onClick={onClick} className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left hover:bg-gray-50 ${color}`}>
+      <span className="text-lg">{icon}</span>
+      <span className="text-sm font-medium">{label}</span>
+    </button>
+  );
+}
+
 // Format message content for display (strip markdown links)
 function formatMessagePreview(content: string | undefined): string {
   if (!content) return '';
@@ -36,10 +50,9 @@ function MessagesInner() {
   const [sending, setSending] = useState(false);
   const [failedMsgs, setFailedMsgs] = useState<Set<string>>(new Set());
   const [isTyping, setIsTyping] = useState(false);
-  const [pendingFile, setPendingFile] = useState<{ file: File; previewUrl: string; uploading: boolean } | null>(null);
-  const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [convMenuId, setConvMenuId] = useState<string | null>(null);
+  const [showChatMenu, setShowChatMenu] = useState(false);
   const [reportModal, setReportModal] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState('');
   const [convTab, setConvTab] = useState<'active' | 'archived' | 'blocked'>('active');
@@ -224,7 +237,6 @@ function MessagesInner() {
     if (!selectedConv || !files.length) return;
     const fileArray = Array.from(files).slice(0, 5); // max 5
     setUploadingFiles(true);
-    setShowAttachMenu(false);
 
     for (const file of fileArray) {
       const tempId = `upload_${Date.now()}_${Math.random()}`;
@@ -362,6 +374,23 @@ function MessagesInner() {
 
   if (loading) return <div className="flex justify-center py-20"><Spinner className="h-8 w-8" /></div>;
 
+  const activeConv = conversations.find((c) => c.id === selectedConv);
+  const activeName = activeConv?.otherParty?.name || 'Συνομιλία';
+
+  // Κλείσιμο της συνομιλίας (κουμπί «πίσω» στο κινητό)
+  const closeChat = () => {
+    setSelectedConv(null);
+    setMessages([]);
+    setVideoCallRoom(null);
+    setShowChatMenu(false);
+  };
+
+  const openOtherProfile = () => {
+    const otherId = activeConv?.otherParty?.id;
+    if (user?.role === 'worker') setViewBusinessProfile(otherId);
+    else setViewWorkerProfile(otherId);
+  };
+
   return (
     <div>
       <div className="mb-6"><h1 className="text-2xl font-bold text-gray-900">💬 Μηνύματα</h1></div>
@@ -370,8 +399,9 @@ function MessagesInner() {
         <EmptyState title="Δεν έχεις μηνύματα ακόμα" description="Κάνε match για να ξεκινήσεις συνομιλία!" />
       ) : (
         <div className="grid gap-6 lg:grid-cols-3">
-          {/* Conversation List */}
-          <div className="lg:col-span-1 space-y-2">
+          {/* Conversation List — στο κινητό κρύβεται όσο είναι ανοιχτή μια
+              συνομιλία, ώστε να μην κυλάει η σελίδα πίσω από το chat. */}
+          <div className={`lg:col-span-1 space-y-2 ${selectedConv ? 'hidden lg:block' : ''}`}>
             {/* Tabs */}
             <div className="flex gap-1 rounded-lg bg-gray-100 p-1 mb-3">
               {[
@@ -477,43 +507,41 @@ function MessagesInner() {
           {/* Chat Area */}
           <div className="lg:col-span-2">
             {selectedConv ? (
-              <Card className={`flex flex-col overflow-hidden ${videoCallRoom ? 'h-[700px]' : 'h-[550px]'}`}>
+              /* Στο κινητό η συνομιλία ανοίγει σε ΟΛΗ την οθόνη (fixed inset-0),
+                 πάνω από την πάνω μπάρα και το κάτω μενού του dashboard (z-30),
+                 όπως σε κανονική εφαρμογή μηνυμάτων. Από lg: και πάνω γυρίζει
+                 στην κανονική κάρτα δίπλα στη λίστα. */
+              <div className={`fixed inset-0 z-40 flex flex-col bg-white lg:static lg:z-auto lg:overflow-hidden lg:rounded-2xl lg:border lg:border-gray-100 lg:shadow-sm ${videoCallRoom ? 'lg:h-[700px]' : 'lg:h-[550px]'}`}>
                 {/* Chat header — clickable to view profile */}
-                <div className="border-b border-gray-100 px-5 py-3 flex items-center gap-3">
+                <div className="flex flex-shrink-0 items-center gap-2 border-b border-gray-100 bg-white px-3 py-2.5">
+                  {/* Πίσω — μόνο στο κινητό, όπου το chat καλύπτει τη λίστα */}
+                  <button onClick={closeChat} className="-ml-1.5 p-1.5 lg:hidden" title="Πίσω">
+                    <svg className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
                   <button
-                    onClick={() => {
-                      const conv = conversations.find((c) => c.id === selectedConv);
-                      const otherId = conv?.otherParty?.id;
-                      if (user?.role === 'worker') setViewBusinessProfile(otherId);
-                      else setViewWorkerProfile(otherId);
-                    }}
-                    className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity cursor-pointer text-left"
+                    onClick={openOtherProfile}
+                    className="flex min-w-0 flex-1 items-center gap-2.5 text-left transition-opacity hover:opacity-80"
                   >
-                    {(() => {
-                      const conv = conversations.find((c) => c.id === selectedConv);
-                      const avatar = conv?.otherParty?.avatar;
-                      const name = conv?.otherParty?.name || 'Συνομιλία';
-                      return avatar ? (
-                        <img src={avatar} alt="" className="h-8 w-8 rounded-full object-cover flex-shrink-0" />
-                      ) : (
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-600 flex-shrink-0">
-                          {name[0]?.toUpperCase() || '?'}
-                        </div>
-                      );
-                    })()}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">
-                        {conversations.find((c) => c.id === selectedConv)?.otherParty?.name || 'Συνομιλία'}
-                      </p>
+                    {activeConv?.otherParty?.avatar ? (
+                      <img src={activeConv.otherParty.avatar} alt="" className="h-10 w-10 flex-shrink-0 rounded-full object-cover" />
+                    ) : (
+                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-purple-100 font-bold text-purple-700">
+                        {activeName[0]?.toUpperCase() || '?'}
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold text-gray-900">{activeName}</p>
                       {isTyping ? (
-                        <p className="text-[11px] text-blue-500 animate-pulse">Πληκτρολογεί...</p>
+                        <p className="animate-pulse text-[11px] text-blue-500">Πληκτρολογεί...</p>
                       ) : (
-                        <p className="text-[10px] text-gray-400">Πάτα για προβολή προφίλ</p>
+                        <p className="text-[11px] text-gray-400">Πάτα για προβολή προφίλ</p>
                       )}
                     </div>
                   </button>
                   {/* Video call button */}
-                  {!conversations.find((c) => c.id === selectedConv)?.isBlocked && (
+                  {!activeConv?.isBlocked && (
                     <button
                       onClick={async () => {
                         if (videoCallRoom) {
@@ -536,21 +564,27 @@ function MessagesInner() {
                           }
                         }
                       }}
-                      className={`rounded-lg p-2 transition-colors ${videoCallRoom ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}`}
+                      className={`flex-shrink-0 rounded-full p-2 transition-colors ${videoCallRoom ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}
                       title={videoCallRoom ? 'Τερματισμός κλήσης' : 'Video κλήση'}
                     >
                       {videoCallRoom ? (
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /><line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" strokeWidth={2} /></svg>
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /><line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" strokeWidth={2} /></svg>
                       ) : (
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
                       )}
                     </button>
                   )}
+                  {/* Μενού συνομιλίας */}
+                  <button onClick={() => setShowChatMenu(true)} className="flex-shrink-0 rounded-full p-2 hover:bg-gray-100" title="Επιλογές">
+                    <svg className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" />
+                    </svg>
+                  </button>
                 </div>
 
                 {/* Incoming Call Banner */}
                 {incomingCall && !videoCallRoom && (
-                  <div className="bg-gradient-to-r from-emerald-600 to-blue-600 px-4 py-3 flex items-center justify-between animate-pulse">
+                  <div className="flex flex-shrink-0 animate-pulse items-center justify-between gap-2 bg-gradient-to-r from-emerald-600 to-blue-600 px-4 py-3">
                     <div className="flex items-center gap-3 text-white">
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20">
                         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
@@ -592,10 +626,10 @@ function MessagesInner() {
                   );
                   const src = `https://jitsi.member.fsf.org/${videoCallRoom}#config.prejoinConfig.enabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false&config.disableDeepLinking=true&config.hideConferenceSubject=true&config.hideConferenceTimer=true&config.requireDisplayName=false&userInfo.displayName=%22${myName}%22&interfaceConfig.SHOW_JITSI_WATERMARK=false&interfaceConfig.MOBILE_APP_PROMO=false`;
                   return (
-                    <div className="relative bg-gray-900">
+                    <div className="relative flex-shrink-0 bg-gray-900">
                       <iframe
                         src={src}
-                        className="w-full h-[400px]"
+                        className="h-[280px] w-full sm:h-[400px]"
                         allow="camera *; microphone *; fullscreen; display-capture; autoplay"
                         style={{ border: 'none' }}
                       />
@@ -608,7 +642,7 @@ function MessagesInner() {
                 })()}
 
                 {/* Messages */}
-                <div className={`flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-gray-50/50 ${videoCallRoom ? 'max-h-[120px]' : ''}`}>
+                <div className={`flex-1 space-y-2.5 overflow-y-auto bg-gray-50 p-3 sm:px-5 sm:py-4 ${videoCallRoom ? 'max-h-[140px]' : ''}`}>
                   {loadingMsgs ? (
                     <div className="flex justify-center py-10"><Spinner className="h-6 w-6" /></div>
                   ) : messages.length === 0 ? (
@@ -623,9 +657,10 @@ function MessagesInner() {
                       const timeStr = msgDate && !isNaN(msgDate.getTime()) ? msgDate.toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit' }) : '';
                       const isFailed = m.status === 'failed';
                       const isSending = m.status === 'sending';
+                      const isText = !(m.content?.startsWith('📹') || (m.content?.startsWith('📷') && m.content.includes('](')) || (m.content?.startsWith('📎') && m.content.includes('](')));
 
                       return (
-                        <div key={m.id} className={`flex ${isMine ? 'justify-start' : 'justify-end'}`}>
+                        <div key={m.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                           <div className="group relative max-w-[75%]">
                             {m.content?.startsWith('📹') && (m.content.includes('jitsi.member.fsf.org') || m.content.includes('8x8.vc') || m.content.includes('daily.co') || m.content.includes('meet.jit.si')) ? (
                               /* Video call — join button */
@@ -663,29 +698,26 @@ function MessagesInner() {
                               </div>
                             ) : (
                               /* Text — normal bubble */
-                              <div className={`rounded-2xl px-4 py-2.5 text-sm ${
-                                isMine ? 'bg-blue-600 text-white rounded-bl-md' : 'bg-white text-gray-900 border border-gray-200 rounded-br-md shadow-sm'
+                              <div className={`rounded-2xl px-4 py-2.5 shadow-sm ${
+                                isMine ? 'rounded-br-md bg-blue-600 text-white' : 'rounded-bl-md border border-gray-100 bg-white text-gray-900'
                               } ${isFailed ? 'opacity-60' : ''}`}>
-                                <p>{m.content}</p>
+                                <p className="whitespace-pre-wrap break-words text-sm">{m.content}</p>
+                                <div className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${isMine ? 'text-blue-100' : 'text-gray-400'}`}>
+                                  {timeStr && <span>{timeStr}</span>}
+                                  {isMine && !isFailed && !isSending && <span>{m.read_at ? '✓✓' : '✓'}</span>}
+                                  {isSending && <span>⏳</span>}
+                                </div>
                               </div>
                             )}
-                            {/* Status below message */}
-                            <div className="px-1">
-                              {/* Keep existing status rendering inside the old div — move it here */}
-                              <div className={`flex items-center gap-1 mt-1 ${isMine ? 'justify-start' : 'justify-end'}`}>
-                                {timeStr && (
-                                  <span className={`text-[10px] ${isMine ? 'text-blue-200' : 'text-gray-400'}`}>{timeStr}</span>
-                                )}
-                                {isMine && !isFailed && !isSending && (
-                                  <span className={`text-[10px] ${m.read_at ? 'text-blue-200' : 'text-blue-300'}`}>
-                                    {m.read_at ? '✓✓' : '✓'}
-                                  </span>
-                                )}
-                                {isSending && (
-                                  <span className="text-[10px] text-blue-200">⏳</span>
-                                )}
+                            {/* Ώρα κάτω από φωτογραφίες / αρχεία / κλήσεις,
+                                όπου δεν υπάρχει φούσκα να τη χωρέσει. */}
+                            {!isText && (
+                              <div className={`mt-1 flex items-center gap-1 px-1 text-[10px] text-gray-400 ${isMine ? 'justify-end' : 'justify-start'}`}>
+                                {timeStr && <span>{timeStr}</span>}
+                                {isMine && !isFailed && !isSending && <span>{m.read_at ? '✓✓' : '✓'}</span>}
+                                {isSending && <span>⏳</span>}
                               </div>
-                            </div>
+                            )}
 
                             {/* Failed message actions */}
                             {isFailed && (
@@ -716,12 +748,12 @@ function MessagesInner() {
 
                 {/* Typing indicator */}
                 {isTyping && (
-                  <div className="px-5 py-1">
+                  <div className="flex-shrink-0 px-4 py-1">
                     <div className="flex items-center gap-1.5 text-xs text-gray-400">
                       <div className="flex gap-0.5">
-                        <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '0ms' }} />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '150ms' }} />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '300ms' }} />
                       </div>
                       Πληκτρολογεί...
                     </div>
@@ -730,7 +762,7 @@ function MessagesInner() {
 
                 {/* Upload loading bar */}
                 {uploadingFiles && (
-                  <div className="border-t border-gray-200 px-4 py-3 bg-blue-50">
+                  <div className="flex-shrink-0 border-t border-gray-200 bg-blue-50 px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
                       <p className="text-sm font-medium text-blue-700">Ανέβασμα αρχείων...</p>
@@ -739,25 +771,22 @@ function MessagesInner() {
                 )}
 
                 {/* Input or Blocked message */}
-                {(() => {
-                  const conv = conversations.find((c) => c.id === selectedConv);
-                  if (conv?.blockedByThem) return (
-                    <div className="border-t border-gray-200 p-4 bg-red-50">
-                      <p className="text-center text-sm text-red-600 font-medium">🚫 Αυτός ο χρήστης σας έχει αποκλείσει</p>
-                    </div>
-                  );
-                  if (conv?.blockedByMe) return (
-                    <div className="border-t border-gray-200 p-4 bg-amber-50">
-                      <p className="text-center text-sm text-amber-700 font-medium">🚫 Αποκλείστηκε</p>
-                    </div>
-                  );
-                  return null;
-                })()}
-                {!conversations.find((c) => c.id === selectedConv)?.isBlocked && (
+                {activeConv?.blockedByThem && (
+                  <div className="flex-shrink-0 border-t border-gray-200 bg-red-50 p-4" style={SAFE_BOTTOM}>
+                    <p className="text-center text-sm font-medium text-red-600">🚫 Αυτός ο χρήστης σας έχει αποκλείσει</p>
+                  </div>
+                )}
+                {activeConv?.blockedByMe && !activeConv?.blockedByThem && (
+                  <div className="flex-shrink-0 border-t border-gray-200 bg-amber-50 p-4" style={SAFE_BOTTOM}>
+                    <p className="text-center text-sm font-medium text-amber-700">🚫 Αποκλείστηκε</p>
+                  </div>
+                )}
+                {!activeConv?.isBlocked && (
                 <>
-                {/* Quick reply chips */}
+                {/* Quick reply chips — μία σειρά που κυλάει, για να μη φαγωθεί
+                    ύψος από την οθόνη στο κινητό. */}
                 {messages.length > 0 && (
-                  <div className="border-t border-gray-100 px-4 py-2 bg-white flex flex-wrap gap-1.5">
+                  <div className="flex flex-shrink-0 gap-1.5 overflow-x-auto border-t border-gray-100 bg-white px-3 py-2">
                     {[
                       'Είσαι διαθέσιμος σήμερα;',
                       'Πόσο ζητάς;',
@@ -766,79 +795,80 @@ function MessagesInner() {
                       'Στείλε μου το βιογραφικό σου',
                     ].map((q) => (
                       <button key={q} onClick={() => sendQuickReply(q)}
-                        className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs text-gray-700 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-colors">
+                        className="flex-shrink-0 whitespace-nowrap rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs text-gray-700 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700">
                         {q}
                       </button>
                     ))}
                   </div>
                 )}
-                <div className="border-t border-gray-200 p-4 bg-white">
-                  {/* Hidden file inputs */}
+                <div className="flex flex-shrink-0 items-center gap-1.5 border-t border-gray-100 bg-white px-2 py-2" style={SAFE_BOTTOM}>
+                  {/* Hidden file inputs — δέχονται έως 5 αρχεία μαζί */}
                   <input ref={photoInputRef} type="file" accept="image/*" multiple className="sr-only" onChange={(e) => { if (e.target.files) handleFilesUpload(e.target.files); e.target.value = ''; }} />
                   <input ref={fileInputRef} type="file" accept="application/pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" multiple className="sr-only" onChange={(e) => { if (e.target.files) handleFilesUpload(e.target.files); e.target.value = ''; }} />
 
-                  <div className="flex gap-2">
-                    {/* Attach button with popup menu */}
-                    <div className="relative">
-                      <button onClick={() => setShowAttachMenu(!showAttachMenu)} disabled={uploadingFiles}
-                        className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-blue-600 transition-colors disabled:opacity-50">
-                        {uploadingFiles ? (
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-                        ) : (
-                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                          </svg>
-                        )}
-                      </button>
+                  <button onClick={() => photoInputRef.current?.click()} disabled={uploadingFiles}
+                    className="flex-shrink-0 p-2 text-gray-500 transition-colors hover:text-blue-600 disabled:opacity-50" title="Φωτογραφία (έως 5)">
+                    {uploadingFiles ? (
+                      <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                    ) : (
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                        <path strokeLinecap="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                      </svg>
+                    )}
+                  </button>
+                  <button onClick={() => fileInputRef.current?.click()} disabled={uploadingFiles}
+                    className="flex-shrink-0 p-2 text-gray-500 transition-colors hover:text-blue-600 disabled:opacity-50" title="Αρχείο (έως 5)">
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      <path strokeLinecap="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.122 2.122l7.81-7.81" />
+                    </svg>
+                  </button>
 
-                      {/* Popup menu */}
-                      {showAttachMenu && (
-                        <>
-                          <div className="fixed inset-0 z-10" onClick={() => setShowAttachMenu(false)} />
-                          <div className="absolute bottom-12 left-0 z-20 w-48 rounded-xl bg-white border border-gray-200 shadow-xl overflow-hidden">
-                            <button onClick={() => { photoInputRef.current?.click(); setShowAttachMenu(false); }}
-                              className="flex w-full items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors">
-                              <svg className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" /></svg>
-                              Φωτογραφία
-                              <span className="text-[10px] text-gray-400 ml-auto">έως 5</span>
-                            </button>
-                            <button onClick={() => { fileInputRef.current?.click(); setShowAttachMenu(false); }}
-                              className="flex w-full items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors border-t border-gray-100">
-                              <svg className="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
-                              Αρχείο
-                              <span className="text-[10px] text-gray-400 ml-auto">έως 5</span>
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    <input
-                      value={newMsg}
-                      onChange={(e) => setNewMsg(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-                      placeholder="Γράψε μήνυμα..."
-                      className="flex-1 rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-gray-50"
-                    />
-                    <button onClick={() => sendMessage()} disabled={sending || !newMsg.trim()}
-                      className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors">
-                      {sending ? (
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      ) : (
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-                        </svg>
-                      )}
-                    </button>
-                  </div>
+                  <input
+                    value={newMsg}
+                    onChange={(e) => setNewMsg(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+                    placeholder="Μήνυμα..."
+                    className="min-w-0 flex-1 rounded-full bg-gray-100 px-4 py-2.5 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/30"
+                  />
+                  <button onClick={() => sendMessage()} disabled={sending || !newMsg.trim()}
+                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:opacity-50">
+                    {sending ? (
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    ) : (
+                      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                      </svg>
+                    )}
+                  </button>
                 </div>
                 </>
                 )}
-              </Card>
+
+                {/* Μενού συνομιλίας — φύλλο που ανεβαίνει από κάτω */}
+                {showChatMenu && (
+                  <div className="fixed inset-0 z-50 flex items-end" onClick={() => setShowChatMenu(false)}>
+                    <div className="absolute inset-0 bg-black/50" />
+                    <div className="relative z-10 w-full space-y-1 rounded-t-3xl bg-white p-4" onClick={(e) => e.stopPropagation()} style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}>
+                      <div className="mb-2 flex justify-center"><div className="h-1.5 w-10 rounded-full bg-gray-300" /></div>
+                      <ChatMenuItem icon="👤" label="Προβολή προφίλ" onClick={() => { setShowChatMenu(false); openOtherProfile(); }} />
+                      {activeConv?.matchStatus === 'archived' ? (
+                        <ChatMenuItem icon="↩️" label="Επαναφορά" color="text-emerald-700" onClick={() => { setShowChatMenu(false); convAction(selectedConv!, 'restore'); }} />
+                      ) : (
+                        <ChatMenuItem icon="📦" label="Αρχειοθέτηση" onClick={() => { setShowChatMenu(false); convAction(selectedConv!, 'archive'); }} />
+                      )}
+                      <ChatMenuItem icon="🧹" label="Διαγραφή μηνυμάτων" color="text-orange-600" onClick={() => { setShowChatMenu(false); convAction(selectedConv!, 'clear_messages'); }} />
+                      <ChatMenuItem icon="🗑️" label="Διαγραφή συνομιλίας" color="text-red-600" onClick={() => { setShowChatMenu(false); convAction(selectedConv!, 'delete'); }} />
+                      <ChatMenuItem icon="⚠️" label="Αναφορά" color="text-amber-700" onClick={() => { setShowChatMenu(false); setReportModal(selectedConv); }} />
+                      <ChatMenuItem icon="🚫" label="Αποκλεισμός" color="text-red-700" onClick={() => { setShowChatMenu(false); convAction(selectedConv!, 'block'); }} />
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : (
-              <Card className="h-[550px] flex items-center justify-center">
+              /* Κενή κατάσταση — μόνο στον υπολογιστή· στο κινητό βλέπεις τη λίστα */
+              <Card className="hidden h-[550px] items-center justify-center lg:flex">
                 <div className="text-center text-gray-400">
-                  <p className="text-4xl mb-2">💬</p>
+                  <p className="mb-2 text-4xl">💬</p>
                   <p className="text-sm">Επίλεξε μια συνομιλία</p>
                 </div>
               </Card>
