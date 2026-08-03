@@ -341,7 +341,13 @@ export default function DashboardLayout({
             {notifOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
-                <div className="absolute right-0 top-11 z-50 w-80 rounded-xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
+                {/*
+                  Στο κινητό το παράθυρο πιάνει όλο το πλάτος της οθόνης (με μικρό
+                  περιθώριο) και όσο ύψος υπάρχει διαθέσιμο. Πριν είχε σταθερό
+                  πλάτος 320px κολλημένο δεξιά, οπότε σε οθόνες κάτω από 380px
+                  κοβόταν η αριστερή του άκρη και δεν φαινόταν ολόκληρο.
+                */}
+                <div className="fixed left-2 right-2 top-16 z-50 rounded-xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
                   <div className="border-b border-gray-100 px-4 py-2.5 flex items-center justify-between">
                     <p className="text-sm font-semibold text-gray-900">Ειδοποιήσεις</p>
                     {notifUnread > 0 && (
@@ -350,7 +356,7 @@ export default function DashboardLayout({
                       </button>
                     )}
                   </div>
-                  <div className="max-h-80 overflow-y-auto">
+                  <div className="max-h-[70vh] overflow-y-auto">
                     {/* Quick badges */}
                     {(badges.messages > 0 || badges.interests > 0) && (
                       <div className="px-3 py-2 flex gap-2 border-b border-gray-100 bg-gray-50">
