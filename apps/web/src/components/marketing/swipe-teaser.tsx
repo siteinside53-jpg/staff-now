@@ -322,9 +322,10 @@ export function SwipeTeaser() {
   const nopeOpacity = Math.min(Math.max(-drag / 90, 0), 1);
   const isJobs = mode === 'jobs';
 
-  // Ανοιχτό φόντο: πάνω σε σκούρο, το πλαίσιο και η σκιά της κάρτας χάνονταν.
+  // Λευκό: πάνω σε σκούρο χανόταν το πλαίσιο της κάρτας, και σε γκρι κολλούσε
+  // οπτικά με την «Έκτακτη βάρδια» που ακολουθεί. Έτσι κρατιέται η εναλλαγή.
   return (
-    <section className="bg-gray-50 py-16 sm:py-24">
+    <section className="bg-white py-16 sm:py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="grid items-center gap-10 lg:grid-cols-2">
           {/* Left — pitch */}
