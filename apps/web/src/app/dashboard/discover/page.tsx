@@ -1298,9 +1298,14 @@ export default function DiscoverPage() {
             cursor: dragging ? 'grabbing' : 'grab',
           }}
         >
-          {/* ── ΕΙΚΟΝΑ (πάνω μέρος της κάρτας) ── */}
+          {/*
+            ── ΕΙΚΟΝΑ (πάνω μέρος της κάρτας) ──
+            Ακριβώς το μισό ύψος της κάρτας, ίδιο με το κάτω μέρος των
+            πληροφοριών. Παλιότερα η φωτογραφία του εργαζόμενου έπιανε 58%
+            κι έμενε λιγότερος χώρος για τα στοιχεία.
+          */}
           <div
-            className={`relative flex-shrink-0 overflow-hidden ${isJobCard ? 'h-1/2' : 'h-[58%]'} ${
+            className={`relative h-1/2 flex-shrink-0 overflow-hidden ${
               cover
                 ? ''
                 : isJobCard
@@ -1430,8 +1435,14 @@ export default function DiscoverPage() {
             ── ΠΛΗΡΟΦΟΡΙΕΣ (κάτω μέρος) ──
             Σκόπιμα ΔΕΝ είναι flex column: σε flex στήλη τα <p> με truncate
             συμπιέζονταν σε ύψος 0 και εξαφανίζονταν η εταιρεία κι η περιοχή.
+
+            Το touch-pan-y είναι απαραίτητο για να πιάνει το σύρσιμο ΚΑΙ εδώ:
+            επειδή αυτό το κουτί κυλάει κάθετα, χωρίς αυτό ο browser του κινητού
+            θεωρούσε δική του κάθε κίνηση του δαχτύλου και ακύρωνε το swipe, οπότε
+            η κάρτα έφευγε μόνο αν την έσερνες πάνω στη φωτογραφία. Με pan-y η
+            κάθετη κύλιση μένει στον browser και η οριζόντια έρχεται σε εμάς.
           */}
-          <div className="min-h-0 flex-1 overflow-y-auto p-5">
+          <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto p-5">
             <div className="flex items-start gap-1.5">
               <h2 className="min-w-0 flex-1 text-xl font-extrabold leading-tight text-gray-900">
                 {currentCandidate.name}
