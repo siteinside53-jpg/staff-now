@@ -1077,7 +1077,7 @@ export default function DiscoverPage() {
 
       <div className="mx-auto max-w-lg select-none lg:hidden">
         <Card
-          className="overflow-hidden shadow-2xl touch-none"
+          className="overflow-hidden rounded-[26px] border-slate-200 shadow-card touch-none"
           onPointerDown={(e) => {
             const target = e.target as HTMLElement;
             if (target.closest('button, a, [data-no-drag]')) return;

@@ -74,10 +74,10 @@ export function ActivityMarquee() {
   if (items.length === 0) return null;
 
   return (
-    <div className="relative overflow-hidden border-y border-gray-800 bg-gray-950 py-2.5">
+    <div className="relative overflow-hidden border-y border-white/10 bg-ink py-2.5">
       {/* Edge fades */}
-      <div className="pointer-events-none absolute left-0 top-0 h-full w-16 bg-gradient-to-r from-gray-950 to-transparent z-10" />
-      <div className="pointer-events-none absolute right-0 top-0 h-full w-16 bg-gradient-to-l from-gray-950 to-transparent z-10" />
+      <div className="pointer-events-none absolute left-0 top-0 h-full w-16 bg-gradient-to-r from-ink to-transparent z-10" />
+      <div className="pointer-events-none absolute right-0 top-0 h-full w-16 bg-gradient-to-l from-ink to-transparent z-10" />
 
       {/* Scrolling track — two identical sets for seamless loop */}
       <div className="marquee-track flex whitespace-nowrap">

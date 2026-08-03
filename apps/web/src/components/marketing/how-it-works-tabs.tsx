@@ -19,11 +19,13 @@ export function HowItWorksTabs() {
   const steps = tab === 'business' ? businessSteps : workerSteps;
 
   return (
-    <section id="how-it-works" className="bg-white py-20 sm:py-28">
+    <section id="how-it-works" className="bg-gray-50 py-20 sm:py-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">Απλά &amp; Γρήγορα</p>
-          <h2 className="mt-3 text-3xl font-bold text-gray-900 sm:text-4xl">Πώς λειτουργεί</h2>
+          <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+            Πώς λειτουργεί
+          </h2>
         </div>
 
         {/* Tabs */}

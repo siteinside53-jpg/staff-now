@@ -322,19 +322,20 @@ export function SwipeTeaser() {
   const nopeOpacity = Math.min(Math.max(-drag / 90, 0), 1);
   const isJobs = mode === 'jobs';
 
+  // Ανοιχτό φόντο: πάνω σε σκούρο, το πλαίσιο και η σκιά της κάρτας χάνονταν.
   return (
-    <section className="bg-gray-950 py-16 sm:py-24">
+    <section className="bg-gray-50 py-16 sm:py-24">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="grid items-center gap-10 lg:grid-cols-2">
           {/* Left — pitch */}
           <div className="text-center lg:text-left">
-            <span className="inline-flex items-center gap-2 rounded-full bg-blue-500/10 px-4 py-1.5 text-sm font-semibold text-blue-300 ring-1 ring-blue-500/20">
+            <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm font-semibold text-slate-700 shadow-sm">
               🔥 Δοκίμασέ το τώρα
             </span>
-            <h2 className="mt-5 text-3xl font-extrabold text-white sm:text-4xl leading-tight">
+            <h2 className="mt-5 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl leading-tight">
               {isJobs ? 'Κάνε swipe σε πραγματικές θέσεις' : 'Κάνε swipe σε πραγματικά προφίλ'}
             </h2>
-            <p className="mt-4 text-lg text-gray-400 leading-relaxed max-w-md mx-auto lg:mx-0">
+            <p className="mt-4 text-lg text-gray-500 leading-relaxed max-w-md mx-auto lg:mx-0">
               {isJobs
                 ? 'Δες τι υπάρχει αυτή τη στιγμή κοντά σου. Swipe δεξιά αν σ\u2019αρέσει, αριστερά για πάσο. Χωρίς εγγραφή — μέχρι να θες να στείλεις ενδιαφέρον.'
                 : 'Δες ποιοι είναι διαθέσιμοι αυτή τη στιγμή κοντά σου. Swipe δεξιά αν σου κάνει, αριστερά για πάσο. Χωρίς εγγραφή — μέχρι να θες να επικοινωνήσεις.'}
@@ -345,7 +346,7 @@ export function SwipeTeaser() {
               <div
                 role="tablist"
                 aria-label="Τι ψάχνεις"
-                className="mt-6 inline-flex rounded-2xl bg-white/5 p-1 ring-1 ring-white/10"
+                className="mt-6 inline-flex rounded-2xl bg-gray-100 p-1 ring-1 ring-gray-200"
               >
                 <button
                   role="tab"
@@ -354,7 +355,7 @@ export function SwipeTeaser() {
                   className={`whitespace-nowrap rounded-xl px-3 py-2.5 text-xs font-bold transition sm:px-5 sm:text-sm ${
                     isJobs
                       ? 'bg-white text-gray-900 shadow'
-                      : 'text-gray-400 hover:text-white'
+                      : 'text-gray-500 hover:text-gray-900'
                   }`}
                 >
                   🔎 Ψάχνω εργασία
@@ -366,7 +367,7 @@ export function SwipeTeaser() {
                   className={`whitespace-nowrap rounded-xl px-3 py-2.5 text-xs font-bold transition sm:px-5 sm:text-sm ${
                     !isJobs
                       ? 'bg-white text-gray-900 shadow'
-                      : 'text-gray-400 hover:text-white'
+                      : 'text-gray-500 hover:text-gray-900'
                   }`}
                 >
                   🏢 Ψάχνω προσωπικό
@@ -383,7 +384,7 @@ export function SwipeTeaser() {
           <div className="relative mx-auto h-[480px] w-full max-w-sm select-none">
             {/* peek της επόμενης κάρτας */}
             {next && !gated && (
-              <div className="absolute inset-x-3 top-4 h-full scale-[0.96] rounded-3xl bg-white/5 ring-1 ring-white/10" />
+              <div className="absolute inset-x-3 top-4 h-full scale-[0.96] rounded-[26px] border border-slate-200 bg-white shadow-card" />
             )}
 
             {gated ? (
@@ -394,7 +395,7 @@ export function SwipeTeaser() {
                 onPointerMove={onPointerMove}
                 onPointerUp={onPointerUp}
                 onPointerCancel={onPointerUp}
-                className="absolute inset-0 cursor-grab touch-none overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-black/5 active:cursor-grabbing"
+                className="absolute inset-0 cursor-grab touch-none overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-card active:cursor-grabbing"
                 style={{
                   transform: leaving
                     ? `translateX(${leaving === 'right' ? 600 : -600}px) rotate(${leaving === 'right' ? 24 : -24}deg)`
@@ -533,7 +534,7 @@ function GateCard({
 }) {
   const isJobs = mode === 'jobs';
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl bg-gradient-to-br from-blue-600 to-indigo-700 p-8 text-center shadow-2xl">
+    <div className="absolute inset-0 flex flex-col items-center justify-center rounded-[26px] bg-gradient-to-br from-blue-600 to-indigo-700 p-8 text-center shadow-card">
       <div className="text-5xl">🔥</div>
       <h3 className="mt-4 text-2xl font-extrabold text-white leading-tight">
         Είδες {seen} από {total} {isJobs ? 'θέσεις' : 'προφίλ'}

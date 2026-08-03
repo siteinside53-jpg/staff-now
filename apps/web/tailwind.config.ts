@@ -5,6 +5,10 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Το ένα και μοναδικό σκούρο φόντο του marketing site. Πριν υπήρχαν
+        // τρία διαφορετικά (navy hero, gray-900 trust bar, gray-950 marquee),
+        // που έκαναν τη σελίδα να μοιάζει ραμμένη από κομμάτια.
+        ink: '#060B1F',
         brand: {
           50: '#eff6ff',
           100: '#dbeafe',
@@ -33,6 +37,10 @@ const config: Config = {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+      },
+      boxShadow: {
+        // Η σκιά των καρτών: μία μεγάλη απαλή + μία κοντινή για «πάτημα».
+        card: '0 24px 60px -18px rgba(2,8,23,.26), 0 8px 20px -8px rgba(2,8,23,.12)',
       },
     },
   },

@@ -149,7 +149,7 @@ export default function HomePage() {
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>
                 Για Επιχειρήσεις
               </span>
-              <h2 className="mt-6 text-3xl font-bold text-gray-900 sm:text-4xl leading-tight">
+              <h2 className="mt-6 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl leading-tight">
                 Βρες αξιόπιστο προσωπικό<br />
                 <span className="text-blue-600">σε λίγα λεπτά, όχι εβδομάδες</span>
               </h2>
@@ -268,7 +268,7 @@ export default function HomePage() {
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
                 Για Εργαζόμενους
               </span>
-              <h2 className="mt-6 text-3xl font-bold text-gray-900 sm:text-4xl leading-tight">
+              <h2 className="mt-6 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl leading-tight">
                 Βρες τη δουλειά που σου αξίζει<br />
                 <span className="text-emerald-600">Swipe, match, ξεκίνα</span>
               </h2>
@@ -323,7 +323,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-14">
             <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">Τι λένε οι χρήστες μας</p>
-            <h2 className="mt-3 text-3xl font-bold text-gray-900 sm:text-4xl">Εμπιστοσύνη από χιλιάδες</h2>
+            <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">Εμπιστοσύνη από χιλιάδες</h2>
           </div>
 
           <div className="grid gap-8 md:grid-cols-3">
@@ -355,7 +355,7 @@ export default function HomePage() {
       <HowItWorksTabs />
 
       {/* ====== CATEGORIES — όλοι οι κλάδοι ====== */}
-      <section className="bg-gray-50 py-16 sm:py-20" aria-labelledby="categories-heading">
+      <section className="bg-white py-16 sm:py-20" aria-labelledby="categories-heading">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10">
             <h2 id="categories-heading" className="text-2xl font-bold text-gray-900 sm:text-3xl">
@@ -370,7 +370,7 @@ export default function HomePage() {
               <li key={cat.slug}>
                 <Link
                   href={`/categories#${cat.slug}`}
-                  className="group flex h-full items-center gap-2 rounded-xl bg-white px-3 py-3 shadow-sm border border-gray-100 hover:border-blue-300 hover:shadow-md transition-all"
+                  className="group flex h-full items-center gap-2 rounded-xl bg-white px-3 py-3 shadow-sm border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all"
                 >
                   <span className="text-xl flex-shrink-0">{cat.icon}</span>
                   <span className="text-xs sm:text-sm font-medium text-gray-700 group-hover:text-blue-700 leading-tight">{cat.label}</span>
@@ -392,7 +392,7 @@ export default function HomePage() {
       {/* ====== DOWNLOAD APP ====== */}
       <section
         id="download-app"
-        className="w-full scroll-mt-20 bg-white py-10 sm:py-14"
+        className="w-full scroll-mt-20 bg-gray-50 py-10 sm:py-14"
       >
         <div className="mx-auto grid max-w-7xl items-center gap-8 px-4 sm:px-6 lg:grid-cols-[5fr_7fr] lg:gap-10 lg:px-8">
           {/* LEFT — text + store buttons + stats */}
@@ -400,7 +400,7 @@ export default function HomePage() {
             <span className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-blue-700">
               📱 Έρχεται σύντομα
             </span>
-            <h2 className="mt-4 text-4xl font-extrabold leading-tight text-gray-900 sm:text-5xl">
+            <h2 className="mt-4 text-4xl font-extrabold tracking-tight leading-tight text-gray-900 sm:text-5xl">
               Η εφαρμογή
               <br />
               έρχεται <span className="text-blue-600">σύντομα</span>
@@ -493,9 +493,9 @@ export default function HomePage() {
       </section>
 
       {/* ====== FINAL CTA ====== */}
-      <section className="bg-gray-950 py-20 sm:py-28">
+      <section className="bg-ink py-20 sm:py-28">
         <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-white sm:text-4xl">
+          <h2 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
             Ξεκίνα Δωρεάν σε 30 δευτερόλεπτα
           </h2>
           <p className="mt-4 text-lg text-gray-400">

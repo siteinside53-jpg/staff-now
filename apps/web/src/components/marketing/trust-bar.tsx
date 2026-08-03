@@ -59,7 +59,7 @@ export function TrustBar() {
   const fmt = (n: number | null) => (n == null ? '—' : n.toLocaleString('el-GR'));
 
   return (
-    <section className="bg-gray-900 py-6 border-b border-gray-800">
+    <section className="bg-ink py-6 border-b border-white/10">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-12 text-center">
           <div className="flex items-center gap-2">

@@ -105,6 +105,34 @@ function shiftEmoji(roles?: string[]): string {
   return (first && ROLE_EMOJI[first]) || '⚡';
 }
 
+/** Παστέλ πλακίδιο πίσω από το emoji — δίνει χρώμα χωρίς φωτογραφίες. */
+const TILE_GRADIENTS = [
+  'from-blue-100 to-blue-300',
+  'from-indigo-100 to-indigo-300',
+  'from-emerald-100 to-emerald-300',
+  'from-sky-100 to-sky-300',
+] as const;
+
+function tileGradient(id: string): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return TILE_GRADIENTS[h % TILE_GRADIENTS.length] ?? TILE_GRADIENTS[0];
+}
+
+const ClockIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" className="flex-shrink-0 opacity-45" aria-hidden>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 2" />
+  </svg>
+);
+
+const CalendarIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" className="flex-shrink-0 opacity-45" aria-hidden>
+    <rect x="3" y="5" width="18" height="16" rx="2" />
+    <path d="M3 10h18M8 3v4M16 3v4" />
+  </svg>
+);
+
 export function UrgentShifts() {
   const [shifts, setShifts] = useState<PublicShift[]>([]);
   // Ξεκινάει στο 0 ώστε server και client να κάνουν render το ίδιο πράγμα
@@ -156,18 +184,18 @@ export function UrgentShifts() {
   const visible = isExample ? EXAMPLE_SHIFTS : live;
 
   return (
-    <section className="border-t border-gray-200 bg-gradient-to-b from-red-50/60 to-white py-20 sm:py-24">
+    <section className="border-t border-gray-200 bg-gray-50 py-20 sm:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-2xl text-center">
-          <div className="text-sm font-extrabold uppercase tracking-wide text-red-600">
+        <div className="max-w-[640px]">
+          <div className="text-[12.5px] font-extrabold uppercase tracking-[0.13em] text-red-600">
             Νέο · Έκτακτη βάρδια
           </div>
-          <h2 className="mt-3 text-3xl font-bold leading-tight text-gray-900 sm:text-4xl">
-            Χρειάζεσαι άτομο <em className="font-serif italic text-red-600">απόψε</em>;
+          <h2 className="mt-3.5 text-[clamp(28px,4.2vw,46px)] font-extrabold leading-[1.08] tracking-[-0.03em] text-gray-900">
+            Χρειάζεσαι άτομο απόψε;
             <br />
             Όχι σε δύο εβδομάδες.
           </h2>
-          <p className="mt-4 text-lg leading-relaxed text-gray-600">
+          <p className="mt-4 text-lg leading-relaxed text-gray-500">
             Μία βάρδια, όχι θέση εργασίας. Ανεβάζεις ώρα και αμοιβή — βρίσκεις άτομο μέσα σε λεπτά.
             Χωρίς βιογραφικά, χωρίς δέσμευση.
           </p>
@@ -178,7 +206,7 @@ export function UrgentShifts() {
           )}
         </div>
 
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-[52px] grid gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
           {visible.map((s) => {
             const countdown =
               !isExample && nowTick > 0 ? expiresLabel(s.shift_start_utc, now) : null;
@@ -191,7 +219,9 @@ export function UrgentShifts() {
               <article
                 key={s.id}
                 data-testid="urgent-shift-card"
-                className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+                className={`relative overflow-hidden rounded-[18px] border-[1.5px] border-gray-200 bg-white p-5 transition duration-200 hover:-translate-y-[3px] hover:shadow-card ${
+                  isExample ? '' : 'hover:border-red-300'
+                }`}
               >
                 {/* κόκκινη ράχη — το οπτικό σήμα της βάρδιας */}
                 <span
@@ -200,74 +230,88 @@ export function UrgentShifts() {
                 />
 
                 {countdown && (
-                  <span className="absolute right-4 top-5 text-[11.5px] font-extrabold text-red-600">
+                  <span className="absolute right-[18px] top-5 text-[11.5px] font-extrabold text-red-600">
                     λήγει {countdown}
                   </span>
                 )}
 
-                <div className="pl-2">
-                  {isExample ? (
-                    <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-[11.5px] font-extrabold uppercase tracking-wide text-gray-500">
-                      Παράδειγμα
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-[11.5px] font-extrabold uppercase tracking-wide text-red-600">
-                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-600" />
-                      {when}
-                    </span>
+                {isExample ? (
+                  <span className="mb-[13px] inline-flex items-center rounded-full bg-gray-100 px-[11px] py-[5px] text-[11.5px] font-extrabold uppercase tracking-[0.03em] text-gray-500">
+                    Παράδειγμα
+                  </span>
+                ) : (
+                  <span className="mb-[13px] inline-flex items-center gap-1.5 rounded-full bg-red-100 px-[11px] py-[5px] text-[11.5px] font-extrabold uppercase tracking-[0.03em] text-red-600">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-600" />
+                    {when}
+                  </span>
+                )}
+
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`grid h-[42px] w-[42px] flex-shrink-0 place-items-center rounded-xl bg-gradient-to-br text-[19px] ${tileGradient(s.id)}`}
+                    aria-hidden
+                  >
+                    {shiftEmoji(s.roles)}
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-[17px] font-extrabold leading-snug tracking-[-0.02em] text-gray-900">
+                      {s.title}
+                    </h3>
+                    <p className="mt-0.5 text-[13px] text-gray-500">
+                      {company}
+                      {city ? ` · ${city}` : ''}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-[14px] space-y-[7px] text-[13.5px] font-semibold text-slate-800">
+                  {s.shift_start_time && s.shift_end_time && (
+                    <div className="flex items-center gap-2">
+                      <ClockIcon />
+                      {s.shift_start_time} – {s.shift_end_time}
+                    </div>
                   )}
+                  <div className="flex items-center gap-2">
+                    <CalendarIcon />
+                    {durationLabel(s)}
+                  </div>
+                </div>
 
-                  <h3 className="mt-3 flex items-center gap-2 text-lg font-bold text-gray-900">
-                    <span aria-hidden>{shiftEmoji(s.roles)}</span>
-                    {s.title}
-                  </h3>
-                  <p className="mt-0.5 text-sm text-gray-600">
-                    {company}
-                    {city ? ` · ${city}` : ''}
-                  </p>
-
-                  <div className="mt-4 space-y-1 text-sm text-gray-700">
-                    {s.shift_start_time && s.shift_end_time && (
-                      <div>
-                        🕒 {s.shift_start_time} – {s.shift_end_time}
+                {s.salary_min ? (
+                  <>
+                    <div className="mt-[15px] flex items-baseline gap-1.5 text-[27px] font-black tracking-[-0.03em] text-emerald-700">
+                      {s.salary_min}€
+                      <span className="text-[12.5px] font-semibold tracking-normal text-gray-500">
+                        μικτά για τη βάρδια
+                      </span>
+                    </div>
+                    {net && (
+                      <div className="mt-1 text-xs text-gray-500">
+                        ≈ <b className="font-bold text-slate-800">{net}€ καθαρά</b> στο χέρι
+                        (ενδεικτικά) · δηλώνεται στην ΕΡΓΑΝΗ
                       </div>
                     )}
-                    <div className="text-gray-500">⏱️ {durationLabel(s)}</div>
+                  </>
+                ) : null}
+
+                {isExample ? (
+                  <div className="mt-[15px] w-full rounded-[11px] border border-dashed border-gray-300 py-3 text-center text-sm font-bold text-gray-400">
+                    Δείγμα αγγελίας
                   </div>
-
-                  {s.salary_min ? (
-                    <div className="mt-4">
-                      <div className="text-[27px] font-black leading-none text-teal-600">
-                        {s.salary_min}€
-                        <span className="ml-1 text-sm font-semibold text-gray-500">μικτά</span>
-                      </div>
-                      {net && (
-                        <div className="mt-1 text-xs text-gray-500">
-                          ≈ {net}€ καθαρά (ενδεικτικά) · δηλώνεται στην ΕΡΓΑΝΗ
-                        </div>
-                      )}
-                    </div>
-                  ) : null}
-
-                  {isExample ? (
-                    <div className="mt-5 w-full rounded-xl border border-dashed border-gray-300 py-3 text-center text-sm font-semibold text-gray-400">
-                      Δείγμα αγγελίας
-                    </div>
-                  ) : (
-                    <Link
-                      href="/auth/register?role=worker"
-                      className="mt-5 block w-full rounded-xl bg-gray-900 py-3 text-center text-sm font-bold text-white transition-colors hover:bg-red-600"
-                    >
-                      Δήλωσε διαθεσιμότητα
-                    </Link>
-                  )}
-                </div>
+                ) : (
+                  <Link
+                    href="/auth/register?role=worker"
+                    className="mt-[15px] block w-full rounded-[11px] bg-[#020817] py-3 text-center text-sm font-bold text-white transition-colors hover:bg-red-600"
+                  >
+                    Δήλωσε διαθεσιμότητα
+                  </Link>
+                )}
               </article>
             );
           })}
         </div>
 
-        <div className="mt-7 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm leading-relaxed text-gray-700">
+        <div className="mt-[26px] flex items-start gap-3 rounded-[14px] border border-emerald-200 bg-emerald-50 px-[19px] py-[17px] text-[13.5px] leading-[1.6] text-slate-800">
           <span className="text-lg leading-none" aria-hidden>
             🛡️
           </span>
