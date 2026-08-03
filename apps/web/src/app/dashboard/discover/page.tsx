@@ -1192,9 +1192,14 @@ export default function DiscoverPage() {
 
       {/* SWIPE VIEW — single card (ΜΟΝΟ σε mobile) */}
       {discoverTab === 'discover' && !noCandidates && currentCandidate && discoverView === 'swipe' && (() => {
-        const cover = currentCandidate.coverPhoto;
-        const avatar = currentCandidate.photoUrl || currentCandidate.companyLogo;
         const isJobCard = currentCandidate.type === 'job';
+        /*
+          Στους εργαζόμενους η φωτογραφία γεμίζει ΟΛΟ το πάνω πλαίσιο της κάρτας,
+          όχι μικρό στρογγυλό avatar στη μέση. Στις αγγελίες κρατάμε το λογότυπο
+          στρογγυλό, γιατί ένα λογότυπο σε full-bleed κόβεται και παραμορφώνεται.
+        */
+        const cover = currentCandidate.coverPhoto || (isJobCard ? undefined : currentCandidate.photoUrl);
+        const avatar = currentCandidate.photoUrl || currentCandidate.companyLogo;
         const isShift = currentCandidate.listingKind === 'shift';
         const countdown = isShift ? expiresLabel(currentCandidate.shiftStartUtc, new Date(nowTick)) : null;
         const shiftNet = isShift ? netOf(currentCandidate.salaryMin) : null;
@@ -1299,7 +1304,13 @@ export default function DiscoverPage() {
           >
             {cover ? (
               <>
-                <img src={cover} alt="" className="h-full w-full object-cover" draggable={false} />
+                {/* object-top στα προφίλ: σε κάθετη φωτογραφία κρατά το πρόσωπο μέσα στο κάδρο */}
+                <img
+                  src={cover}
+                  alt=""
+                  draggable={false}
+                  className={`h-full w-full object-cover ${isJobCard ? '' : 'object-top'}`}
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/15" />
               </>
             ) : (
