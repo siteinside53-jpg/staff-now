@@ -476,7 +476,13 @@ export default function DashboardLayout({
       </nav>
 
       {/* Main content */}
-      <main className="flex-1 pt-14 lg:ml-64 lg:pt-0">
+      {/*
+        min-w-0: το <main> είναι flex item, κι ένα flex item έχει από προεπιλογή
+        min-width:auto — δηλαδή αρνείται να στενέψει κάτω από το πλάτος του
+        περιεχομένου του. Στο κινητό αυτό έσπρωχνε τη σελίδα στα 488px αντί για
+        375px, κι ο browser έκανε μόνος του zoom-out για να χωρέσει.
+      */}
+      <main className="min-w-0 flex-1 pt-14 lg:ml-64 lg:pt-0">
         <div className="mx-auto max-w-7xl px-4 py-8 pb-20 sm:px-6 lg:px-8 lg:pb-8">
           {children}
         </div>

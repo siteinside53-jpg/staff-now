@@ -941,6 +941,16 @@ export default function DiscoverPage() {
                             {whenLabel(c.shiftDate, new Date(nowTick))}
                           </span>
                         )}
+                        {/*
+                          Στο κινητό η αντίστροφη μέτρηση μπαίνει εδώ (κάτω από τον τίτλο)
+                          κι όχι στη δεξιά στήλη: εκεί έτρωγε 120px από τα 375 της οθόνης
+                          και τα κείμενα της βάρδιας κόβονταν με «…».
+                        */}
+                        {countdown && (
+                          <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700 ring-1 ring-red-200 sm:hidden">
+                            ⏳ λήγει {countdown}
+                          </span>
+                        )}
                       </div>
                       {specialties.length > 0 && (
                         <p className="text-xs sm:text-sm font-semibold text-blue-700 truncate" title={specialties.join(' · ')}>
@@ -960,7 +970,8 @@ export default function DiscoverPage() {
                       )}
                       {isShift ? (
                         <>
-                          <p className="mt-0.5 text-xs font-semibold text-gray-700 truncate">
+                          {/* Χωρίς truncate: ώρες κι αμοιβή είναι το νόημα της βάρδιας — καλύτερα δύο σειρές παρά «…» */}
+                          <p className="mt-0.5 text-xs font-semibold text-gray-700 leading-snug">
                             🕒 {c.shiftStartTime}–{c.shiftEndTime} ·{' '}
                             {durationLabel({
                               shift_start_time: c.shiftStartTime,
@@ -970,7 +981,7 @@ export default function DiscoverPage() {
                             })}
                           </p>
                           {c.salaryMin && (
-                            <p className="mt-0.5 text-xs font-semibold text-emerald-600 truncate">
+                            <p className="mt-0.5 text-xs font-semibold text-emerald-600 leading-snug">
                               💰 {c.salaryMin}€ μικτά
                               {shiftNet ? ` · ≈ ${shiftNet}€ καθαρά (ενδεικτικά)` : ''}
                             </p>
@@ -989,7 +1000,7 @@ export default function DiscoverPage() {
                     <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                       {countdown && (
                         <span
-                          className="inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-[11px] font-bold text-red-700 ring-1 ring-red-200"
+                          className="hidden sm:inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-[11px] font-bold text-red-700 ring-1 ring-red-200"
                           title="Χρόνος μέχρι την έναρξη της βάρδιας"
                         >
                           ⏳ λήγει {countdown}
