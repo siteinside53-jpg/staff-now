@@ -1451,9 +1451,11 @@ export default function DiscoverPage() {
               )
             )}
 
-            {currentCandidate.bio && (
-              <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-gray-600">{currentCandidate.bio}</p>
-            )}
+            {/*
+              Η περιγραφή ΔΕΝ μπαίνει στην κάρτα του swipe: έτρωγε χώρο από τα
+              βασικά (ώρες, αμοιβή, ειδικότητες). Φαίνεται ολόκληρη μόλις ανοίξει
+              κανείς την καρτέλα — «Περιγραφή θέσης» στην αγγελία, «Σχετικά» στο προφίλ.
+            */}
 
             {/* Ετικέτες: ειδικότητες + παροχές */}
             <div className="flex flex-wrap gap-1.5 pt-3">
