@@ -663,15 +663,22 @@ export default function DiscoverPage() {
     </div>
   );
 
+  /*
+    Στο κινητό, όταν είμαστε στο Swipe, ο τίτλος «Εύρεση» και οι καρτέλες
+    κρύβονται ώστε να μείνει όλη η οθόνη για την κάρτα. Ο χρήστης τα ξαναβλέπει
+    πατώντας «Λίστα». Σε desktop δεν αλλάζει τίποτα.
+  */
+  const mobileSwipeFocus = discoverTab === 'discover' && !noCandidates && discoverView === 'swipe';
+
   return (
     <div>
-      <div className="mb-3 lg:mb-4 flex items-center justify-between">
+      <div className={`mb-3 lg:mb-4 items-center justify-between ${mobileSwipeFocus ? 'hidden lg:flex' : 'flex'}`}>
         <h1 className="text-2xl font-bold text-gray-900">Εύρεση</h1>
         {discoverTab === 'discover' && !noCandidates && <span className="text-sm text-gray-500">{currentIndex + 1} / {candidates.length}</span>}
       </div>
 
       {/* Tabs — σε desktop πάνε αριστερά (sidebar). Εδώ μένουν μόνο για mobile. */}
-      <div className="mb-4 lg:hidden">
+      <div className={mobileSwipeFocus ? 'hidden' : 'mb-4 lg:hidden'}>
         {renderTabs(false)}
       </div>
 
@@ -858,7 +865,7 @@ export default function DiscoverPage() {
 
       {/* Swipe/Λίστα toggle — ΜΟΝΟ σε mobile (σε desktop δείχνουμε πάντα λίστα) */}
       {discoverTab === 'discover' && !noCandidates && (
-        <div className="mx-auto max-w-lg mb-3 flex items-center justify-center lg:hidden">
+        <div className="relative mx-auto max-w-lg mb-3 flex items-center justify-center lg:hidden">
           <div className="inline-flex rounded-full bg-gray-100 p-1 text-xs font-bold shadow-inner">
             <button
               onClick={() => setDiscoverView('swipe')}
@@ -873,6 +880,12 @@ export default function DiscoverPage() {
               📋 Λίστα
             </button>
           </div>
+          {/* Ο μετρητής «2 / 8» — στο Swipe ο τίτλος κρύβεται, οπότε έρχεται εδώ */}
+          {mobileSwipeFocus && (
+            <span className="absolute right-0 text-xs font-medium text-gray-400">
+              {currentIndex + 1} / {candidates.length}
+            </span>
+          )}
         </div>
       )}
 
@@ -1179,7 +1192,7 @@ export default function DiscoverPage() {
           γίνεται ποτέ πιο κοντή από 410px ούτε πιο ψηλή από 600px, ώστε να
           δουλεύει και σε μικρά κινητά και σε tablet.
         */}
-        <div className="relative" style={{ height: 'clamp(240px, calc(100dvh - 420px), 600px)' }}>
+        <div className="relative" style={{ height: 'clamp(260px, calc(100dvh - 324px), 620px)' }}>
           {/* Φάντασμα της επόμενης κάρτας — δίνει την αίσθηση του «σωρού» */}
           {hasNext && (
             <div
