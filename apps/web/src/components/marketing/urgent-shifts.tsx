@@ -184,7 +184,7 @@ export function UrgentShifts() {
   const visible = isExample ? EXAMPLE_SHIFTS : live;
 
   return (
-    <section className="border-t border-gray-200 bg-gray-50 py-20 sm:py-24">
+    <section className="bg-gray-50 py-20 sm:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="max-w-[640px]">
           <div className="text-[12.5px] font-extrabold uppercase tracking-[0.13em] text-red-600">
