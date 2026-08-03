@@ -16,7 +16,11 @@ export const dynamic = 'force-static';
 type Params = { params: Promise<{ id: string }> };
 
 function salaryText(j: PublicJob): string {
-  const unit = j.salary_type === 'hourly' ? '€/ώρα' : '€/μήνα';
+  // Η μονάδα ακολουθεί το salary_type της αγγελίας (ώρα / ημέρα / μήνα)
+  const unit =
+    j.salary_type === 'hourly' ? '€/ώρα' :
+    j.salary_type === 'daily' ? '€/ημέρα' :
+    j.salary_type === 'monthly' ? '€/μήνα' : '€';
   if (j.salary_min && j.salary_max) return `${j.salary_min}-${j.salary_max} ${unit}`;
   if (j.salary_min) return `Από ${j.salary_min} ${unit}`;
   if (j.salary_max) return `Έως ${j.salary_max} ${unit}`;

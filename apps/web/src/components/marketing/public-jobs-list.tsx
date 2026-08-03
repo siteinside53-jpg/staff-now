@@ -57,7 +57,11 @@ function employmentLabel(t: string): string {
 }
 
 function salaryStr(j: Job): string {
-  const unit = j.salaryType === 'hourly' ? '€/ώρα' : '€/μήνα';
+  // Η μονάδα ακολουθεί το salary_type της αγγελίας (ώρα / ημέρα / μήνα)
+  const unit =
+    j.salaryType === 'hourly' ? '€/ώρα' :
+    j.salaryType === 'daily' ? '€/ημέρα' :
+    j.salaryType === 'monthly' ? '€/μήνα' : '€';
   if (j.salaryMin && j.salaryMax) return `${j.salaryMin}-${j.salaryMax}${unit}`;
   if (j.salaryMin) return `Από ${j.salaryMin}${unit}`;
   if (j.salaryMax) return `Έως ${j.salaryMax}${unit}`;

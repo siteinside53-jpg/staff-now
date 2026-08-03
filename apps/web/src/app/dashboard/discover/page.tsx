@@ -70,6 +70,25 @@ function timeAgo(dateStr?: string): string {
   return new Date(dateStr).toLocaleDateString('el-GR', { day: 'numeric', month: 'short' });
 }
 
+/*
+  Μισθός: η μονάδα βγαίνει ΠΑΝΤΑ από το salary_type της αγγελίας.
+  Παλιά ήταν καρφωμένο «/μήνα», οπότε μια αγγελία «70€ ανά ημέρα»
+  εμφανιζόταν ως «70€/μήνα». Επίσης δείχνουμε και όταν υπάρχει
+  μόνο κατώτατο ή μόνο ανώτατο ποσό.
+*/
+function salaryText(min?: number | null, max?: number | null, type?: string | null): string | undefined {
+  const lo = Number(min) > 0 ? Number(min) : null;
+  const hi = Number(max) > 0 ? Number(max) : null;
+  if (!lo && !hi) return undefined;
+  const unit =
+    type === 'hourly' ? '€/ώρα' :
+    type === 'daily' ? '€/ημέρα' :
+    type === 'monthly' ? '€/μήνα' : '€';
+  if (lo && hi) return `${lo}-${hi}${unit}`;
+  if (lo) return `Από ${lo}${unit}`;
+  return `Έως ${hi}${unit}`;
+}
+
 // Κανονικοποίηση κειμένου για αναζήτηση/φίλτρα (πεζά + χωρίς τόνους)
 function normText(s: string): string {
   return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
@@ -424,7 +443,7 @@ export default function DiscoverPage() {
           region: j.display_region || j.region || undefined,
           salaryMin: j.salary_min || undefined,
           tags: j.roles || [j.employment_type].filter(Boolean),
-          salary: j.salary_min && j.salary_max ? `${j.salary_min}-${j.salary_max}€/μήνα` : undefined,
+          salary: salaryText(j.salary_min, j.salary_max, j.salary_type),
           verified: false,
           type: 'job' as const,
           listingKind: (j.listing_kind === 'shift' ? 'shift' : 'job') as 'job' | 'shift',
