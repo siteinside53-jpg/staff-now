@@ -551,7 +551,7 @@ export function WorkerProfilePanel({ workerId, onClose, onLike, onSkip, totalCar
                     Κλείσιμο
                   </button>
                   <a
-                    href={`/dashboard/messages?conv=${conversationId}`}
+                    href={`/dashboard/messages?id=${conversationId}`}
                     className="flex flex-1 items-center justify-center gap-2 rounded-full bg-blue-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-600/30 hover:bg-blue-700 transition-colors"
                   >
                     <span className="text-lg">💬</span>

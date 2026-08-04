@@ -11,6 +11,11 @@ interface Props {
   onClose: () => void;
   onLike?: () => void;
   onSkip?: () => void;
+  /**
+   * Όταν υπάρχει ήδη συνομιλία (δηλαδή match), εμφανίζεται κουμπί «Στείλε
+   * μήνυμα» στο κάτω μέρος του προφίλ.
+   */
+  conversationId?: string | null;
 }
 
 const BIZ_TYPES: Record<string, string> = {
@@ -61,7 +66,7 @@ const EMP_LABELS: Record<string, string> = {
   freelancer: 'Freelancer',
 };
 
-export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip }: Props) {
+export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip, conversationId }: Props) {
   const [branch, setBranch] = useState<any>(null);
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -321,6 +326,20 @@ export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip }
                     className="flex flex-[1.5] items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-600/20">
                     ♥ Ενδιαφέρομαι
                   </button>
+                </div>
+              </div>
+            ) : conversationId ? (
+              <div className="sticky bottom-0 border-t border-gray-200 bg-white px-6 py-4">
+                <div className="flex items-center gap-3">
+                  <button onClick={onClose}
+                    className="flex-shrink-0 rounded-xl border-2 border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50">
+                    Κλείσιμο
+                  </button>
+                  <a href={`/dashboard/messages?id=${conversationId}`}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-colors">
+                    <span className="text-lg">💬</span>
+                    <span>Στείλε μήνυμα</span>
+                  </a>
                 </div>
               </div>
             ) : (
