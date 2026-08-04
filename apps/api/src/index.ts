@@ -335,17 +335,22 @@ app.get('/public/plans', async (c) => {
   return c.json({ success: true, data: { items } });
 });
 
-// GET /public/workers — browse workers without auth (limited info)
+// GET /public/workers — browse workers without auth (limited info).
+// Το όριο φτάνει τα 500: η /find-staff δείχνει το πλήθος των προφίλ που παίρνει,
+// οπότε ένα χαμηλό cap έκανε τη σελίδα να λέει ψέματα («50» ενώ υπάρχουν 103).
+// Οι ρόλοι έρχονται με ένα GROUP_CONCAT αντί για ένα query ανά εργαζόμενο.
 app.get('/public/workers', async (c) => {
   const db = c.env.DB;
-  const limit = Math.min(parseInt(c.req.query('limit') || '30', 10), 50);
+  const limit = Math.min(parseInt(c.req.query('limit') || '30', 10), 500);
   const offset = parseInt(c.req.query('offset') || '0', 10);
 
   const results = await db
     .prepare(
       `SELECT wp.user_id, wp.full_name, wp.photo_url, wp.city, wp.region,
          wp.years_of_experience, wp.availability, wp.employment_type,
-         wp.profile_completeness, wp.verified, wp.bio, wp.created_at
+         wp.profile_completeness, wp.verified, wp.bio, wp.created_at,
+         (SELECT GROUP_CONCAT(role) FROM worker_profile_roles
+           WHERE worker_profile_id = wp.id) as roles_csv
        FROM worker_profiles wp
        JOIN users u ON u.id = wp.user_id
        WHERE u.status = 'active' AND wp.is_visible = 1
@@ -355,22 +360,14 @@ app.get('/public/workers', async (c) => {
     .bind(limit, offset)
     .all();
 
-  // Get roles for each worker — anonymize full name for privacy
-  const workers = [];
-  for (const w of results.results as any[]) {
-    const roles = await db
-      .prepare('SELECT role FROM worker_profile_roles WHERE worker_profile_id = (SELECT id FROM worker_profiles WHERE user_id = ?)')
-      .bind(w.user_id)
-      .all();
-
+  const workers = (results.results as any[]).map((w) => {
     // Anonymize: "Μαρία Κωνσταντίνου" -> "Μαρία Κ."
-    const fullName = (w.full_name || '').trim();
-    const parts = fullName.split(/\s+/);
+    const parts = (w.full_name || '').trim().split(/\s+/).filter(Boolean);
     const anonymizedName = parts.length > 1
       ? `${parts[0]} ${parts[1][0]}.`
       : (parts[0] || 'Εργαζόμενος');
 
-    workers.push({
+    return {
       user_id: w.user_id,
       full_name: anonymizedName,
       photo_url: w.photo_url,
@@ -381,9 +378,9 @@ app.get('/public/workers', async (c) => {
       employment_type: w.employment_type,
       verified: w.verified,
       bio: w.bio,
-      roles: roles.results.map((r: any) => r.role),
-    });
-  }
+      roles: w.roles_csv ? String(w.roles_csv).split(',') : [],
+    };
+  });
 
   return c.json({ success: true, data: workers });
 });
@@ -394,7 +391,7 @@ app.get('/public/workers', async (c) => {
 // νεκρές στατικές σελίδες. Για βάρδιες υπάρχει το /public/shifts.
 app.get('/public/jobs', async (c) => {
   const db = c.env.DB;
-  const limit = Math.min(parseInt(c.req.query('limit') || '30', 10), 50);
+  const limit = Math.min(parseInt(c.req.query('limit') || '30', 10), 500);
 
   const results = await db
     .prepare(
@@ -404,7 +401,9 @@ app.get('/public/jobs', async (c) => {
          bp.company_name, bp.user_id as business_user_id,
          COALESCE(br.logo_url, bp.logo_url) as company_logo,
          COALESCE(NULLIF(br.name, ''), bp.company_name) as display_company_name,
-         br.cover_photo_url as company_cover_photo
+         br.cover_photo_url as company_cover_photo,
+         (SELECT GROUP_CONCAT(role) FROM job_listing_roles
+           WHERE job_listing_id = j.id) as roles_csv
        FROM job_listings j
        LEFT JOIN business_profiles bp ON bp.id = j.business_id
        LEFT JOIN business_branches br ON br.user_id = bp.user_id
@@ -415,18 +414,10 @@ app.get('/public/jobs', async (c) => {
     .bind(limit)
     .all();
 
-  // Get roles for each job
-  const jobs = [];
-  for (const j of results.results as any[]) {
-    const roles = await db
-      .prepare('SELECT role FROM job_listing_roles WHERE job_listing_id = ?')
-      .bind(j.id)
-      .all();
-    jobs.push({
-      ...j,
-      roles: roles.results.map((r: any) => r.role),
-    });
-  }
+  const jobs = (results.results as any[]).map(({ roles_csv, ...j }) => ({
+    ...j,
+    roles: roles_csv ? String(roles_csv).split(',') : [],
+  }));
 
   return c.json({ success: true, data: jobs });
 });

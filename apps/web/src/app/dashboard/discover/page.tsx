@@ -151,6 +151,30 @@ function employmentLabel(t?: string): string {
   return t ? EMPLOYMENT_LABELS[t] ?? t : '';
 }
 
+/*
+  Ο server δίνει το πολύ 50 εγγραφές ανά σελίδα. Η «Εύρεση» πρέπει να δείχνει το
+  σύνολο, οπότε ζητάμε σελίδα-σελίδα μέχρι να τελειώσουν. Δεν βασιζόμαστε μόνο
+  στο meta.totalPages: συνεχίζουμε όσο μια σελίδα γυρίζει γεμάτη, ώστε να μη
+  κολλήσουμε στα πρώτα 50 αν λείπει το meta. Το όριο των 40 σελίδων (2.000
+  εγγραφές) υπάρχει για να μη γίνει ατέρμονος βρόχος αν το API απαντήσει περίεργα.
+*/
+const PER_PAGE = 50;
+const MAX_PAGES = 40;
+async function fetchAllPages(
+  fetchPage: (page: number, limit: number) => Promise<unknown>,
+): Promise<any[]> {
+  const all: any[] = [];
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const res = (await fetchPage(page, PER_PAGE)) as any;
+    const batch = res?.data?.items || res?.data || [];
+    if (!Array.isArray(batch)) break;
+    all.push(...batch);
+    const totalPages = res?.meta?.totalPages;
+    if (totalPages ? page >= totalPages : batch.length < PER_PAGE) break;
+  }
+  return all;
+}
+
 export default function DiscoverPage() {
   const { user, profile } = useAuth();
   const [candidates, setCandidates] = useState<DiscoverProfile[]>([]);
@@ -424,11 +448,12 @@ export default function DiscoverPage() {
     setLoading(true);
     try {
       if (isWorker) {
-        // Workers see jobs
-        const res = await api.jobs.list() as any;
-        const items = res?.data?.items || res?.data || [];
-        const mapped = (Array.isArray(items) ? items : [])
-        .filter((j: any) => !j.swipe_status && !j.is_matched)
+        // Workers see jobs — ΟΛΕΣ τις σελίδες. Χωρίς παραμέτρους ο server έδινε
+        // μόνο 20 αγγελίες, οπότε ο εργαζόμενος δεν έβλεπε ποτέ τις υπόλοιπες.
+        const items = await fetchAllPages((page, limit) =>
+          api.jobs.list({ page, limit }) as Promise<unknown>,
+        );
+        const mapped = items
         .map((j: any) => ({
           id: j.id,
           name: j.title || 'Θέση εργασίας',
@@ -460,24 +485,11 @@ export default function DiscoverPage() {
         }));
         setCandidates(mapped);
       } else {
-        // Businesses see workers — φέρνουμε ΟΛΕΣ τις σελίδες (ο server επιστρέφει
-        // έως 50/σελίδα). Δεν βασιζόμαστε μόνο στο meta.totalPages: συνεχίζουμε
-        // όσο μια σελίδα γυρίζει «γεμάτη» (perPage αποτελέσματα), ώστε να μη
-        // κολλάμε στους πρώτους 50 αν λείπει το meta.
-        const perPage = 50;
-        const rawWorkers: any[] = [];
-        let pageNum = 1;
-        while (pageNum <= 40) {
-          const res = await api.workers.discover({ page: pageNum, limit: perPage }) as any;
-          const batch = res?.data?.items || res?.data || [];
-          rawWorkers.push(...batch);
-          const totalPages = res?.meta?.totalPages;
-          const done = totalPages ? pageNum >= totalPages : batch.length < perPage;
-          if (done) break;
-          pageNum += 1;
-        }
+        // Businesses see workers — ΟΛΕΣ τις σελίδες (ο server δίνει έως 50/σελίδα).
+        const rawWorkers = await fetchAllPages((page, limit) =>
+          api.workers.discover({ page, limit }) as Promise<unknown>,
+        );
         const mapped = rawWorkers
-        .filter((w: any) => !w.swipe_status && !w.is_matched)
         .map((w: any) => ({
           id: w.user_id || w.id,
           name: w.full_name || 'Χωρίς όνομα',
