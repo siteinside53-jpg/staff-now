@@ -318,18 +318,26 @@ export default function ProfilePage() {
               </div>
             </label>
           </div>
-          <div className="flex-1">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-bold text-gray-900 truncate">{wf.fullName || 'Ονοματεπώνυμο'}</h2>
               {verified && <Badge className="bg-emerald-100 text-emerald-700 text-xs">✓ Verified</Badge>}
             </div>
-            <div className="mt-3 flex items-center justify-between text-sm mb-1">
-              <span className="text-gray-500">Πληρότητα προφίλ</span>
-              <span className={`font-semibold ${sColor}`}>{completeness}% — {sLabel}</span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-gray-100"><div className={`h-2 rounded-full transition-all ${bColor}`} style={{ width: `${completeness}%` }} /></div>
-            {badges.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{badges.map((b) => <Badge key={b} variant="secondary" className="text-xs">{b}</Badge>)}</div>}
           </div>
+        </div>
+
+        {/*
+          Η μπάρα πληρότητας μπαίνει κάτω από τη φωτογραφία, όχι δίπλα της.
+          Δίπλα στη φωτογραφία έμεναν μόνο 193px, οπότε το «Πληρότητα προφίλ»
+          και το «100% — Εξαιρετικό» έσπαγαν σε δύο σειρές το καθένα.
+        */}
+        <div className="mt-4">
+          <div className="mb-1 flex items-center justify-between gap-2 text-sm">
+            <span className="text-gray-500">Πληρότητα προφίλ</span>
+            <span className={`whitespace-nowrap font-semibold ${sColor}`}>{completeness}% — {sLabel}</span>
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100"><div className={`h-2 rounded-full transition-all ${bColor}`} style={{ width: `${completeness}%` }} /></div>
+          {badges.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{badges.map((b) => <Badge key={b} variant="secondary" className="text-xs">{b}</Badge>)}</div>}
         </div>
       </CardContent></Card>
 
@@ -361,7 +369,7 @@ export default function ProfilePage() {
           <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Χρόνια Εμπειρίας</label>
             <Input type="number" min="0" max="50" value={wf.yearsOfExperience} onChange={(e) => wc('yearsOfExperience', e.target.value)} placeholder="0" /></div>
           <label className="flex items-center gap-3 cursor-pointer">
-            <div onClick={() => wc('willingToRelocate', !wf.willingToRelocate)} className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${wf.willingToRelocate ? 'bg-blue-600' : 'bg-gray-300'}`}>
+            <div onClick={() => wc('willingToRelocate', !wf.willingToRelocate)} className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors cursor-pointer ${wf.willingToRelocate ? 'bg-blue-600' : 'bg-gray-300'}`}>
               <div className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${wf.willingToRelocate ? 'translate-x-5' : ''}`} /></div>
             <span className="text-sm font-medium text-gray-700">Διαθέσιμος/η για μετακόμιση</span>
           </label>
@@ -543,19 +551,25 @@ export default function ProfilePage() {
       <Card className="mb-6"><CardHeader><h2 className="text-lg font-semibold text-gray-900">👁️ Ορατότητα</h2></CardHeader>
         <CardContent>
           <label className="flex items-center gap-3 cursor-pointer">
-            <div onClick={() => wc('isVisible', !wf.isVisible)} className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${wf.isVisible ? 'bg-blue-600' : 'bg-gray-300'}`}>
+            <div onClick={() => wc('isVisible', !wf.isVisible)} className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors cursor-pointer ${wf.isVisible ? 'bg-blue-600' : 'bg-gray-300'}`}>
               <div className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${wf.isVisible ? 'translate-x-5' : ''}`} /></div>
             <div><span className="text-sm font-medium text-gray-700">Εμφάνιση στην Ανακάλυψη</span><p className="text-xs text-gray-400">Αν απενεργοποιηθεί, οι επιχειρήσεις δεν θα σε βλέπουν</p></div>
           </label>
         </CardContent></Card>
 
       {/* SAVE */}
-      <div className="sticky bottom-0 bg-gray-50/95 backdrop-blur border-t border-gray-200 -mx-4 px-4 py-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 flex gap-3">
-        <Button onClick={saveWorker} disabled={saving} className="w-full sm:w-auto" size="lg">
-          {saving ? 'Αποθήκευση...' : '💾 Αποθήκευση Αλλαγών'}
+      {/*
+        Στο κινητό τα δύο κουμπιά μοιράζονται τη γραμμή ισότιμα και οι
+        δεύτερες λέξεις κρύβονται: ολόκληρο το «Αποθήκευση Αλλαγών» ήθελε
+        241px ενώ χωρούσαν 165px, οπότε το κείμενο έσπαγε και ξεχείλιζε
+        έξω από το κουμπί.
+      */}
+      <div className="sticky bottom-0 bg-gray-50/95 backdrop-blur border-t border-gray-200 -mx-4 px-4 py-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 flex gap-2 sm:gap-3">
+        <Button onClick={saveWorker} disabled={saving} className="flex-1 whitespace-nowrap sm:flex-none" size="lg">
+          {saving ? 'Αποθήκευση...' : <>💾 Αποθήκευση<span className="hidden sm:inline"> Αλλαγών</span></>}
         </Button>
-        <Button onClick={() => setShowPreview(true)} variant="outline" className="w-full sm:w-auto" size="lg">
-          👁️ Προβολή Προφίλ
+        <Button onClick={() => setShowPreview(true)} variant="outline" className="flex-1 whitespace-nowrap sm:flex-none" size="lg">
+          👁️ Προβολή<span className="hidden sm:inline"> Προφίλ</span>
         </Button>
       </div>
 
