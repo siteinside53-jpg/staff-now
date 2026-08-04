@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AuthGatePopup } from './auth-gate-popup';
 import { DetailModal } from './detail-modal';
 import { FilteredListLayout, type FilterGroup } from './filtered-list-layout';
+import { BrowseStatBand } from './browse-hero';
 import { GREEK_CITIES } from '@/lib/greek-cities';
 import { API_URL } from '@/lib/config';
 
@@ -251,6 +252,22 @@ export function PublicWorkersList() {
     return list;
   }, [items, query, sel]);
 
+  // Όλα τα νούμερα βγαίνουν από τα ΠΡΑΓΜΑΤΙΚΑ προφίλ που μόλις κατέβηκαν.
+  // Δεν φουσκώνουμε τίποτα και δεν δείχνουμε νούμερο που δεν υπάρχει.
+  const bandStats = useMemo(() => {
+    const out: { label: string; value: string; color: string }[] = [];
+    const now = items.filter((w) => w.availability === 'immediate').length;
+    const ver = items.filter((w) => w.verified).length;
+    const cities = new Set(items.map((w) => norm(w.city)).filter(Boolean)).size;
+    if (now > 0) out.push({ label: 'Άμεσα διαθέσιμοι', value: String(now), color: 'text-emerald-600' });
+    if (ver > 0) out.push({ label: 'Επαληθευμένοι', value: String(ver), color: 'text-blue-600' });
+    if (cities > 0) out.push({ label: 'Περιοχές', value: String(cities), color: 'text-purple-600' });
+    return out;
+  }, [items]);
+
+  // Στοίβα avatar: πραγματικές φωτογραφίες από τα πρώτα αποτελέσματα.
+  const stack = useMemo(() => filtered.slice(0, 5), [filtered]);
+
   function toggle(group: string, value: string) {
     setSel((prev) => {
       const cur = prev[group] ?? [];
@@ -280,6 +297,53 @@ export function PublicWorkersList() {
         resultCount={filtered.length}
         resultNoun={['διαθέσιμος εργαζόμενος', 'διαθέσιμοι εργαζόμενοι']}
       >
+        {/*
+          Ίδια δομή με το δείγμα (χρώμα, τίτλος, υπότιτλος, στοίβα avatar) αλλά
+          ΤΙΜΙΟ κείμενο: ο επισκέπτης δεν έχει προφίλ, άρα δεν υπάρχουν «matches»
+          ούτε «AI». Λέμε απλώς πόσα πραγματικά προφίλ βλέπει.
+        */}
+        {stack.length > 0 && (
+          <div className="mb-4 overflow-hidden rounded-3xl bg-gradient-to-br from-purple-600 via-pink-600 to-red-600 p-5 text-white shadow-lg">
+            <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white/90">
+              ⚡ Διαθέσιμοι τώρα
+            </p>
+            <p className="mt-1 text-lg font-black leading-tight">Εργαζόμενοι που ψάχνουν δουλειά</p>
+            <p className="mt-0.5 text-sm text-white/80">
+              {filtered.length === 1
+                ? '1 ενεργό προφίλ στο StaffNow'
+                : `${filtered.length} ενεργά προφίλ στο StaffNow`}
+            </p>
+            <div className="mt-3 flex -space-x-3">
+              {stack.map((w) =>
+                w.photo ? (
+                  <img
+                    key={w.id}
+                    src={w.photo}
+                    alt=""
+                    loading="lazy"
+                    className="h-10 w-10 rounded-full border-2 border-white/90 object-cover"
+                  />
+                ) : (
+                  <div
+                    key={w.id}
+                    className={`flex h-10 w-10 items-center justify-center rounded-full border-2 border-white/90 text-xs font-bold ${w.avatarColor}`}
+                    aria-hidden="true"
+                  >
+                    {w.initials}
+                  </div>
+                ),
+              )}
+              {filtered.length > stack.length && (
+                <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white/90 bg-white/20 text-[11px] font-bold backdrop-blur">
+                  +{filtered.length - stack.length}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <BrowseStatBand stats={bandStats} />
+
         {filtered.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center">
             <p className="text-gray-600 font-medium">Κανένας εργαζόμενος με αυτά τα φίλτρα.</p>

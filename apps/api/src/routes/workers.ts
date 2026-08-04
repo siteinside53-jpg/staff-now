@@ -1607,4 +1607,120 @@ workers.post('/boost/application', requireAuth, requireRole('worker'), async (c)
   return success(c, { id, expiresAt, kind: 'application', jobId: body.jobId });
 });
 
+// ---------------------------------------------------------------------
+// GET /workers/boost/status — ενεργό boost + αν ο χρήστης είναι Premium.
+// Το χρησιμοποιεί η σελίδα /dashboard/boost για να ξέρει τι να δείξει.
+// ---------------------------------------------------------------------
+workers.get('/boost/status', requireAuth, requireRole('worker'), async (c) => {
+  const user = c.get('user');
+  const env: any = c.env;
+
+  const active = await env.DB.prepare(
+    `SELECT id, expires_at FROM worker_boosts
+     WHERE user_id = ? AND kind = 'discover' AND expires_at > datetime('now')
+     ORDER BY expires_at DESC LIMIT 1`,
+  )
+    .bind(user.id)
+    .first<{ id: string; expires_at: string }>();
+
+  return success(c, {
+    premium: await isPremium(env, user.id),
+    active: !!active,
+    expiresAt: active?.expires_at || null,
+  });
+});
+
+// ---------------------------------------------------------------------
+// Επαλήθευση εργαζομένου.
+//   GET  /workers/me/verification — κατάσταση των βημάτων
+//   POST /workers/me/verify       — υποβολή ταυτότητας για έλεγχο
+// ---------------------------------------------------------------------
+workers.get('/me/verification', requireAuth, requireRole('worker'), async (c) => {
+  const user = c.get('user');
+  const db = c.env.DB;
+
+  const profile = await db
+    .prepare('SELECT verified, phone, full_name FROM worker_profiles WHERE user_id = ?')
+    .bind(user.id)
+    .first<{ verified: number; phone: string | null; full_name: string | null }>();
+
+  if (!profile) return error(c, 'Το προφίλ δεν βρέθηκε', 404);
+
+  const account = await db
+    .prepare('SELECT email, email_confirmed_at FROM users WHERE id = ?')
+    .bind(user.id)
+    .first<{ email: string; email_confirmed_at: string | null }>();
+
+  const request = await db
+    .prepare(
+      `SELECT id, status, rejection_reason, notes, created_at, reviewed_at
+       FROM verification_requests WHERE user_id = ? ORDER BY created_at DESC LIMIT 1`,
+    )
+    .bind(user.id)
+    .first();
+
+  return success(c, {
+    verified: profile.verified === 1,
+    fullName: profile.full_name || '',
+    phone: profile.phone || '',
+    email: account?.email || '',
+    emailConfirmed: !!account?.email_confirmed_at,
+    request: request || null,
+  });
+});
+
+workers.post('/me/verify', requireAuth, requireRole('worker'), async (c) => {
+  const user = c.get('user');
+  const db = c.env.DB;
+
+  const body = await c.req.json<{ document_url?: string; phone?: string; notes?: string }>().catch(() => null);
+  if (!body) return error(c, 'Μη έγκυρα δεδομένα', 400);
+
+  // Το document_url είναι NOT NULL στον πίνακα (migration 0010).
+  const documentUrl = (body.document_url || '').trim();
+  if (!documentUrl) {
+    return error(c, 'Χρειάζεται φωτογραφία ταυτότητας ή διαβατηρίου', 400);
+  }
+
+  // Ελληνικό κινητό: 10 ψηφία που ξεκινούν από 69 (δεχόμαστε και +30 μπροστά).
+  const phone = (body.phone || '').replace(/[\s.-]/g, '').replace(/^\+30/, '');
+  if (!/^69\d{8}$/.test(phone)) {
+    return error(c, 'Δώσε έγκυρο κινητό (10 ψηφία, ξεκινά με 69)', 400);
+  }
+
+  const profile = await db
+    .prepare('SELECT id, verified FROM worker_profiles WHERE user_id = ?')
+    .bind(user.id)
+    .first<{ id: string; verified: number }>();
+
+  if (!profile) return error(c, 'Το προφίλ δεν βρέθηκε', 404);
+  if (profile.verified === 1) return error(c, 'Ο λογαριασμός είναι ήδη επαληθευμένος', 400);
+
+  const pending = await db
+    .prepare("SELECT id FROM verification_requests WHERE user_id = ? AND status = 'pending'")
+    .bind(user.id)
+    .first<{ id: string }>();
+
+  if (pending) return error(c, 'Υπάρχει ήδη αίτημα σε αναμονή ελέγχου', 400);
+
+  const id = generateId();
+  const now = new Date().toISOString();
+
+  await db
+    .prepare('UPDATE worker_profiles SET phone = ?, updated_at = ? WHERE user_id = ?')
+    .bind(phone, now, user.id)
+    .run();
+
+  await db
+    .prepare(
+      `INSERT INTO verification_requests
+         (id, user_id, document_url, document_type, status, notes, created_at)
+       VALUES (?, ?, ?, 'id', 'pending', ?, ?)`,
+    )
+    .bind(id, user.id, documentUrl, (body.notes || '').trim() || null, now)
+    .run();
+
+  return success(c, { id, status: 'pending', createdAt: now }, 201);
+});
+
 export default workers;

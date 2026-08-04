@@ -56,6 +56,50 @@ export default function DashboardPage() {
   const isWorker = user?.role === 'worker';
   const isBusiness = user?.role === 'business';
 
+  // Το `profile` είναι η γραμμή worker_profiles / business_profiles, οπότε το
+  // `verified` έρχεται μαζί με το /auth/me — δεν χρειάζεται δεύτερο request.
+  const isVerified = (profile as any)?.verified === 1 || (profile as any)?.verified === true;
+
+  const quickActions: { href: string; label: string; desc: string; icon: string; gradient: string; halo: string }[] = [];
+  if (isBusiness) {
+    quickActions.push({
+      href: '/dashboard/jobs?new=1',
+      label: 'Νέα Αγγελία',
+      desc: 'Δημοσίευσε θέση εργασίας',
+      icon: '➕',
+      gradient: 'from-blue-500 to-blue-600',
+      halo: 'bg-blue-400',
+    });
+    quickActions.push({
+      href: '/dashboard/jobs',
+      label: 'Boost',
+      desc: 'Ανέβασε αγγελία στην κορυφή',
+      icon: '🚀',
+      gradient: 'from-amber-500 to-orange-600',
+      halo: 'bg-amber-400',
+    });
+  }
+  if (isWorker) {
+    quickActions.push({
+      href: '/dashboard/boost',
+      label: 'Boost',
+      desc: 'Ανέβα στην κορυφή των υποψηφίων',
+      icon: '🚀',
+      gradient: 'from-amber-500 to-orange-600',
+      halo: 'bg-amber-400',
+    });
+  }
+  if ((isBusiness || isWorker) && !isVerified) {
+    quickActions.push({
+      href: '/dashboard/verification',
+      label: 'Επαλήθευση',
+      desc: 'Πάρε το σήμα «Επαληθευμένο»',
+      icon: '✓',
+      gradient: 'from-emerald-500 to-teal-600',
+      halo: 'bg-emerald-400',
+    });
+  }
+
   const statCards = [
     {
       label: 'Matches',
@@ -329,32 +373,71 @@ export default function DashboardPage() {
               <span className="text-2xl font-black">→</span>
             </div>
           </Link>
-
-          <style jsx>{`
-            @keyframes ctaPulse {
-              0%, 100% { transform: scale(1); }
-              50% { transform: scale(1.015); }
-            }
-            @keyframes ctaHalo {
-              0%, 100% { transform: scale(1); opacity: 0; }
-              50% { transform: scale(1.06); opacity: 0.35; }
-            }
-            @keyframes ctaShimmer {
-              0% { transform: translateX(-100%); }
-              50% { transform: translateX(100%); }
-              100% { transform: translateX(100%); }
-            }
-            @keyframes ctaIcon {
-              0%, 100% { transform: scale(1) rotate(0deg); }
-              50% { transform: scale(1.15) rotate(-8deg); }
-            }
-            .cta-pulse { animation: ctaPulse 2.4s ease-in-out infinite; }
-            .cta-halo { animation: ctaHalo 2.4s ease-in-out infinite; }
-            .cta-shimmer { animation: ctaShimmer 3s ease-in-out infinite; }
-            .cta-icon { animation: ctaIcon 1.8s ease-in-out infinite; }
-          `}</style>
         </>
       )}
+
+      {/* Γρήγορες ενέργειες — ίδιο ύφος και animation με το μεγάλο CTA από πάνω.
+          Το «Επαλήθευση» κρύβεται μόλις εγκριθεί το αίτημα. */}
+      {quickActions.length > 0 && (
+        <div className="mb-8 grid grid-cols-2 gap-3">
+          {quickActions.map((a, i) => (
+            <Link
+              key={a.href + a.label}
+              href={a.href}
+              className={`relative block overflow-hidden rounded-3xl bg-gradient-to-br ${a.gradient} p-4 text-white shadow-xl transition-transform active:scale-[0.98] cta-pulse ${
+                quickActions.length % 2 === 1 && i === quickActions.length - 1 ? 'col-span-2' : ''
+              }`}
+              style={{ animationDelay: `${i * 0.35}s` }}
+            >
+              <span
+                className={`absolute inset-0 rounded-3xl ${a.halo} opacity-40 cta-halo`}
+                style={{ animationDelay: `${i * 0.35}s` }}
+              />
+              <span
+                className="pointer-events-none absolute inset-0 cta-shimmer"
+                style={{
+                  animationDelay: `${i * 0.35}s`,
+                  background:
+                    'linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.25) 50%, transparent 70%)',
+                }}
+              />
+              <div className="relative flex items-center gap-3">
+                <div className="text-3xl cta-icon" style={{ animationDelay: `${i * 0.35}s` }}>
+                  {a.icon}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-black leading-tight">{a.label}</p>
+                  <p className="mt-0.5 text-[11px] leading-tight text-white/90">{a.desc}</p>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes ctaPulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.015); }
+        }
+        @keyframes ctaHalo {
+          0%, 100% { transform: scale(1); opacity: 0; }
+          50% { transform: scale(1.06); opacity: 0.35; }
+        }
+        @keyframes ctaShimmer {
+          0% { transform: translateX(-100%); }
+          50% { transform: translateX(100%); }
+          100% { transform: translateX(100%); }
+        }
+        @keyframes ctaIcon {
+          0%, 100% { transform: scale(1) rotate(0deg); }
+          50% { transform: scale(1.15) rotate(-8deg); }
+        }
+        .cta-pulse { animation: ctaPulse 2.4s ease-in-out infinite; }
+        .cta-halo { animation: ctaHalo 2.4s ease-in-out infinite; }
+        .cta-shimmer { animation: ctaShimmer 3s ease-in-out infinite; }
+        .cta-icon { animation: ctaIcon 1.8s ease-in-out infinite; }
+      `}</style>
 
       {/* AI Hiring Chat — businesses only (Pro+ gated server-side) */}
       {isBusiness && (

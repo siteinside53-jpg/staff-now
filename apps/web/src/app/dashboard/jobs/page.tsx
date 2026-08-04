@@ -117,6 +117,19 @@ export default function JobsPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Deep-link: /dashboard/jobs?new=1 ανοίγει κατευθείαν τη φόρμα (το κουμπί
+  // «Νέα Αγγελία» από την αρχική). Διαβάζουμε το query από το window γιατί το
+  // useSearchParams απαιτεί Suspense boundary με output:'export'.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (new URLSearchParams(window.location.search).get('new') === '1') {
+      setForm({ ...EMPTY_FORM });
+      setPositions([{ ...EMPTY_POS }]);
+      setShowForm(true);
+      window.history.replaceState(null, '', '/dashboard/jobs');
+    }
+  }, []);
+
   // Auto-fill location from branch
   useEffect(() => {
     if (!form.branchId) return;

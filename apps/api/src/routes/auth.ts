@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import type { Env, AuthUser } from '../types';
 import { requireAuth } from '../middleware/auth';
-import { authRateLimiter, passwordResetRateLimiter } from '../middleware/rate-limiter';
+import { authRateLimiter, passwordResetRateLimiter, emailCodeRateLimiter } from '../middleware/rate-limiter';
 import { hashPassword, verifyPassword } from '../lib/password';
 import { signJWT } from '../lib/jwt';
 import { generateId } from '../lib/id';
@@ -257,7 +257,7 @@ auth.get('/me', requireAuth, async (c) => {
     .first();
 
   // Fetch full user data including display_name and avatar_url
-  const fullUser = await db.prepare('SELECT id, email, role, status, display_name, avatar_url FROM users WHERE id = ?').bind(user.id).first();
+  const fullUser = await db.prepare('SELECT id, email, role, status, display_name, avatar_url, email_confirmed_at FROM users WHERE id = ?').bind(user.id).first();
   return success(c, { user: fullUser || user, profile, subscription });
 });
 
@@ -299,6 +299,117 @@ auth.delete('/me', requireAuth, async (c) => {
   ]);
 
   return success(c, { message: 'Ο λογαριασμός διαγράφηκε.' });
+});
+
+// ---------------------------------------------------------------------------
+// Επιβεβαίωση email με 6ψήφιο κωδικό.
+//
+// Το `users.email_verified` μπαίνει 1 κατά την εγγραφή, οπότε δεν αποδεικνύει
+// τίποτα. Το `email_confirmed_at` γράφεται μόνο εδώ, αφού ο χρήστης βάλει τον
+// κωδικό που έλαβε — αυτό είναι που δείχνει το σήμα «Επαληθευμένο email».
+// ---------------------------------------------------------------------------
+
+// POST /email/send-code
+auth.post('/email/send-code', requireAuth, emailCodeRateLimiter, async (c) => {
+  const user = c.get('user');
+  const db = c.env.DB;
+
+  const row = await db
+    .prepare('SELECT email, email_confirmed_at FROM users WHERE id = ?')
+    .bind(user.id)
+    .first<{ email: string; email_confirmed_at: string | null }>();
+
+  if (!row) return error(c, 'NOT_FOUND', 'Ο λογαριασμός δεν βρέθηκε.', 404);
+  if (row.email_confirmed_at) {
+    return error(c, 'ALREADY_CONFIRMED', 'Το email σου είναι ήδη επιβεβαιωμένο.', 400);
+  }
+
+  // 6 ψηφία, ομοιόμορφα — χωρίς Math.random().
+  const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000).padStart(6, '0');
+  const expiresAt = new Date(Date.now() + 15 * 60_000).toISOString();
+
+  await db
+    .prepare('UPDATE users SET email_verification_token = ?, email_verify_expires_at = ? WHERE id = ?')
+    .bind(code, expiresAt, user.id)
+    .run();
+
+  if (c.env.ENVIRONMENT !== 'production') {
+    // eslint-disable-next-line no-console
+    console.log(`[DEV] Email confirmation code for ${row.email}: ${code}`);
+  }
+
+  const sent = await sendEmail(
+    { apiKey: c.env.EMAIL_API_KEY, from: c.env.EMAIL_FROM || 'StaffNow <no-reply@staffnow.gr>' },
+    {
+      to: row.email,
+      subject: `${code} — ο κωδικός επιβεβαίωσης StaffNow`,
+      html: emailLayout({
+        title: 'Επιβεβαίωση email',
+        body: `Ο κωδικός επιβεβαίωσης του λογαριασμού σου είναι:<br><br><span style="display:inline-block;font-size:30px;font-weight:800;letter-spacing:8px;color:#0f172a;background:#f1f5f9;border-radius:12px;padding:12px 20px;">${code}</span><br><br>Ισχύει για 15 λεπτά. Αν δεν το ζήτησες εσύ, αγνόησε αυτό το email.`,
+        ctaText: 'Άνοιγμα StaffNow',
+        ctaUrl: `${WEB_ORIGIN}/dashboard/verification`,
+        icon: '✉️',
+        tint: '#dbeafe',
+      }),
+    },
+  );
+
+  // Εδώ το email ΔΕΝ είναι best-effort: αν δεν φύγει, ο χρήστης περιμένει κωδικό
+  // που δεν θα έρθει ποτέ. Λέμε την αλήθεια αντί για ψεύτικο «στάλθηκε».
+  // Στο dev ο κωδικός τυπώνεται στην κονσόλα, οπότε η ροή δοκιμάζεται κανονικά.
+  if (!sent && c.env.ENVIRONMENT === 'production') {
+    return error(c, 'EMAIL_FAILED', 'Δεν στάλθηκε το email. Δοκίμασε ξανά σε λίγο.', 502);
+  }
+
+  return success(c, { sent: true, expiresAt });
+});
+
+// POST /email/confirm
+auth.post('/email/confirm', requireAuth, async (c) => {
+  const user = c.get('user');
+  const db = c.env.DB;
+
+  const body = await c.req.json<{ code?: string }>().catch(() => null);
+  const code = (body?.code || '').replace(/\D/g, '');
+  if (code.length !== 6) return error(c, 'VALIDATION_ERROR', 'Ο κωδικός είναι 6 ψηφία.', 400);
+
+  const row = await db
+    .prepare(
+      `SELECT email_verification_token, email_verify_expires_at, email_confirmed_at
+       FROM users WHERE id = ?`,
+    )
+    .bind(user.id)
+    .first<{
+      email_verification_token: string | null;
+      email_verify_expires_at: string | null;
+      email_confirmed_at: string | null;
+    }>();
+
+  if (!row) return error(c, 'NOT_FOUND', 'Ο λογαριασμός δεν βρέθηκε.', 404);
+  if (row.email_confirmed_at) return success(c, { confirmed: true });
+
+  if (!row.email_verification_token || !row.email_verify_expires_at) {
+    return error(c, 'NO_CODE', 'Ζήτησε πρώτα νέο κωδικό.', 400);
+  }
+  if (new Date(row.email_verify_expires_at).getTime() < Date.now()) {
+    return error(c, 'CODE_EXPIRED', 'Ο κωδικός έληξε. Ζήτησε νέο.', 400);
+  }
+  if (row.email_verification_token !== code) {
+    return error(c, 'CODE_INVALID', 'Λάθος κωδικός.', 400);
+  }
+
+  const now = new Date().toISOString();
+  await db
+    .prepare(
+      `UPDATE users
+       SET email_confirmed_at = ?, email_verified = 1,
+           email_verification_token = NULL, email_verify_expires_at = NULL, updated_at = ?
+       WHERE id = ?`,
+    )
+    .bind(now, now, user.id)
+    .run();
+
+  return success(c, { confirmed: true, confirmedAt: now });
 });
 
 // POST /forgot-password

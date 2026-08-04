@@ -554,8 +554,9 @@ admin.get('/verifications', async (c) => {
   const results = await db
     .prepare(
       `SELECT vr.*,
-         u.email, u.role,
+         u.email, u.role, u.email_confirmed_at,
          wp.full_name as worker_full_name,
+         wp.phone as worker_phone,
          bp.company_name
        FROM verification_requests vr
        JOIN users u ON u.id = vr.user_id

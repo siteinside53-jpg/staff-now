@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { PublicWorkersList } from '@/components/marketing/public-workers-list';
+import { BrowseHero } from '@/components/marketing/browse-hero';
 import { RedirectIfAuthed } from '@/components/marketing/redirect-if-authed';
 
 export const metadata = {
@@ -13,9 +14,9 @@ export default function FindStaffPage() {
   return (
     <main className="min-h-screen bg-gray-50">
       <RedirectIfAuthed to="/dashboard/discover" />
-      <section className="bg-gradient-to-b from-white to-gray-50 py-10 sm:py-14">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <nav className="text-xs text-gray-500 mb-4" aria-label="breadcrumb">
+      <section className="pt-6 pb-16 sm:pt-8 sm:pb-24">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <nav className="text-xs text-gray-500 mb-3" aria-label="breadcrumb">
             <Link href="/" className="hover:text-gray-700">
               Αρχική
             </Link>{' '}
@@ -23,26 +24,20 @@ export default function FindStaffPage() {
             <span className="text-gray-700">Διαθέσιμοι εργαζόμενοι</span>
           </nav>
 
-          <header className="text-center">
-            <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-1.5 text-xs font-semibold text-blue-700">
-              👀 Δείγμα — Χωρίς εγγραφή
-            </span>
-            <h1 className="mt-4 text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-gray-900">
-              Διαθέσιμοι εργαζόμενοι κοντά σου
-            </h1>
-            <p className="mt-4 text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
-              Δες τι θα έβρισκες σήμερα στην πλατφόρμα. Για να δεις ολόκληρο
-              προφίλ και να ξεκινήσεις επικοινωνία, χρειάζεσαι λογαριασμό
-              επιχείρησης{' '}
-              <span className="text-gray-900 font-semibold">(30 δευτερόλεπτα, δωρεάν)</span>.
-            </p>
-          </header>
-        </div>
-      </section>
+          <BrowseHero
+            accent="blue"
+            metric="workers"
+            icon="👥"
+            noun={['εργαζόμενος', 'εργαζόμενοι']}
+            headline="Διαθέσιμοι εργαζόμενοι"
+            subtitle="Δες ελεύθερα ποιοι ψάχνουν δουλειά τώρα. Για ολόκληρο προφίλ και επικοινωνία χρειάζεσαι δωρεάν λογαριασμό επιχείρησης."
+          />
 
-      <section className="pb-16 sm:pb-24">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <PublicWorkersList />
+          <h1 className="sr-only">Διαθέσιμοι εργαζόμενοι κοντά σου</h1>
+
+          <div className="mt-5">
+            <PublicWorkersList />
+          </div>
 
           <div className="mt-10 rounded-2xl bg-white border border-gray-100 p-6 sm:p-8 text-center shadow-sm">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900">

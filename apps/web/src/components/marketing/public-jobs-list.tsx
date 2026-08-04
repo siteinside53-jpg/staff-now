@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AuthGatePopup } from './auth-gate-popup';
 import { DetailModal } from './detail-modal';
 import { FilteredListLayout, type FilterGroup } from './filtered-list-layout';
+import { BrowseStatBand } from './browse-hero';
 import { GREEK_CITIES } from '@/lib/greek-cities';
 import { API_URL } from '@/lib/config';
 
@@ -66,6 +67,16 @@ function salaryStr(j: Job): string {
   if (j.salaryMin) return `Από ${j.salaryMin}${unit}`;
   if (j.salaryMax) return `Έως ${j.salaryMax}${unit}`;
   return '—';
+}
+
+// Χρώμα μισθού ανά κλιμάκιο (μόνο για μηνιαίες αγγελίες, ώστε να μη
+// συγκρίνουμε €/ώρα με €/μήνα).
+function salaryColor(j: Job): string {
+  if (j.salaryType !== 'monthly') return 'text-gray-900';
+  const v = j.salaryMax ?? j.salaryMin ?? 0;
+  if (v >= 3000) return 'text-orange-600';
+  if (v >= 1500) return 'text-emerald-600';
+  return 'text-gray-900';
 }
 
 function timeAgoGreek(dateStr: string | null): string {
@@ -225,6 +236,29 @@ export function PublicJobsList() {
       .sort((a, b) => b.createdAtMs - a.createdAtMs);
   }, [items, query, sel]);
 
+  // Όλα από τις ΠΡΑΓΜΑΤΙΚΕΣ αγγελίες. Ο μέσος μισθός υπολογίζεται μόνο από
+  // μηνιαίες αγγελίες — αλλιώς θα ανακατεύαμε €/ώρα με €/μήνα και το νούμερο
+  // θα ήταν ψέμα.
+  const bandStats = useMemo(() => {
+    const out: { label: string; value: string; color: string }[] = [];
+    const dayAgo = Date.now() - 86_400_000;
+    const fresh = items.filter((j) => j.createdAtMs > dayAgo).length;
+    const monthly = items.filter((j) => j.salaryType === 'monthly' && (j.salaryMin || j.salaryMax));
+    const cities = new Set(items.map((j) => norm(j.city)).filter(Boolean)).size;
+    if (fresh > 0) out.push({ label: 'Νέες σήμερα', value: String(fresh), color: 'text-emerald-600' });
+    if (monthly.length > 0) {
+      const avg =
+        monthly.reduce((s, j) => s + (j.salaryMin && j.salaryMax ? (j.salaryMin + j.salaryMax) / 2 : (j.salaryMin ?? j.salaryMax ?? 0)), 0) /
+        monthly.length;
+      out.push({ label: 'Μέσος μηνιαίος', value: `${Math.round(avg).toLocaleString('el-GR')}€`, color: 'text-orange-600' });
+    }
+    if (cities > 0) out.push({ label: 'Περιοχές', value: String(cities), color: 'text-cyan-600' });
+    return out;
+  }, [items]);
+
+  // Στοίβα λογοτύπων: πραγματικές επιχειρήσεις από τα πρώτα αποτελέσματα.
+  const stack = useMemo(() => filtered.slice(0, 5), [filtered]);
+
   function toggle(group: string, value: string) {
     setSel((prev) => {
       const cur = prev[group] ?? [];
@@ -254,6 +288,49 @@ export function PublicJobsList() {
         resultCount={filtered.length}
         resultNoun={['διαθέσιμη θέση', 'διαθέσιμες θέσεις']}
       >
+        {/* Ίδια δομή με το δείγμα, τίμιο κείμενο: μετράμε τις πραγματικές αγγελίες. */}
+        {stack.length > 0 && (
+          <div className="mb-4 overflow-hidden rounded-3xl bg-gradient-to-br from-orange-500 via-red-500 to-pink-600 p-5 text-white shadow-lg">
+            <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white/90">
+              🆕 Ανοιχτές θέσεις
+            </p>
+            <p className="mt-1 text-lg font-black leading-tight">Επιχειρήσεις που ψάχνουν προσωπικό</p>
+            <p className="mt-0.5 text-sm text-white/80">
+              {filtered.length === 1
+                ? '1 ενεργή αγγελία στο StaffNow'
+                : `${filtered.length} ενεργές αγγελίες στο StaffNow`}
+            </p>
+            <div className="mt-3 flex -space-x-3">
+              {stack.map((j) =>
+                j.logo ? (
+                  <img
+                    key={j.id}
+                    src={j.logo}
+                    alt=""
+                    loading="lazy"
+                    className="h-10 w-10 rounded-full border-2 border-white/90 object-cover"
+                  />
+                ) : (
+                  <div
+                    key={j.id}
+                    className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white/90 bg-white/20 text-xs font-bold backdrop-blur"
+                    aria-hidden="true"
+                  >
+                    {(j.company[0] ?? '?').toUpperCase()}
+                  </div>
+                ),
+              )}
+              {filtered.length > stack.length && (
+                <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-white/90 bg-white/20 text-[11px] font-bold backdrop-blur">
+                  +{filtered.length - stack.length}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <BrowseStatBand stats={bandStats} />
+
         {filtered.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center">
             <p className="text-gray-600 font-medium">Καμία θέση με αυτά τα φίλτρα.</p>
@@ -304,7 +381,7 @@ export function PublicJobsList() {
                   </div>
 
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                    <span className="font-bold text-gray-900 text-sm sm:text-base whitespace-nowrap">
+                    <span className={`font-bold text-sm sm:text-base whitespace-nowrap ${salaryColor(j)}`}>
                       {salaryStr(j)}
                     </span>
                     <span className="hidden sm:inline-flex items-center rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white">

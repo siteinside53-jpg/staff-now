@@ -22,6 +22,7 @@ const NAV: NavItem[] = [
   { href: '/admin/messages', label: 'Μηνύματα', icon: '💬', section: 'Marketplace' },
 
   { href: '/admin/reports', label: 'Αναφορές', icon: '🚨', section: 'Trust & Safety' },
+  { href: '/admin/verifications', label: 'Επαληθεύσεις', icon: '✅', section: 'Trust & Safety' },
   { href: '/admin/notifications', label: 'Ειδοποιήσεις', icon: '🔔', section: 'Trust & Safety' },
   { href: '/admin/security', label: 'Ασφάλεια', icon: '🛡️', section: 'Trust & Safety' },
   { href: '/admin/audit-log', label: 'Audit Log', icon: '📜', section: 'Trust & Safety' },

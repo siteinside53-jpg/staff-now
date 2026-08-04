@@ -19,6 +19,8 @@ export class StaffNowApi {
     changePassword: (body: { currentPassword: string; password: string; confirmPassword: string }) =>
       this.client.post<any>('/auth/change-password', body),
     deleteAccount: () => this.client.delete<any>('/auth/me'),
+    sendEmailCode: () => this.client.post<any>('/auth/email/send-code'),
+    confirmEmail: (body: { code: string }) => this.client.post<any>('/auth/email/confirm', body),
   };
 
   workers = {
@@ -32,6 +34,10 @@ export class StaffNowApi {
     unfavorite: (id: string) => this.client.delete<any>(`/workers/${id}/favorite`),
     deleteCvFile: () => this.client.delete<any>('/workers/me/cv/file'),
     saveCvAsPdf: () => this.client.post<{ url: string; key: string }>('/workers/me/cv/save-as-pdf'),
+    getVerification: () => this.client.get<any>('/workers/me/verification'),
+    submitVerification: (body: unknown) => this.client.post<any>('/workers/me/verify', body),
+    getBoostStatus: () => this.client.get<any>('/workers/boost/status'),
+    boostDiscover: () => this.client.post<any>('/workers/boost/discover'),
   };
 
   businesses = {
@@ -41,6 +47,8 @@ export class StaffNowApi {
     getById: (id: string) => this.client.get<any>(`/businesses/${id}`),
     like: (id: string) => this.client.post<any>(`/businesses/${id}/like`),
     skip: (id: string) => this.client.post<any>(`/businesses/${id}/skip`),
+    getVerification: () => this.client.get<any>('/businesses/me/verification'),
+    submitVerification: (body: unknown) => this.client.post<any>('/businesses/me/verify', body),
   };
 
   branches = {
@@ -142,7 +150,8 @@ export class StaffNowApi {
     suspendUser: (id: string) => this.client.post<any>(`/admin/users/${id}/suspend`),
     unsuspendUser: (id: string) => this.client.post<any>(`/admin/users/${id}/unsuspend`),
     getVerificationRequests: (params?: Params) => this.client.get<any>('/admin/verifications', params),
-    reviewVerification: (id: string, body: { status: 'approved' | 'rejected'; reason?: string }) =>
+    // Ο server περιμένει { decision }, όχι { status } (admin.ts POST /verifications/:id/review).
+    reviewVerification: (id: string, body: { decision: 'approved' | 'rejected'; reason?: string }) =>
       this.client.post<any>(`/admin/verifications/${id}/review`, body),
     getReports: (params?: Params) => this.client.get<any>('/admin/reports', params),
     reviewReport: (id: string, body: { status: 'reviewed' | 'dismissed' }) =>

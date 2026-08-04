@@ -149,6 +149,106 @@ businesses.patch(
   }
 );
 
+// =====================================================================
+// Επαλήθευση επιχείρησης
+//
+// Ο πίνακας verification_requests και ο έλεγχος από admin
+// (GET/POST /admin/verifications) υπήρχαν ήδη — έλειπε μόνο ο τρόπος να
+// υποβάλει η ίδια η επιχείρηση αίτημα. Η έγκριση γίνεται αποκλειστικά από
+// admin· εδώ δεν αγγίζουμε ποτέ το business_profiles.verified.
+// =====================================================================
+
+// GET /me/verification — κατάσταση του τελευταίου αιτήματος
+businesses.get('/me/verification', requireAuth, requireRole('business'), async (c) => {
+  const user = c.get('user');
+
+  const profile = await c.env.DB.prepare(
+    'SELECT verified FROM business_profiles WHERE user_id = ?',
+  )
+    .bind(user.id)
+    .first<{ verified: number }>();
+
+  if (!profile) return error(c, 'Το προφίλ δεν βρέθηκε', 404);
+
+  const request = await c.env.DB.prepare(
+    `SELECT id, status, rejection_reason, vat_number, registry_number, notes, created_at, reviewed_at
+     FROM verification_requests WHERE user_id = ? ORDER BY created_at DESC LIMIT 1`,
+  )
+    .bind(user.id)
+    .first();
+
+  return success(c, { verified: profile.verified === 1, request: request || null });
+});
+
+// POST /me/verify — υποβολή αιτήματος επαλήθευσης
+businesses.post('/me/verify', requireAuth, requireRole('business'), async (c) => {
+  const user = c.get('user');
+  const db = c.env.DB;
+
+  const body = await c.req.json<{
+    vat_number?: string;
+    registry_number?: string;
+    document_url?: string;
+    notes?: string;
+  }>().catch(() => null);
+
+  if (!body) return error(c, 'Μη έγκυρα δεδομένα', 400);
+
+  // Το ΑΦΜ είναι ακριβώς 9 ψηφία.
+  const vat = (body.vat_number || '').replace(/\s/g, '');
+  if (!/^\d{9}$/.test(vat)) {
+    return error(c, 'Το ΑΦΜ πρέπει να είναι 9 ψηφία', 400);
+  }
+
+  // Το document_url είναι NOT NULL στον πίνακα (0010) — το απαιτούμε ρητά
+  // αντί να αφήσουμε τη βάση να πετάξει 500.
+  const documentUrl = (body.document_url || '').trim();
+  if (!documentUrl) {
+    return error(c, 'Χρειάζεται δικαιολογητικό (ΑΦΜ από TaxisNet ή ΓΕΜΗ)', 400);
+  }
+
+  const profile = await db
+    .prepare('SELECT id, verified FROM business_profiles WHERE user_id = ?')
+    .bind(user.id)
+    .first<{ id: string; verified: number }>();
+
+  if (!profile) return error(c, 'Το προφίλ δεν βρέθηκε', 404);
+  if (profile.verified === 1) {
+    return error(c, 'Η επιχείρηση είναι ήδη επαληθευμένη', 400);
+  }
+
+  const pending = await db
+    .prepare("SELECT id FROM verification_requests WHERE user_id = ? AND status = 'pending'")
+    .bind(user.id)
+    .first<{ id: string }>();
+
+  if (pending) {
+    return error(c, 'Υπάρχει ήδη αίτημα σε αναμονή ελέγχου', 400);
+  }
+
+  const id = generateId();
+  const now = new Date().toISOString();
+
+  await db
+    .prepare(
+      `INSERT INTO verification_requests
+         (id, user_id, document_url, document_type, status, vat_number, registry_number, notes, created_at)
+       VALUES (?, ?, ?, 'business', 'pending', ?, ?, ?, ?)`,
+    )
+    .bind(
+      id,
+      user.id,
+      documentUrl,
+      vat,
+      (body.registry_number || '').trim() || null,
+      (body.notes || '').trim() || null,
+      now,
+    )
+    .run();
+
+  return success(c, { id, status: 'pending', createdAt: now }, 201);
+});
+
 // GET /discover — workers discover businesses
 businesses.get('/discover', requireAuth, requireRole('worker'), async (c) => {
   const user = c.get('user');

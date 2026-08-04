@@ -80,3 +80,11 @@ export const passwordResetRateLimiter = rateLimiter({
   maxRequests: 3,
   keyPrefix: 'rl_pwd_reset',
 });
+
+// Κωδικός επιβεβαίωσης email: ξεχωριστό prefix από το password reset ώστε το
+// «ξαναστείλε» να μη μπλοκάρεται επειδή ο χρήστης έκανε νωρίτερα reset κωδικού.
+export const emailCodeRateLimiter = rateLimiter({
+  windowMs: 900_000,
+  maxRequests: 5,
+  keyPrefix: 'rl_email_code',
+});

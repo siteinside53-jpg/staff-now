@@ -18,6 +18,7 @@ const PAGE_META: Record<string, { title: string; subtitle?: string }> = {
   '/admin/matches': { title: 'Matches', subtitle: 'Παρακολούθηση matching και conversion' },
   '/admin/messages': { title: 'Μηνύματα', subtitle: 'Trust & Safety moderation' },
   '/admin/reports': { title: 'Αναφορές', subtitle: 'Κέντρο Trust & Safety' },
+  '/admin/verifications': { title: 'Επαληθεύσεις', subtitle: 'Αιτήματα πιστοποίησης — έγκριση ή απόρριψη' },
   '/admin/subscriptions': { title: 'Συνδρομές', subtitle: 'Plans, churn, conversion' },
   '/admin/payments': { title: 'Πληρωμές', subtitle: 'Συναλλαγές και επιστροφές' },
   '/admin/analytics': { title: 'KPIs / Analytics', subtitle: 'Metrics και funnels' },
