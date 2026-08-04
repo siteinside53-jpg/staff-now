@@ -665,13 +665,18 @@ export default function DiscoverPage() {
   const noCandidates = candidates.length === 0 || !currentCandidate;
 
   const TABS = [
-    { key: 'discover' as const, label: 'Εύρεση' },
-    { key: 'saved' as const, label: 'Αποθηκευμένα' },
-    { key: 'interest' as const, label: 'Αιτήματα' },
-    { key: 'matched' as const, label: 'Matched' },
+    { key: 'discover' as const, icon: '🔍', label: 'Εύρεση' },
+    { key: 'saved' as const, icon: '🔖', label: 'Αποθηκευμένα' },
+    { key: 'interest' as const, icon: '💙', label: 'Αιτήματα' },
+    { key: 'matched' as const, icon: '✨', label: 'Matched' },
   ];
+  /*
+    Ίδιο ύφος με τα Matches και τις Συνομιλίες: στρογγυλά «χάπια» με εικονίδιο.
+    Στο κινητό μπαίνουν σε μία σειρά που κυλάει, γιατί τέσσερις ελληνικοί
+    τίτλοι δεν χωρούν σε πλάτος 375px χωρίς να κοπούν.
+  */
   const renderTabs = (vertical: boolean) => (
-    <div className={vertical ? 'flex flex-col gap-1' : 'flex gap-1 rounded-lg bg-gray-100 p-1'}>
+    <div className={vertical ? 'flex flex-col gap-1' : 'flex gap-1 overflow-x-auto rounded-full bg-gray-100 p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'}>
       {TABS.map((t) => (
         <button
           key={t.key}
@@ -679,10 +684,10 @@ export default function DiscoverPage() {
           className={
             vertical
               ? `text-left rounded-lg px-3 py-2 text-sm font-medium transition-all ${discoverTab === t.key ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`
-              : `flex-1 rounded-md py-2 text-xs font-medium transition-all ${discoverTab === t.key ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`
+              : `flex-shrink-0 whitespace-nowrap rounded-full px-3 py-2 text-xs font-bold transition-all ${discoverTab === t.key ? 'bg-white text-gray-900 shadow' : 'text-gray-500 hover:text-gray-700'}`
           }
         >
-          {t.label}
+          <span className="mr-1">{t.icon}</span>{t.label}
         </button>
       ))}
     </div>

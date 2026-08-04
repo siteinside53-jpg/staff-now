@@ -181,6 +181,23 @@ export default function DashboardPage() {
         </p>
       </div>
 
+      {/*
+        Υπενθύμιση για τους εργαζόμενους που δεν έχουν συμπληρώσει προφίλ.
+        Χωρίς ποσοστό — απλώς τους πάει στη σελίδα του προφίλ, όπως στο app2.
+      */}
+      {!loading && isWorker && !hasProfile && (
+        <Link href="/dashboard/profile" className="mb-8 block rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-100 to-orange-100 p-4 transition-shadow hover:shadow-md">
+          <div className="flex items-center gap-3">
+            <div className="text-3xl">✨</div>
+            <div className="min-w-0 flex-1">
+              <p className="font-bold text-amber-900">Ολοκλήρωσε το προφίλ σου</p>
+              <p className="text-xs text-amber-700">Κέρδισε περισσότερα matches</p>
+            </div>
+            <span className="flex-shrink-0 text-amber-700">→</span>
+          </div>
+        </Link>
+      )}
+
       {/* Stats */}
       {loading ? (
         <div className="flex justify-center py-12"><Spinner className="h-8 w-8" /></div>

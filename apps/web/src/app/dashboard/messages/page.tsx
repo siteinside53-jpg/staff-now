@@ -25,6 +25,17 @@ function ChatMenuItem({ icon, label, onClick, color = 'text-gray-900' }: { icon:
   );
 }
 
+/** Στρογγυλή φωτογραφία με αρχικό γράμμα ως εφεδρεία, ίδια με τα Matches. */
+function Avatar({ name, src, className = '' }: { name: string; src?: string | null; className?: string }) {
+  return (
+    <div className={`flex flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-100 font-bold text-blue-600 ${className}`}>
+      {src
+        ? <img src={src} alt="" className="h-full w-full object-cover" />
+        : name.charAt(0).toUpperCase()}
+    </div>
+  );
+}
+
 // Format message content for display (strip markdown links)
 function formatMessagePreview(content: string | undefined): string {
   if (!content) return '';
@@ -393,7 +404,7 @@ function MessagesInner() {
 
   return (
     <div>
-      <div className="mb-6"><h1 className="text-2xl font-bold text-gray-900">💬 Μηνύματα</h1></div>
+      <div className="mb-6"><h1 className="text-2xl font-bold text-gray-900">💬 Συνομιλίες</h1></div>
 
       {conversations.length === 0 && !selectedConv ? (
         <EmptyState title="Δεν έχεις μηνύματα ακόμα" description="Κάνε match για να ξεκινήσεις συνομιλία!" />
@@ -401,17 +412,17 @@ function MessagesInner() {
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Conversation List — στο κινητό κρύβεται όσο είναι ανοιχτή μια
               συνομιλία, ώστε να μην κυλάει η σελίδα πίσω από το chat. */}
-          <div className={`min-w-0 lg:col-span-1 space-y-2 ${selectedConv ? 'hidden lg:block' : ''}`}>
-            {/* Tabs */}
-            <div className="flex gap-1 rounded-lg bg-gray-100 p-1 mb-3">
+          <div className={`min-w-0 lg:col-span-1 space-y-1 ${selectedConv ? 'hidden lg:block' : ''}`}>
+            {/* Καρτέλες σε ίδιο ύφος με τα Matches: στρογγυλά «χάπια» με εικονίδιο. */}
+            <div className="mb-3 flex rounded-full bg-gray-100 p-1">
               {[
-                { key: 'active' as const, label: 'Ενεργές', count: conversations.filter((c) => c.matchStatus !== 'archived' && !c.isBlocked).length },
-                { key: 'archived' as const, label: 'Αρχείο', count: conversations.filter((c) => c.matchStatus === 'archived' && !c.isBlocked).length },
-                { key: 'blocked' as const, label: 'Blocked', count: conversations.filter((c) => c.isBlocked).length },
+                { key: 'active' as const, icon: '💬', label: 'Ενεργές', count: conversations.filter((c) => c.matchStatus !== 'archived' && !c.isBlocked).length },
+                { key: 'archived' as const, icon: '📦', label: 'Αρχείο', count: conversations.filter((c) => c.matchStatus === 'archived' && !c.isBlocked).length },
+                { key: 'blocked' as const, icon: '🚫', label: 'Blocked', count: conversations.filter((c) => c.isBlocked).length },
               ].map((tab) => (
                 <button key={tab.key} onClick={() => setConvTab(tab.key)}
-                  className={`flex-1 rounded-md py-1.5 text-xs font-medium transition-all ${convTab === tab.key ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
-                  {tab.label} {tab.count > 0 && <span className="ml-1 text-[10px]">({tab.count})</span>}
+                  className={`min-w-0 flex-1 rounded-full py-2 text-xs font-bold transition-all ${convTab === tab.key ? 'bg-white text-gray-900 shadow' : 'text-gray-500 hover:text-gray-700'}`}>
+                  <span className="mr-1">{tab.icon}</span>{tab.label}{tab.count > 0 && <span className="ml-1 font-semibold opacity-70">({tab.count})</span>}
                 </button>
               ))}
             </div>
@@ -425,15 +436,13 @@ function MessagesInner() {
               const lastMsg = formatMessagePreview(c.lastMessage?.content || c.lastMessage?.text);
               const dateStr = c.updatedAt || c.createdAt;
               return (
-                <div key={c.id} className={`relative rounded-xl p-4 transition-all ${isActive ? 'bg-blue-50 border-2 border-blue-500' : 'bg-white border border-gray-100 hover:border-gray-300'} ${c.matchStatus === 'archived' ? 'opacity-60' : ''}`}>
-                  <div className="flex items-center gap-3 cursor-pointer" onClick={() => setSelectedConv(c.id)}>
-                    {c.otherParty?.avatar ? (
-                      <img src={c.otherParty.avatar} alt="" className="h-10 w-10 rounded-full object-cover flex-shrink-0" />
-                    ) : (
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-600 flex-shrink-0">
-                        {otherName[0]?.toUpperCase() || '?'}
-                      </div>
-                    )}
+                <div key={c.id} className={`flex items-center ${c.matchStatus === 'archived' ? 'opacity-60' : ''}`}>
+                  {/* Η σειρά δεν έχει πλαίσιο· η επιλεγμένη ξεχωρίζει μόνο με γαλάζιο φόντο. */}
+                  <div
+                    className={`flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg py-3 pl-2 pr-1 ${isActive ? 'bg-blue-50' : 'hover:bg-gray-50 active:bg-gray-50'}`}
+                    onClick={() => setSelectedConv(c.id)}
+                  >
+                    <Avatar name={otherName} src={c.otherParty?.avatar} className="h-14 w-14 text-lg" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className={`truncate text-sm ${c.unreadCount > 0 && !isActive ? 'font-bold text-gray-900' : 'font-semibold text-gray-900'}`}>{otherName}</p>
@@ -445,18 +454,24 @@ function MessagesInner() {
                     {c.unreadCount > 0 && !isActive && (
                       <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white animate-pulse">{c.unreadCount}</span>
                     )}
-                    {/* 3-dot menu */}
+                  </div>
+
+                  {/*
+                    Οι τρεις τελίτσες είναι αδελφός της σειράς, χωρίς transform:
+                    έτσι το μενού δεν πέφτει πίσω από τις επόμενες συνομιλίες.
+                  */}
+                  <div className={`relative flex-shrink-0 ${convMenuId === c.id ? 'z-30' : ''}`}>
                     <button onClick={(e) => { e.stopPropagation(); setConvMenuId(convMenuId === c.id ? null : c.id); }}
-                      className="flex-shrink-0 rounded-lg p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100">
+                      aria-label="Επιλογές"
+                      className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" /></svg>
                     </button>
-                  </div>
 
                   {/* Context menu */}
                   {convMenuId === c.id && (
                     <>
                       <div className="fixed inset-0 z-10" onClick={() => setConvMenuId(null)} />
-                      <div className="absolute right-2 top-12 z-20 w-44 rounded-xl bg-white border border-gray-200 shadow-xl overflow-hidden">
+                      <div className="absolute right-0 top-10 z-20 w-44 rounded-xl bg-white border border-gray-200 shadow-xl overflow-hidden">
                         <button onClick={(e) => {
                           e.stopPropagation(); setConvMenuId(null);
                           const otherId = c.otherParty?.id;
@@ -499,6 +514,7 @@ function MessagesInner() {
                       </div>
                     </>
                   )}
+                  </div>
                 </div>
               );
             })}
