@@ -401,7 +401,7 @@ function MessagesInner() {
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Conversation List — στο κινητό κρύβεται όσο είναι ανοιχτή μια
               συνομιλία, ώστε να μην κυλάει η σελίδα πίσω από το chat. */}
-          <div className={`lg:col-span-1 space-y-2 ${selectedConv ? 'hidden lg:block' : ''}`}>
+          <div className={`min-w-0 lg:col-span-1 space-y-2 ${selectedConv ? 'hidden lg:block' : ''}`}>
             {/* Tabs */}
             <div className="flex gap-1 rounded-lg bg-gray-100 p-1 mb-3">
               {[
