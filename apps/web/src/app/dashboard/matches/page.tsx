@@ -74,6 +74,8 @@ export default function MatchesPage() {
 
   if (loading) return <div className="flex justify-center py-20"><Spinner className="h-8 w-8" /></div>;
 
+  const activeCount = matches.filter((m) => m.status === 'active' && !m.isBlocked).length;
+
   // Filter matches by tab
   const filtered = matches.filter((m) => {
     if (tab === 'blocked') return m.isBlocked;
@@ -83,28 +85,44 @@ export default function MatchesPage() {
 
   return (
     <div>
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Τα Matches μου</h1>
-          <p className="mt-1 text-gray-600">
-            {matches.length > 0 ? `${matches.length} matches` : 'Δεν έχεις matches ακόμα'}
-          </p>
+      {/*
+        Header σε στυλ app2 (version5) αλλά στα χρώματα του StaffNow: μπλε→indigo
+        αντί για ροζ, και ✨ αντί για καρδιά.
+      */}
+      <div className="mb-4 overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-6 text-white shadow-sm">
+        {/*
+          Στο κινητό ο τίτλος δεν χωράει δίπλα στο κουμπί, γι' αυτό στοιβάζονται
+          κάθετα και το κουμπί πιάνει όλο το πλάτος. Από sm και πάνω μπαίνουν
+          δίπλα-δίπλα.
+        */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-extrabold sm:text-3xl">✨ Τα Matches μου</h1>
+            <p className="mt-1 text-sm text-blue-100">
+              {matches.length > 0
+                ? `${activeCount} ενεργά · ${matches.length} συνολικά`
+                : 'Δεν έχεις matches ακόμα'}
+            </p>
+          </div>
+          <Link
+            href="/dashboard/discover"
+            className="inline-flex flex-shrink-0 items-center justify-center rounded-full bg-white/15 px-4 py-2 text-sm font-semibold text-white ring-1 ring-inset ring-white/30 backdrop-blur transition-colors hover:bg-white/25"
+          >
+            Ανακάλυψη
+          </Link>
         </div>
-        <Link href="/dashboard/discover" className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-          Ανακάλυψη
-        </Link>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 rounded-lg bg-gray-100 p-1 mb-6">
+      {/* Tabs — pill style όπως στο app2 */}
+      <div className="mb-6 flex rounded-full bg-gray-100 p-1">
         {[
-          { key: 'active' as const, label: 'Ενεργά', count: matches.filter((m) => m.status === 'active' && !m.isBlocked).length },
-          { key: 'archived' as const, label: 'Αρχειοθετημένα', count: matches.filter((m) => m.status === 'archived' && !m.isBlocked).length },
+          { key: 'active' as const, label: 'Ενεργά', count: activeCount },
+          { key: 'archived' as const, label: 'Αρχείο', count: matches.filter((m) => m.status === 'archived' && !m.isBlocked).length },
           { key: 'blocked' as const, label: 'Blocked', count: matches.filter((m) => m.isBlocked).length },
         ].map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`flex-1 rounded-md py-2 text-sm font-medium transition-all ${tab === t.key ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
-            {t.label} {t.count > 0 && <span className="ml-1 text-[10px]">({t.count})</span>}
+            className={`min-w-0 flex-1 rounded-full py-2 text-xs font-bold transition-all sm:text-sm ${tab === t.key ? 'bg-white text-gray-900 shadow' : 'text-gray-500 hover:text-gray-700'}`}>
+            {t.label}{t.count > 0 && <span className="ml-1 font-semibold opacity-70">({t.count})</span>}
           </button>
         ))}
       </div>
