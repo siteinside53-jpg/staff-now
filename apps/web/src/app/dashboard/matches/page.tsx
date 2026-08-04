@@ -280,7 +280,7 @@ export default function MatchesPage() {
           {tab === 'active' && recent.length >= 2 && (
             <div className="mb-6">
               <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-400">Νέα Matches</h2>
-              <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0">
+              <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-6 sm:px-6 lg:mx-0 lg:px-0">
                 {recent.map((m: any) => (
                   <button key={m.id} onClick={() => openProfile(m)} className="w-20 flex-shrink-0 text-center">
                     <Avatar name={nameOf(m)} src={avatarOf(m)} className="mx-auto h-20 w-20 text-2xl ring-4 ring-white shadow-md" />
