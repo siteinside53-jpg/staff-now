@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Toaster } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
+import { usePoll } from '@/lib/use-poll';
 import { Spinner } from '@/components/ui/spinner';
 import { AdminSidebar } from '@/components/admin/layout/admin-sidebar';
 import { AdminTopbar } from '@/components/admin/layout/admin-topbar';
@@ -46,33 +47,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [loading, user, router]);
 
   // Load nav badges — "new since last visit" counts for every section.
-  useEffect(() => {
-    if (!user || user.role !== 'admin') return;
-    let cancelled = false;
-    const refresh = async () => {
-      try {
-        const c = await adminApi.getNavCounts();
-        if (cancelled) return;
-        setBadges({
-          '/admin/jobs': c.jobs,
-          '/admin/users': c.users,
-          '/admin/employers': c.employers,
-          '/admin/workers': c.workers,
-          '/admin/matches': c.matches,
-          '/admin/messages': c.messages,
-          '/admin/reports': c.reports,
-          '/admin/security': c.security,
-          '/admin/notifications': c.notifications,
-        });
-      } catch {}
-    };
-    refresh();
-    const t = setInterval(refresh, 30_000);
-    return () => {
-      cancelled = true;
-      clearInterval(t);
-    };
-  }, [user]);
+  const refreshNavCounts = useCallback(async () => {
+    const c = await adminApi.getNavCounts();
+    setBadges({
+      '/admin/jobs': c.jobs,
+      '/admin/users': c.users,
+      '/admin/employers': c.employers,
+      '/admin/workers': c.workers,
+      '/admin/matches': c.matches,
+      '/admin/messages': c.messages,
+      '/admin/reports': c.reports,
+      '/admin/security': c.security,
+      '/admin/notifications': c.notifications,
+    });
+  }, []);
+  usePoll(refreshNavCounts, 30_000, user?.role === 'admin');
 
   // Auto-mark current section as "seen" on navigation so the badge clears.
   useEffect(() => {

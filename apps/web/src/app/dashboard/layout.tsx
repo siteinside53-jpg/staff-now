@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { usePoll } from '@/lib/use-poll';
+import { API_URL } from '@/lib/config';
 import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
@@ -73,48 +75,56 @@ export default function DashboardLayout({
   }, [user, loading]);
 
   // Fetch notification badges + real notifications
+  const fetchBadges = useCallback(async () => {
+    const token = localStorage.getItem('staffnow_token');
+    const headers = { 'Authorization': `Bearer ${token}` };
+    // Ένα 429 πρέπει να ανέβει ως σφάλμα, ώστε το usePoll να υποχωρήσει αντί να
+    // συνεχίσει να σφυροκοπάει τον server που μας μπλόκαρε.
+    const grab = async (path: string) => {
+      const r = await fetch(`${API_URL}${path}`, { headers });
+      if (r.status === 429) throw Object.assign(new Error('rate limited'), { status: 429 });
+      return r.json() as Promise<any>;
+    };
+    const [convosRes, interestsRes, notifRes] = await Promise.all([
+      grab('/conversations'),
+      grab('/interests/received'),
+      grab('/notifications?limit=15'),
+    ]);
+    const convos = convosRes?.data || [];
+    const interests: any[] = Array.isArray(interestsRes?.data) ? interestsRes.data : [];
+    receivedInterestsRef.current = interests;
+
+    const unmatched = interests.filter((i) => !i.is_matched && i.is_matched !== 1);
+    const onInterestsPage = pathnameRef.current.startsWith('/dashboard/interests');
+    if (onInterestsPage) {
+      // Είσαι ήδη στη σελίδα → μαρκάρισέ τα ως «είδα» ώστε το badge να μη ξαναβγεί.
+      addSeenInterestIds(unmatched.map((i) => String(i.swipe_id ?? i.id)));
+    }
+    const seen = getSeenInterestIds();
+    const unseenInterests = onInterestsPage
+      ? 0
+      : unmatched.filter((i) => !seen.has(String(i.swipe_id ?? i.id))).length;
+
+    setBadges({
+      matches: 0,
+      messages: Array.isArray(convos) ? convos.filter((c: any) => c.unreadCount > 0).length : 0,
+      interests: unseenInterests,
+    });
+    setNotifications(notifRes?.data || []);
+    setNotifUnread(notifRes?.unreadCount || 0);
+  }, []);
+
+  // 45 δευτ. αντί για 15: είναι μόνο τα κόκκινα σημαδάκια, όχι το ίδιο το
+  // μήνυμα. Ανανεώνονται ούτως ή άλλως άμεσα με κάθε ενέργεια (event πιο κάτω)
+  // και μόλις επιστρέψεις στην καρτέλα.
+  usePoll(fetchBadges, 45_000, !!user);
+
   useEffect(() => {
     if (!user) return;
-    async function fetchBadges() {
-      try {
-        const token = localStorage.getItem('staffnow_token');
-        const headers = { 'Authorization': `Bearer ${token}` };
-        const base = 'https://staffnow-api-production.siteinside53.workers.dev';
-        const [convosRes, interestsRes, notifRes] = await Promise.all([
-          fetch(`${base}/conversations`, { headers }).then(r => r.json()) as Promise<any>,
-          fetch(`${base}/interests/received`, { headers }).then(r => r.json()) as Promise<any>,
-          fetch(`${base}/notifications?limit=15`, { headers }).then(r => r.json()) as Promise<any>,
-        ]);
-        const convos = convosRes?.data || [];
-        const interests: any[] = Array.isArray(interestsRes?.data) ? interestsRes.data : [];
-        receivedInterestsRef.current = interests;
-
-        const unmatched = interests.filter((i) => !i.is_matched && i.is_matched !== 1);
-        const onInterestsPage = pathnameRef.current.startsWith('/dashboard/interests');
-        if (onInterestsPage) {
-          // Είσαι ήδη στη σελίδα → μαρκάρισέ τα ως «είδα» ώστε το badge να μη ξαναβγεί.
-          addSeenInterestIds(unmatched.map((i) => String(i.swipe_id ?? i.id)));
-        }
-        const seen = getSeenInterestIds();
-        const unseenInterests = onInterestsPage
-          ? 0
-          : unmatched.filter((i) => !seen.has(String(i.swipe_id ?? i.id))).length;
-
-        setBadges({
-          matches: 0,
-          messages: Array.isArray(convos) ? convos.filter((c: any) => c.unreadCount > 0).length : 0,
-          interests: unseenInterests,
-        });
-        setNotifications(notifRes?.data || []);
-        setNotifUnread(notifRes?.unreadCount || 0);
-      } catch {}
-    }
-    fetchBadges();
-    const interval = setInterval(fetchBadges, 15000);
-    const handler = () => fetchBadges();
+    const handler = () => { fetchBadges().catch(() => {}); };
     window.addEventListener('staffnow:badges-refresh', handler);
-    return () => { clearInterval(interval); window.removeEventListener('staffnow:badges-refresh', handler); };
-  }, [user]);
+    return () => window.removeEventListener('staffnow:badges-refresh', handler);
+  }, [user, fetchBadges]);
 
   // Μόλις μπεις στη σελίδα «Ενδιαφέρον» → καθάρισε το badge άμεσα + θυμήσου ότι τα είδες.
   useEffect(() => {

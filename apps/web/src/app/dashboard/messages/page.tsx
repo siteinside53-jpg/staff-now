@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { usePoll } from '@/lib/use-poll';
 import { api, apiClient } from '@/lib/api';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
@@ -136,55 +137,49 @@ function MessagesInner() {
     loadMsgs();
   }, [selectedConv]);
 
-  // Poll for new messages every second + detect incoming calls
+  // Poll for new messages + detect incoming calls.
+  // Μένει στα 5 δευτ. — εδώ χρειάζεται η ταχύτητα. Το κέρδος έρχεται από την
+  // παύση του usePoll όταν η καρτέλα είναι κρυφή.
   const lastKnownMsgId = useRef<string | null>(null);
-  useEffect(() => {
+  const pollMessages = useCallback(async () => {
     if (!selectedConv) return;
     const cId = selectedConv;
-    const poll = async () => {
-      try {
-        const res = await api.conversations.getMessages(cId) as any;
-        const msgs = res?.data || [];
-        const sorted: any[] = Array.isArray(msgs) ? [...msgs].reverse() : [];
-        const newestId = sorted.filter((m: any) => !m.id?.startsWith('temp_')).pop()?.id || null;
-        if (newestId && newestId !== lastKnownMsgId.current) {
-          lastKnownMsgId.current = newestId;
-          setMessages(sorted);
+    const res = await api.conversations.getMessages(cId) as any;
+    const msgs = res?.data || [];
+    const sorted: any[] = Array.isArray(msgs) ? [...msgs].reverse() : [];
+    const newestId = sorted.filter((m: any) => !m.id?.startsWith('temp_')).pop()?.id || null;
+    if (newestId && newestId !== lastKnownMsgId.current) {
+      lastKnownMsgId.current = newestId;
+      setMessages(sorted);
 
-          // Check for incoming call from the OTHER person (last 2 minutes)
-          const twoMinsAgo = Date.now() - 120000;
-          const callMsg = sorted.filter((m: any) =>
-            m.sender_id !== user?.id &&
-            (m.content?.includes('jitsi.member.fsf.org') || m.content?.includes('8x8.vc') || m.content?.includes('daily.co') || m.content?.includes('meet.jit.si')) &&
-            m.content?.startsWith('📹') &&
-            new Date(m.created_at).getTime() > twoMinsAgo
-          ).pop();
+      // Check for incoming call from the OTHER person (last 2 minutes)
+      const twoMinsAgo = Date.now() - 120000;
+      const callMsg = sorted.filter((m: any) =>
+        m.sender_id !== user?.id &&
+        (m.content?.includes('jitsi.member.fsf.org') || m.content?.includes('8x8.vc') || m.content?.includes('daily.co') || m.content?.includes('meet.jit.si')) &&
+        m.content?.startsWith('📹') &&
+        new Date(m.created_at).getTime() > twoMinsAgo
+      ).pop();
 
-          if (callMsg && !videoCallRoom) {
-            const urlMatch = callMsg.content.match(/https:\/\/(?:jitsi\.member\.fsf\.org|meet\.jit\.si)\/([^\s#]+)/);
-            const roomName = urlMatch?.[1] || '';
-            if (roomName && roomName !== dismissedCallRef.current) {
-              const callerName = callMsg.sender_name || 'Κάποιος';
-              setIncomingCall({ roomName, callerName, convId: cId });
-            }
-          }
+      if (callMsg && !videoCallRoom) {
+        const urlMatch = callMsg.content.match(/https:\/\/(?:jitsi\.member\.fsf\.org|meet\.jit\.si)\/([^\s#]+)/);
+        const roomName = urlMatch?.[1] || '';
+        if (roomName && roomName !== dismissedCallRef.current) {
+          const callerName = callMsg.sender_name || 'Κάποιος';
+          setIncomingCall({ roomName, callerName, convId: cId });
         }
-      } catch {}
-    };
-    const interval = setInterval(poll, 5000);
-    return () => clearInterval(interval);
+      }
+    }
   }, [selectedConv, user?.id, videoCallRoom]);
+  usePoll(pollMessages, 5_000, !!selectedConv);
 
-  // Poll conversations list every 8 seconds (for new convos + unread badges)
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const res = await api.conversations.list() as any;
-        setConversations(res?.data || []);
-      } catch {}
-    }, 8000);
-    return () => clearInterval(interval);
+  // Λίστα συνομιλιών: 20 δευτ. αντί για 8. Είναι μόνο η στήλη αριστερά — τα
+  // μηνύματα της ανοιχτής συνομιλίας ανανεώνονται πιο πάνω κάθε 5 δευτ.
+  const pollConversations = useCallback(async () => {
+    const res = await api.conversations.list() as any;
+    setConversations(res?.data || []);
   }, []);
+  usePoll(pollConversations, 20_000);
 
   const sendMessage = async () => {
     if (!newMsg.trim() || !selectedConv) return;

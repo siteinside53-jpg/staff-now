@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { usePoll } from '@/lib/use-poll';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://staffnow-api-production.siteinside53.workers.dev';
 
@@ -86,46 +87,22 @@ export function LiveCounters() {
   );
   const [flashingIndices] = useState<Set<number>>(new Set());
 
-  // Fetch real stats
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(`${API_BASE}/public/activity`);
-        if (!res.ok) throw new Error();
-        const json = await res.json();
-        const stats = json?.data?.stats;
-        if (!cancelled && stats) {
-          const c = buildCounters(stats);
-          setCounters(c);
-          setValues(c.map((x) => x.value));
-        }
-      } catch {
-        /* κανένα fake — μένει κρυφό μέχρι να έρθουν πραγματικά */
-      }
-    })();
-    return () => { cancelled = true; };
+  // Ανανέωση ΠΡΑΓΜΑΤΙΚΩΝ στατιστικών κάθε 25s (χωρίς fake drift).
+  // Το usePoll κάνει το πρώτο φόρτωμα, παύει όταν η καρτέλα είναι κρυφή και
+  // υποχωρεί αν ο server μας μπλοκάρει.
+  const load = useCallback(async () => {
+    const res = await fetch(`${API_BASE}/public/activity`);
+    if (res.status === 429) throw Object.assign(new Error('rate limited'), { status: 429 });
+    if (!res.ok) return; // κανένα fake — κρατάμε τις τελευταίες πραγματικές τιμές
+    const json = await res.json();
+    const stats = json?.data?.stats;
+    if (stats) {
+      const c = buildCounters(stats);
+      setCounters(c);
+      setValues(c.map((x) => x.value));
+    }
   }, []);
-
-  // Ανανέωση ΠΡΑΓΜΑΤΙΚΩΝ στατιστικών κάθε 25s (χωρίς fake drift)
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`${API_BASE}/public/activity`);
-        if (!res.ok) return;
-        const json = await res.json();
-        const stats = json?.data?.stats;
-        if (stats) {
-          const c = buildCounters(stats);
-          setCounters(c);
-          setValues(c.map((x) => x.value));
-        }
-      } catch {
-        /* keep last known real values */
-      }
-    }, 25_000);
-    return () => clearInterval(interval);
-  }, []);
+  usePoll(load, 25_000);
 
   // Κρύβεται τελείως αν δεν υπάρχουν πραγματικά δεδομένα (ή όλα 0)
   if (!counters || values.every((v) => !v)) return null;

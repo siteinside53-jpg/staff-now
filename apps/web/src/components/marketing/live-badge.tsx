@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { usePoll } from '@/lib/use-poll';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://staffnow-api-production.siteinside53.workers.dev';
 
@@ -12,7 +13,7 @@ interface Props {
  * "LIVE · N χρήστες online τώρα" chip με ΠΡΑΓΜΑΤΙΚΟ αριθμό.
  *
  * Διαβάζει το stats.onlineNow από /public/activity (ενεργές συνεδρίες
- * τα τελευταία ~40s) και κάνει poll κάθε 12s ώστε ο αριθμός να
+ * τα τελευταία ~40s) και κάνει poll κάθε 20s ώστε ο αριθμός να
  * ανεβοκατεβαίνει live καθώς μπαίνουν/βγαίνουν επισκέπτες.
  * Δείχνει τουλάχιστον 1 (ο τρέχων επισκέπτης).
  */
@@ -21,42 +22,34 @@ export function LiveBadge({ className = '' }: Props) {
   const [flash, setFlash] = useState(false);
   const prev = useRef<number | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function fetchOnline() {
-      try {
-        const controller = new AbortController();
-        const t = setTimeout(() => controller.abort(), 5000);
-        const res = await fetch(`${API_BASE}/public/activity`, { signal: controller.signal });
-        clearTimeout(t);
-        if (!res.ok) throw new Error();
-        const json = await res.json();
-        const online = Number(json?.data?.stats?.onlineNow ?? 0);
-        if (cancelled) return;
-        const value = Math.max(1, online); // ο τρέχων επισκέπτης μετράει πάντα
-        if (prev.current !== null && value !== prev.current) {
-          setFlash(true);
-          setTimeout(() => setFlash(false), 600);
-        }
-        prev.current = value;
-        setCount(value);
-      } catch {
-        if (!cancelled && prev.current === null) {
-          // Πρώτο load απέτυχε → δείξε τουλάχιστον 1
-          prev.current = 1;
-          setCount(1);
-        }
+  const fetchOnline = useCallback(async () => {
+    try {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch(`${API_BASE}/public/activity`, { signal: controller.signal });
+      clearTimeout(t);
+      // Το 429 ανεβαίνει ώστε το usePoll να υποχωρήσει αντί να επιμείνει.
+      if (res.status === 429) throw Object.assign(new Error('rate limited'), { status: 429 });
+      if (!res.ok) throw new Error();
+      const json = await res.json();
+      const online = Number(json?.data?.stats?.onlineNow ?? 0);
+      const value = Math.max(1, online); // ο τρέχων επισκέπτης μετράει πάντα
+      if (prev.current !== null && value !== prev.current) {
+        setFlash(true);
+        setTimeout(() => setFlash(false), 600);
+      }
+      prev.current = value;
+      setCount(value);
+    } catch (err) {
+      if ((err as { status?: number })?.status === 429) throw err;
+      if (prev.current === null) {
+        // Πρώτο load απέτυχε → δείξε τουλάχιστον 1
+        prev.current = 1;
+        setCount(1);
       }
     }
-
-    fetchOnline();
-    const interval = setInterval(fetchOnline, 12_000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
   }, []);
+  usePoll(fetchOnline, 20_000);
 
   if (count === null) return null;
 

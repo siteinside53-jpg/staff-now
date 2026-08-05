@@ -9,14 +9,17 @@ type = "Data"
 globs = ["**/*.ttf"]
 fallthrough = true
 
-# Native Rate Limiting binding (no KV writes). Global limiter: 60 req / 60s per IP.
+# Native Rate Limiting binding (no KV writes). Global limiter: 120 req / 60s per IP.
+# ΠΡΟΣΟΧΗ: μετριέται ανά IP, όχι ανά χρήστη — δύο υπάλληλοι στο ίδιο wifi ή ένας
+# χρήστης με δύο καρτέλες μοιράζονται το ίδιο σύνολο. Στα 60 μπλόκαραν κανονικοί
+# χρήστες. Η πραγματική προστασία σύνδεσης/κωδικού γίνεται στο rate-limiter.ts.
 # NOTE: unsafe bindings are NOT inherited by named environments, so they are
 # re-declared under [env.staging] and [env.production] with distinct namespace_ids.
 [[unsafe.bindings]]
 name = "RATE_LIMITER"
 type = "ratelimit"
 namespace_id = "1003"
-simple = { limit = 60, period = 60 }
+simple = { limit = 120, period = 60 }
 
 [vars]
 ENVIRONMENT = "development"
@@ -78,7 +81,7 @@ id = "YOUR_STAGING_KV_NAMESPACE_ID"
 name = "RATE_LIMITER"
 type = "ratelimit"
 namespace_id = "1002"
-simple = { limit = 60, period = 60 }
+simple = { limit = 120, period = 60 }
 
 [env.production]
 vars = { ENVIRONMENT = "production", CORS_ORIGIN = "https://staffnow.gr,https://www.staffnow.gr,https://staffnow.pages.dev", API_URL = "https://api.staffnow.gr", VAPID_PUBLIC_KEY = "BNb1lsiiSlXtF3fztALP1F0h9MenWZVqWnWTVQrSUoHuZVkH_-QEE2sXMXg4xs5Xfa4DmFSiO0-rHTCyEBySjMk", VAPID_SUBJECT = "mailto:no-reply@staffnow.gr", EMAIL_FROM = "StaffNow <no-reply@staffnow.gr>" }
@@ -103,4 +106,4 @@ binding = "AI"
 name = "RATE_LIMITER"
 type = "ratelimit"
 namespace_id = "1001"
-simple = { limit = 60, period = 60 }
+simple = { limit = 120, period = 60 }

@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { usePoll } from '@/lib/use-poll';
 import { adminApi } from '@/components/admin/lib/admin-api';
 import { useSecurityStream, type LiveEvent } from '@/components/admin/lib/use-security-stream';
 import { EmptyState } from '@/components/admin/ui/empty-state';
@@ -66,21 +67,17 @@ function OverviewTab() {
   const [data, setData] = useState<Awaited<ReturnType<typeof adminApi.getSecurityOverview>> | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let timer: any;
-    const load = async () => {
-      try {
-        setData(await adminApi.getSecurityOverview());
-      } catch (e: any) {
-        toast.error(e?.message || 'Σφάλμα φόρτωσης');
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-    timer = setInterval(load, 15_000); // gentle polling for the metric tiles
-    return () => clearInterval(timer);
+  const load = useCallback(async () => {
+    try {
+      setData(await adminApi.getSecurityOverview());
+    } catch (e: any) {
+      if (e?.status === 429) throw e; // άσε το usePoll να υποχωρήσει
+      toast.error(e?.message || 'Σφάλμα φόρτωσης');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+  usePoll(load, 15_000); // gentle polling for the metric tiles
 
   const e = data?.errors;
 
