@@ -1331,12 +1331,12 @@ export default function DiscoverPage() {
         >
           {/*
             ── ΕΙΚΟΝΑ (πάνω μέρος της κάρτας) ──
-            Ακριβώς το μισό ύψος της κάρτας, ίδιο με το κάτω μέρος των
-            πληροφοριών. Παλιότερα η φωτογραφία του εργαζόμενου έπιανε 58%
-            κι έμενε λιγότερος χώρος για τα στοιχεία.
+            3/5 του ύψους, όπως στο app2/version5. Με το μισό (h-1/2) το κάδρο
+            έβγαινε τόσο στενό που σε κατακόρυφες φωτογραφίες φαινόταν μόνο
+            μέτωπο και μάτια — το πρόσωπο κοβόταν πάνω και κάτω.
           */}
           <div
-            className={`relative h-1/2 flex-shrink-0 overflow-hidden ${
+            className={`relative h-3/5 flex-shrink-0 overflow-hidden ${
               cover
                 ? ''
                 : isJobCard
@@ -1350,19 +1350,12 @@ export default function DiscoverPage() {
                   <img src={cover} alt="" draggable={false} className="h-full w-full object-cover" />
                 ) : (
                   /*
-                    Φωτογραφία εργαζόμενου: γεμίζει ΟΛΟ το πλαίσιο από άκρη σε άκρη,
-                    χωρίς θολές μπάρες. Το κάδρο δεν είναι στο κέντρο αλλά ψηλότερα
-                    (25% από πάνω) — εκεί βρίσκεται το πρόσωπο στις περισσότερες
-                    φωτογραφίες προφίλ, οπότε δεν κόβεται. Το objectPosition μπαίνει
-                    ως inline style και όχι ως κλάση, για να μη χαθεί σε build.
+                    Φωτογραφία εργαζόμενου: γεμίζει ΟΛΟ το πλαίσιο από άκρη σε
+                    άκρη, χωρίς θολές μπάρες. Κεντραρισμένη, όπως στο
+                    app2/version5. Το παλιό «25% από πάνω» τραβούσε το κάδρο
+                    στο μέτωπο και έκοβε το πρόσωπο.
                   */
-                  <img
-                    src={cover}
-                    alt=""
-                    draggable={false}
-                    className="h-full w-full object-cover"
-                    style={{ objectPosition: 'center 25%' }}
-                  />
+                  <img src={cover} alt="" draggable={false} className="h-full w-full object-cover" />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/15" />
               </>
