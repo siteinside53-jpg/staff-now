@@ -604,11 +604,16 @@ app.get('/public/activity', async (c) => {
     db.prepare(
       `SELECT
          (SELECT COUNT(*) FROM users WHERE status = 'active') as total_users,
+         -- Ίδια κριτήρια με τη λίστα της /find-staff (is_visible = 1), αλλιώς ο
+         -- μεγάλος αριθμός στην κορυφή έλεγε 104 ενώ από κάτω φαίνονταν 103.
          (SELECT COUNT(*) FROM worker_profiles wp JOIN users u ON u.id = wp.user_id
-            WHERE u.status = 'active') as total_workers,
+            WHERE u.status = 'active' AND wp.is_visible = 1) as total_workers,
          (SELECT COUNT(*) FROM business_profiles bp JOIN users u ON u.id = bp.user_id
             WHERE u.status = 'active') as total_businesses,
-         (SELECT COUNT(*) FROM job_listings WHERE status = 'published') as total_jobs,
+         -- Ίδια κριτήρια με τη λίστα της /find-job: οι έκτακτες βάρδιες δεν
+         -- είναι αγγελίες και δεν εμφανίζονται εκεί, άρα δεν μετράνε ούτε εδώ.
+         (SELECT COUNT(*) FROM job_listings
+            WHERE status = 'published' AND listing_kind = 'job') as total_jobs,
          (SELECT COUNT(*) FROM matches) as total_matches,
          (
            (SELECT COUNT(*) FROM anonymous_sessions

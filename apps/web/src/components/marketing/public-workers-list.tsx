@@ -148,7 +148,10 @@ export function PublicWorkersList() {
               id: String(w.user_id ?? `rw_${i}`),
               name,
               role: roleLabel(w.roles?.[0]),
-              city: (w.city || w.region || 'Ελλάδα').trim(),
+              // Όποιος δεν έχει δηλώσει περιοχή μένει κενός. Παλιότερα έμπαινε
+              // «Ελλάδα», που εμφανιζόταν στα φίλτρα σαν να ήταν πόλη και
+              // φούσκωνε τον μετρητή «Περιοχές».
+              city: (w.city || w.region || '').trim(),
               experienceYears: Number(w.years_of_experience ?? 0),
               verified: !!w.verified,
               photo: w.photo_url || null,
@@ -191,6 +194,9 @@ export function PublicWorkersList() {
         label,
         count: items.filter((w) => {
           const wc = norm(w.city);
+          // Χωρίς αυτό, όποιος δεν έχει δηλώσει περιοχή θα μετριόταν σε ΚΑΘΕ
+          // πόλη (το n.includes('') είναι πάντα αληθές).
+          if (!wc) return false;
           return wc.includes(n) || n.includes(wc);
         }).length,
       }))
@@ -241,6 +247,7 @@ export function PublicWorkersList() {
       if (q && !(norm(w.name).includes(q) || norm(w.role).includes(q) || norm(w.city).includes(q))) return false;
       if (cityNorms.length) {
         const wc = norm(w.city);
+        if (!wc) return false; // χωρίς δηλωμένη περιοχή δεν ταιριάζει σε καμία
         if (!cityNorms.some((cn) => wc.includes(cn) || cn.includes(wc))) return false;
       }
       if ((sel.role ?? []).length && !sel.role!.includes(w.role)) return false;
@@ -391,7 +398,8 @@ export function PublicWorkersList() {
                       )}
                     </div>
                     <p className="text-sm text-gray-700 truncate">
-                      <span className="font-semibold">{w.role}</span> · {w.city}
+                      <span className="font-semibold">{w.role}</span>
+                      {w.city && <> · {w.city}</>}
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5">{expLabel(w.experienceYears)}</p>
                   </div>
@@ -437,7 +445,10 @@ export function PublicWorkersList() {
                     <span className="text-blue-600 text-xs font-semibold">✓ Επαληθευμένος</span>
                   )}
                 </h3>
-                <p className="text-sm text-gray-600 mt-0.5">{selected.role} · {selected.city}</p>
+                <p className="text-sm text-gray-600 mt-0.5">
+                  {selected.role}
+                  {selected.city && <> · {selected.city}</>}
+                </p>
               </div>
             </div>
 
@@ -448,7 +459,9 @@ export function PublicWorkersList() {
               </div>
               <div className="rounded-xl bg-gray-50 p-3">
                 <dt className="text-xs text-gray-500">Περιοχή</dt>
-                <dd className="text-sm font-semibold text-gray-900">{selected.city}</dd>
+                <dd className="text-sm font-semibold text-gray-900">
+                  {selected.city || <span className="text-gray-400">Δεν έχει δηλωθεί</span>}
+                </dd>
               </div>
               {selected.availability && (
                 <div className="rounded-xl bg-gray-50 p-3">

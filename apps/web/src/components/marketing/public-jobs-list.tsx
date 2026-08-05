@@ -130,7 +130,9 @@ export function PublicJobsList() {
             id: String(j.id ?? `rj_${i}`),
             title: j.title || 'Θέση εργασίας',
             company: j.display_company_name || j.company_name || 'Επιχείρηση',
-            city: (j.city || j.region || 'Ελλάδα').trim(),
+            // Χωρίς δηλωμένη περιοχή μένει κενό — δεν βάζουμε «Ελλάδα», που
+            // θα εμφανιζόταν στα φίλτρα σαν πόλη και θα χάλαγε τις μετρήσεις.
+            city: (j.city || j.region || '').trim(),
             salaryMin: j.salary_min ?? null,
             salaryMax: j.salary_max ?? null,
             salaryType: j.salary_type || 'monthly',
@@ -176,6 +178,9 @@ export function PublicJobsList() {
         label,
         count: items.filter((j) => {
           const jc = norm(j.city);
+          // Χωρίς αυτό, αγγελία χωρίς περιοχή θα μετριόταν σε ΚΑΘΕ πόλη
+          // (το n.includes('') είναι πάντα αληθές).
+          if (!jc) return false;
           return jc.includes(n) || n.includes(jc);
         }).length,
       }))
@@ -225,6 +230,7 @@ export function PublicJobsList() {
         if (q && !(norm(j.title).includes(q) || norm(j.company).includes(q) || norm(j.city).includes(q))) return false;
         if (cityNorms.length) {
           const jc = norm(j.city);
+          if (!jc) return false; // χωρίς δηλωμένη περιοχή δεν ταιριάζει σε καμία
           if (!cityNorms.some((cn) => jc.includes(cn) || cn.includes(jc))) return false;
         }
         if ((sel.type ?? []).length && !sel.type!.includes(j.employmentType)) return false;
@@ -371,7 +377,8 @@ export function PublicJobsList() {
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-gray-900 truncate">{j.title}</p>
                     <p className="text-sm text-gray-700 truncate">
-                      {j.company} · {j.city}
+                      {j.company}
+                      {j.city && <> · {j.city}</>}
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5 truncate">
                       {j.postedAgo}
@@ -419,7 +426,10 @@ export function PublicJobsList() {
               )}
               <div className="min-w-0">
                 <h3 id="job-detail-title" className="text-xl font-bold text-gray-900">{selected.title}</h3>
-                <p className="text-sm text-gray-600 mt-0.5">{selected.company} · {selected.city}</p>
+                <p className="text-sm text-gray-600 mt-0.5">
+                  {selected.company}
+                  {selected.city && <> · {selected.city}</>}
+                </p>
               </div>
             </div>
 
