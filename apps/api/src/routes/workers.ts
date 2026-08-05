@@ -1450,7 +1450,9 @@ workers.post('/me/cv/save-as-pdf', requireAuth, requireRole('worker'), async (c)
     },
   });
 
-  const url = `https://pub-5e055b34e4694e02ac3de198a7776878.r2.dev/${key}`;
+  // Σερβίρεται από τον ίδιο τον server του API, όχι από το r2.dev — το
+  // μπλοκάρουν πάροχοι και routers (βλ. σχόλιο στο routes/uploads.ts).
+  const url = `${new URL(c.req.url).origin}/uploads/f/${key}`;
 
   // Update worker_profiles.cv_url
   await c.env.DB.prepare(

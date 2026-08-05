@@ -52,9 +52,13 @@ app.use('*', async (c, next) => {
 // NOTE: never `return next()` from a middleware — Hono's `next()` resolves to
 // the Context, not a Response, and returning it makes Hono build a Response
 // from it (status is a method → RangeError → 500). Always `await next()`.
+// Οι φωτογραφίες σερβίρονται κι αυτές από εδώ (/uploads/f/...). Μία σελίδα
+// «Εύρεση» ζητάει δεκάδες εικόνες μαζί, οπότε αν μετρούσαν στο όριο των 120
+// ανά λεπτό ο χρήστης θα μπλόκαρε πριν καν δει τη λίστα. Είναι απλή ανάγνωση
+// από τον αποθηκευτικό χώρο, με cache ενός έτους — δεν θέλει προστασία ρυθμού.
 const globalRl = globalRateLimiter();
 app.use('*', async (c, next) => {
-  if (c.req.path.startsWith('/admin/')) {
+  if (c.req.path.startsWith('/admin/') || c.req.path.startsWith('/uploads/f/')) {
     await next();
     return;
   }

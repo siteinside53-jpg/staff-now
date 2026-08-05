@@ -70,6 +70,63 @@ function sanitizeFilename(name: string): string {
   return name.replace(/[^\w\s.-]/g, '').replace(/\s+/g, '_').slice(0, 120);
 }
 
+/**
+ * Δημόσιο URL αρχείου.
+ *
+ * Παλιά έδειχνε στο `pub-<hash>.r2.dev`. Αυτό είναι το ΠΡΟΣΩΡΙΝΟ domain
+ * ανάπτυξης της Cloudflare για κουβάδες R2: το μπλοκάρουν πολλοί πάροχοι και
+ * routers (στο δίκτυο του πελάτη το DNS το γυρνάει σε 127.0.0.1, οπότε καμία
+ * φωτογραφία δεν φόρτωνε) και η ίδια η Cloudflare το χαρακτηρίζει ακατάλληλο
+ * για παραγωγή επειδή του βάζει όριο ρυθμού.
+ *
+ * Τώρα τα αρχεία σερβίρονται από τον ίδιο τον server του API (`GET /uploads/f/*`),
+ * που είναι εξ ορισμού προσβάσιμος αφού όλη η εφαρμογή ήδη τον καλεί.
+ *
+ * Το origin βγαίνει από το ίδιο το αίτημα, ώστε τοπικά/staging/production να
+ * δίνουν αυτόματα σωστό host χωρίς επιπλέον ρύθμιση.
+ */
+function publicFileUrl(requestUrl: string, key: string): string {
+  return `${new URL(requestUrl).origin}/uploads/f/${key}`;
+}
+
+/**
+ * GET /uploads/f/<key> — σερβίρει ένα αρχείο του R2.
+ *
+ * Χωρίς έλεγχο ταυτότητας, ακριβώς όπως και πριν: το `r2.dev` ήταν δημόσιο,
+ * οπότε όποιος ήξερε το URL έβλεπε το αρχείο. Δεν αλλάζει τίποτα στην
+ * πρόσβαση — το κλειδί περιέχει τυχαίο id, δεν μαντεύεται.
+ *
+ * Τα κλειδιά είναι αμετάβλητα (κάθε ανέβασμα φτιάχνει καινούργιο id), γι' αυτό
+ * η απάντηση είναι cacheable για έναν χρόνο· έτσι ο browser και το δίκτυο της
+ * Cloudflare δεν ξαναρωτούν και ο worker δεν πληρώνει αναγνώσεις R2.
+ */
+uploads.get('/f/*', async (c) => {
+  const key = decodeURIComponent(c.req.path.replace(/^\/uploads\/f\//, ''));
+  if (!key || key.includes('..')) return error(c, 'Μη έγκυρο αρχείο', 400);
+
+  const object = await c.env.R2.get(key, {
+    // Αν ο browser έχει ήδη το αρχείο, το R2 απαντά χωρίς σώμα (304).
+    onlyIf: c.req.raw.headers,
+  });
+
+  if (!object) return error(c, 'Το αρχείο δεν βρέθηκε', 404);
+
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set('etag', object.httpEtag);
+  headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  // Οι φωτογραφίες/έγγραφα δεν εκτελούνται ποτέ ως σελίδα.
+  headers.set('X-Content-Type-Options', 'nosniff');
+  headers.set('Content-Disposition', 'inline');
+
+  // Χωρίς `body` σημαίνει ότι το onlyIf ταίριαξε → δεν χρειάζεται μεταφορά.
+  if (!('body' in object) || !object.body) {
+    return new Response(null, { status: 304, headers });
+  }
+
+  return new Response(object.body, { headers });
+});
+
 // Detect the real MIME type from the first bytes, regardless of what the
 // browser claimed. Files often have wrong extensions (e.g. JPEG saved as
 // .png from a screenshot tool, iPhone HEIC pushed through a Mac with the
@@ -166,9 +223,7 @@ uploads.post('/', requireAuth, async (c) => {
     },
   });
 
-  // Construct the public URL
-  // This assumes R2 is configured with a custom domain or public access
-  const url = `https://pub-5e055b34e4694e02ac3de198a7776878.r2.dev/${key}`;
+  const url = publicFileUrl(c.req.url, key);
 
   // Trust & Safety: log every file upload
   c.executionCtx.waitUntil(
@@ -260,7 +315,7 @@ uploads.post('/presign', requireAuth, async (c) => {
     },
   });
 
-  const url = `https://pub-5e055b34e4694e02ac3de198a7776878.r2.dev/${key}`;
+  const url = publicFileUrl(c.req.url, key);
 
   return success(c, {
     uploadId: multipartUpload.uploadId,
