@@ -13,7 +13,7 @@ import { WorkerProfilePanel } from '@/components/dashboard/worker-profile-panel'
 import { BusinessProfilePanel } from '@/components/dashboard/business-profile-panel';
 import { JobDetailPanel } from '@/components/dashboard/job-detail-panel';
 import { FilteredListLayout, type FilterGroup, type FilterCategory } from '@/components/marketing/filtered-list-layout';
-import { GREEK_CITIES, GREEK_CITY_AREAS } from '@/lib/greek-cities';
+import { normText, splitLocation, buildCityCategories } from '@/lib/location';
 import { WORKER_JOB_ROLE_LABELS_EL, WORKER_JOB_ROLE_GROUPS } from '@staffnow/config';
 import { durationLabel, expiresLabel, netOf, whenLabel } from '@/lib/shift-display';
 
@@ -26,6 +26,8 @@ interface DiscoverProfile {
   id: string;
   name: string;
   location: string;
+  /** Τοποθεσία μόνο για τα φίλτρα (πόλη/περιοχή, χωρίς διεύθυνση & ΤΚ). */
+  filterLocation?: string;
   bio?: string;
   tags?: string[];
   salary?: string;
@@ -91,54 +93,6 @@ function salaryText(min?: number | null, max?: number | null, type?: string | nu
   if (lo && hi) return `${lo}-${hi}${unit}`;
   if (lo) return `Από ${lo}${unit}`;
   return `Έως ${hi}${unit}`;
-}
-
-// Κανονικοποίηση κειμένου για αναζήτηση/φίλτρα (πεζά + χωρίς τόνους)
-function normText(s: string): string {
-  return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-}
-
-// ── Καθαρισμός τοποθεσίας (locations αγγελιών) ──
-// Κάποια locations έρχονται σε greeklish/αγγλικά ή με το «Greece» μπροστά
-// (π.χ. «Athens», «Greece, Τρίκαλα»). Τα κανονικοποιούμε ώστε κάθε πόλη να
-// μπαίνει ΜΙΑ φορά στα φίλτρα με το ελληνικό της όνομα.
-const LOC_COUNTRY_TOKENS = new Set(['greece', 'ελλαδα', 'ελλας', 'hellas', 'gr', 'grecia']);
-const CITY_ALIASES: Record<string, string> = {
-  athens: 'Αθήνα', athina: 'Αθήνα', atene: 'Αθήνα',
-  thessaloniki: 'Θεσσαλονίκη', salonika: 'Θεσσαλονίκη', saloniki: 'Θεσσαλονίκη', thessalonica: 'Θεσσαλονίκη',
-  patra: 'Πάτρα', patras: 'Πάτρα',
-  heraklion: 'Ηράκλειο', iraklio: 'Ηράκλειο', iraklion: 'Ηράκλειο',
-  larisa: 'Λάρισα', larissa: 'Λάρισα',
-  volos: 'Βόλος',
-  ioannina: 'Ιωάννινα', giannena: 'Ιωάννινα', giannina: 'Ιωάννινα',
-  chania: 'Χανιά', hania: 'Χανιά',
-  rethymno: 'Ρέθυμνο', rethimno: 'Ρέθυμνο',
-  rhodes: 'Ρόδος', rodos: 'Ρόδος',
-  corfu: 'Κέρκυρα', kerkyra: 'Κέρκυρα',
-  santorini: 'Σαντορίνη', thira: 'Σαντορίνη', fira: 'Σαντορίνη',
-  mykonos: 'Μύκονος',
-  kavala: 'Καβάλα',
-  trikala: 'Τρίκαλα',
-  chalkida: 'Χαλκίδα', halkida: 'Χαλκίδα',
-  kalamata: 'Καλαμάτα',
-  serres: 'Σέρρες',
-};
-const CANON_CITY_BY_NORM = new Map(GREEK_CITIES.map((c) => [normText(c), c] as const));
-function resolveCityName(raw: string): string {
-  const n = normText(raw);
-  if (!n) return '';
-  if (CITY_ALIASES[n]) return CITY_ALIASES[n];
-  return CANON_CITY_BY_NORM.get(n) ?? raw.trim();
-}
-// location μορφής «Πόλη, Περιοχή» (αγνοώντας το «Greece»/«Ελλάδα») → { city, area }
-function splitLocation(loc: string): { city: string; area: string } {
-  const parts = (loc || '')
-    .split(',')
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .filter((p) => !LOC_COUNTRY_TOKENS.has(normText(p)));
-  if (!parts.length) return { city: '', area: '' };
-  return { city: resolveCityName(parts[0]), area: parts.slice(1).join(', ') };
 }
 
 const EMPLOYMENT_LABELS: Record<string, string> = {
@@ -209,64 +163,10 @@ export default function DiscoverPage() {
   // Πόλεις ομαδοποιημένες με τις περιοχές τους (πόλη → περιοχές, όπως στο jobfind):
   // κάθε πόλη «ανοίγει» και δείχνει όλες τις περιοχές της. Οι περιοχές προέρχονται
   // από τη στατική λίστα (GREEK_CITY_AREAS) + όποιες εμφανίζονται στις αγγελίες.
-  const listCityCategories = useMemo<FilterCategory[]>(() => {
-    // Τα locations των αγγελιών έχουν μορφή «Πόλη, Περιοχή» (π.χ. «Αθήνα, Νέα Σμύρνη»).
-    // Τα «σπάμε» (μέσω splitLocation, που κανονικοποιεί greeklish/«Greece») ώστε κάθε
-    // πόλη να εμφανίζεται ΜΙΑ φορά ως κατηγορία και οι περιοχές της να κρέμονται από κάτω.
-
-    // Ομαδοποίηση υποψηφίων ανά πόλη (+ οι περιοχές από location & region).
-    type Agg = { label: string; count: number; areas: Map<string, { label: string; count: number }> };
-    const byCity = new Map<string, Agg>();
-    for (const c of GREEK_CITIES) {
-      const n = normText(c);
-      if (!byCity.has(n)) byCity.set(n, { label: c, count: 0, areas: new Map() });
-    }
-    const addArea = (agg: Agg, label: string) => {
-      const raw = (label || '').trim();
-      const n = normText(raw);
-      if (!n) return;
-      const ex = agg.areas.get(n);
-      if (ex) ex.count += 1;
-      else agg.areas.set(n, { label: raw, count: 1 });
-    };
-    for (const cand of candidates) {
-      const { city, area } = splitLocation(cand.location || '');
-      if (!city) continue;
-      const cn = normText(city);
-      if (!byCity.has(cn)) byCity.set(cn, { label: city, count: 0, areas: new Map() });
-      const agg = byCity.get(cn)!;
-      agg.count += 1;
-      if (area) addArea(agg, area);
-      const reg = (cand.region || '').trim();
-      if (reg && normText(reg) !== normText(area)) addArea(agg, reg);
-    }
-
-    return Array.from(byCity.values())
-      .map((agg) => {
-        // Περιοχές: στατικές (GREEK_CITY_AREAS, count 0) + δυναμικές (από τις αγγελίες).
-        const areaByNorm = new Map<string, { label: string; count: number }>();
-        for (const a of GREEK_CITY_AREAS[agg.label] ?? []) {
-          const n = normText(a);
-          if (!areaByNorm.has(n)) areaByNorm.set(n, { label: a, count: 0 });
-        }
-        for (const [n, a] of agg.areas) {
-          const ex = areaByNorm.get(n);
-          if (ex) ex.count += a.count;
-          else areaByNorm.set(n, a);
-        }
-        const areaOptions = Array.from(areaByNorm.values())
-          .map((a) => ({ value: a.label, label: a.label, count: a.count }))
-          .sort((x, y) => y.count - x.count || x.label.localeCompare(y.label, 'el'));
-
-        return {
-          id: agg.label,
-          label: agg.label,
-          count: agg.count,
-          options: [{ value: agg.label, label: 'Όλη η πόλη', count: agg.count }, ...areaOptions],
-        };
-      })
-      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'el'));
-  }, [candidates]);
+  const listCityCategories = useMemo<FilterCategory[]>(
+    () => buildCityCategories(candidates.map((c) => ({ location: c.filterLocation ?? c.location ?? '', region: c.region }))),
+    [candidates],
+  );
 
   // Ειδικότητες ομαδοποιημένες σε κατηγορίες → υποκατηγορίες (όπως στο /categories).
   // Δείχνουμε ΟΛΕΣ τις κατηγορίες & ειδικότητες (όπως η σελίδα /categories),
@@ -329,7 +229,14 @@ export default function DiscoverPage() {
     () =>
       [
         { key: 'role', title: 'Ειδικότητες', options: [], categorized: listRoleCategories },
-        { key: 'location', title: 'Πόλεις', options: [], categorized: listCityCategories },
+        {
+          key: 'location',
+          title: 'Πόλεις',
+          options: [],
+          categorized: listCityCategories,
+          categorizedSearchPlaceholder: 'Αναζήτηση πόλης…',
+          categorizedSelectAllLabel: 'Όλη η πόλη',
+        },
         { key: 'type', title: 'Τύπος απασχόλησης', options: listTypeOptions },
         { key: 'salary', title: 'Μισθός', options: listSalaryOptions },
         { key: 'perks', title: 'Παροχές', options: listPerksOptions },
@@ -350,7 +257,7 @@ export default function DiscoverPage() {
       if (locNorms.length) {
         // Κανονικοποιούμε την τοποθεσία (greeklish/«Greece») όπως και στα φίλτρα,
         // ώστε η επιλογή «Αθήνα» να πιάνει και locations τύπου «Athens».
-        const { city, area } = splitLocation(c.location || '');
+        const { city, area } = splitLocation(c.filterLocation ?? c.location ?? '');
         const cityN = normText(city);
         const areaN = normText(area);
         const cr = normText(c.region || '');
@@ -466,6 +373,10 @@ export default function DiscoverPage() {
           swipeStatus: j.swipe_status || null,
           isMatched: j.is_matched > 0,
           location: [j.company_address, j.company_area, j.display_city || j.city, j.display_region || j.region, j.company_postal_code].filter(Boolean).join(', '),
+          // Ξεχωριστό πεδίο ΜΟΝΟ για τα φίλτρα, χωρίς διεύθυνση/ΤΚ. Το `location`
+          // παραπάνω είναι για εμφάνιση και ξεκινά με τη διεύθυνση· αν το διάβαζαν
+          // τα φίλτρα, το «Κασσάνδρου 123» εμφανιζόταν σαν πόλη.
+          filterLocation: [j.display_city || j.city, j.company_area, j.display_region || j.region].filter(Boolean).join(', '),
           bio: j.description,
           businessUserId: j.business_user_id || undefined,
           employmentType: j.employment_type || undefined,

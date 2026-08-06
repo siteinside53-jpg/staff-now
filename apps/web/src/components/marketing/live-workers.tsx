@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
+import { resolveCityName } from '@/lib/location';
 
 /* ── Image-with-fallback ───────────────────────────
  * Renders an <img>; if it fails to load (404, decode error, etc.) silently
@@ -74,12 +76,9 @@ const TYPE_LABELS: Record<string, string> = {
   seasonal: 'Σεζόν', full_time: 'Full-time', part_time: 'Part-time', freelance: 'Freelance',
 };
 
-const ROLE_LABELS: Record<string, string> = {
-  waiter: 'Σερβιτόρος/α', chef: 'Σεφ', bartender: 'Bartender',
-  receptionist: 'Ρεσεψιονίστ', housekeeper: 'Καμαριέρα',
-  cook: 'Μάγειρας', barista: 'Barista', driver: 'Οδηγός',
-  sales: 'Πωλητής', warehouse: 'Αποθηκάριος', cleaner: 'Καθαριστής',
-};
+// Οι ειδικότητες βγαίνουν από τον κεντρικό κατάλογο (256 στα ελληνικά). Εδώ
+// υπήρχε τοπικό λεξικό με 11 εγγραφές — ό,τι δεν ήταν μέσα εμφανιζόταν αγγλικά.
+const ROLE_LABELS = WORKER_JOB_ROLE_LABELS_EL;
 
 function getInitials(name: string): string {
   return name.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase();
@@ -166,7 +165,7 @@ export function LiveWorkersHeroCard() {
                 exp: expLabel(w.years_of_experience),
                 initials: getInitials(name),
                 color: COLORS[i % COLORS.length],
-                city: w.city || w.region || '',
+                city: resolveCityName(w.city || w.region || ''),
                 photo: w.photo_url || null,
               };
             });
@@ -187,7 +186,7 @@ export function LiveWorkersHeroCard() {
                 id: j.id?.toString() || `rj_${i}`,
                 title: j.title || 'Θέση εργασίας',
                 company: j.display_company_name || j.company_name || 'Επιχείρηση',
-                city: j.city || j.region || '',
+                city: resolveCityName(j.city || j.region || ''),
                 salary,
                 type: TYPE_LABELS[j.employment_type] || j.employment_type || '',
                 color: TYPE_COLORS[j.employment_type] || 'bg-blue-50 text-blue-700',

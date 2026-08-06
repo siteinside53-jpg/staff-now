@@ -16,6 +16,10 @@ export type FilterGroup = {
   searchable?: boolean; // εμφανίζει mini-search μέσα στο group (π.χ. πόλεις)
   /** Ιεραρχική δομή κατηγορία → υποκατηγορίες (π.χ. Ειδικότητες όπως στο /categories) */
   categorized?: FilterCategory[];
+  /** Κείμενο στο πλαίσιο αναζήτησης του ιεραρχικού φίλτρου. */
+  categorizedSearchPlaceholder?: string;
+  /** Πρόθεμα στο checkbox «όλης της κατηγορίας» (για αναγνώστες οθόνης). */
+  categorizedSelectAllLabel?: string;
 };
 
 type Accent = 'emerald' | 'blue';
@@ -52,6 +56,8 @@ function CategorizedFilter({
   onToggle,
   onToggleMany,
   accent,
+  searchPlaceholder = 'Αναζήτηση ειδικότητας…',
+  selectAllLabel = 'Όλες οι ειδικότητες',
 }: {
   groupKey: string;
   categories: FilterCategory[];
@@ -59,6 +65,8 @@ function CategorizedFilter({
   onToggle: (g: string, v: string) => void;
   onToggleMany?: (g: string, values: string[], select: boolean) => void;
   accent: Accent;
+  searchPlaceholder?: string;
+  selectAllLabel?: string;
 }) {
   const a = ACCENT[accent];
   const [q, setQ] = useState('');
@@ -94,7 +102,7 @@ function CategorizedFilter({
         type="search"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder="Αναζήτηση ειδικότητας…"
+        placeholder={searchPlaceholder}
         className={`mb-2 w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 ${a.ring}`}
       />
       <div className="max-h-80 space-y-1 overflow-y-auto pr-1">
@@ -115,7 +123,7 @@ function CategorizedFilter({
                   }}
                   onChange={() => toggleMany(groupKey, values, !allSel)}
                   className={`h-4 w-4 rounded border-gray-300 ${a.check}`}
-                  aria-label={`Όλες οι ειδικότητες: ${cat.label}`}
+                  aria-label={`${selectAllLabel}: ${cat.label}`}
                 />
                 <button
                   type="button"
@@ -228,6 +236,8 @@ function FilterGroups({
                 onToggle={onToggle}
                 onToggleMany={onToggleMany}
                 accent={accent}
+                {...(g.categorizedSearchPlaceholder ? { searchPlaceholder: g.categorizedSearchPlaceholder } : {})}
+                {...(g.categorizedSelectAllLabel ? { selectAllLabel: g.categorizedSelectAllLabel } : {})}
               />
             )}
 

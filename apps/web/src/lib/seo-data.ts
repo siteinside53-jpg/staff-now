@@ -1,3 +1,4 @@
+import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
 import { API_URL } from './config';
 
 export type PublicJob = {
@@ -94,36 +95,14 @@ export function employmentGreek(t?: string): string {
   return EMPLOYMENT_GREEK[t || 'full_time'] ?? (t || '');
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  waiter: 'Σερβιτόρος/α',
-  barista: 'Barista',
-  chef: 'Σεφ',
-  cook: 'Μάγειρας',
-  grill_cook: 'Ψήστης',
-  maid: 'Καμαριέρα',
-  housekeeper: 'Καμαριέρα',
-  receptionist: 'Ρεσεψιονίστ',
-  bartender: 'Bartender',
-  cleaner: 'Καθαριστής',
-  kitchen_assistant: 'Βοηθός Κουζίνας',
-  lifeguard: 'Ναυαγοσώστης',
-  tour_guide: 'Ξεναγός',
-  driver: 'Οδηγός',
-  host: 'Host',
-  sommelier: 'Sommelier',
-  dj: 'DJ',
-  animator: 'Animator',
-  sales: 'Πωλητής/τρια',
-  warehouse: 'Αποθηκάριος',
-  back_office_clerk: 'Υπάλληλος Back Office',
-  call_center_agent: 'Call Center',
-  collections_agent: 'Εισπράξεις',
-  telephonist: 'Τηλεφωνητής/τρια',
-};
-
+/**
+ * Οι ειδικότητες βγαίνουν από τον κεντρικό κατάλογο (256 στα ελληνικά). Εδώ
+ * υπήρχε τοπικό λεξικό με ~24 εγγραφές, οπότε οι σελίδες εργαζομένων που
+ * διαβάζει η Google έδειχναν αγγλικά κλειδιά τύπου «warehouse_worker».
+ */
 export function roleLabel(key?: string): string {
   if (!key) return 'Εργαζόμενος/η';
-  return ROLE_LABELS[key] ?? key;
+  return WORKER_JOB_ROLE_LABELS_EL[key] ?? key;
 }
 
 // «Μαρία Καρατζά» -> «Μαρία Κ.»

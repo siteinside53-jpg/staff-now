@@ -4,9 +4,10 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { AuthGatePopup } from './auth-gate-popup';
 import { DetailModal } from './detail-modal';
-import { FilteredListLayout, type FilterGroup } from './filtered-list-layout';
+import { FilteredListLayout, type FilterGroup, type FilterCategory } from './filtered-list-layout';
 import { BrowseStatBand } from './browse-hero';
-import { GREEK_CITIES } from '@/lib/greek-cities';
+import { WORKER_JOB_ROLE_GROUPS, WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
+import { buildCityCategories, matchesCitySelection, normText, splitLocation } from '@/lib/location';
 import { API_URL } from '@/lib/config';
 
 type Job = {
@@ -14,6 +15,9 @@ type Job = {
   title: string;
   company: string;
   city: string;
+  region?: string;
+  /** Πόλη + περιοχή, όπως τα έγραψε η επιχείρηση — μόνο για τα φίλτρα. */
+  locationRaw: string;
   salaryMin: number | null;
   salaryMax: number | null;
   salaryType: string;
@@ -24,27 +28,19 @@ type Job = {
   createdAtMs: number;
   logo: string | null;
   description?: string;
+  /** Ετικέτες ειδικοτήτων στα ελληνικά (για εμφάνιση). */
   roles?: string[];
+  /** Τα κλειδιά των ειδικοτήτων (για τα φίλτρα). */
+  roleKeys: string[];
 };
 
-const JOB_ROLE_LABELS: Record<string, string> = {
-  waiter: 'Σερβιτόρος/α',
-  barista: 'Barista',
-  chef: 'Σεφ',
-  cook: 'Μάγειρας',
-  grill_cook: 'Ψήστης',
-  maid: 'Καμαριέρα',
-  housekeeper: 'Καμαριέρα',
-  receptionist: 'Ρεσεψιονίστ',
-  bartender: 'Bartender',
-  cleaner: 'Καθαριστής',
-  kitchen_assistant: 'Βοηθός Κουζίνας',
-  sales: 'Πωλητής',
-  warehouse: 'Αποθηκάριος',
-};
-
+/**
+ * Μία και μοναδική πηγή για τα ονόματα των ειδικοτήτων: ο κεντρικός κατάλογος
+ * (256 ειδικότητες στα ελληνικά). Παλιότερα υπήρχε εδώ τοπικό λεξικό με 13 μόνο
+ * εγγραφές, οπότε οι υπόλοιπες εμφανίζονταν αυτούσιες στα αγγλικά.
+ */
 function jobRoleLabel(key: string): string {
-  return JOB_ROLE_LABELS[key] ?? key;
+  return WORKER_JOB_ROLE_LABELS_EL[key] ?? key;
 }
 
 function employmentLabel(t: string): string {
@@ -94,14 +90,8 @@ function timeAgoGreek(dateStr: string | null): string {
   return `πριν ${months} μήν${months === 1 ? 'α' : 'ες'}`;
 }
 
-// Κανονικοποίηση κειμένου για αναζήτηση (πεζά + χωρίς τόνους)
-function norm(s: string): string {
-  return (s || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim();
-}
+// Κανονικοποίηση κειμένου για αναζήτηση (πεζά + χωρίς τόνους) — κοινή με τα φίλτρα
+const norm = normText;
 
 const EMPTY_SEL: Record<string, string[]> = { city: [], type: [], role: [], perks: [] };
 
@@ -126,13 +116,17 @@ export function PublicJobsList() {
         const raw = Array.isArray(d?.data) ? d.data : [];
         if (raw.length === 0) { setItems([]); return; } // κανένα fake — μένει άδειο
         setItems(
-          raw.map((j: any, i: number) => ({
+          raw.map((j: any, i: number) => {
+            const roleKeys: string[] = Array.isArray(j.roles) ? j.roles.filter(Boolean) : [];
+            return {
             id: String(j.id ?? `rj_${i}`),
             title: j.title || 'Θέση εργασίας',
             company: j.display_company_name || j.company_name || 'Επιχείρηση',
             // Χωρίς δηλωμένη περιοχή μένει κενό — δεν βάζουμε «Ελλάδα», που
             // θα εμφανιζόταν στα φίλτρα σαν πόλη και θα χάλαγε τις μετρήσεις.
             city: (j.city || j.region || '').trim(),
+            region: (j.region || '').trim() || undefined,
+            locationRaw: [j.city, j.region].filter(Boolean).map((s: string) => s.trim()).join(', '),
             salaryMin: j.salary_min ?? null,
             salaryMax: j.salary_max ?? null,
             salaryType: j.salary_type || 'monthly',
@@ -143,10 +137,10 @@ export function PublicJobsList() {
             createdAtMs: j.created_at ? new Date(j.created_at).getTime() : 0,
             logo: j.company_logo || null,
             description: typeof j.description === 'string' && j.description.trim() ? j.description.trim() : undefined,
-            roles: Array.isArray(j.roles) && j.roles.length
-              ? j.roles.map((rk: string) => jobRoleLabel(rk))
-              : undefined,
-          })),
+            roleKeys,
+            roles: roleKeys.length ? roleKeys.map((rk) => jobRoleLabel(rk)) : undefined,
+            };
+          }),
         );
       })
       .catch(() => {
@@ -161,31 +155,13 @@ export function PublicJobsList() {
     };
   }, []);
 
-  // ── Filter groups (από όλη τη λίστα πόλεων + δεδομένα) ──
-  const cityOptions = useMemo(() => {
-    const seen = new Map<string, string>();
-    for (const c of GREEK_CITIES) {
-      const n = norm(c);
-      if (!seen.has(n)) seen.set(n, c);
-    }
-    for (const j of items) {
-      const n = norm(j.city);
-      if (n && !seen.has(n)) seen.set(n, j.city);
-    }
-    return Array.from(seen.entries())
-      .map(([n, label]) => ({
-        value: label,
-        label,
-        count: items.filter((j) => {
-          const jc = norm(j.city);
-          // Χωρίς αυτό, αγγελία χωρίς περιοχή θα μετριόταν σε ΚΑΘΕ πόλη
-          // (το n.includes('') είναι πάντα αληθές).
-          if (!jc) return false;
-          return jc.includes(n) || n.includes(jc);
-        }).length,
-      }))
-      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'el'));
-  }, [items]);
+  // ── Filter groups ──
+  // Πόλη → περιοχές, με κανονικοποίηση: «Θεσσαλονίκη», «θεσσαλονικη» και
+  // «Thessaloniki» γίνονται ΜΙΑ επιλογή, οι διευθύνσεις και το «Greece» φεύγουν.
+  const cityCategories = useMemo<FilterCategory[]>(
+    () => buildCityCategories(items.map((j) => ({ location: j.locationRaw, region: j.region }))),
+    [items],
+  );
 
   const typeOptions = useMemo(() => {
     const counts = new Map<string, number>();
@@ -195,12 +171,24 @@ export function PublicJobsList() {
       .sort((a, b) => b.count - a.count);
   }, [items]);
 
-  const roleOptions = useMemo(() => {
+  // Ειδικότητες στις 24 κατηγορίες του κεντρικού καταλόγου (ίδια σειρά με το
+  // /categories), όλες γραμμένες στα ελληνικά.
+  const roleCategories = useMemo<FilterCategory[]>(() => {
     const counts = new Map<string, number>();
-    for (const j of items) for (const r of j.roles ?? []) counts.set(r, (counts.get(r) || 0) + 1);
-    return Array.from(counts.entries())
-      .map(([v, c]) => ({ value: v, label: v, count: c }))
-      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'el'));
+    for (const j of items) for (const k of j.roleKeys) counts.set(k, (counts.get(k) || 0) + 1);
+    return WORKER_JOB_ROLE_GROUPS.map((g) => {
+      const roleSet = new Set(g.roles);
+      return {
+        id: g.id,
+        label: g.label,
+        count: items.filter((j) => j.roleKeys.some((k) => roleSet.has(k))).length,
+        options: g.roles.map((role) => ({
+          value: role,
+          label: jobRoleLabel(role),
+          count: counts.get(role) || 0,
+        })),
+      };
+    });
   }, [items]);
 
   const perksOptions = useMemo(
@@ -214,27 +202,34 @@ export function PublicJobsList() {
   const groups: FilterGroup[] = useMemo(
     () =>
       [
-        { key: 'city', title: 'Πόλεις', options: cityOptions, searchable: true },
+        { key: 'role', title: 'Ειδικότητες', options: [], categorized: roleCategories },
+        {
+          key: 'city',
+          title: 'Πόλεις',
+          options: [],
+          categorized: cityCategories,
+          categorizedSearchPlaceholder: 'Αναζήτηση πόλης…',
+          categorizedSelectAllLabel: 'Όλη η πόλη',
+        },
         { key: 'type', title: 'Τύπος απασχόλησης', options: typeOptions },
-        { key: 'role', title: 'Ειδικότητες', options: roleOptions },
         { key: 'perks', title: 'Παροχές', options: perksOptions },
-      ].filter((g) => g.options.length > 0),
-    [cityOptions, typeOptions, roleOptions, perksOptions],
+      ].filter((g) => g.options.length > 0 || (g.categorized?.length ?? 0) > 0),
+    [cityCategories, typeOptions, roleCategories, perksOptions],
   );
 
   const filtered = useMemo(() => {
     const q = norm(query);
-    const cityNorms = (sel.city ?? []).map(norm);
     return items
       .filter((j) => {
-        if (q && !(norm(j.title).includes(q) || norm(j.company).includes(q) || norm(j.city).includes(q))) return false;
-        if (cityNorms.length) {
-          const jc = norm(j.city);
-          if (!jc) return false; // χωρίς δηλωμένη περιοχή δεν ταιριάζει σε καμία
-          if (!cityNorms.some((cn) => jc.includes(cn) || cn.includes(jc))) return false;
+        if (q) {
+          const hay = `${j.title} ${j.company} ${j.locationRaw} ${(j.roles ?? []).join(' ')}`;
+          if (!norm(hay).includes(q)) return false;
         }
+        // Οι τιμές του φίλτρου πόλης είναι κανονικά ονόματα πόλης ή περιοχής.
+        if (!matchesCitySelection({ location: j.locationRaw, region: j.region }, sel.city ?? [])) return false;
         if ((sel.type ?? []).length && !sel.type!.includes(j.employmentType)) return false;
-        if ((sel.role ?? []).length && !(j.roles ?? []).some((r) => sel.role!.includes(r))) return false;
+        // Οι τιμές του φίλτρου ειδικότητας είναι κλειδιά καταλόγου («waiter»).
+        if ((sel.role ?? []).length && !j.roleKeys.some((k) => sel.role!.includes(k))) return false;
         if ((sel.perks ?? []).includes('housing') && !j.housingProvided) return false;
         if ((sel.perks ?? []).includes('meals') && !j.mealsProvided) return false;
         return true;
@@ -250,7 +245,10 @@ export function PublicJobsList() {
     const dayAgo = Date.now() - 86_400_000;
     const fresh = items.filter((j) => j.createdAtMs > dayAgo).length;
     const monthly = items.filter((j) => j.salaryType === 'monthly' && (j.salaryMin || j.salaryMax));
-    const cities = new Set(items.map((j) => norm(j.city)).filter(Boolean)).size;
+    // Μετράει ΠΟΛΕΙΣ, όχι γραφές: «Αθήνα», «Αθηνα» και «Athens » είναι μία.
+    const cities = new Set(
+      items.map((j) => norm(splitLocation(j.locationRaw).city)).filter(Boolean),
+    ).size;
     if (fresh > 0) out.push({ label: 'Νέες σήμερα', value: String(fresh), color: 'text-emerald-600' });
     if (monthly.length > 0) {
       const avg =
@@ -272,6 +270,16 @@ export function PublicJobsList() {
     });
   }
 
+  // Επιλογή/αποεπιλογή ολόκληρης κατηγορίας (π.χ. «όλη η Εστίαση»).
+  function toggleMany(group: string, values: string[], select: boolean) {
+    setSel((prev) => {
+      const cur = new Set(prev[group] ?? []);
+      if (select) values.forEach((v) => cur.add(v));
+      else values.forEach((v) => cur.delete(v));
+      return { ...prev, [group]: Array.from(cur) };
+    });
+  }
+
   function clearFilters() {
     setQuery('');
     setSel(EMPTY_SEL);
@@ -290,6 +298,7 @@ export function PublicJobsList() {
         groups={groups}
         selected={sel}
         onToggle={toggle}
+        onToggleMany={toggleMany}
         onClear={clearFilters}
         resultCount={filtered.length}
         resultNoun={['διαθέσιμη θέση', 'διαθέσιμες θέσεις']}
