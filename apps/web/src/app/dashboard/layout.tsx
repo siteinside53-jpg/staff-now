@@ -235,7 +235,16 @@ export default function DashboardLayout({
                         const bgColors: Record<string, string> = { new_match: 'bg-emerald-100', new_message: 'bg-blue-100', match: 'bg-emerald-100', interest: 'bg-pink-100', new_like: 'bg-pink-100', system: 'bg-amber-100', reminder: 'bg-amber-100', boost: 'bg-purple-100' };
                         const icon = icons[n.type] || '🔔';
                         const bgColor = bgColors[n.type] || 'bg-gray-100';
-                        const link = n.type === 'new_message' ? '/dashboard/messages' : n.type === 'new_match' || n.type === 'match' ? '/dashboard/matches' : n.type === 'interest' || n.type === 'new_like' ? '/dashboard/interests' : '/dashboard';
+                        // Οι νέες ειδοποιήσεις (π.χ. πρόσληψη) κουβαλάνε τον
+                        // προορισμό τους μέσα στο data. Αν δεν έχουν, ισχύει
+                        // ό,τι ίσχυε πάντα.
+                        const dataUrl = (() => {
+                          try {
+                            const d = typeof n.data === 'string' ? JSON.parse(n.data) : n.data;
+                            return typeof d?.url === 'string' && d.url.startsWith('/') ? d.url : null;
+                          } catch { return null; }
+                        })();
+                        const link = dataUrl || (n.type === 'new_message' ? '/dashboard/messages' : n.type === 'new_match' || n.type === 'match' ? '/dashboard/matches' : n.type === 'interest' || n.type === 'new_like' ? '/dashboard/interests' : '/dashboard');
                         const timeAgo = (() => {
                           if (!n.created_at) return '';
                           const mins = Math.floor((Date.now() - new Date(n.created_at).getTime()) / 60000);
@@ -395,7 +404,16 @@ export default function DashboardLayout({
                         const bgColors: Record<string, string> = { new_match: 'bg-emerald-100', new_message: 'bg-blue-100', match: 'bg-emerald-100', interest: 'bg-pink-100', new_like: 'bg-pink-100', system: 'bg-amber-100', reminder: 'bg-amber-100', boost: 'bg-purple-100' };
                         const icon = icons[n.type] || '🔔';
                         const bgColor = bgColors[n.type] || 'bg-gray-100';
-                        const link = n.type === 'new_message' ? '/dashboard/messages' : n.type === 'new_match' || n.type === 'match' ? '/dashboard/matches' : n.type === 'interest' || n.type === 'new_like' ? '/dashboard/interests' : '/dashboard';
+                        // Οι νέες ειδοποιήσεις (π.χ. πρόσληψη) κουβαλάνε τον
+                        // προορισμό τους μέσα στο data. Αν δεν έχουν, ισχύει
+                        // ό,τι ίσχυε πάντα.
+                        const dataUrl = (() => {
+                          try {
+                            const d = typeof n.data === 'string' ? JSON.parse(n.data) : n.data;
+                            return typeof d?.url === 'string' && d.url.startsWith('/') ? d.url : null;
+                          } catch { return null; }
+                        })();
+                        const link = dataUrl || (n.type === 'new_message' ? '/dashboard/messages' : n.type === 'new_match' || n.type === 'match' ? '/dashboard/matches' : n.type === 'interest' || n.type === 'new_like' ? '/dashboard/interests' : '/dashboard');
                         const timeAgo = (() => {
                           if (!n.created_at) return '';
                           const mins = Math.floor((Date.now() - new Date(n.created_at).getTime()) / 60000);

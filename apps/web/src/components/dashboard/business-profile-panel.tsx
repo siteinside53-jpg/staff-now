@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { API_URL } from '@/lib/config';
 import { Spinner } from '@/components/ui/spinner';
 import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
 import { JobPreviewPanel } from './job-preview-panel';
@@ -79,7 +80,9 @@ export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip, 
       try {
         const token = localStorage.getItem('staffnow_token');
         const headers: any = { 'Authorization': `Bearer ${token}` };
-        const base = 'https://staffnow-api-production.siteinside53.workers.dev';
+        // Ίδια διεύθυνση στην παραγωγή (το .env.production δίνει το ίδιο URL),
+        // αλλά τοπικά χτυπάει τον τοπικό server αντί για το ζωντανό.
+        const base = API_URL;
         const bizRes = await fetch(`${base}/businesses/${businessUserId}`, { headers }).then(r => r.json()) as any;
         if (bizRes.success && bizRes.data) {
           setBranch(bizRes.data.profile || bizRes.data);
@@ -147,11 +150,31 @@ export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip, 
             <div className="px-6 pt-16 pb-5 border-b border-gray-100">
               <h1 className="text-2xl font-bold text-gray-900">{b.company_name || 'Επιχείρηση'}</h1>
 
-              {/* Rating */}
-              <div className="mt-2 flex items-center gap-2">
-                <div className="flex text-yellow-400 text-sm">★★★★★</div>
-                <span className="font-bold text-gray-900">4.8</span>
-                <span className="text-sm text-gray-400">· 0 αξιολογήσεις</span>
+              {/*
+                Εδώ έγραφε σταθερά «★★★★★ 4.8 · 0 αξιολογήσεις» για κάθε
+                επιχείρηση — νούμερο βγαλμένο από το πουθενά, δίπλα σε ένα
+                «0 αξιολογήσεις» που το διέψευδε. Τώρα δείχνει την αλήθεια.
+              */}
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {Number(b.rating_count) > 0 && b.rating_avg != null ? (
+                  <>
+                    <span className="text-sm">
+                      <span className="text-yellow-400">{'★'.repeat(Math.round(Number(b.rating_avg)))}</span>
+                      <span className="text-gray-300">{'★'.repeat(Math.max(0, 5 - Math.round(Number(b.rating_avg))))}</span>
+                    </span>
+                    <span className="font-bold text-gray-900">{Number(b.rating_avg).toFixed(1)}</span>
+                    <span className="text-sm text-gray-400">
+                      · {b.rating_count} {Number(b.rating_count) === 1 ? 'αξιολόγηση' : 'αξιολογήσεις'}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-sm text-gray-400">Καμία αξιολόγηση ακόμη</span>
+                )}
+                {Number(b.hire_count) > 0 && (
+                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
+                    ✅ {b.hire_count} {Number(b.hire_count) === 1 ? 'πρόσληψη' : 'προσλήψεις'} μέσω StaffNow
+                  </span>
+                )}
               </div>
 
               {/* Location + Size */}

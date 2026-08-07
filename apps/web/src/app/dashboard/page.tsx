@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { AIHiringChat } from '@/components/dashboard/ai-hiring-chat';
+import { HireActionsCard } from '@/components/dashboard/hire-actions-card';
 
 interface DashboardStats {
   totalMatches: number;
@@ -224,6 +225,13 @@ export default function DashboardPage() {
             : `Βήμα ${completedCount + 1} από ${steps.length} — ${nextStep?.label || ''}`}
         </p>
       </div>
+
+      {/*
+        Προσλήψεις & αξιολογήσεις που περιμένουν. Μπαίνει ΠΑΝΩ από όλα γιατί
+        είναι το μόνο σημείο με ενέργεια που έχει προθεσμία. Κρύβεται μόνο του
+        όταν δεν εκκρεμεί τίποτα.
+      */}
+      {(isWorker || isBusiness) && <HireActionsCard isWorker={isWorker} />}
 
       {/*
         Υπενθύμιση για τους εργαζόμενους που δεν έχουν συμπληρώσει προφίλ.

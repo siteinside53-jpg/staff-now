@@ -11,6 +11,11 @@ import { Spinner } from '@/components/ui/spinner';
 import { EmptyState } from '@/components/ui/empty-state';
 import { WorkerProfilePanel } from '@/components/dashboard/worker-profile-panel';
 import { BusinessProfilePanel } from '@/components/dashboard/business-profile-panel';
+import { RatingModal } from '@/components/dashboard/rating-modal';
+// Η διεύθυνση του server έμπαινε γραμμένη στο χέρι μέσα στη σελίδα, οπότε ακόμη
+// και όταν δοκιμάζαμε τοπικά, οι κλήσεις έφευγαν στον ΖΩΝΤΑΝΟ server. Στην
+// παραγωγή η τιμή είναι ακριβώς η ίδια, άρα δεν αλλάζει τίποτα εκεί.
+import { API_URL } from '@/lib/config';
 
 // Στο κινητό η συνομιλία πιάνει όλη την οθόνη, οπότε η μπάρα γραφής ακουμπά
 // στο κάτω άκρο. Το env(safe-area-inset-bottom) την κρατά πάνω από τη γραμμή
@@ -26,6 +31,148 @@ function ChatMenuItem({ icon, label, onClick, color = 'text-gray-900' }: { icon:
   );
 }
 
+/**
+ * Η κάρτα της πρόσληψης μέσα στη συνομιλία — δείχνει σε ποιο από τα 4 βήματα
+ * βρισκόμαστε και τι μπορεί να πατήσει ο καθένας:
+ *
+ *   pending   → ο εργαζόμενος απαντάει «Ναι, ξεκίνησα» ή «Όχι»
+ *   confirmed → η επιχείρηση βλέπει «1 από 3» και κλείνει την αγγελία
+ *   declined  → μένει ως ιστορικό, χωρίς κουμπιά
+ */
+function HireCard({
+  hire, isWorker, busy, onAnswer, onCloseJob, onRate, timeStr,
+}: {
+  hire: any;
+  isWorker: boolean;
+  busy: string | null;
+  onAnswer: (id: string, answer: 'confirm' | 'decline') => void;
+  onCloseJob: (jobId: string) => void;
+  onRate: (hire: any) => void;
+  timeStr: string;
+}) {
+  const shell = 'w-full max-w-sm rounded-2xl border px-4 py-3 shadow-sm';
+
+  if (!hire) {
+    return (
+      <div className={`${shell} border-gray-200 bg-white text-center text-sm text-gray-400`}>
+        🤝 Δήλωση πρόσληψης
+      </div>
+    );
+  }
+
+  const jobLine = hire.job_title ? ` για «${hire.job_title}»` : '';
+  /*
+    Δύο εκδοχές γιατί το όνομα μπαίνει άλλοτε ως υποκείμενο («Ο Γιάννης
+    επιβεβαίωσε») κι άλλοτε ως αντικείμενο («προσέλαβες τον Γιάννη»). Όταν το
+    προφίλ δεν έχει όνομα, χωρίς αυτό βγαίνει «προσέλαβες Ο/Η εργαζόμενος/η».
+  */
+  const who = isWorker ? (hire.business_name || 'Η επιχείρηση') : (hire.worker_name || 'Ο/Η εργαζόμενος/η');
+  const whoAcc = isWorker ? (hire.business_name || 'την επιχείρηση') : (hire.worker_name || 'τον/την εργαζόμενο/η');
+  const working = busy === hire.id || busy === hire.job_id;
+
+  if (hire.status === 'pending') {
+    return (
+      <div className={`${shell} border-emerald-200 bg-emerald-50`}>
+        <p className="text-sm font-semibold text-emerald-900">🤝 Δήλωση πρόσληψης</p>
+        {isWorker ? (
+          <>
+            <p className="mt-1 text-sm text-emerald-800">
+              {who} δηλώνει ότι σε προσέλαβε{jobLine}. Επιβεβαίωσε για να μετρήσει.
+            </p>
+            <div className="mt-3 flex gap-2">
+              <button
+                disabled={working}
+                onClick={() => onAnswer(hire.id, 'confirm')}
+                className="flex-1 rounded-xl bg-emerald-600 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                Ναι, ξεκίνησα
+              </button>
+              <button
+                disabled={working}
+                onClick={() => onAnswer(hire.id, 'decline')}
+                className="flex-1 rounded-xl border border-emerald-300 bg-white py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-50"
+              >
+                Όχι
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="mt-1 text-sm text-emerald-800">
+            Δήλωσες ότι προσέλαβες {whoAcc}{jobLine}. Περιμένουμε την επιβεβαίωσή του/της.
+          </p>
+        )}
+        {timeStr && <p className="mt-2 text-right text-[10px] text-emerald-600">{timeStr}</p>}
+      </div>
+    );
+  }
+
+  if (hire.status === 'confirmed') {
+    const target = Number(hire.job_target) || 1;
+    const done = Number(hire.job_confirmed) || 0;
+    const isFilled = hire.job_status === 'filled';
+    const ratingOpen = Boolean(hire.rating_opens_at) && Date.now() >= Date.parse(hire.rating_opens_at);
+    const iRated = Number(hire.i_rated) > 0;
+    return (
+      <div className={`${shell} border-emerald-300 bg-emerald-50`}>
+        <p className="text-sm font-semibold text-emerald-900">✅ Η πρόσληψη επιβεβαιώθηκε</p>
+        <p className="mt-1 text-sm text-emerald-800">
+          {/*
+            «στην επιχείρηση <όνομα>» και όχι «στη <όνομα>»: το άρθρο δεν μπορεί
+            να μαντέψει το γένος της επωνυμίας («στη Ουζερί Το Στέκι» = λάθος).
+          */}
+          {isWorker ? `Ξεκίνησες στην επιχείρηση ${who}${jobLine}.` : `${who} επιβεβαίωσε${jobLine}.`}
+        </p>
+        {!isWorker && hire.job_id && (
+          <>
+            <p className="mt-2 text-sm font-medium text-emerald-900">
+              Καλύφθηκαν {done} από {target} {target === 1 ? 'θέση' : 'θέσεις'}.
+            </p>
+            {isFilled ? (
+              <p className="mt-1 text-xs text-emerald-700">Η αγγελία είναι κλειστή («Καλύφθηκε»).</p>
+            ) : (
+              <button
+                disabled={working}
+                onClick={() => onCloseJob(hire.job_id)}
+                className="mt-2 w-full rounded-xl bg-emerald-600 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {done >= target ? 'Κλείσε την αγγελία' : 'Κλείσε την αγγελία τώρα'}
+              </button>
+            )}
+          </>
+        )}
+        {/*
+          Βήμα 4. Το κουμπί εμφανίζεται μόνο όταν έχει ανοίξει η αξιολόγηση
+          (15 μέρες). Ο server ξαναελέγχει την ημερομηνία — η οθόνη δεν αρκεί.
+        */}
+        {ratingOpen ? (
+          <button
+            onClick={() => onRate(hire)}
+            className="mt-3 w-full rounded-xl border border-amber-300 bg-amber-50 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100"
+          >
+            {iRated ? '⭐ Δες τις αξιολογήσεις' : '⭐ Γράψε αξιολόγηση'}
+          </button>
+        ) : (
+          <p className="mt-2 text-xs text-emerald-700">
+            Σε 15 μέρες θα μπορείτε να αξιολογήσετε ο ένας τον άλλον.
+          </p>
+        )}
+        {timeStr && <p className="mt-1 text-right text-[10px] text-emerald-600">{timeStr}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${shell} border-gray-200 bg-white text-center`}>
+      <p className="text-sm text-gray-500">
+        {hire.status === 'declined'
+          ? 'Η πρόσληψη δεν επιβεβαιώθηκε — η αγγελία μένει ανοιχτή.'
+          : 'Η δήλωση πρόσληψης ακυρώθηκε.'}
+      </p>
+      {timeStr && <p className="mt-1 text-[10px] text-gray-400">{timeStr}</p>}
+    </div>
+  );
+}
+
 /** Στρογγυλή φωτογραφία με αρχικό γράμμα ως εφεδρεία, ίδια με τα Matches. */
 function Avatar({ name, src, className = '' }: { name: string; src?: string | null; className?: string }) {
   return (
@@ -38,8 +185,12 @@ function Avatar({ name, src, className = '' }: { name: string; src?: string | nu
 }
 
 // Format message content for display (strip markdown links)
+/** Πρόθεμα του μηνύματος-κάρτας της πρόσληψης, ίδιο μοτίβο με το «📹». */
+const HIRE_PREFIX = '🤝 Πρόσληψη:';
+
 function formatMessagePreview(content: string | undefined): string {
   if (!content) return '';
+  if (content.startsWith(HIRE_PREFIX)) return '🤝 Δήλωση πρόσληψης';
   if (content.startsWith('📹')) return '📹 Video κλήση';
   if (content.startsWith('📷')) return '📷 Φωτογραφία';
   if (content.startsWith('📎')) {
@@ -52,7 +203,10 @@ function formatMessagePreview(content: string | undefined): string {
 function MessagesInner() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
-  const convId = searchParams.get('id');
+  // Δύο ονόματα για την ίδια παράμετρο: οι παλιοί σύνδεσμοι στέλνουν `?id=`,
+  // οι ειδοποιήσεις των προσλήψεων στέλνουν `?c=`. Χωρίς το `c` η σελίδα άνοιγε
+  // στη λίστα και η συνομιλία έμενε κλειστή.
+  const convId = searchParams.get('id') || searchParams.get('c');
   const [conversations, setConversations] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
   const [selectedConv, setSelectedConv] = useState<string | null>(convId);
@@ -73,6 +227,12 @@ function MessagesInner() {
   const dismissedCallRef = useRef<string | null>(null);
   const [viewWorkerProfile, setViewWorkerProfile] = useState<string | null>(null);
   const [viewBusinessProfile, setViewBusinessProfile] = useState<string | null>(null);
+  // Οι προσλήψεις αυτής της συνομιλίας, με κλειδί το id — τις διαβάζει η κάρτα
+  // μέσα στο chat για να ξέρει σε ποιο από τα 4 βήματα βρισκόμαστε.
+  const [hires, setHires] = useState<Record<string, any>>({});
+  const [hireBusy, setHireBusy] = useState<string | null>(null);
+  // Ποια πρόσληψη αξιολογούμε αυτή τη στιγμή (Βήμα 4).
+  const [ratingHire, setRatingHire] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -124,7 +284,7 @@ function MessagesInner() {
         // Mark conversation as read
         try {
           const token = localStorage.getItem('staffnow_token');
-          await fetch(`https://staffnow-api-production.siteinside53.workers.dev/conversations/${selectedConv}`, {
+          await fetch(`${API_URL}/conversations/${selectedConv}`, {
             method: 'PATCH',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
           });
@@ -136,6 +296,41 @@ function MessagesInner() {
     }
     loadMsgs();
   }, [selectedConv]);
+
+  // Οι προσλήψεις της ανοιχτής συνομιλίας. Ξαναδιαβάζονται μετά από κάθε
+  // ενέργεια, ώστε η κάρτα να δείχνει πάντα το σωστό βήμα.
+  const refreshHires = useCallback(async () => {
+    if (!selectedConv) return;
+    try {
+      const res = (await api.hires.list({ conversation_id: selectedConv })) as any;
+      const list: any[] = res?.data?.hires || [];
+      setHires(Object.fromEntries(list.map((h) => [h.id, h])));
+    } catch {}
+  }, [selectedConv]);
+
+  useEffect(() => {
+    setHires({});
+    refreshHires();
+  }, [selectedConv, refreshHires]);
+
+  // Αν έφτασε μήνυμα-κάρτα πρόσληψης που δεν το ξέρουμε ακόμη (π.χ. μόλις το
+  // έστειλε η άλλη πλευρά), ξαναδιαβάζουμε — αλλιώς η κάρτα μένει άδεια.
+  // Το `triedHiresRef` κρατάει ποια id έχουμε ήδη ζητήσει, ώστε αν κάποιο δεν
+  // επιστρέψει ποτέ να ΜΗΝ ξαναρωτάμε τον server ασταμάτητα.
+  const triedHiresRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    triedHiresRef.current = new Set();
+  }, [selectedConv]);
+  useEffect(() => {
+    const missing = messages.some((m: any) => {
+      if (!m.content?.startsWith(HIRE_PREFIX)) return false;
+      const id = m.content.slice(HIRE_PREFIX.length).trim();
+      if (hires[id] || triedHiresRef.current.has(id)) return false;
+      triedHiresRef.current.add(id);
+      return true;
+    });
+    if (missing) refreshHires();
+  }, [messages, hires, refreshHires]);
 
   // Poll for new messages + detect incoming calls.
   // Μένει στα 5 δευτ. — εδώ χρειάζεται η ταχύτητα. Το κέρδος έρχεται από την
@@ -261,7 +456,7 @@ function MessagesInner() {
         formData.append('file', file);
         formData.append('category', 'chat');
         const token = localStorage.getItem('staffnow_token');
-        const uploadRes = await fetch('https://staffnow-api-production.siteinside53.workers.dev/uploads', {
+        const uploadRes = await fetch(`${API_URL}/uploads`, {
           method: 'POST', headers: token ? { 'Authorization': `Bearer ${token}` } : {}, body: formData,
         });
         const uploadData = await uploadRes.json() as any;
@@ -316,7 +511,7 @@ function MessagesInner() {
     if (!selectedConv) return;
     try {
       const token = localStorage.getItem('staffnow_token');
-      const res = await fetch(`https://staffnow-api-production.siteinside53.workers.dev/conversations/${selectedConv}/messages/${msgId}`, {
+      const res = await fetch(`${API_URL}/conversations/${selectedConv}/messages/${msgId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ forAll }),
@@ -336,7 +531,7 @@ function MessagesInner() {
   // Conversation actions
   const convAction = async (convId: string, action: 'archive' | 'restore' | 'delete' | 'block' | 'report' | 'clear_messages', reportDesc?: string) => {
     const token = localStorage.getItem('staffnow_token');
-    const base = 'https://staffnow-api-production.siteinside53.workers.dev';
+    const base = API_URL;
     const headers: any = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
     try {
       let res;
@@ -376,6 +571,64 @@ function MessagesInner() {
     } catch { toast.error('Σφάλμα σύνδεσης'); }
     setConvMenuId(null);
     setReportModal(null);
+  };
+
+  // ── Πρόσληψη σε 4 βήματα ────────────────────────────────────────────────
+  // Βήμα 1: η επιχείρηση δηλώνει. Στέλνει και το μήνυμα-κάρτα στη συνομιλία.
+  const declareHire = async () => {
+    if (!selectedConv || hireBusy) return;
+    setHireBusy('new');
+    try {
+      const res = (await api.hires.create({ conversationId: selectedConv })) as any;
+      if (res?.data?.hire) {
+        toast.success('Δηλώθηκε. Περιμένουμε την επιβεβαίωσή του/της.');
+        await refreshHires();
+        const r = (await api.conversations.getMessages(selectedConv)) as any;
+        const msgs = r?.data || [];
+        setMessages(Array.isArray(msgs) ? [...msgs].reverse() : []);
+      } else {
+        toast.error(res?.error?.message || 'Δεν έγινε η δήλωση');
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Σφάλμα σύνδεσης');
+    }
+    setHireBusy(null);
+  };
+
+  // Βήμα 2: ο εργαζόμενος απαντάει. Χωρίς αυτό δεν μετράει τίποτα.
+  const answerHire = async (hireId: string, answer: 'confirm' | 'decline') => {
+    if (hireBusy) return;
+    setHireBusy(hireId);
+    try {
+      const res = (await (answer === 'confirm' ? api.hires.confirm(hireId) : api.hires.decline(hireId))) as any;
+      if (res?.data?.hire) {
+        toast.success(answer === 'confirm' ? 'Επιβεβαιώθηκε!' : 'Καταγράφηκε');
+        await refreshHires();
+      } else {
+        toast.error(res?.error?.message || 'Σφάλμα');
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Σφάλμα σύνδεσης');
+    }
+    setHireBusy(null);
+  };
+
+  // Βήμα 3: η επιχείρηση κλείνει την αγγελία όταν καλυφθούν οι θέσεις.
+  const closeJob = async (jobId: string) => {
+    if (hireBusy) return;
+    setHireBusy(jobId);
+    try {
+      const res = (await api.jobs.fill(jobId)) as any;
+      if (res?.data?.filled) {
+        toast.success('Η αγγελία έκλεισε — δεν θα δέχεσαι άλλα μηνύματα για αυτή.');
+        await refreshHires();
+      } else {
+        toast.error(res?.error?.message || 'Σφάλμα');
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Σφάλμα σύνδεσης');
+    }
+    setHireBusy(null);
   };
 
   if (loading) return <div className="flex justify-center py-20"><Spinner className="h-8 w-8" /></div>;
@@ -668,7 +921,26 @@ function MessagesInner() {
                       const timeStr = msgDate && !isNaN(msgDate.getTime()) ? msgDate.toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit' }) : '';
                       const isFailed = m.status === 'failed';
                       const isSending = m.status === 'sending';
-                      const isText = !(m.content?.startsWith('📹') || (m.content?.startsWith('📷') && m.content.includes('](')) || (m.content?.startsWith('📎') && m.content.includes('](')));
+                      const isHire = m.content?.startsWith(HIRE_PREFIX);
+                      const isText = !(isHire || m.content?.startsWith('📹') || (m.content?.startsWith('📷') && m.content.includes('](')) || (m.content?.startsWith('📎') && m.content.includes('](')));
+
+                      // Η κάρτα της πρόσληψης πιάνει όλο το πλάτος — έχει κουμπιά
+                      // και κείμενο, δεν χωράει σε φούσκα 75%.
+                      if (isHire) {
+                        return (
+                          <div key={m.id} className="flex justify-center">
+                            <HireCard
+                              hire={hires[m.content.slice(HIRE_PREFIX.length).trim()]}
+                              isWorker={user?.role === 'worker'}
+                              busy={hireBusy}
+                              onAnswer={answerHire}
+                              onCloseJob={closeJob}
+                              onRate={setRatingHire}
+                              timeStr={timeStr}
+                            />
+                          </div>
+                        );
+                      }
 
                       return (
                         <div key={m.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
@@ -862,6 +1134,15 @@ function MessagesInner() {
                     <div className="relative z-10 w-full space-y-1 rounded-t-3xl bg-white p-4" onClick={(e) => e.stopPropagation()} style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}>
                       <div className="mb-2 flex justify-center"><div className="h-1.5 w-10 rounded-full bg-gray-300" /></div>
                       <ChatMenuItem icon="👤" label="Προβολή προφίλ" onClick={() => { setShowChatMenu(false); openOtherProfile(); }} />
+                      {/* Βήμα 1 της πρόσληψης — μόνο η επιχείρηση τη δηλώνει. */}
+                      {user?.role === 'business' && (
+                        <ChatMenuItem
+                          icon="🤝"
+                          label="Τον/την προσέλαβα"
+                          color="text-emerald-700"
+                          onClick={() => { setShowChatMenu(false); declareHire(); }}
+                        />
+                      )}
                       {activeConv?.matchStatus === 'archived' ? (
                         <ChatMenuItem icon="↩️" label="Επαναφορά" color="text-emerald-700" onClick={() => { setShowChatMenu(false); convAction(selectedConv!, 'restore'); }} />
                       ) : (
@@ -922,6 +1203,17 @@ function MessagesInner() {
       )}
       {viewBusinessProfile && (
         <BusinessProfilePanel businessUserId={viewBusinessProfile} onClose={() => setViewBusinessProfile(null)} />
+      )}
+      {ratingHire && (
+        <RatingModal
+          hireId={ratingHire.id}
+          isWorker={user?.role === 'worker'}
+          otherName={
+            (user?.role === 'worker' ? ratingHire.business_name : ratingHire.worker_name) || 'τον/την συνεργάτη'
+          }
+          onClose={() => setRatingHire(null)}
+          onSaved={refreshHires}
+        />
       )}
     </div>
   );

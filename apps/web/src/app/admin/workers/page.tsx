@@ -98,13 +98,18 @@ export default function WorkersPage() {
     {
       key: 'rating',
       header: 'Rating',
-      cell: () => (
-        <span className="flex items-center gap-1 text-xs">
-          <span className="text-yellow-400">★</span>
-          <span className="font-bold text-gray-900">4.8</span>
-          <span className="text-gray-400">(23)</span>
-        </span>
-      ),
+      // Έδειχνε «★ 4.8 (23)» σε κάθε γραμμή — ίδιο νούμερο για όλους, χωρίς
+      // καμία αξιολόγηση από πίσω. Παύλα όσο δεν υπάρχει αληθινή βαθμολογία.
+      cell: (w: any) =>
+        Number(w?.rating_count) > 0 && w?.rating_avg != null ? (
+          <span className="flex items-center gap-1 text-xs">
+            <span className="text-yellow-400">★</span>
+            <span className="font-bold text-gray-900">{Number(w.rating_avg).toFixed(1)}</span>
+            <span className="text-gray-400">({w.rating_count})</span>
+          </span>
+        ) : (
+          <span className="text-xs text-gray-400">—</span>
+        ),
       className: 'hidden md:table-cell',
     },
     {

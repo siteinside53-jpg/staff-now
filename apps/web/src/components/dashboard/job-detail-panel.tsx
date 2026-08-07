@@ -145,11 +145,21 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
                   </span>
                 )}
               </div>
-              {b.verified === 1 && (
+              {/*
+                Εδώ έδειχνε «★★★★★ 4.8 · 0 αξιολογήσεις» σε κάθε πιστοποιημένη
+                επιχείρηση — σταθερό νούμερο, χωρίς καμία αξιολόγηση από πίσω.
+                Δείχνουμε αστέρια μόνο όταν υπάρχουν αληθινές αξιολογήσεις.
+              */}
+              {Number((b as any).rating_count) > 0 && (b as any).rating_avg != null && (
                 <div className="mt-2 flex items-center gap-2">
-                  <div className="flex text-yellow-400 text-sm">★★★★★</div>
-                  <span className="font-bold text-gray-900 text-sm">4.8</span>
-                  <span className="text-xs text-gray-400">· 0 αξιολογήσεις</span>
+                  <span className="text-sm">
+                    <span className="text-yellow-400">{'★'.repeat(Math.round(Number((b as any).rating_avg)))}</span>
+                    <span className="text-gray-300">{'★'.repeat(Math.max(0, 5 - Math.round(Number((b as any).rating_avg))))}</span>
+                  </span>
+                  <span className="text-sm font-bold text-gray-900">{Number((b as any).rating_avg).toFixed(1)}</span>
+                  <span className="text-xs text-gray-400">
+                    · {(b as any).rating_count} {Number((b as any).rating_count) === 1 ? 'αξιολόγηση' : 'αξιολογήσεις'}
+                  </span>
                 </div>
               )}
             </div>

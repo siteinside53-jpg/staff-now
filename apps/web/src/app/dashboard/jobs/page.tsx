@@ -215,6 +215,15 @@ export default function JobsPage() {
         requires_communication_skills: form.requiresCommunicationSkills,
         languages: form.languages.length > 0 ? form.languages : undefined,
         roles: positions.map((p) => p.role).filter(Boolean),
+        // Πόσα άτομα ζητάει συνολικά η αγγελία — το γράφει ήδη ο χρήστης στο
+        // πεδίο «Άτομα» κάθε ειδικότητας, αλλά μέχρι τώρα πεταγόταν και δεν
+        // έφτανε ποτέ στον server. Χωρίς αυτό δεν ξέρουμε πότε καλύφθηκε.
+        positions: Math.max(
+          1,
+          positions
+            .filter((p) => p.role)
+            .reduce((sum, p) => sum + (Number(p.positions_count) || 1), 0),
+        ),
         branch_id: form.branchId || undefined,
       });
       toast.success('Η αγγελία δημοσιεύτηκε!');
@@ -240,12 +249,34 @@ export default function JobsPage() {
   if (loading) return <div className="flex justify-center py-20"><Spinner className="h-8 w-8" /></div>;
 
   const empLabels: Record<string, string> = { full_time: 'Πλήρης', part_time: 'Μερική', seasonal: 'Εποχιακή' };
-  const statusLabels: Record<string, string> = { draft: 'Πρόχειρη', published: 'Ενεργή', paused: 'Σε παύση', archived: 'Αρχείο', filled: 'Πληρώθηκε' };
+  // Το «filled» έλεγε «Πληρώθηκε», που διαβάζεται σαν «πήρε λεφτά».
+  // Σημαίνει ότι γέμισε η θέση — «Καλύφθηκε».
+  const statusLabels: Record<string, string> = { draft: 'Πρόχειρη', published: 'Ενεργή', paused: 'Σε παύση', archived: 'Αρχείο', filled: 'Καλύφθηκε' };
+
+  // Πόσα άτομα ζητάει η αγγελία: η έκτακτη βάρδια το κρατάει στο shift_positions,
+  // η κανονική αγγελία στο positions. Ποτέ κάτω από 1.
+  const hireTarget = (job: any) =>
+    Math.max(1, Number(job.listing_kind === 'shift' ? job.shift_positions : job.positions) || 1);
 
   const handlePauseResume = async (jobId: string, currentStatus: string) => {
     try {
       if (currentStatus === 'published') { await api.jobs.pause(jobId); toast.success('Η αγγελία τέθηκε σε παύση'); }
       else if (currentStatus === 'paused') { await api.jobs.resume(jobId); toast.success('Η αγγελία ενεργοποιήθηκε ξανά!'); }
+      await fetchData();
+    } catch { toast.error('Σφάλμα ενημέρωσης'); }
+  };
+
+  // Βήμα 3 — η επιχείρηση κλείνει ή ξανανοίγει τη θέση. Καμία μονόδρομη πόρτα.
+  const handleFillToggle = async (jobId: string, currentStatus: string) => {
+    try {
+      if (currentStatus === 'filled') {
+        await (api.jobs as any).reopen(jobId);
+        toast.success('Η αγγελία άνοιξε ξανά');
+      } else {
+        if (!confirm('Να κλείσει η αγγελία; Θα σταματήσει να εμφανίζεται στους εργαζόμενους. Μπορείς να την ξανανοίξεις όποτε θες.')) return;
+        await (api.jobs as any).fill(jobId);
+        toast.success('Η αγγελία έκλεισε — «Καλύφθηκε»');
+      }
       await fetchData();
     } catch { toast.error('Σφάλμα ενημέρωσης'); }
   };
@@ -549,7 +580,10 @@ export default function JobsPage() {
       ) : !showForm && (
         <div className="space-y-4">
           {jobs.map((job: any) => (
-            <Card key={job.id} className={`transition-shadow ${job.status === 'paused' ? 'opacity-75 border-orange-200' : 'hover:shadow-md'}`}>
+            <Card key={job.id} className={`transition-shadow ${
+              job.status === 'paused' ? 'opacity-75 border-orange-200' :
+              job.status === 'filled' ? 'border-blue-200 bg-blue-50/40' : 'hover:shadow-md'
+            }`}>
               <CardContent className="p-5">
                 {/*
                   Στο κινητό ο τίτλος και τα κουμπιά δεν χωράνε στην ίδια σειρά
@@ -562,7 +596,8 @@ export default function JobsPage() {
                       <span className={`flex-shrink-0 h-3 w-3 rounded-full ${
                         job.status === 'published' ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' :
                         job.status === 'paused' ? 'bg-red-500 shadow-sm shadow-red-500/50' :
-                        job.status === 'archived' ? 'bg-gray-400' : 'bg-yellow-400'
+                        job.status === 'archived' ? 'bg-gray-400' :
+                        job.status === 'filled' ? 'bg-blue-500 shadow-sm shadow-blue-500/50' : 'bg-yellow-400'
                       }`} title={statusLabels[job.status] || job.status} />
                       <h3 className="text-lg font-semibold text-gray-900">{job.title}</h3>
                       {job.listing_kind === 'shift' && (
@@ -571,10 +606,29 @@ export default function JobsPage() {
                         </span>
                       )}
                       <Badge variant={job.status === 'published' ? 'default' : 'secondary'} className={
-                        job.status === 'paused' ? 'bg-red-100 text-red-700 border-red-200' : ''
+                        job.status === 'paused' ? 'bg-red-100 text-red-700 border-red-200' :
+                        job.status === 'filled' ? 'bg-blue-100 text-blue-700 border-blue-200' : ''
                       }>
-                        {statusLabels[job.status] || job.status}
+                        {job.status === 'filled' ? '✅ ' : ''}{statusLabels[job.status] || job.status}
                       </Badge>
+                      {/*
+                        Βήμα 3: πόσες θέσεις καλύφθηκαν. Μετράνε ΜΟΝΟ οι προσλήψεις
+                        που επιβεβαίωσε και ο εργαζόμενος — δεν πλαστογραφείται.
+                        Το κρύβουμε όσο δεν έχει γίνει καμία πρόσληψη σε αγγελία
+                        ενός ατόμου, για να μη γεμίσει η κάρτα με μηδενικά.
+                      */}
+                      {((Number(job.hires_confirmed) || 0) > 0 || hireTarget(job) > 1) && (
+                        <span
+                          title="Επιβεβαιωμένες προσλήψεις μέσω StaffNow"
+                          className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                            (Number(job.hires_confirmed) || 0) >= hireTarget(job)
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                              : 'border-gray-200 bg-gray-50 text-gray-600'
+                          }`}
+                        >
+                          🤝 Προσλήψεις {Number(job.hires_confirmed) || 0}/{hireTarget(job)}
+                        </span>
+                      )}
                     </div>
                     <p className="mt-1 text-sm text-gray-500 line-clamp-2">{job.description}</p>
                     <div className="mt-2 flex flex-wrap gap-3 text-sm text-gray-400">
@@ -620,6 +674,21 @@ export default function JobsPage() {
                         className="rounded-lg border border-amber-300 bg-amber-50 px-2 py-1.5 hover:bg-amber-100 text-amber-700 transition-colors text-xs font-bold flex items-center gap-1"
                       >
                         🚀 Boost
+                      </button>
+                    )}
+                    {/* Βήμα 3 — «Καλύφθηκε» / επαναφορά. Πάντα αντιστρέψιμο. */}
+                    {(job.status === 'published' || job.status === 'paused') && (
+                      <button onClick={() => handleFillToggle(job.id, job.status)}
+                        title="Καλύφθηκε — κλείσε την αγγελία"
+                        className="rounded-lg border border-blue-200 p-2 text-blue-500 transition-colors hover:bg-blue-50 hover:text-blue-700">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                      </button>
+                    )}
+                    {job.status === 'filled' && (
+                      <button onClick={() => handleFillToggle(job.id, job.status)}
+                        title="Άνοιξέ την ξανά"
+                        className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-100">
+                        ↩ Άνοιγμα
                       </button>
                     )}
                     <button onClick={() => setPreviewJobId(job.id)} title="Προεπισκόπηση" className="rounded-lg border border-gray-200 p-2 hover:bg-gray-50 text-gray-400 hover:text-emerald-600 transition-colors">

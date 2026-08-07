@@ -244,11 +244,36 @@ export function BusinessProfile({ user, profile, refreshUser }: { user: any; pro
         {/* Header */}
         <div className="px-6 pt-16 pb-5 border-b border-gray-100 rounded-b-none bg-white">
           <h1 className="text-2xl font-bold text-gray-900">{b.name || 'Επιχείρηση'}</h1>
-          <div className="mt-1 flex items-center gap-2">
-            <div className="flex text-yellow-400 text-sm">★★★★★</div>
-            <span className="font-bold text-gray-900 text-sm">4.8</span>
-            <span className="text-sm text-gray-400">· 0 αξιολογήσεις</span>
-          </div>
+          {/* Αστέρια μόνο όταν υπάρχουν αληθινές αξιολογήσεις — όχι σταθερό «4.8». */}
+          {(() => {
+            const rep = b as unknown as { rating_avg?: number | null; rating_count?: number; hire_count?: number };
+            const count = Number(rep.rating_count) || 0;
+            const avg = rep.rating_avg == null ? null : Number(rep.rating_avg);
+            const hires = Number(rep.hire_count) || 0;
+            return (
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                {count > 0 && avg != null ? (
+                  <>
+                    <span className="text-sm">
+                      <span className="text-yellow-400">{'★'.repeat(Math.round(avg))}</span>
+                      <span className="text-gray-300">{'★'.repeat(Math.max(0, 5 - Math.round(avg)))}</span>
+                    </span>
+                    <span className="text-sm font-bold text-gray-900">{avg.toFixed(1)}</span>
+                    <span className="text-sm text-gray-400">
+                      · {count} {count === 1 ? 'αξιολόγηση' : 'αξιολογήσεις'}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-sm text-gray-400">Καμία αξιολόγηση ακόμη</span>
+                )}
+                {hires > 0 && (
+                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
+                    ✅ {hires} {hires === 1 ? 'πρόσληψη' : 'προσλήψεις'} μέσω StaffNow
+                  </span>
+                )}
+              </div>
+            );
+          })()}
           <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-gray-500">
             {(b.city || b.region) && (
               <span className="flex items-center gap-1.5">

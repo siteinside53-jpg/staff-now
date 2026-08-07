@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { Spinner } from '@/components/ui/spinner';
 import { PremiumTick } from '@/components/ui/premium-tick';
+import { RatingCard } from '@/components/dashboard/rating-card';
 import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
 
 interface Props {
@@ -321,33 +322,23 @@ export function WorkerProfilePanel({ workerId, onClose, onLike, onSkip, totalCar
             ) : null}
 
             {/* ====== RATING CARD ====== */}
+            {/*
+              Μέχρι τώρα εδώ ήταν γραμμένα στο χέρι «4.8» και «23 αξιολογήσεις»
+              για ΚΑΘΕ εργαζόμενο. Ήταν ψέμα. Τώρα δείχνει μόνο ό,τι υπάρχει
+              πραγματικά: αξιολογήσεις από επιβεβαιωμένες προσλήψεις.
+            */}
             <div className="px-6 py-5 border-b border-gray-100">
-              <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <div className="text-yellow-400 text-lg">★★★★★</div>
-                      <span className="text-2xl font-bold text-gray-900">4.8</span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5">23 αξιολογήσεις</p>
-                  </div>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">
-                    <span className="text-xl">🏆</span>
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-3 text-center">
-                  {[
-                    { label: 'Επαγγ.', score: 4.9 },
-                    { label: 'Συνέπεια', score: 4.8 },
-                    { label: 'Επικοιν.', score: 4.7 },
-                  ].map((r) => (
-                    <div key={r.label}>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">{r.label}</p>
-                      <p className="text-base font-bold text-gray-900 mt-0.5">{r.score}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <RatingCard
+                ratingAvg={p.rating_avg}
+                ratingCount={Number(p.rating_count) || 0}
+                hireCount={Number(p.hire_count) || 0}
+                scores={[
+                  { label: 'Επαγγ.', value: p.score_a_avg },
+                  { label: 'Συνέπεια', value: p.score_b_avg },
+                  { label: 'Επικοιν.', value: p.score_c_avg },
+                ]}
+                hireLabel={(n) => `Προσλήφθηκε ${n} ${n === 1 ? 'φορά' : 'φορές'} μέσω StaffNow`}
+              />
             </div>
 
             {/* ====== LANGUAGES ====== */}
