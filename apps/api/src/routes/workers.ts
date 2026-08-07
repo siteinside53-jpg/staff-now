@@ -10,6 +10,7 @@ import { openaiChat } from '../lib/openai';
 import { generateId } from '../lib/id';
 import { recordActivity, getRequestIp, getGeoFromRequest, recordDataChange, computeDiff } from '../lib/activity';
 import { notifyUser } from '../lib/notify';
+import { getReputation } from '../lib/reputation';
 
 const workers = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
 
@@ -788,6 +789,11 @@ workers.get('/:id', requireAuth, async (c) => {
     .first<{ total: number; today: number }>();
   p.views_total = viewsRow?.total ?? 0;
   p.views_today = viewsRow?.today ?? 0;
+
+  // Αληθινή φήμη, από τις επιβεβαιωμένες προσλήψεις. Αν είναι 0, η κάρτα γράφει
+  // «Καμία αξιολόγηση ακόμη» — τα παλιά «4.8 / 23 αξιολογήσεις» ήταν γραμμένα
+  // στο χέρι και δεν αντιστοιχούσαν σε τίποτα.
+  Object.assign(p, await getReputation(db, workerId, 'worker'));
 
   return success(c, {
     profile: p,

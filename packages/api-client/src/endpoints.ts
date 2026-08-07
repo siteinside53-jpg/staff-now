@@ -73,6 +73,10 @@ export class StaffNowApi {
     pause: (id: string) => this.client.post<any>(`/jobs/${id}/pause`),
     resume: (id: string) => this.client.post<any>(`/jobs/${id}/resume`),
     archive: (id: string) => this.client.post<any>(`/jobs/${id}/archive`),
+    /** «Καλύφθηκε» — η θέση γέμισε και βγαίνει από την Εύρεση. */
+    fill: (id: string) => this.client.post<any>(`/jobs/${id}/fill`),
+    /** Ξανανοίγει καλυμμένη αγγελία. */
+    reopen: (id: string) => this.client.post<any>(`/jobs/${id}/reopen`),
     boost: (id: string) => this.client.post<any>(`/jobs/${id}/boost`),
     delete: (id: string) => this.client.delete<any>(`/jobs/${id}`),
     like: (id: string) => this.client.post<any>(`/jobs/${id}/like`),
@@ -80,6 +84,33 @@ export class StaffNowApi {
     favorite: (id: string) => this.client.post<any>(`/jobs/${id}/favorite`),
     unfavorite: (id: string) => this.client.delete<any>(`/jobs/${id}/favorite`),
     favorites: () => this.client.get<any>('/jobs/favorites/list'),
+  };
+
+  /**
+   * Πρόσληψη σε 4 βήματα:
+   * 1) η επιχείρηση δηλώνει (`create`), 2) ο εργαζόμενος επιβεβαιώνει
+   * (`confirm`), 3) κλείνει η αγγελία, 4) μετά από 15 μέρες αξιολογούν και οι
+   * δύο (`rate`) — ο καθένας βλέπει την αξιολόγηση του άλλου μόνο αφού γράψει
+   * τη δική του (το ελέγχει ο server, όχι η οθόνη).
+   */
+  hires = {
+    list: (params?: Params) => this.client.get<any>('/hires', params),
+    create: (body: { conversationId: string; jobId?: string }) =>
+      this.client.post<any>('/hires', body),
+    confirm: (id: string) => this.client.post<any>(`/hires/${id}/confirm`),
+    decline: (id: string) => this.client.post<any>(`/hires/${id}/decline`),
+    cancel: (id: string) => this.client.delete<any>(`/hires/${id}`),
+    getRating: (id: string) => this.client.get<any>(`/hires/${id}/rating`),
+    rate: (
+      id: string,
+      body: {
+        overall: number;
+        score_a?: number;
+        score_b?: number;
+        score_c?: number;
+        comment?: string;
+      },
+    ) => this.client.post<any>(`/hires/${id}/rating`, body),
   };
 
   matches = {

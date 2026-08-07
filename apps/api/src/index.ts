@@ -19,6 +19,7 @@ import interestRoutes from './routes/interests';
 import aiRoutes from './routes/ai';
 import creditRoutes from './routes/credits';
 import pushRoutes from './routes/push';
+import hireRoutes from './routes/hires';
 import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
 import { errorHandler } from './middleware/error-handler';
 import { globalRateLimiter } from './middleware/rate-limiter';
@@ -88,6 +89,7 @@ app.route('/interests', interestRoutes);
 app.route('/ai', aiRoutes);
 app.route('/credits', creditRoutes);
 app.route('/push', pushRoutes);
+app.route('/hires', hireRoutes);
 
 // POST /activity/track — page-view / action ping from logged-in clients
 app.post('/activity/track', requireAuth, async (c) => {
@@ -728,6 +730,50 @@ async function scheduled(event: ScheduledEvent, env: Env, _ctx: ExecutionContext
     console.log('[cron] expired manual transfers:', (res.meta as any)?.changes ?? 0);
   } catch (err) {
     console.error('[cron] manual-transfer expiry failed', err);
+  }
+
+  // Βήμα 4 της πρόσληψης: 15 μέρες μετά την επιβεβαίωση, θύμισε και στους δύο
+  // να αξιολογήσουν. ΜΙΑ φορά ανά πρόσληψη (το `reminded_at` το κλειδώνει), και
+  // μόνο σε όποιον δεν έχει ήδη γράψει.
+  try {
+    const { notifyUser } = await import('./lib/notify');
+    const { generateId } = await import('./lib/id');
+    const due = await env.DB.prepare(
+      `SELECT h.id, h.worker_id, h.business_id, h.conversation_id
+         FROM hires h
+        WHERE h.status = 'confirmed'
+          AND h.reminded_at IS NULL
+          AND h.rating_opens_at IS NOT NULL
+          AND h.rating_opens_at <= datetime('now')
+        LIMIT 200`,
+    ).all<{ id: string; worker_id: string; business_id: string; conversation_id: string | null }>();
+
+    const now = new Date().toISOString();
+    for (const h of due.results || []) {
+      // Πάει στην αρχική του πίνακα ελέγχου: εκεί το κουτάκι «Χρειάζονται την
+      // προσοχή σου» ανοίγει τη φόρμα με ένα πάτημα. Μέσα στη συνομιλία έπρεπε
+      // να βρεις το σωστό μήνυμα-κάρτα για να τη δεις.
+      const url = '/dashboard';
+      const rated = await env.DB.prepare('SELECT rater_id FROM hire_ratings WHERE hire_id = ?')
+        .bind(h.id)
+        .all<{ rater_id: string }>();
+      const done = new Set((rated.results || []).map((r) => r.rater_id));
+      const title = '⭐ Πώς πήγε;';
+      const body = 'Πέρασαν 15 μέρες. Γράψε την αξιολόγησή σου — τη βλέπει μόνο αφού γράψει και ο άλλος.';
+      for (const userId of [h.worker_id, h.business_id]) {
+        if (done.has(userId)) continue;
+        await env.DB.prepare(
+          "INSERT INTO notifications (id, user_id, type, title, body, data, created_at) VALUES (?, ?, 'system', ?, ?, ?, ?)",
+        )
+          .bind(generateId('nt'), userId, title, body, JSON.stringify({ subtype: 'rating_due', url, hireId: h.id }), now)
+          .run();
+        await notifyUser(env, { userId, title, body, url, ctaText: 'Αξιολόγηση' });
+      }
+      await env.DB.prepare('UPDATE hires SET reminded_at = ? WHERE id = ?').bind(now, h.id).run();
+    }
+    console.log('[cron] rating reminders:', (due.results || []).length);
+  } catch (err) {
+    console.error('[cron] rating reminders failed', err);
   }
 }
 

@@ -135,7 +135,8 @@ jobs.get('/', requireAuth, async (c) => {
          CASE WHEN sub.plan_id IN ('business_pro', 'business_elite', 'founding_pro') THEN 1 ELSE 0 END as is_premium,
          CASE WHEN active_boost.id IS NOT NULL THEN 1 ELSE 0 END as is_boosted,
          (SELECT direction FROM swipes WHERE swiper_id = '${user.id}' AND target_id = j.id AND target_type = 'job' LIMIT 1) as swipe_status,
-         (SELECT COUNT(*) FROM matches WHERE worker_id = '${user.id}' AND business_id = bp.user_id AND status = 'active') as is_matched
+         (SELECT COUNT(*) FROM matches WHERE worker_id = '${user.id}' AND business_id = bp.user_id AND status = 'active') as is_matched,
+         (SELECT COUNT(*) FROM hires WHERE job_id = j.id AND status = 'confirmed') as hires_confirmed
        FROM job_listings j
        JOIN business_profiles bp ON bp.id = j.business_id
        LEFT JOIN business_branches br ON br.user_id = bp.user_id
@@ -267,8 +268,8 @@ jobs.post(
           experience_required, requires_drivers_license, requires_physical_fitness, requires_communication_skills,
           languages, start_date, end_date, status, branch_id,
           listing_kind, shift_date, shift_days, shift_start_time, shift_end_time, shift_positions, shift_start_utc,
-          created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          positions, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
         jobId, bp.id,
@@ -306,6 +307,9 @@ jobs.post(
         isShift ? body.shift_end_time! : null,
         isShift ? body.shift_positions ?? 1 : null,
         shiftStartUtc,
+        // Στόχος προσλήψεων: για τη βάρδια τον κρατάει το shift_positions, για
+        // την κανονική αγγελία το νέο πεδίο. Ποτέ κάτω από 1.
+        isShift ? (body.shift_positions ?? 1) : Math.max(1, body.positions ?? 1),
         now, now
       )
       .run();
@@ -538,6 +542,8 @@ jobs.patch(
       // άλλαζε το νόημα υπαρχόντων swipes) και το shift_start_utc είναι
       // παράγωγο — ξαναϋπολογίζεται παρακάτω.
       'shift_date', 'shift_days', 'shift_start_time', 'shift_end_time', 'shift_positions',
+      // Πόσα άτομα ζητάει η αγγελία — ο στόχος του «1 από 3».
+      'positions',
     ];
 
     const booleanFields = [
@@ -906,6 +912,68 @@ jobs.post('/:id/archive', requireAuth, requireRole('business'), async (c) => {
     .run();
 
   return success(c, { archived: true, jobId });
+});
+
+// POST /:id/fill — «Καλύφθηκε»: η θέση γέμισε, σταματάει να δείχνεται στην Εύρεση.
+// Το 'filled' επιτρέπεται ήδη από το CHECK του job_listings.status.
+jobs.post('/:id/fill', requireAuth, requireRole('business'), async (c) => {
+  const user = c.get('user');
+  const jobId = c.req.param('id');
+  const db = c.env.DB;
+
+  const job = await db
+    .prepare('SELECT id, business_id, status FROM job_listings WHERE id = ?')
+    .bind(jobId)
+    .first<{ id: string; business_id: string; status: string }>();
+
+  if (!job) return error(c, 'Η αγγελία δεν βρέθηκε', 404);
+
+  const owns = await db
+    .prepare('SELECT id FROM business_profiles WHERE id = ? AND user_id = ?')
+    .bind(job.business_id, user.id)
+    .first();
+  if (!owns) return error(c, 'Δεν έχετε δικαίωμα', 403);
+
+  if (job.status === 'archived') return error(c, 'Η αγγελία είναι αρχειοθετημένη', 400);
+  if (job.status === 'filled') return success(c, { filled: true, jobId });
+
+  const now = new Date().toISOString();
+  await db
+    .prepare("UPDATE job_listings SET status = 'filled', updated_at = ? WHERE id = ?")
+    .bind(now, jobId)
+    .run();
+
+  return success(c, { filled: true, jobId });
+});
+
+// POST /:id/reopen — ξανανοίγει καλυμμένη αγγελία. Καμία μονόδρομη πόρτα.
+jobs.post('/:id/reopen', requireAuth, requireRole('business'), async (c) => {
+  const user = c.get('user');
+  const jobId = c.req.param('id');
+  const db = c.env.DB;
+
+  const job = await db
+    .prepare('SELECT id, business_id, status FROM job_listings WHERE id = ?')
+    .bind(jobId)
+    .first<{ id: string; business_id: string; status: string }>();
+
+  if (!job) return error(c, 'Η αγγελία δεν βρέθηκε', 404);
+
+  const owns = await db
+    .prepare('SELECT id FROM business_profiles WHERE id = ? AND user_id = ?')
+    .bind(job.business_id, user.id)
+    .first();
+  if (!owns) return error(c, 'Δεν έχετε δικαίωμα', 403);
+
+  if (job.status !== 'filled') return error(c, 'Μόνο καλυμμένες αγγελίες μπορούν να ξανανοίξουν', 400);
+
+  const now = new Date().toISOString();
+  await db
+    .prepare("UPDATE job_listings SET status = 'published', updated_at = ? WHERE id = ?")
+    .bind(now, jobId)
+    .run();
+
+  return success(c, { reopened: true, jobId });
 });
 
 // DELETE /:id — permanently delete a job

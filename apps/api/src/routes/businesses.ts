@@ -8,6 +8,7 @@ import { success, error, paginated } from '../lib/response';
 import { generateId } from '../lib/id';
 import { recordDataChange, computeDiff, getRequestIp, getGeoFromRequest } from '../lib/activity';
 import { notifyUser } from '../lib/notify';
+import { getReputation } from '../lib/reputation';
 
 const businesses = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
 
@@ -425,6 +426,9 @@ businesses.get('/:id', requireAuth, async (c) => {
     mergedProfile.postal_code = b.postal_code;
     mergedProfile.area = b.area;
   }
+
+  // Αληθινή φήμη, από τις επιβεβαιωμένες προσλήψεις — όχι σταθερό «4.8».
+  Object.assign(mergedProfile, await getReputation(db, businessId, 'business'));
 
   return success(c, {
     profile: mergedProfile,

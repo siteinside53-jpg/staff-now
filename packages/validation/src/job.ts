@@ -89,6 +89,11 @@ const jobBaseSchema = z.object({
     .optional(),
   shift_positions: z.number().int().min(1).max(20).optional(),
 
+  // Πόσα άτομα ζητάει συνολικά η αγγελία. Το γράφει ήδη ο χρήστης στη φόρμα
+  // (πεδίο «Άτομα» ανά ειδικότητα) — εδώ φτάνει το άθροισμα, ώστε να ξέρουμε
+  // πότε καλύφθηκε η θέση και να κλείσει μόνη της η αγγελία.
+  positions: z.number().int().min(1).max(50).optional(),
+
   // Meta
   branch_id: z.string().optional(),
 });
