@@ -345,6 +345,10 @@ app.get('/public/plans', async (c) => {
 // Το όριο φτάνει τα 500: η /find-staff δείχνει το πλήθος των προφίλ που παίρνει,
 // οπότε ένα χαμηλό cap έκανε τη σελίδα να λέει ψέματα («50» ενώ υπάρχουν 103).
 // Οι ρόλοι έρχονται με ένα GROUP_CONCAT αντί για ένα query ανά εργαζόμενο.
+// Σειρά: πρώτα όσοι έχουν συμπληρώσει όνομα ΚΑΙ ειδικότητα. Με σκέτο
+// updated_at DESC οι 6 από τις 12 πρώτες κάρτες έβγαιναν «Εργαζόμενος —»,
+// δηλαδή μια επιχείρηση έβλεπε μισή άδεια λίστα. Κανείς δεν κρύβεται:
+// και οι 104 επιστρέφονται, απλώς τα κενά προφίλ πάνε στο τέλος.
 app.get('/public/workers', async (c) => {
   const db = c.env.DB;
   const limit = Math.min(parseInt(c.req.query('limit') || '30', 10), 500);
@@ -360,7 +364,12 @@ app.get('/public/workers', async (c) => {
        FROM worker_profiles wp
        JOIN users u ON u.id = wp.user_id
        WHERE u.status = 'active' AND wp.is_visible = 1
-       ORDER BY wp.updated_at DESC
+       ORDER BY
+         CASE WHEN wp.full_name IS NOT NULL AND TRIM(wp.full_name) <> ''
+                   AND EXISTS (SELECT 1 FROM worker_profile_roles
+                                WHERE worker_profile_id = wp.id)
+              THEN 0 ELSE 1 END,
+         wp.updated_at DESC
        LIMIT ? OFFSET ?`
     )
     .bind(limit, offset)
