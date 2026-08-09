@@ -55,6 +55,15 @@ export interface Env {
   VAPID_SUBJECT: string;
   EMAIL_API_KEY: string;
   EMAIL_FROM: string;
+  /**
+   * Twilio για το SMS επιβεβαίωσης κινητού. Προαιρετικά: όσο λείπουν, η σελίδα
+   * επαλήθευσης δείχνει τη χειροκίνητη εκδοχή («θα σε πάρουμε τηλέφωνο») και
+   * δεν γίνεται καμία κλήση προς τον πάροχο — άρα δεν χρεώνεται τίποτα.
+   */
+  TWILIO_ACCOUNT_SID?: string;
+  TWILIO_AUTH_TOKEN?: string;
+  /** Όνομα αποστολέα, π.χ. "StaffNow". Στην Ελλάδα δεν χρειάζεται δήλωση. */
+  TWILIO_SMS_FROM?: string;
 }
 
 export interface AuthUser {

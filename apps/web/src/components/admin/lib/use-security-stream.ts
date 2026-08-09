@@ -15,6 +15,17 @@ interface UseSecurityStreamOptions {
 }
 
 /**
+ * Πόσες φορές ξαναπροσπαθεί πριν τα παρατήσει.
+ *
+ * Μέχρι τώρα ξαναπροσπαθούσε **επ' άπειρον**. Αυτό ήταν ανεκτό όσο το μόνο που
+ * μπορούσε να πάει στραβά ήταν μια στιγμιαία διακοπή δικτύου. Τώρα όμως η ροή
+ * απορρίπτει και τα ακυρωμένα κλειδιά (μετά από αποσύνδεση ή αλλαγή κωδικού) —
+ * και ένα ακυρωμένο κλειδί δεν πρόκειται να ξαναγίνει έγκυρο ποτέ. Χωρίς όριο,
+ * η ξεχασμένη ανοιχτή καρτέλα θα χτυπούσε τον server για πάντα.
+ */
+const MAX_RETRIES = 5;
+
+/**
  * Subscribes to /admin/security/stream via Server-Sent Events.
  *
  * Cloudflare Workers will close the underlying connection after a few
@@ -28,7 +39,9 @@ export function useSecurityStream({
   bufferSize = 200,
 }: UseSecurityStreamOptions = {}) {
   const [events, setEvents] = useState<LiveEvent[]>([]);
-  const [status, setStatus] = useState<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
+  const [status, setStatus] = useState<
+    'idle' | 'connecting' | 'open' | 'closed' | 'error' | 'stopped'
+  >('idle');
   const [lastHeartbeat, setLastHeartbeat] = useState<string | null>(null);
   const sourceRef = useRef<EventSource | null>(null);
   const retryRef = useRef(0);
@@ -98,6 +111,11 @@ export function useSecurityStream({
         es.close();
         sourceRef.current = null;
         if (closedRef.current) return;
+        // Αν έχουμε φάει τις προσπάθειές μας, σταματάμε καθαρά και το λέμε.
+        if (retryRef.current >= MAX_RETRIES) {
+          setStatus('stopped');
+          return;
+        }
         // Exponential backoff up to ~30s.
         const delay = Math.min(30_000, 1_000 * 2 ** retryRef.current);
         retryRef.current += 1;

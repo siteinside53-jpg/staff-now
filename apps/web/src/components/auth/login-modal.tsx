@@ -111,8 +111,8 @@ interface AuthModalProps {
 }
 
 function AuthModal({ onClose, authMode, setAuthMode }: AuthModalProps) {
-  const { login, register } = useAuth();
-  const [view, setView] = useState<'main' | 'email'>('main');
+  const { login, completeTwoFactor, register } = useAuth();
+  const [view, setView] = useState<'main' | 'email' | 'totp'>('main');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -120,6 +120,12 @@ function AuthModal({ onClose, authMode, setAuthMode }: AuthModalProps) {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Δεύτερο βήμα σύνδεσης (μόνο για λογαριασμούς με διπλή επαλήθευση)
+  const [challenge, setChallenge] = useState('');
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [useRecovery, setUseRecovery] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(0);
 
   // Reset state when authMode changes
   useEffect(() => {
@@ -130,6 +136,18 @@ function AuthModal({ onClose, authMode, setAuthMode }: AuthModalProps) {
     setConfirmPassword('');
   }, [authMode]);
 
+  // Η «απόδειξη» ζει 5 λεπτά. Δείχνουμε τον χρόνο αντί να αφήσουμε τον χρήστη
+  // να ανακαλύψει τη λήξη με ένα ξερό μήνυμα σφάλματος.
+  useEffect(() => {
+    if (view !== 'totp' || secondsLeft <= 0) return;
+    const t = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [view, secondsLeft]);
+
+  const goToDashboard = (loggedInUser: any) => {
+    window.location.href = loggedInUser?.role === 'admin' ? '/admin' : '/dashboard';
+  };
+
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
@@ -139,18 +157,53 @@ function AuthModal({ onClose, authMode, setAuthMode }: AuthModalProps) {
     }
     setLoading(true);
     try {
-      const loggedInUser = await login(email, password);
-      const role = loggedInUser?.role;
-      if (role === 'admin') {
-        window.location.href = '/admin';
-      } else {
-        window.location.href = '/dashboard';
+      const result = await login(email, password);
+      // Λογαριασμός με διπλή επαλήθευση: δεύτερο βήμα αντί για ανακατεύθυνση.
+      if (result?.twoFactorRequired) {
+        setChallenge(result.challenge);
+        setSecondsLeft(result.expiresIn || 300);
+        setTwoFactorCode('');
+        setUseRecovery(false);
+        setView('totp');
+        return;
       }
+      goToDashboard(result);
     } catch (err: any) {
       setErrorMsg(err.message || 'Λάθος email ή κωδικός.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleTwoFactorSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    if (!twoFactorCode.trim()) {
+      setErrorMsg(useRecovery ? 'Συμπλήρωσε έναν κωδικό ανάκτησης.' : 'Συμπλήρωσε τον 6ψήφιο κωδικό.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const loggedInUser = await completeTwoFactor(
+        challenge,
+        twoFactorCode.trim(),
+        useRecovery ? 'recovery' : 'totp',
+      );
+      goToDashboard(loggedInUser);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Ο κωδικός δεν είναι σωστός.');
+      setTwoFactorCode('');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const backToPassword = () => {
+    setView('email');
+    setErrorMsg('');
+    setChallenge('');
+    setTwoFactorCode('');
+    setPassword('');
   };
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
@@ -220,7 +273,7 @@ function AuthModal({ onClose, authMode, setAuthMode }: AuthModalProps) {
 
         {/* White card */}
         <div className="rounded-3xl bg-white p-8 shadow-2xl">
-          {view === 'main' ? (
+          {view === 'main' && (
             <>
               <h1 className="text-center text-2xl font-extrabold text-gray-900 mb-1">
                 {isLogin ? 'Ξεκίνησε' : 'Δημιούργησε Λογαριασμό'}
@@ -347,7 +400,9 @@ function AuthModal({ onClose, authMode, setAuthMode }: AuthModalProps) {
                 </div>
               </div>
             </>
-          ) : (
+          )}
+
+          {view === 'email' && (
             <>
               {/* Back button */}
               <button
@@ -501,10 +556,102 @@ function AuthModal({ onClose, authMode, setAuthMode }: AuthModalProps) {
               </form>
             </>
           )}
+
+          {view === 'totp' && (
+            <>
+              <button
+                onClick={backToPassword}
+                className="mb-4 flex items-center gap-1 text-xs font-semibold text-gray-600 hover:text-gray-900"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+                Πίσω
+              </button>
+
+              <h1 className="text-center text-2xl font-extrabold text-gray-900 mb-1">
+                Διπλή επαλήθευση
+              </h1>
+              <p className="text-center text-xs text-gray-500 mb-6">
+                {useRecovery
+                  ? 'Γράψε έναν από τους κωδικούς ανάκτησης που αποθήκευσες.'
+                  : 'Άνοιξε την εφαρμογή στο κινητό σου και γράψε τον 6ψήφιο κωδικό.'}
+              </p>
+
+              {errorMsg && (
+                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {errorMsg}
+                </div>
+              )}
+
+              <form onSubmit={handleTwoFactorSubmit} className="space-y-4">
+                <div>
+                  <label
+                    htmlFor="auth-modal-2fa"
+                    className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500"
+                  >
+                    {useRecovery ? 'Κωδικός ανάκτησης' : 'Κωδικός 6 ψηφίων'}
+                  </label>
+                  <input
+                    id="auth-modal-2fa"
+                    // `one-time-code` + `numeric`: το κινητό προτείνει μόνο του
+                    // τον κωδικό και ανοίγει αριθμητικό πληκτρολόγιο.
+                    autoComplete="one-time-code"
+                    inputMode={useRecovery ? 'text' : 'numeric'}
+                    value={twoFactorCode}
+                    onChange={(e) =>
+                      setTwoFactorCode(
+                        useRecovery
+                          ? e.target.value.toUpperCase()
+                          : e.target.value.replace(/\D/g, '').slice(0, 6),
+                      )
+                    }
+                    placeholder={useRecovery ? 'A7K2-9QXM4P8B' : '000000'}
+                    required
+                    autoFocus
+                    className={`w-full rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 focus:border-blue-500 focus:bg-white focus:outline-none transition-colors ${
+                      useRecovery
+                        ? 'text-sm font-mono tracking-wider'
+                        : 'text-center text-2xl font-bold tracking-[0.4em]'
+                    }`}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading || secondsLeft <= 0}
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-full bg-blue-600 py-3.5 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-blue-600/30 hover:bg-blue-700 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Έλεγχος...' : 'Επαλήθευση'}
+                </button>
+
+                <div className="flex items-center justify-between pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUseRecovery((v) => !v);
+                      setTwoFactorCode('');
+                      setErrorMsg('');
+                    }}
+                    className="text-[11px] font-semibold text-blue-600 hover:underline"
+                  >
+                    {useRecovery ? 'Χρήση κωδικού εφαρμογής' : 'Χρήση κωδικού ανάκτησης'}
+                  </button>
+                  <span className="text-[11px] text-gray-400">
+                    {secondsLeft > 0
+                      ? `Λήγει σε ${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, '0')}`
+                      : 'Έληξε — πάτα «Πίσω»'}
+                  </span>
+                </div>
+              </form>
+            </>
+          )}
         </div>
 
-        {/* Footer: switch between login and register */}
-        <p className="mt-5 text-center text-sm text-white/90 drop-shadow">
+        {/* Footer: switch between login and register.
+            Κρύβεται στο δεύτερο βήμα — εκεί ο χρήστης είναι στη μέση μιας
+            σύνδεσης, δεν του προσφέρουμε «Εγγραφή». */}
+        <p className={`mt-5 text-center text-sm text-white/90 drop-shadow ${view === 'totp' ? 'hidden' : ''}`}>
           {isLogin ? (
             <>
               Δεν έχεις λογαριασμό;{' '}

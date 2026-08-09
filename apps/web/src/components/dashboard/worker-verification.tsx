@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
@@ -16,6 +16,20 @@ type VerificationRequest = {
   rejection_reason: string | null;
   created_at: string;
 };
+
+type DocKind = 'id' | 'passport' | 'license';
+
+const DOC_KINDS: { id: DocKind; label: string; icon: string }[] = [
+  { id: 'id', label: 'Ταυτότητα', icon: '🪪' },
+  { id: 'passport', label: 'Διαβατήριο', icon: '📘' },
+  { id: 'license', label: 'Δίπλωμα οδήγησης', icon: '🚗' },
+];
+
+/** Στο διαβατήριο όλα τα στοιχεία είναι στη σελίδα με τη φωτογραφία. */
+const backRequired = (kind: DocKind) => kind !== 'passport';
+
+const frontLabel = (kind: DocKind) =>
+  kind === 'passport' ? 'Σελίδα με τη φωτογραφία *' : 'Μπροστινή όψη *';
 
 const elDate = (s?: string | null) =>
   s ? new Date(s.replace(' ', 'T') + (s.endsWith('Z') ? '' : 'Z')).toLocaleDateString('el-GR') : '';
@@ -39,6 +53,69 @@ function StepHead({ n, done, title, desc }: { n: number; done: boolean; title: s
   );
 }
 
+/**
+ * Κουτί ανεβάσματος μιας όψης. Δείχνει μικρογραφία μόλις ανέβει η εικόνα, ώστε
+ * ο χρήστης να βλέπει με τα μάτια του ότι δεν ανέβασε λάθος ή θολή φωτογραφία.
+ */
+function UploadBox({
+  label,
+  hint,
+  url,
+  name,
+  busy,
+  onPick,
+}: {
+  label: string;
+  hint: string;
+  url: string;
+  name: string;
+  busy: boolean;
+  onPick: (file: File) => void;
+}) {
+  const isImage = !!url && !/\.pdf(\?|$)/i.test(url);
+  return (
+    <div>
+      <label className="mb-1 block text-sm font-medium text-gray-700">{label}</label>
+      {/* Κρυφό input + label-κουμπί: το native file input δείχνει το
+          «Δεν επιλέχθηκε αρχείο» του browser, που κόβεται άσχημα στο κινητό. */}
+      <label
+        className={`flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-4 text-sm font-bold transition-colors ${
+          url
+            ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:border-emerald-400'
+            : 'border-gray-300 bg-gray-50 text-gray-700 hover:border-blue-400 hover:bg-blue-50'
+        } ${busy ? 'pointer-events-none opacity-50' : ''}`}
+      >
+        <span className="text-lg">{url ? '✓' : '📎'}</span>
+        <span>{url ? 'Άλλαξε αρχείο' : 'Επιλογή αρχείου'}</span>
+        <input
+          type="file"
+          accept="image/*,application/pdf"
+          disabled={busy}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) onPick(f);
+            e.target.value = '';
+          }}
+          className="hidden"
+        />
+      </label>
+      <p className="mt-1 text-xs text-gray-500">{hint}</p>
+      {busy && <p className="mt-2 text-xs text-blue-600">Ανεβαίνει…</p>}
+      {url && !busy && (
+        <div className="mt-2 flex items-center gap-2">
+          {isImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={url} alt="" className="h-14 w-20 rounded-lg border border-gray-200 object-cover" />
+          ) : (
+            <span className="text-2xl">📄</span>
+          )}
+          <span className="truncate text-xs font-medium text-emerald-600">{name}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function WorkerVerification() {
   const [loading, setLoading] = useState(true);
   const [verified, setVerified] = useState(false);
@@ -52,12 +129,27 @@ export function WorkerVerification() {
   const [sendingCode, setSendingCode] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
-  // Βήμα 2 — ταυτότητα + κινητό
+  // Βήμα 2 — κινητό
   const [phone, setPhone] = useState('');
-  const [docUrl, setDocUrl] = useState('');
-  const [docName, setDocName] = useState('');
-  const [uploading, setUploading] = useState(false);
+  const [phoneConfirmed, setPhoneConfirmed] = useState(false);
+  const [phoneSaved, setPhoneSaved] = useState(false);
+  const [smsAvailable, setSmsAvailable] = useState(false);
+  const [phoneCodeSent, setPhoneCodeSent] = useState(false);
+  const [phoneCode, setPhoneCode] = useState('');
+  const [sendingPhoneCode, setSendingPhoneCode] = useState(false);
+  const [confirmingPhone, setConfirmingPhone] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
+
+  // Βήμα 3 — έγγραφο ταυτοποίησης
+  const [docKind, setDocKind] = useState<DocKind | ''>('');
+  const [frontUrl, setFrontUrl] = useState('');
+  const [frontName, setFrontName] = useState('');
+  const [backUrl, setBackUrl] = useState('');
+  const [backName, setBackName] = useState('');
+  const [uploading, setUploading] = useState<'front' | 'back' | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -67,7 +159,12 @@ export function WorkerVerification() {
       setRequest(d.request || null);
       setEmail(d.email || '');
       setEmailConfirmed(!!d.emailConfirmed);
-      if (d.phone) setPhone(d.phone);
+      setSmsAvailable(!!d.smsAvailable);
+      setPhoneConfirmed(!!d.phoneConfirmed);
+      if (d.phone) {
+        setPhone(d.phone);
+        setPhoneSaved(true);
+      }
     } catch {
       // Αν αποτύχει, δείχνουμε την κενή φόρμα.
     } finally {
@@ -78,6 +175,16 @@ export function WorkerVerification() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Αντίστροφη μέτρηση για το «Ξαναστείλε», ώστε να μη ζητάει κανείς SMS στη
+  // σειρά — κάθε αποστολή κοστίζει πραγματικά χρήματα.
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    timerRef.current = setInterval(() => setResendIn((s) => (s <= 1 ? 0 : s - 1)), 1000);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [resendIn]);
 
   const sendCode = async () => {
     setSendingCode(true);
@@ -107,9 +214,49 @@ export function WorkerVerification() {
     }
   };
 
-  const handleUpload = async (file: File) => {
+  const sendPhoneCode = async () => {
+    if (!/^69\d{8}$/.test(phone)) return toast.error('Δώσε έγκυρο κινητό (10 ψηφία, ξεκινά με 69).');
+    setSendingPhoneCode(true);
+    try {
+      const res = (await (api as any).auth.sendPhoneCode({ phone })) as any;
+      const d = res?.data || {};
+      setPhoneSaved(true);
+      if (d.smsAvailable === false) {
+        // Ο πάροχος SMS δεν είναι ρυθμισμένος: το νούμερο αποθηκεύτηκε και θα
+        // επιβεβαιωθεί τηλεφωνικά. Δεν προσποιούμαστε ότι στείλαμε κωδικό.
+        setSmsAvailable(false);
+        toast.success('Το κινητό αποθηκεύτηκε.');
+      } else {
+        setSmsAvailable(true);
+        setPhoneCodeSent(true);
+        setResendIn(60);
+        toast.success(`Στείλαμε 6ψήφιο κωδικό στο ${phone}.`);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Δεν στάλθηκε ο κωδικός.');
+    } finally {
+      setSendingPhoneCode(false);
+    }
+  };
+
+  const confirmPhoneCode = async () => {
+    if (phoneCode.length !== 6) return toast.error('Ο κωδικός είναι 6 ψηφία.');
+    setConfirmingPhone(true);
+    try {
+      await (api as any).auth.confirmPhone({ code: phoneCode });
+      setPhoneConfirmed(true);
+      setPhoneCode('');
+      toast.success('Το κινητό επιβεβαιώθηκε.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Λάθος κωδικός.');
+    } finally {
+      setConfirmingPhone(false);
+    }
+  };
+
+  const handleUpload = async (file: File, side: 'front' | 'back') => {
     if (file.size > 10 * 1024 * 1024) return toast.error('Το αρχείο είναι πάνω από 10MB.');
-    setUploading(true);
+    setUploading(side);
     try {
       const fd = new FormData();
       fd.append('file', file);
@@ -122,27 +269,36 @@ export function WorkerVerification() {
       });
       const data = (await res.json()) as any;
       if (data?.success && data?.data?.url) {
-        setDocUrl(data.data.url);
-        setDocName(file.name);
-        toast.success('Το έγγραφο ανέβηκε.');
+        if (side === 'front') {
+          setFrontUrl(data.data.url);
+          setFrontName(file.name);
+        } else {
+          setBackUrl(data.data.url);
+          setBackName(file.name);
+        }
+        toast.success('Η φωτογραφία ανέβηκε.');
       } else {
         toast.error(data?.error?.message || 'Αποτυχία μεταφόρτωσης.');
       }
     } catch {
       toast.error('Αποτυχία μεταφόρτωσης.');
     } finally {
-      setUploading(false);
+      setUploading(null);
     }
   };
 
   const handleSubmit = async () => {
-    const cleanPhone = phone.replace(/[\s.-]/g, '').replace(/^\+30/, '');
-    if (!/^69\d{8}$/.test(cleanPhone)) return toast.error('Δώσε έγκυρο κινητό (10 ψηφία, ξεκινά με 69).');
-    if (!docUrl) return toast.error('Ανέβασε φωτογραφία ταυτότητας ή διαβατηρίου.');
+    if (!docKind) return toast.error('Διάλεξε τύπο εγγράφου.');
+    if (!frontUrl) return toast.error('Ανέβασε τη μπροστινή όψη.');
+    if (backRequired(docKind) && !backUrl) return toast.error('Ανέβασε και την πίσω όψη.');
 
     setSubmitting(true);
     try {
-      await (api as any).workers.submitVerification({ document_url: docUrl, phone: cleanPhone });
+      await (api as any).workers.submitVerification({
+        document_kind: docKind,
+        document_url: frontUrl,
+        document_back_url: backUrl || undefined,
+      });
       toast.success('Το αίτημα στάλθηκε για έλεγχο.');
       await load();
     } catch (err: any) {
@@ -180,6 +336,10 @@ export function WorkerVerification() {
     );
 
   const idPending = request?.status === 'pending';
+  // Χωρίς πάροχο SMS το βήμα θεωρείται ολοκληρωμένο μόλις δοθεί το νούμερο:
+  // την επιβεβαίωση την κάνουμε εμείς τηλεφωνικά.
+  const phoneStepDone = smsAvailable ? phoneConfirmed : phoneSaved && /^69\d{8}$/.test(phone);
+  const docsReady = !!docKind && !!frontUrl && (!backRequired(docKind) || !!backUrl);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -243,17 +403,97 @@ export function WorkerVerification() {
         </CardContent>
       </Card>
 
-      {/* ── Βήμα 2: ταυτότητα + κινητό ────────────────────────────────── */}
-      <Card className={idPending ? 'border-amber-200 bg-amber-50/60' : ''}>
+      {/* ── Βήμα 2: κινητό ────────────────────────────────────────────── */}
+      <Card className={`mb-4 ${phoneStepDone ? 'border-emerald-200 bg-emerald-50/50' : ''}`}>
         <CardContent className="space-y-4 p-5">
           <StepHead
             n={2}
+            done={phoneStepDone}
+            title="Κινητό τηλέφωνο (προαιρετικό)"
+            desc={
+              phoneConfirmed
+                ? `Το ${phone} επιβεβαιώθηκε με SMS.`
+                : phoneStepDone
+                  ? `Το ${phone} καταχωρήθηκε.`
+                  : smsAvailable
+                    ? 'Στέλνουμε 6ψήφιο κωδικό με SMS στο κινητό σου.'
+                    : 'Βοηθάει να σε βρουν πιο γρήγορα οι επιχειρήσεις. Δεν χρειάζεται για την επαλήθευση.'
+            }
+          />
+
+          {!phoneConfirmed && (
+            <div className="space-y-3 pl-11">
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="min-w-[10rem] flex-1">
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Κινητό τηλέφωνο</label>
+                  <Input
+                    inputMode="tel"
+                    maxLength={10}
+                    placeholder="6912345678"
+                    value={phone}
+                    disabled={phoneCodeSent}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  />
+                </div>
+                {!phoneCodeSent && (
+                  <Button onClick={sendPhoneCode} disabled={sendingPhoneCode} variant="outline">
+                    {sendingPhoneCode ? 'Αποστολή…' : smsAvailable ? 'Στείλε μου κωδικό' : 'Αποθήκευση'}
+                  </Button>
+                )}
+              </div>
+
+              {phoneCodeSent && (
+                <>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Input
+                      inputMode="numeric"
+                      maxLength={6}
+                      placeholder="000000"
+                      value={phoneCode}
+                      onChange={(e) => setPhoneCode(e.target.value.replace(/\D/g, ''))}
+                      className="w-32 text-center text-lg font-bold tracking-[0.3em]"
+                    />
+                    <Button onClick={confirmPhoneCode} disabled={confirmingPhone}>
+                      {confirmingPhone ? 'Έλεγχος…' : 'Επιβεβαίωση'}
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={sendPhoneCode}
+                      disabled={sendingPhoneCode || resendIn > 0}
+                      className="text-xs font-medium text-blue-600 hover:underline disabled:opacity-50"
+                    >
+                      {resendIn > 0 ? `Ξαναστείλε σε ${resendIn}″` : 'Ξαναστείλε'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500">Ο κωδικός ισχύει για 15 λεπτά.</p>
+                </>
+              )}
+
+              {!smsAvailable && phoneSaved && (
+                <p className="text-xs text-gray-600">
+                  📞 Μπορεί να σε καλέσουμε για επιβεβαίωση. Δεν καθυστερεί την έγκριση της αίτησής σου.
+                </p>
+              )}
+
+              <p className="text-xs text-gray-500">
+                Δεν εμφανίζεται δημόσια. Χρησιμοποιείται μόνο για τον έλεγχο και για επικοινωνία μετά από match.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Βήμα 3: έγγραφο ταυτοποίησης ──────────────────────────────── */}
+      <Card className={idPending ? 'border-amber-200 bg-amber-50/60' : ''}>
+        <CardContent className="space-y-4 p-5">
+          <StepHead
+            n={3}
             done={false}
-            title="Ταυτότητα και κινητό"
+            title="Έγγραφο ταυτοποίησης"
             desc={
               idPending
                 ? `Υποβλήθηκε στις ${elDate(request?.created_at)} — είναι υπό έλεγχο από την ομάδα μας.`
-                : 'Η ομάδα μας ελέγχει το έγγραφο και το τηλέφωνο πριν δώσει το σήμα ✓.'
+                : 'Διάλεξε τι θα ανεβάσεις και βγάλε καθαρές φωτογραφίες.'
             }
           />
 
@@ -264,53 +504,72 @@ export function WorkerVerification() {
           ) : (
             <div className="space-y-4 pl-11">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Κινητό τηλέφωνο *</label>
-                <Input
-                  inputMode="tel"
-                  maxLength={10}
-                  placeholder="6912345678"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Δεν εμφανίζεται δημόσια. Χρησιμοποιείται μόνο για τον έλεγχο και για επικοινωνία μετά από match.
-                </p>
+                <label className="mb-2 block text-sm font-medium text-gray-700">Τύπος εγγράφου *</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {DOC_KINDS.map((k) => (
+                    <button
+                      key={k.id}
+                      type="button"
+                      onClick={() => setDocKind(k.id)}
+                      className={`rounded-xl border-2 px-2 py-3 text-center transition-colors ${
+                        docKind === k.id
+                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300'
+                      }`}
+                    >
+                      <span className="block text-xl">{k.icon}</span>
+                      <span className="mt-1 block text-xs font-bold leading-tight">{k.label}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Ταυτότητα ή διαβατήριο *</label>
-                {/* Κρυφό input + label-κουμπί: το native file input δείχνει το
-                    «Δεν επιλέχθηκε αρχείο» του browser, που κόβεται άσχημα στο κινητό. */}
-                <label
-                  className={`flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-4 text-sm font-bold text-gray-700 transition-colors hover:border-blue-400 hover:bg-blue-50 ${
-                    uploading ? 'pointer-events-none opacity-50' : ''
-                  }`}
-                >
-                  <span className="text-lg">📎</span>
-                  <span>{docUrl ? 'Άλλαξε αρχείο' : 'Επιλογή αρχείου'}</span>
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    disabled={uploading}
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) handleUpload(f);
-                    }}
-                    className="hidden"
+              {docKind && (
+                <>
+                  <UploadBox
+                    label={frontLabel(docKind)}
+                    hint="Καθαρή φωτογραφία, να διαβάζονται όλα τα στοιχεία (εικόνα ή PDF, έως 10MB)."
+                    url={frontUrl}
+                    name={frontName}
+                    busy={uploading === 'front'}
+                    onPick={(f) => handleUpload(f, 'front')}
                   />
-                </label>
-                <p className="mt-1 text-xs text-gray-500">
-                  Καθαρή φωτογραφία της μπροστινής όψης (PDF ή εικόνα, έως 10MB).
-                </p>
-                {uploading && <p className="mt-2 text-xs text-blue-600">Ανεβαίνει…</p>}
-                {docUrl && !uploading && (
-                  <p className="mt-2 text-xs font-medium text-emerald-600">✓ Ανέβηκε: {docName}</p>
-                )}
-              </div>
+                  <UploadBox
+                    label={backRequired(docKind) ? 'Πίσω όψη *' : 'Πίσω όψη (προαιρετικό)'}
+                    hint={
+                      backRequired(docKind)
+                        ? 'Η πίσω όψη έχει στοιχεία που χρειαζόμαστε για τον έλεγχο.'
+                        : 'Το διαβατήριο δεν τη χρειάζεται — ανέβασέ την μόνο αν θέλεις.'
+                    }
+                    url={backUrl}
+                    name={backName}
+                    busy={uploading === 'back'}
+                    onPick={(f) => handleUpload(f, 'back')}
+                  />
+                </>
+              )}
 
-              <Button onClick={handleSubmit} disabled={submitting || uploading} size="lg" className="w-full">
+              {/* Το κινητό δεν κλειδώνει την υποβολή: η επαλήθευση κρίνεται από
+                  το έγγραφο. */}
+              <Button
+                onClick={handleSubmit}
+                disabled={submitting || !!uploading || !docsReady}
+                size="lg"
+                className="w-full"
+              >
                 {submitting ? 'Υποβολή…' : 'Υποβολή για έλεγχο'}
               </Button>
+              {/* Χωρίς εξήγηση ο χρήστης βλέπει σκέτο γκρι κουμπί και δεν ξέρει
+                  τι του λείπει. */}
+              {!docsReady && (
+                <p className="text-center text-xs text-amber-700">
+                  {!docKind
+                    ? 'Διάλεξε πρώτα τι έγγραφο θα ανεβάσεις.'
+                    : backRequired(docKind)
+                      ? 'Ανέβασε και τις δύο όψεις για να συνεχίσεις.'
+                      : 'Ανέβασε τη σελίδα με τη φωτογραφία για να συνεχίσεις.'}
+                </p>
+              )}
             </div>
           )}
         </CardContent>

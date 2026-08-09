@@ -32,17 +32,24 @@ export function paginated<T>(
   });
 }
 
-type ErrorStatus = 400 | 401 | 403 | 404 | 409 | 410 | 429 | 500;
+// 402 (χρειάζεται συνδρομή) και 502 (ο πάροχος email/SMS δεν απάντησε)
+// χρησιμοποιούνται ήδη σε πολλά σημεία — μπαίνουν κι αυτά στον τύπο.
+// 503: «προσπάθησε ξανά σε λίγο» — το χρησιμοποιεί η διπλή επαλήθευση όταν το
+// KV δεν απαντάει. Εκεί είναι κρίσιμο να ΜΗΝ προχωρήσει η σύνδεση σιωπηλά.
+type ErrorStatus = 400 | 401 | 402 | 403 | 404 | 409 | 410 | 429 | 500 | 502 | 503;
 
 const STATUS_CODES: Record<number, string> = {
   400: 'BAD_REQUEST',
   401: 'UNAUTHORIZED',
+  402: 'PAYMENT_REQUIRED',
   403: 'FORBIDDEN',
   404: 'NOT_FOUND',
   409: 'CONFLICT',
   410: 'GONE',
   429: 'RATE_LIMITED',
   500: 'INTERNAL_ERROR',
+  502: 'UPSTREAM_ERROR',
+  503: 'SERVICE_UNAVAILABLE',
 };
 
 export function error(

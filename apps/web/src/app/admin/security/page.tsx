@@ -532,11 +532,27 @@ function LiveTab() {
           }`}
         />
         <span className="font-semibold text-gray-700">
-          {status === 'open' ? 'Συνδεδεμένο' : status === 'connecting' ? 'Σύνδεση...' : 'Αποσυνδεδεμένο'}
+          {status === 'open'
+            ? 'Συνδεδεμένο'
+            : status === 'connecting'
+              ? 'Σύνδεση...'
+              : status === 'stopped'
+                ? 'Η ζωντανή ροή σταμάτησε'
+                : 'Αποσυνδεδεμένο'}
         </span>
-        <span className="text-gray-400">
-          {lastHeartbeat ? `Τελευταίο heartbeat: ${formatDate(lastHeartbeat)}` : 'Αναμονή για heartbeat...'}
-        </span>
+        {status === 'stopped' ? (
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="rounded-lg bg-gray-900 px-2.5 py-1 font-semibold text-white hover:bg-gray-700"
+          >
+            Ανανέωση σελίδας
+          </button>
+        ) : (
+          <span className="text-gray-400">
+            {lastHeartbeat ? `Τελευταίο heartbeat: ${formatDate(lastHeartbeat)}` : 'Αναμονή για heartbeat...'}
+          </span>
+        )}
         <span className="ml-auto text-gray-500">
           {events.length} events στο buffer
         </span>

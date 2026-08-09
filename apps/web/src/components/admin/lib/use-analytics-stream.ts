@@ -29,9 +29,14 @@ interface UseAnalyticsStreamOptions {
  * Cloudflare Workers will close the underlying connection after a few
  * minutes of CPU/wall-time, so we transparently reconnect with backoff.
  */
+/** Ίδιο όριο με τη ροή ασφαλείας — βλ. την εξήγηση στο `use-security-stream.ts`. */
+const MAX_RETRIES = 5;
+
 export function useAnalyticsStream({ enabled = true }: UseAnalyticsStreamOptions = {}) {
   const [snapshot, setSnapshot] = useState<AnalyticsSnapshot | null>(null);
-  const [status, setStatus] = useState<'idle' | 'connecting' | 'open' | 'closed' | 'error'>('idle');
+  const [status, setStatus] = useState<
+    'idle' | 'connecting' | 'open' | 'closed' | 'error' | 'stopped'
+  >('idle');
   const [lastHeartbeat, setLastHeartbeat] = useState<string | null>(null);
   const sourceRef = useRef<EventSource | null>(null);
   const retryRef = useRef(0);
@@ -82,6 +87,11 @@ export function useAnalyticsStream({ enabled = true }: UseAnalyticsStreamOptions
         es.close();
         sourceRef.current = null;
         if (closedRef.current) return;
+        // Αν έχουμε φάει τις προσπάθειές μας, σταματάμε καθαρά και το λέμε.
+        if (retryRef.current >= MAX_RETRIES) {
+          setStatus('stopped');
+          return;
+        }
         // Exponential backoff up to ~30s.
         const delay = Math.min(30_000, 1_000 * 2 ** retryRef.current);
         retryRef.current += 1;

@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth';
 import { success, error } from '../lib/response';
 import { generateId } from '../lib/id';
 import { recordDataChange, getRequestIp, getGeoFromRequest } from '../lib/activity';
+import { isProtectedKey, signFileUrl, verifyFileSignature } from '../lib/signed-url';
 
 const uploads = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
 
@@ -92,17 +93,31 @@ function publicFileUrl(requestUrl: string, key: string): string {
 /**
  * GET /uploads/f/<key> — σερβίρει ένα αρχείο του R2.
  *
- * Χωρίς έλεγχο ταυτότητας, ακριβώς όπως και πριν: το `r2.dev` ήταν δημόσιο,
- * οπότε όποιος ήξερε το URL έβλεπε το αρχείο. Δεν αλλάζει τίποτα στην
- * πρόσβαση — το κλειδί περιέχει τυχαίο id, δεν μαντεύεται.
+ * Οι φωτογραφίες προφίλ, τα λογότυπα και οι εικόνες των αγγελιών είναι δημόσιες:
+ * εμφανίζονται ούτως ή άλλως στις δημόσιες σελίδες. Το κλειδί περιέχει τυχαίο
+ * id, δεν μαντεύεται, και επειδή είναι αμετάβλητο η απάντηση είναι cacheable για
+ * έναν χρόνο — έτσι ο browser και το δίκτυο της Cloudflare δεν ξαναρωτούν.
  *
- * Τα κλειδιά είναι αμετάβλητα (κάθε ανέβασμα φτιάχνει καινούργιο id), γι' αυτό
- * η απάντηση είναι cacheable για έναν χρόνο· έτσι ο browser και το δίκτυο της
- * Cloudflare δεν ξαναρωτούν και ο worker δεν πληρώνει αναγνώσεις R2.
+ * ΕΞΑΙΡΕΣΗ: τα αρχεία της επαλήθευσης (ταυτότητες, διαβατήρια, διπλώματα,
+ * φορολογικά της επιχείρησης). Αυτά ΔΕΝ είναι δημόσια. Απαιτούν υπογραφή που
+ * λήγει (βλ. `lib/signed-url.ts`) και δεν αποθηκεύονται πουθενά στον δρόμο.
  */
 uploads.get('/f/*', async (c) => {
   const key = decodeURIComponent(c.req.path.replace(/^\/uploads\/f\//, ''));
   if (!key || key.includes('..')) return error(c, 'Μη έγκυρο αρχείο', 400);
+
+  const locked = isProtectedKey(key);
+  if (locked) {
+    const ok = await verifyFileSignature(
+      key,
+      c.req.query('exp'),
+      c.req.query('sig'),
+      c.env.JWT_SECRET,
+    );
+    if (!ok) {
+      return error(c, 'Ο σύνδεσμος του εγγράφου δεν ισχύει ή έχει λήξει.', 403);
+    }
+  }
 
   const object = await c.env.R2.get(key, {
     // Αν ο browser έχει ήδη το αρχείο, το R2 απαντά χωρίς σώμα (304).
@@ -114,7 +129,12 @@ uploads.get('/f/*', async (c) => {
   const headers = new Headers();
   object.writeHttpMetadata(headers);
   headers.set('etag', object.httpEtag);
-  headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  // Τα έγγραφα ταυτοποίησης δεν μπαίνουν σε καμία κοινόχρηστη μνήμη: αλλιώς το
+  // δίκτυο θα συνέχιζε να τα σερβίρει και μετά τη λήξη της υπογραφής.
+  headers.set(
+    'Cache-Control',
+    locked ? 'private, no-store, max-age=0' : 'public, max-age=31536000, immutable',
+  );
   // Οι φωτογραφίες/έγγραφα δεν εκτελούνται ποτέ ως σελίδα.
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('Content-Disposition', 'inline');
@@ -223,7 +243,11 @@ uploads.post('/', requireAuth, async (c) => {
     },
   });
 
-  const url = publicFileUrl(c.req.url, key);
+  // Για τα έγγραφα επαλήθευσης το URL γυρίζει υπογεγραμμένο, ώστε να μπορεί ο
+  // ίδιος ο χρήστης να δει αμέσως τη μικρογραφία αυτού που μόλις ανέβασε. Η
+  // υπογραφή λήγει· ο πίνακας ελέγχου φτιάχνει δική του, φρέσκια, όποτε τη
+  // χρειαστεί ο διαχειριστής.
+  const url = (await signFileUrl(publicFileUrl(c.req.url, key), c.env.JWT_SECRET, 6 * 3600))!;
 
   // Trust & Safety: log every file upload
   c.executionCtx.waitUntil(
@@ -315,7 +339,7 @@ uploads.post('/presign', requireAuth, async (c) => {
     },
   });
 
-  const url = publicFileUrl(c.req.url, key);
+  const url = (await signFileUrl(publicFileUrl(c.req.url, key), c.env.JWT_SECRET, 6 * 3600))!;
 
   return success(c, {
     uploadId: multipartUpload.uploadId,

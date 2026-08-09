@@ -50,8 +50,19 @@ export default function AnalyticsPage() {
             ? 'Live · ενημερώνεται κάθε 5 δευτερόλεπτα'
             : status === 'connecting'
               ? 'Σύνδεση...'
-              : 'Αποσυνδεδεμένο'}
+              : status === 'stopped'
+                ? 'Η ζωντανή ροή σταμάτησε'
+                : 'Αποσυνδεδεμένο'}
         </span>
+        {status === 'stopped' && (
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="rounded-lg bg-gray-900 px-2.5 py-1 font-semibold text-white hover:bg-gray-700"
+          >
+            Ανανέωση σελίδας
+          </button>
+        )}
         <span className="ml-auto text-gray-400">
           Τελευταία ενημέρωση: {formatTime(snapshot?.ts || lastHeartbeat)}
         </span>

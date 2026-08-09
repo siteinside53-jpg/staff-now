@@ -1,13 +1,23 @@
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import type { Env, AuthUser } from '../types';
 import { requireAuth } from '../middleware/auth';
-import { authRateLimiter, passwordResetRateLimiter, emailCodeRateLimiter } from '../middleware/rate-limiter';
+import {
+  authRateLimiter,
+  passwordResetRateLimiter,
+  emailCodeRateLimiter,
+  phoneCodeRateLimiter,
+  confirmCodeRateLimiter,
+  twoFactorRateLimiter,
+} from '../middleware/rate-limiter';
+import { generateSecret, verifyTotp, otpauthUri } from '../lib/totp';
 import { hashPassword, verifyPassword } from '../lib/password';
 import { signJWT } from '../lib/jwt';
 import { generateId } from '../lib/id';
 import { success, error } from '../lib/response';
 import { recordActivity, startSession, endSession, getRequestIp, getGeoFromRequest } from '../lib/activity';
 import { sendEmail, emailLayout } from '../lib/email';
+import { sendSms, smsConfigured } from '../lib/sms';
 import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, changePasswordSchema } from '@staffnow/validation';
 
 // Το site είναι στατικό και σερβίρεται πάντα από αυτό το domain, όπως ακριβώς
@@ -123,9 +133,19 @@ auth.post('/login', authRateLimiter, async (c) => {
   }
 
   const user = await db
-    .prepare('SELECT id, email, password_hash, role, status FROM users WHERE email = ?')
+    .prepare(
+      'SELECT id, email, password_hash, role, status, totp_secret, totp_enabled_at FROM users WHERE email = ?',
+    )
     .bind(email)
-    .first<{ id: string; email: string; password_hash: string; role: string; status: string }>();
+    .first<{
+      id: string;
+      email: string;
+      password_hash: string;
+      role: string;
+      status: string;
+      totp_secret: string | null;
+      totp_enabled_at: string | null;
+    }>();
 
   const bumpFailures = () => {
     try {
@@ -153,8 +173,34 @@ auth.post('/login', authRateLimiter, async (c) => {
   // Clear lockout on successful login
   try { c.executionCtx.waitUntil(c.env.KV.delete(lockKey)); } catch {}
 
-  // Update last login
-  await db
+  // Αν ΚΑΙ ΜΟΝΟ ΑΝ ο λογαριασμός έχει ανάψει διπλή επαλήθευση, η σύνδεση
+  // σταματάει εδώ. Δεν εκδίδεται κλειδί συνεδρίας — εκδίδεται μια «απόδειξη
+  // ότι ο κωδικός ήταν σωστός», που από μόνη της δεν ανοίγει τίποτα πουθενά.
+  //
+  // Για κάθε άλλον λογαριασμό (εργαζόμενοι, επιχειρήσεις) οι δύο στήλες είναι
+  // NULL, οπότε αυτό το `if` δεν εκτελείται ποτέ και η απάντηση παραμένει
+  // γράμμα προς γράμμα η ίδια με πριν.
+  if (user.totp_secret && user.totp_enabled_at) {
+    return startTwoFactorChallenge(c, user.id);
+  }
+
+  return issueSession(c, user);
+});
+
+/**
+ * Η ουρά κάθε επιτυχημένης σύνδεσης: `last_login_at`, έκδοση κλειδιού, cookie,
+ * καταγραφή δραστηριότητας, απάντηση.
+ *
+ * Είναι μία και μόνη συνάρτηση επίτηδες. Το δεύτερο βήμα της διπλής
+ * επαλήθευσης καταλήγει **εδώ ακριβώς**, άρα η απάντηση που παίρνει η σελίδα
+ * είναι εξ ορισμού πανομοιότυπη είτε πέρασε από ένα βήμα είτε από δύο — και
+ * δεν υπάρχει περίπτωση να ξεχαστεί κάτι στη μία από τις δύο διαδρομές.
+ */
+async function issueSession(
+  c: Context<{ Bindings: Env; Variables: { user: AuthUser } }>,
+  user: { id: string; email: string; role: string; status: string },
+) {
+  await c.env.DB
     .prepare("UPDATE users SET last_login_at = datetime('now'), updated_at = datetime('now') WHERE id = ?")
     .bind(user.id)
     .run();
@@ -190,12 +236,21 @@ auth.post('/login', authRateLimiter, async (c) => {
     user: { id: user.id, email: user.email, role: user.role, status: user.status },
     token,
   });
-});
+}
 
 // POST /logout
+//
+// Μέχρι τώρα η αποσύνδεση έσβηνε ΜΟΝΟ το cookie του browser. Το ίδιο το token
+// συνέχιζε να ισχύει μέχρι 72 ώρες: όποιος το είχε αντιγράψει (κοινόχρηστος
+// υπολογιστής, κλεμμένο κινητό) μπορούσε να μπαίνει κανονικά αφού εσύ είχες
+// πατήσει «Αποσύνδεση». Τώρα σημειώνουμε στη βάση τη στιγμή της αποσύνδεσης
+// και κάθε token που εκδόθηκε πριν από αυτήν πεθαίνει ακαριαία.
 auth.post('/logout', requireAuth, async (c) => {
   const u = c.get('user');
   c.header('Set-Cookie', 'staffnow_token=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0');
+  await c.env.DB.prepare("UPDATE users SET sessions_valid_from = datetime('now') WHERE id = ?")
+    .bind(u.id)
+    .run();
   const logoutIp = getRequestIp(c);
   const logoutUa = c.req.header('User-Agent') || null;
   const logoutGeo = getGeoFromRequest(c);
@@ -365,7 +420,7 @@ auth.post('/email/send-code', requireAuth, emailCodeRateLimiter, async (c) => {
 });
 
 // POST /email/confirm
-auth.post('/email/confirm', requireAuth, async (c) => {
+auth.post('/email/confirm', requireAuth, confirmCodeRateLimiter, async (c) => {
   const user = c.get('user');
   const db = c.env.DB;
 
@@ -410,6 +465,200 @@ auth.post('/email/confirm', requireAuth, async (c) => {
     .run();
 
   return success(c, { confirmed: true, confirmedAt: now });
+});
+
+// ---------------------------------------------------------------------------
+// Επιβεβαίωση κινητού με 6ψήφιο κωδικό SMS.
+//
+// Ίδιο ακριβώς μοτίβο με το email παραπάνω. Δύο διαφορές που μετράνε:
+//
+//  1) Κόστος. Κάθε SMS πληρώνεται. Γι' αυτό υπάρχουν ΤΡΙΑ ανεξάρτητα φρένα:
+//     το `phoneCodeRateLimiter` (3 ανά 15 λεπτά), το σκληρό όριο
+//     `phone_sms_count` (10 συνολικά ανά λογαριασμό) και η απαίτηση να έχει
+//     ήδη επιβεβαιωθεί το email — ώστε να μη φτάνει καν εδώ φρέσκος ψεύτικος
+//     λογαριασμός.
+//
+//  2) Ο πάροχος μπορεί να μην είναι ρυθμισμένος. Τότε ΔΕΝ προσποιούμαστε ότι
+//     στείλαμε κάτι: αποθηκεύουμε το νούμερο και απαντάμε `smsAvailable:false`,
+//     οπότε η σελίδα λέει ειλικρινά ότι η επιβεβαίωση θα γίνει τηλεφωνικά.
+// ---------------------------------------------------------------------------
+
+/** Ελληνικό κινητό: 10 ψηφία που ξεκινούν από 69 (δεχόμαστε και +30 μπροστά). */
+const normalizeGreekMobile = (raw: string) =>
+  (raw || '').replace(/[\s.()-]/g, '').replace(/^\+30/, '').replace(/^0030/, '');
+
+/** Πάνω από τόσα SMS ανά λογαριασμό σταματάμε και ζητάμε επικοινωνία μαζί μας. */
+const MAX_SMS_PER_USER = 10;
+
+// POST /phone/send-code
+auth.post('/phone/send-code', requireAuth, phoneCodeRateLimiter, async (c) => {
+  const user = c.get('user');
+  const db = c.env.DB;
+
+  const body = await c.req.json<{ phone?: string }>().catch(() => null);
+  const phone = normalizeGreekMobile(body?.phone || '');
+  if (!/^69\d{8}$/.test(phone)) {
+    return error(c, 'VALIDATION_ERROR', 'Δώσε έγκυρο κινητό (10 ψηφία, ξεκινά με 69).', 400);
+  }
+
+  const row = await db
+    .prepare('SELECT phone, phone_confirmed_at, phone_sms_count, email_confirmed_at FROM users WHERE id = ?')
+    .bind(user.id)
+    .first<{
+      phone: string | null;
+      phone_confirmed_at: string | null;
+      phone_sms_count: number | null;
+      email_confirmed_at: string | null;
+    }>();
+
+  if (!row) return error(c, 'NOT_FOUND', 'Ο λογαριασμός δεν βρέθηκε.', 404);
+
+  if (!row.email_confirmed_at) {
+    return error(c, 'EMAIL_NOT_CONFIRMED', 'Επιβεβαίωσε πρώτα το email σου.', 400);
+  }
+  if (row.phone_confirmed_at && row.phone === phone) {
+    return error(c, 'ALREADY_CONFIRMED', 'Αυτό το κινητό είναι ήδη επιβεβαιωμένο.', 400);
+  }
+
+  // Ένα κινητό ανήκει σε έναν λογαριασμό: αλλιώς δύο άτομα «επαληθεύονται» με
+  // το ίδιο νούμερο και το σήμα ✓ δεν σημαίνει τίποτα.
+  const taken = await db
+    .prepare('SELECT id FROM users WHERE phone = ? AND phone_confirmed_at IS NOT NULL AND id != ?')
+    .bind(phone, user.id)
+    .first<{ id: string }>();
+  if (taken) {
+    return error(c, 'PHONE_TAKEN', 'Αυτό το κινητό χρησιμοποιείται ήδη σε άλλον λογαριασμό.', 409);
+  }
+
+  const now = new Date().toISOString();
+  const smsAvailable = smsConfigured(c.env);
+
+  // Χωρίς πάροχο δεν στέλνουμε τίποτα και δεν χρεωνόμαστε τίποτα: κρατάμε το
+  // νούμερο για τον χειροκίνητο έλεγχο και το λέμε καθαρά στη σελίδα.
+  if (!smsAvailable) {
+    await db
+      .prepare('UPDATE users SET phone = ?, updated_at = ? WHERE id = ?')
+      .bind(phone, now, user.id)
+      .run();
+    await db
+      .prepare('UPDATE worker_profiles SET phone = ?, updated_at = ? WHERE user_id = ?')
+      .bind(phone, now, user.id)
+      .run();
+    return success(c, { sent: false, smsAvailable: false });
+  }
+
+  if ((row.phone_sms_count || 0) >= MAX_SMS_PER_USER) {
+    return error(
+      c,
+      'SMS_LIMIT',
+      'Ξεπεράστηκε το όριο αποστολών. Στείλε μας μήνυμα για να το επιβεβαιώσουμε χειροκίνητα.',
+      429,
+    );
+  }
+
+  // 6 ψηφία, ομοιόμορφα — χωρίς Math.random().
+  const code = String((crypto.getRandomValues(new Uint32Array(1))[0] ?? 0) % 1_000_000).padStart(6, '0');
+  const expiresAt = new Date(Date.now() + 15 * 60_000).toISOString();
+
+  // Αλλαγή νούμερου σημαίνει ότι το παλιό δεν ισχύει πια: μηδενίζουμε το
+  // `phone_confirmed_at` για να μη μείνει σήμα «επιβεβαιωμένο» σε λάθος νούμερο.
+  await db
+    .prepare(
+      `UPDATE users
+       SET phone = ?, phone_verification_token = ?, phone_verify_expires_at = ?,
+           phone_confirmed_at = NULL, phone_sms_count = phone_sms_count + 1, updated_at = ?
+       WHERE id = ?`,
+    )
+    .bind(phone, code, expiresAt, now, user.id)
+    .run();
+
+  if (c.env.ENVIRONMENT !== 'production') {
+    // eslint-disable-next-line no-console
+    console.log(`[DEV] Phone confirmation code for ${phone}: ${code}`);
+  }
+
+  const sent = await sendSms(
+    {
+      accountSid: c.env.TWILIO_ACCOUNT_SID || '',
+      authToken: c.env.TWILIO_AUTH_TOKEN || '',
+      from: c.env.TWILIO_SMS_FROM || 'StaffNow',
+    },
+    { to: phone, body: `StaffNow: ο κωδικός επιβεβαίωσης είναι ${code}. Ισχύει για 15 λεπτά.` },
+  );
+
+  // Όπως και στο email: αν δεν φύγει, δεν λέμε ψέματα ότι στάλθηκε. Στο dev ο
+  // κωδικός τυπώνεται στην κονσόλα, οπότε η ροή δοκιμάζεται κανονικά.
+  if (!sent && c.env.ENVIRONMENT === 'production') {
+    return error(c, 'SMS_FAILED', 'Δεν στάλθηκε το SMS. Δοκίμασε ξανά σε λίγο.', 502);
+  }
+
+  return success(c, { sent: true, smsAvailable: true, expiresAt });
+});
+
+// POST /phone/confirm
+auth.post('/phone/confirm', requireAuth, confirmCodeRateLimiter, async (c) => {
+  const user = c.get('user');
+  const db = c.env.DB;
+
+  const body = await c.req.json<{ code?: string }>().catch(() => null);
+  const code = (body?.code || '').replace(/\D/g, '');
+  if (code.length !== 6) return error(c, 'VALIDATION_ERROR', 'Ο κωδικός είναι 6 ψηφία.', 400);
+
+  const row = await db
+    .prepare(
+      `SELECT phone, phone_verification_token, phone_verify_expires_at, phone_confirmed_at
+       FROM users WHERE id = ?`,
+    )
+    .bind(user.id)
+    .first<{
+      phone: string | null;
+      phone_verification_token: string | null;
+      phone_verify_expires_at: string | null;
+      phone_confirmed_at: string | null;
+    }>();
+
+  if (!row) return error(c, 'NOT_FOUND', 'Ο λογαριασμός δεν βρέθηκε.', 404);
+  if (row.phone_confirmed_at) return success(c, { confirmed: true, phone: row.phone });
+
+  if (!row.phone_verification_token || !row.phone_verify_expires_at) {
+    return error(c, 'NO_CODE', 'Ζήτησε πρώτα νέο κωδικό.', 400);
+  }
+  if (new Date(row.phone_verify_expires_at).getTime() < Date.now()) {
+    return error(c, 'CODE_EXPIRED', 'Ο κωδικός έληξε. Ζήτησε νέο.', 400);
+  }
+  if (row.phone_verification_token !== code) {
+    return error(c, 'CODE_INVALID', 'Λάθος κωδικός.', 400);
+  }
+
+  // Ξαναελέγχουμε τη μοναδικότητα: ανάμεσα στην αποστολή και στην επιβεβαίωση
+  // μπορεί κάποιος άλλος να πρόλαβε να κατοχυρώσει το ίδιο νούμερο.
+  const taken = await db
+    .prepare('SELECT id FROM users WHERE phone = ? AND phone_confirmed_at IS NOT NULL AND id != ?')
+    .bind(row.phone, user.id)
+    .first<{ id: string }>();
+  if (taken) {
+    return error(c, 'PHONE_TAKEN', 'Αυτό το κινητό χρησιμοποιείται ήδη σε άλλον λογαριασμό.', 409);
+  }
+
+  const now = new Date().toISOString();
+  await db
+    .prepare(
+      `UPDATE users
+       SET phone_confirmed_at = ?, phone_verification_token = NULL,
+           phone_verify_expires_at = NULL, updated_at = ?
+       WHERE id = ?`,
+    )
+    .bind(now, now, user.id)
+    .run();
+
+  // Καθρέφτισμα στο worker_profiles.phone: εκεί το διαβάζουν σήμερα ο πίνακας
+  // ελέγχου και το προφίλ, οπότε συνεχίζουν να δουλεύουν απαράλλαχτα.
+  await db
+    .prepare('UPDATE worker_profiles SET phone = ?, updated_at = ? WHERE user_id = ?')
+    .bind(row.phone, now, user.id)
+    .run();
+
+  return success(c, { confirmed: true, confirmedAt: now, phone: row.phone });
 });
 
 // POST /forgot-password
@@ -487,8 +736,12 @@ auth.post('/reset-password', passwordResetRateLimiter, async (c) => {
 
   const passwordHash = await hashPassword(password, c.env.PASSWORD_SALT);
 
+  // `sessions_valid_from`: η επαναφορά κωδικού γίνεται συνήθως επειδή κάποιος
+  // φοβάται ότι του πήραν τον λογαριασμό. Δεν αρκεί να αλλάξει ο κωδικός — αν
+  // ο εισβολέας κρατάει ήδη ενεργό token, θα συνέχιζε να μπαίνει. Εδώ διώχνουμε
+  // όλες τις ανοιχτές συνεδρίες, σε όλες τις συσκευές.
   await db
-    .prepare("UPDATE users SET password_hash = ?, password_reset_token = NULL, password_reset_expires_at = NULL, updated_at = datetime('now') WHERE id = ?")
+    .prepare("UPDATE users SET password_hash = ?, password_reset_token = NULL, password_reset_expires_at = NULL, sessions_valid_from = datetime('now'), updated_at = datetime('now') WHERE id = ?")
     .bind(passwordHash, user.id)
     .run();
 
@@ -540,21 +793,519 @@ auth.post('/change-password', requireAuth, authRateLimiter, async (c) => {
   // Ακυρώνουμε και τυχόν εκκρεμή σύνδεσμο επαναφοράς: αν κάποιος είχε ζητήσει
   // «ξέχασα τον κωδικό» και μετά τον άλλαξε κανονικά, ο παλιός σύνδεσμος του
   // email δεν πρέπει να δουλεύει πια.
+  //
+  // Το `sessions_valid_from` διώχνει όλες τις ανοιχτές συνεδρίες. Αυτό είναι το
+  // νόημα της αλλαγής κωδικού: όποιος ήταν μέσα με το παλιό token, βγαίνει.
   await db
-    .prepare("UPDATE users SET password_hash = ?, password_reset_token = NULL, password_reset_expires_at = NULL, updated_at = datetime('now') WHERE id = ?")
+    .prepare("UPDATE users SET password_hash = ?, password_reset_token = NULL, password_reset_expires_at = NULL, sessions_valid_from = datetime('now'), updated_at = datetime('now') WHERE id = ?")
     .bind(passwordHash, user.id)
     .run();
 
-  return success(c, { message: 'Ο κωδικός σας άλλαξε επιτυχώς.' });
+  // ...εκτός από τον ίδιο, που μόλις μας ζήτησε την αλλαγή. Του δίνουμε αμέσως
+  // καινούριο token, αλλιώς το επόμενο αίτημά του θα έπαιρνε 401 και ο client
+  // (packages/api-client) θα τον πετούσε στη σελίδα σύνδεσης — σαν να χάλασε
+  // κάτι, ενώ όλα πήγαν καλά.
+  const token = await signJWT({ sub: authUser.id, email: authUser.email, role: authUser.role }, c.env.JWT_SECRET);
+  const isProduction = c.env.ENVIRONMENT === 'production';
+  c.header(
+    'Set-Cookie',
+    `staffnow_token=${token}; HttpOnly; ${isProduction ? 'Secure; ' : ''}SameSite=Lax; Path=/; Max-Age=${72 * 3600}`,
+  );
+
+  return success(c, { message: 'Ο κωδικός σας άλλαξε επιτυχώς.', token });
+});
+
+// ============================================================================
+// ΔΙΠΛΗ ΕΠΑΛΗΘΕΥΣΗ (2FA) — 6ψήφιος κωδικός από εφαρμογή κινητού
+// ============================================================================
+//
+// Η λογική σε τρεις γραμμές:
+//
+//   1) Ο χρήστης ζητάει «στήσιμο»: παίρνει ένα μυστικό που μπαίνει στη στήλη
+//      `totp_pending_secret` — ΥΠΟ ΔΟΚΙΜΗ, δεν επηρεάζει καθόλου τη σύνδεση.
+//   2) Στέλνει έναν ζωντανό 6ψήφιο. Μόνο τότε το μυστικό γίνεται ενεργό και
+//      παίρνει τους 10 κωδικούς ανάκτησης. Έτσι, αν πληκτρολόγησε λάθος το
+//      κλειδί στην εφαρμογή, η ενεργοποίηση απλώς δεν ολοκληρώνεται.
+//   3) Από εκεί και πέρα, η σύνδεση γίνεται σε δύο βήματα.
+//
+// Δύο κανόνες που τηρούνται παντού εδώ κάτω:
+//
+//   * **Ποτέ 401 σε λάθος κωδικό.** Ο client (`packages/api-client`) σβήνει το
+//     token σε κάθε 401· ένα τυπογραφικό θα πετούσε τον χρήστη έξω και από
+//     άλλες ανοιχτές καρτέλες. Λάθος κωδικός = 400.
+//   * **Η «απόδειξη» δεν είναι κλειδί συνεδρίας.** Είναι τυχαίο κείμενο 5
+//     λεπτών στο KV. Δεν είναι JWT επίτηδες: ένα JWT *είναι* πλήρης συνεδρία
+//     για το `requireAuth`, και μια αβλεψία θα το έκανε παρακαμπτήριο
+//     ολόκληρης της διπλής επαλήθευσης.
+
+/** Πόσο ζει η «απόδειξη ότι ο κωδικός ήταν σωστός». */
+const TWO_FA_CHALLENGE_TTL_S = 300;
+
+/** Πόσο ζει ένα μυστικό υπό δοκιμή, πριν χρειαστεί να ξαναρχίσεις το στήσιμο. */
+const TWO_FA_SETUP_TTL_MS = 15 * 60 * 1000;
+
+/** Λάθος 6ψήφιοι μέσα στην ΙΔΙΑ απόπειρα σύνδεσης, πριν ακυρωθεί η απόδειξη. */
+const TWO_FA_MAX_FAILS_PER_CHALLENGE = 5;
+
+/** Λάθος 6ψήφιοι ανά λογαριασμό ανά 15 λεπτά, σε όλες τις απόπειρες μαζί. */
+const TWO_FA_MAX_FAILS_PER_USER = 10;
+const TWO_FA_USER_LOCK_TTL_S = 15 * 60;
+
+const RECOVERY_CODE_COUNT = 10;
+
+/**
+ * Αλφάβητο χωρίς `O/0` και `I/1`: οι κωδικοί ανάκτησης τυπώνονται σε χαρτί και
+ * αντιγράφονται με το χέρι, οπότε δύο χαρακτήρες που μοιάζουν είναι λάθος.
+ */
+const RECOVERY_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+interface TwoFactorRow {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  password_hash: string | null;
+  totp_secret: string | null;
+  totp_enabled_at: string | null;
+  totp_pending_secret: string | null;
+  totp_pending_expires_at: string | null;
+  totp_recovery_codes: string | null;
+  totp_last_step: string | null;
+}
+
+const TWO_FA_SELECT = `SELECT id, email, role, status, password_hash,
+    totp_secret, totp_enabled_at, totp_pending_secret, totp_pending_expires_at,
+    totp_recovery_codes, totp_last_step
+  FROM users WHERE id = ?`;
+
+/** `A7K2-9QXM4P8B` — 12 χαρακτήρες, ~60 bits. */
+function generateRecoveryCode(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(12));
+  const chars = Array.from(bytes, (b) => RECOVERY_ALPHABET[b % RECOVERY_ALPHABET.length]);
+  return `${chars.slice(0, 4).join('')}-${chars.slice(4).join('')}`;
+}
+
+/**
+ * Φτιάχνει 10 καινούριους κωδικούς και επιστρέφει (α) το καθαρό κείμενο, που
+ * φαίνεται **μία και μόνη φορά**, και (β) τα hashes που πάνε στη βάση. Ό,τι
+ * αποθηκεύεται είναι κρυπτογραφημένο με τον ίδιο μηχανισμό που κρύβει τους
+ * κωδικούς πρόσβασης — όποιος διαβάσει τη βάση δεν βρίσκει τίποτα χρήσιμο.
+ */
+async function buildRecoveryCodes(salt: string): Promise<{ plain: string[]; hashes: string[] }> {
+  const plain = Array.from({ length: RECOVERY_CODE_COUNT }, generateRecoveryCode);
+  const hashes = await Promise.all(plain.map((code) => hashPassword(code, salt)));
+  return { plain, hashes };
+}
+
+function parseRecoveryHashes(raw: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Το φρένο ανά λογαριασμό. Ζει στο KV με το κλειδί `2fa_fails:<id>` — το ίδιο
+ * που αναφέρει η εντολή έκτακτης ανάγκης στο `migrations/0050_admin_totp.sql`.
+ */
+async function twoFactorUserLocked(env: Env, userId: string): Promise<boolean> {
+  try {
+    const raw = await env.KV.get(`2fa_fails:${userId}`);
+    return (raw ? parseInt(raw, 10) : 0) >= TWO_FA_MAX_FAILS_PER_USER;
+  } catch {
+    return false; // KV κάτω: δεν κλειδώνουμε κανέναν άδικα.
+  }
+}
+
+async function bumpTwoFactorUserFails(env: Env, userId: string): Promise<void> {
+  try {
+    const key = `2fa_fails:${userId}`;
+    const raw = await env.KV.get(key);
+    const next = (raw ? parseInt(raw, 10) : 0) + 1;
+    await env.KV.put(key, String(next), { expirationTtl: TWO_FA_USER_LOCK_TTL_S });
+  } catch { /* ignore */ }
+}
+
+async function clearTwoFactorUserFails(env: Env, userId: string): Promise<void> {
+  try { await env.KV.delete(`2fa_fails:${userId}`); } catch { /* ignore */ }
+}
+
+/** Το πρώτο βήμα τελείωσε σωστά: δίνουμε την απόδειξη και σταματάμε εδώ. */
+async function startTwoFactorChallenge(
+  c: Context<{ Bindings: Env; Variables: { user: AuthUser } }>,
+  userId: string,
+) {
+  const challenge = generateId('2fa');
+  try {
+    await c.env.KV.put(
+      `2fa_ch:${challenge}`,
+      JSON.stringify({ userId, fails: 0 }),
+      { expirationTtl: TWO_FA_CHALLENGE_TTL_S },
+    );
+  } catch {
+    // Χωρίς KV δεν μπορούμε να κρατήσουμε την απόδειξη. Λέμε την αλήθεια αντί
+    // να παρακάμψουμε σιωπηλά τη διπλή επαλήθευση.
+    return error(c, 'SERVICE_UNAVAILABLE', 'Η επαλήθευση δεν είναι διαθέσιμη αυτή τη στιγμή. Δοκιμάστε ξανά.', 503);
+  }
+  return success(c, {
+    twoFactorRequired: true,
+    challenge,
+    expiresIn: TWO_FA_CHALLENGE_TTL_S,
+    serverTime: new Date().toISOString(),
+  });
+}
+
+/**
+ * Διαβάζει την απόδειξη, μετράει την αποτυχία και σβήνει την απόδειξη μόλις
+ * γεμίσουν οι 5 προσπάθειες — οπότε ο χρήστης ξαναρχίζει από τον κωδικό.
+ */
+async function readChallenge(
+  env: Env,
+  challenge: string,
+): Promise<{ userId: string; fails: number } | null> {
+  try {
+    const raw = await env.KV.get(`2fa_ch:${challenge}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { userId?: string; fails?: number };
+    if (!parsed.userId) return null;
+    return { userId: parsed.userId, fails: parsed.fails || 0 };
+  } catch {
+    return null;
+  }
+}
+
+async function bumpChallengeFails(env: Env, challenge: string, current: { userId: string; fails: number }) {
+  const next = current.fails + 1;
+  try {
+    if (next >= TWO_FA_MAX_FAILS_PER_CHALLENGE) {
+      await env.KV.delete(`2fa_ch:${challenge}`);
+    } else {
+      await env.KV.put(
+        `2fa_ch:${challenge}`,
+        JSON.stringify({ userId: current.userId, fails: next }),
+        { expirationTtl: TWO_FA_CHALLENGE_TTL_S },
+      );
+    }
+  } catch { /* ignore */ }
+  return next;
+}
+
+/**
+ * Ο κωδικός δεν επιτρέπεται να ξαναδουλέψει μέσα στα 30 δευτερόλεπτά του.
+ * Κρατάμε το τελευταίο αποδεκτό «βήμα» στη βάση (όχι στο KV: η βάση εγγυάται
+ * σειρά, το KV όχι) και απορρίπτουμε οτιδήποτε είναι ίσο ή παλαιότερο.
+ */
+function stepAlreadyUsed(lastStep: string | null, step: number): boolean {
+  if (!lastStep) return false;
+  const previous = parseInt(lastStep, 10);
+  return Number.isFinite(previous) && step <= previous;
+}
+
+// GET /2fa/status — τι ισχύει για τον λογαριασμό μου
+auth.get('/2fa/status', requireAuth, async (c) => {
+  const me = c.get('user');
+  const row = await c.env.DB.prepare(TWO_FA_SELECT).bind(me.id).first<TwoFactorRow>();
+  if (!row) return error(c, 'NOT_FOUND', 'Ο λογαριασμός δεν βρέθηκε.', 404);
+
+  return success(c, {
+    enabled: Boolean(row.totp_secret && row.totp_enabled_at),
+    enabledAt: row.totp_enabled_at,
+    recoveryCodesLeft: parseRecoveryHashes(row.totp_recovery_codes).length,
+    recoveryCodesTotal: RECOVERY_CODE_COUNT,
+    // Η ώρα του server: αν το ρολόι του κινητού έχει ξεφύγει, φαίνεται εδώ
+    // αντί να είναι ανεξήγητο μυστήριο.
+    serverTime: new Date().toISOString(),
+  });
+});
+
+// POST /2fa/setup — γέννηση μυστικού ΥΠΟ ΔΟΚΙΜΗ (δεν αλλάζει τίποτα ακόμη)
+auth.post('/2fa/setup', requireAuth, confirmCodeRateLimiter, async (c) => {
+  const me = c.get('user');
+  const body = await c.req.json<{ password?: string }>().catch(() => null);
+  const password = body?.password || '';
+
+  const row = await c.env.DB.prepare(TWO_FA_SELECT).bind(me.id).first<TwoFactorRow>();
+  if (!row) return error(c, 'NOT_FOUND', 'Ο λογαριασμός δεν βρέθηκε.', 404);
+  if (!row.password_hash) {
+    return error(c, 'BAD_REQUEST', 'Ο λογαριασμός σας δεν έχει κωδικό. Συνδέεστε μέσω Google.', 400);
+  }
+  if (row.totp_secret && row.totp_enabled_at) {
+    return error(c, 'ALREADY_ENABLED', 'Η διπλή επαλήθευση είναι ήδη ενεργή.', 400);
+  }
+  if (!(await verifyPassword(password, row.password_hash, c.env.PASSWORD_SALT))) {
+    return error(c, 'VALIDATION_ERROR', 'Ο κωδικός δεν είναι σωστός.', 400);
+  }
+
+  const secret = generateSecret();
+  const expiresAt = new Date(Date.now() + TWO_FA_SETUP_TTL_MS).toISOString();
+  await c.env.DB
+    .prepare(
+      "UPDATE users SET totp_pending_secret = ?, totp_pending_expires_at = ?, updated_at = datetime('now') WHERE id = ?",
+    )
+    .bind(secret, expiresAt, me.id)
+    .run();
+
+  return success(c, {
+    secret,
+    otpauthUri: otpauthUri(row.email, secret),
+    expiresAt,
+    serverTime: new Date().toISOString(),
+  });
+});
+
+// POST /2fa/enable — γίνεται ενεργό ΜΟΝΟ με σωστό ζωντανό κωδικό
+auth.post('/2fa/enable', requireAuth, confirmCodeRateLimiter, async (c) => {
+  const me = c.get('user');
+  const body = await c.req.json<{ code?: string }>().catch(() => null);
+  const code = (body?.code || '').replace(/\D/g, '');
+
+  const row = await c.env.DB.prepare(TWO_FA_SELECT).bind(me.id).first<TwoFactorRow>();
+  if (!row) return error(c, 'NOT_FOUND', 'Ο λογαριασμός δεν βρέθηκε.', 404);
+  if (row.totp_secret && row.totp_enabled_at) {
+    return error(c, 'ALREADY_ENABLED', 'Η διπλή επαλήθευση είναι ήδη ενεργή.', 400);
+  }
+  if (!row.totp_pending_secret || !row.totp_pending_expires_at) {
+    return error(c, 'NO_SETUP', 'Ξεκίνησε πρώτα το στήσιμο.', 400);
+  }
+  if (new Date(row.totp_pending_expires_at).getTime() < Date.now()) {
+    return error(c, 'SETUP_EXPIRED', 'Το στήσιμο έληξε. Ξεκίνησέ το από την αρχή.', 400);
+  }
+
+  const check = await verifyTotp(row.totp_pending_secret, code);
+  if (!check.ok) {
+    return error(c, 'CODE_INVALID', 'Ο κωδικός δεν είναι σωστός. Δες ότι η ώρα του κινητού είναι αυτόματη.', 400);
+  }
+
+  const { plain, hashes } = await buildRecoveryCodes(c.env.PASSWORD_SALT);
+  await c.env.DB
+    .prepare(
+      `UPDATE users
+       SET totp_secret = ?, totp_enabled_at = datetime('now'), totp_last_step = ?,
+           totp_recovery_codes = ?, totp_pending_secret = NULL, totp_pending_expires_at = NULL,
+           updated_at = datetime('now')
+       WHERE id = ?`,
+    )
+    .bind(row.totp_pending_secret, String(check.step), JSON.stringify(hashes), me.id)
+    .run();
+
+  // Οι κωδικοί ανάκτησης φαίνονται ΕΔΩ και πουθενά αλλού, ποτέ ξανά.
+  return success(c, { enabled: true, recoveryCodes: plain });
+});
+
+// POST /2fa/disable — χρειάζεται κωδικό ΚΑΙ δεύτερο παράγοντα
+auth.post('/2fa/disable', requireAuth, confirmCodeRateLimiter, async (c) => {
+  const me = c.get('user');
+  const body = await c.req.json<{ password?: string; code?: string }>().catch(() => null);
+
+  const row = await c.env.DB.prepare(TWO_FA_SELECT).bind(me.id).first<TwoFactorRow>();
+  if (!row) return error(c, 'NOT_FOUND', 'Ο λογαριασμός δεν βρέθηκε.', 404);
+  if (!row.totp_secret || !row.totp_enabled_at) {
+    return success(c, { enabled: false });
+  }
+  if (!row.password_hash || !(await verifyPassword(body?.password || '', row.password_hash, c.env.PASSWORD_SALT))) {
+    return error(c, 'VALIDATION_ERROR', 'Ο κωδικός δεν είναι σωστός.', 400);
+  }
+  if (!(await secondFactorAccepted(c.env, row, body?.code || ''))) {
+    return error(c, 'CODE_INVALID', 'Ο κωδικός επαλήθευσης δεν είναι σωστός.', 400);
+  }
+
+  await c.env.DB
+    .prepare(
+      `UPDATE users
+       SET totp_secret = NULL, totp_enabled_at = NULL, totp_recovery_codes = NULL,
+           totp_last_step = NULL, totp_pending_secret = NULL, totp_pending_expires_at = NULL,
+           updated_at = datetime('now')
+       WHERE id = ?`,
+    )
+    .bind(me.id)
+    .run();
+  await clearTwoFactorUserFails(c.env, me.id);
+
+  return success(c, { enabled: false });
+});
+
+// POST /2fa/recovery-codes/regenerate — 10 καινούριοι, οι παλιοί πεθαίνουν
+auth.post('/2fa/recovery-codes/regenerate', requireAuth, confirmCodeRateLimiter, async (c) => {
+  const me = c.get('user');
+  const body = await c.req.json<{ password?: string; code?: string }>().catch(() => null);
+
+  const row = await c.env.DB.prepare(TWO_FA_SELECT).bind(me.id).first<TwoFactorRow>();
+  if (!row) return error(c, 'NOT_FOUND', 'Ο λογαριασμός δεν βρέθηκε.', 404);
+  if (!row.totp_secret || !row.totp_enabled_at) {
+    return error(c, 'NOT_ENABLED', 'Η διπλή επαλήθευση δεν είναι ενεργή.', 400);
+  }
+  if (!row.password_hash || !(await verifyPassword(body?.password || '', row.password_hash, c.env.PASSWORD_SALT))) {
+    return error(c, 'VALIDATION_ERROR', 'Ο κωδικός δεν είναι σωστός.', 400);
+  }
+  if (!(await secondFactorAccepted(c.env, row, body?.code || ''))) {
+    return error(c, 'CODE_INVALID', 'Ο κωδικός επαλήθευσης δεν είναι σωστός.', 400);
+  }
+
+  const { plain, hashes } = await buildRecoveryCodes(c.env.PASSWORD_SALT);
+  await c.env.DB
+    .prepare("UPDATE users SET totp_recovery_codes = ?, updated_at = datetime('now') WHERE id = ?")
+    .bind(JSON.stringify(hashes), me.id)
+    .run();
+
+  return success(c, { recoveryCodes: plain });
+});
+
+/**
+ * Δέχεται είτε ζωντανό 6ψήφιο είτε κωδικό ανάκτησης. Το χρησιμοποιούν η
+ * απενεργοποίηση και η ανανέωση κωδικών — ενέργειες όπου ο χρήστης είναι ήδη
+ * συνδεδεμένος και έδωσε τον κωδικό του, οπότε το να μπορεί να ξεμπλοκάρει με
+ * χαρτί όταν έχασε το κινητό είναι ακριβώς το ζητούμενο.
+ *
+ * Καταναλώνει τον κωδικό ανάκτησης, όπως και στη σύνδεση.
+ */
+async function secondFactorAccepted(env: Env, row: TwoFactorRow, rawCode: string): Promise<boolean> {
+  const digits = rawCode.replace(/\D/g, '');
+  if (digits.length === 6 && row.totp_secret) {
+    const check = await verifyTotp(row.totp_secret, digits);
+    if (check.ok && !stepAlreadyUsed(row.totp_last_step, check.step)) {
+      await env.DB.prepare('UPDATE users SET totp_last_step = ? WHERE id = ?')
+        .bind(String(check.step), row.id)
+        .run();
+      return true;
+    }
+    return false;
+  }
+  return consumeRecoveryCode(env, row, rawCode);
+}
+
+/** Βρίσκει τον κωδικό ανάκτησης, τον σβήνει, και λέει αν πέτυχε. */
+async function consumeRecoveryCode(env: Env, row: TwoFactorRow, rawCode: string): Promise<boolean> {
+  const candidate = rawCode.trim().toUpperCase();
+  if (!candidate) return false;
+  const hashes = parseRecoveryHashes(row.totp_recovery_codes);
+
+  for (const stored of hashes) {
+    if (await verifyPassword(candidate, stored, env.PASSWORD_SALT)) {
+      const remaining = hashes.filter((h) => h !== stored);
+      await env.DB
+        .prepare("UPDATE users SET totp_recovery_codes = ?, updated_at = datetime('now') WHERE id = ?")
+        .bind(JSON.stringify(remaining), row.id)
+        .run();
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Το δεύτερο βήμα της σύνδεσης. Κοινό για τον 6ψήφιο και για τον κωδικό
+ * ανάκτησης — η μόνη διαφορά είναι ποια συνάρτηση κρίνει τον κωδικό.
+ */
+async function completeTwoFactorLogin(
+  c: Context<{ Bindings: Env; Variables: { user: AuthUser } }>,
+  kind: 'totp' | 'recovery',
+) {
+  const body = await c.req.json<{ challenge?: string; code?: string }>().catch(() => null);
+  const challenge = body?.challenge || '';
+  const rawCode = body?.code || '';
+
+  // ΠΡΟΣΟΧΗ: παντού 400, ποτέ 401 — βλ. το σχόλιο στην κορυφή της ενότητας.
+  if (!challenge) return error(c, 'VALIDATION_ERROR', 'Λείπουν στοιχεία. Ξεκινήστε ξανά τη σύνδεση.', 400);
+
+  const state = await readChallenge(c.env, challenge);
+  if (!state) {
+    return error(c, 'CHALLENGE_EXPIRED', 'Η προσπάθεια έληξε. Συνδεθείτε ξανά με email και κωδικό.', 400);
+  }
+
+  if (await twoFactorUserLocked(c.env, state.userId)) {
+    return error(c, 'LOCKED', 'Πολλές αποτυχημένες προσπάθειες. Δοκιμάστε ξανά σε 15 λεπτά.', 429);
+  }
+
+  const row = await c.env.DB.prepare(TWO_FA_SELECT).bind(state.userId).first<TwoFactorRow>();
+  if (!row || row.status !== 'active' || !row.totp_secret || !row.totp_enabled_at) {
+    return error(c, 'CHALLENGE_EXPIRED', 'Η προσπάθεια έληξε. Συνδεθείτε ξανά με email και κωδικό.', 400);
+  }
+
+  let accepted = false;
+  if (kind === 'totp') {
+    const digits = rawCode.replace(/\D/g, '');
+    if (digits.length === 6) {
+      const check = await verifyTotp(row.totp_secret, digits);
+      if (check.ok && !stepAlreadyUsed(row.totp_last_step, check.step)) {
+        await c.env.DB.prepare('UPDATE users SET totp_last_step = ? WHERE id = ?')
+          .bind(String(check.step), row.id)
+          .run();
+        accepted = true;
+      }
+    }
+  } else {
+    accepted = await consumeRecoveryCode(c.env, row, rawCode);
+  }
+
+  if (!accepted) {
+    await bumpTwoFactorUserFails(c.env, row.id);
+    const fails = await bumpChallengeFails(c.env, challenge, state);
+    if (fails >= TWO_FA_MAX_FAILS_PER_CHALLENGE) {
+      return error(c, 'CHALLENGE_EXPIRED', 'Πολλές λάθος προσπάθειες. Συνδεθείτε ξανά με email και κωδικό.', 400);
+    }
+    return error(
+      c,
+      'CODE_INVALID',
+      kind === 'totp' ? 'Ο κωδικός δεν είναι σωστός.' : 'Ο κωδικός ανάκτησης δεν είναι σωστός.',
+      400,
+    );
+  }
+
+  // Πέτυχε: η απόδειξη είναι μιας χρήσης και τα φρένα καθαρίζουν.
+  try { await c.env.KV.delete(`2fa_ch:${challenge}`); } catch { /* ignore */ }
+  await clearTwoFactorUserFails(c.env, row.id);
+
+  return issueSession(c, { id: row.id, email: row.email, role: row.role, status: row.status });
+}
+
+// POST /2fa/verify — δεύτερο βήμα με τον 6ψήφιο του κινητού
+auth.post('/2fa/verify', twoFactorRateLimiter, (c) => completeTwoFactorLogin(c, 'totp'));
+
+// POST /2fa/recovery — δεύτερο βήμα με έναν από τους 10 κωδικούς ανάκτησης
+auth.post('/2fa/recovery', twoFactorRateLimiter, (c) => completeTwoFactorLogin(c, 'recovery'));
+
+// POST /sessions/revoke-others — «Αποσύνδεση από όλες τις άλλες συσκευές»
+//
+// Ίδιο μοτίβο με την αλλαγή κωδικού: ακυρώνουμε ό,τι εκδόθηκε πριν από τώρα
+// και δίνουμε αμέσως καινούριο κλειδί στην τρέχουσα καρτέλα, ώστε αυτός που
+// πάτησε το κουμπί να μη βρεθεί ο ίδιος έξω.
+auth.post('/sessions/revoke-others', requireAuth, authRateLimiter, async (c) => {
+  const me = c.get('user');
+  await c.env.DB
+    .prepare("UPDATE users SET sessions_valid_from = datetime('now') WHERE id = ?")
+    .bind(me.id)
+    .run();
+
+  const token = await signJWT({ sub: me.id, email: me.email, role: me.role }, c.env.JWT_SECRET);
+  const isProduction = c.env.ENVIRONMENT === 'production';
+  c.header(
+    'Set-Cookie',
+    `staffnow_token=${token}; HttpOnly; ${isProduction ? 'Secure; ' : ''}SameSite=Lax; Path=/; Max-Age=${72 * 3600}`,
+  );
+
+  return success(c, { message: 'Όλες οι άλλες συσκευές αποσυνδέθηκαν.', token });
 });
 
 // ============================================================================
 // GOOGLE OAUTH
 // ============================================================================
 
+/**
+ * Ο ρόλος ταξιδεύει μέσα στο `state` του Google και γυρίζει πίσω αυτούσιος —
+ * άρα τον ελέγχει ο επισκέπτης, όχι εμείς. Χωρίς αυτό το φίλτρο ένα απλό
+ * `?role=admin` έφτιαχνε λογαριασμό διαχειριστή. Ό,τι δεν είναι ακριβώς
+ * 'business' γίνεται 'worker'.
+ */
+function safeOAuthRole(raw: string | undefined): 'worker' | 'business' {
+  return raw === 'business' ? 'business' : 'worker';
+}
+
 // GET /google — redirect to Google OAuth
 auth.get('/google', (c) => {
-  const role = c.req.query('role') || 'worker';
+  const role = safeOAuthRole(c.req.query('role'));
   const clientId = c.env.GOOGLE_CLIENT_ID;
   const redirectUri = `https://staffnow-api-production.siteinside53.workers.dev/auth/google/callback`;
 
@@ -574,7 +1325,8 @@ auth.get('/google', (c) => {
 // GET /google/callback — handle Google OAuth callback
 auth.get('/google/callback', async (c) => {
   const code = c.req.query('code');
-  const role = (c.req.query('state') as 'worker' | 'business') || 'worker';
+  // Το `state` έρχεται πίσω από τον browser του επισκέπτη — ποτέ εμπιστοσύνη.
+  const role = safeOAuthRole(c.req.query('state'));
 
   if (!code) {
     return c.redirect(`https://staffnow.gr/auth/login?error=google_failed`);

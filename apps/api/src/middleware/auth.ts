@@ -2,6 +2,44 @@ import { createMiddleware } from 'hono/factory';
 import type { Env, AuthUser } from '../types';
 import { verifyJWT } from '../lib/jwt';
 
+/**
+ * Ίδιο SELECT με πριν, συν τη στήλη ακύρωσης συνεδριών. Επειδή το requireAuth
+ * έκανε ήδη αυτό το ερώτημα σε κάθε αίτημα, ο νέος έλεγχος δεν κοστίζει τίποτα.
+ */
+const USER_SELECT =
+  'SELECT id, email, role, status, sessions_valid_from FROM users WHERE id = ? AND status = ?';
+
+interface UserRow {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  sessions_valid_from: string | null;
+}
+
+/**
+ * Ζει ακόμη αυτό το token;
+ *
+ * Κάθε token κουβαλάει τη στιγμή έκδοσής του (`iat`, σε δευτερόλεπτα). Όταν ο
+ * χρήστης αποσυνδεθεί ή αλλάξει κωδικό, γράφουμε στη βάση τη στιγμή εκείνη.
+ * Ό,τι εκδόθηκε πριν από αυτήν θεωρείται νεκρό — έτσι ένα κλεμμένο token
+ * σταματάει να δουλεύει ακαριαία αντί να ζει μέχρι 72 ώρες.
+ *
+ * NULL = δεν έχει γίνει ποτέ ακύρωση, άρα όλα ισχύουν.
+ *
+ * Εξάγεται επειδή οι δύο «ζωντανές ροές» του πίνακα ελέγχου
+ * (`/admin/security/stream`, `/admin/analytics/stream`) δεν περνάνε από το
+ * `requireAuth` — ο browser δεν μπορεί να στείλει `Authorization` σε
+ * `EventSource`, οπότε ελέγχουν το token μόνες τους. Πρέπει να καλούν
+ * **αυτήν ακριβώς** τη συνάρτηση, όχι ένα αντίγραφό της.
+ */
+export function sessionStillValid(validFrom: string | null, issuedAt: number): boolean {
+  if (!validFrom) return true;
+  const cutoff = Date.parse(validFrom.includes('T') ? validFrom : validFrom.replace(' ', 'T') + 'Z');
+  if (Number.isNaN(cutoff)) return true; // Αλλοιωμένη τιμή: δεν πετάμε κανέναν έξω.
+  return issuedAt >= Math.floor(cutoff / 1000);
+}
+
 export const requireAuth = createMiddleware<{
   Bindings: Env;
   Variables: { user: AuthUser };
@@ -35,15 +73,23 @@ export const requireAuth = createMiddleware<{
     );
   }
 
-  const user = await c.env.DB.prepare(
-    'SELECT id, email, role, status FROM users WHERE id = ? AND status = ?',
-  )
+  const user = await c.env.DB.prepare(USER_SELECT)
     .bind(payload.sub, 'active')
-    .first<{ id: string; email: string; role: string; status: string }>();
+    .first<UserRow>();
 
   if (!user) {
     return c.json(
       { success: false, error: { code: 'UNAUTHORIZED', message: 'Ο λογαριασμός δεν είναι ενεργός.' } },
+      401,
+    );
+  }
+
+  if (!sessionStillValid(user.sessions_valid_from, payload.iat)) {
+    return c.json(
+      {
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'Η συνεδρία έληξε. Συνδεθείτε ξανά.' },
+      },
       401,
     );
   }
@@ -81,12 +127,12 @@ export const optionalAuth = createMiddleware<{
   if (token) {
     const payload = await verifyJWT(token, c.env.JWT_SECRET);
     if (payload) {
-      const user = await c.env.DB.prepare(
-        'SELECT id, email, role, status FROM users WHERE id = ? AND status = ?',
-      )
+      const user = await c.env.DB.prepare(USER_SELECT)
         .bind(payload.sub, 'active')
-        .first<{ id: string; email: string; role: string; status: string }>();
-      if (user) c.set('user', user as AuthUser);
+        .first<UserRow>();
+      if (user && sessionStillValid(user.sessions_valid_from, payload.iat)) {
+        c.set('user', user as AuthUser);
+      }
     }
   }
   await next();

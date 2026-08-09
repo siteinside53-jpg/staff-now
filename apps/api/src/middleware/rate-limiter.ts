@@ -5,6 +5,13 @@ interface RateLimitConfig {
   windowMs: number;
   maxRequests: number;
   keyPrefix?: string;
+  /**
+   * Μέτρα ανά συνδεδεμένο χρήστη αντί για ανά IP. Χρειάζεται σε endpoints που
+   * τρέχουν μετά το `requireAuth`: οι εταιρείες κινητής τηλεφωνίας δίνουν την
+   * ίδια δημόσια IP σε πολλούς συνδρομητές, οπότε το μέτρημα ανά IP θα έκοβε
+   * αθώους χρήστες που απλώς τυχαίνει να είναι στο ίδιο δίκτυο.
+   */
+  perUser?: boolean;
 }
 
 const DEFAULT_CONFIG: RateLimitConfig = {
@@ -14,11 +21,12 @@ const DEFAULT_CONFIG: RateLimitConfig = {
 };
 
 export const rateLimiter = (config?: Partial<RateLimitConfig>) =>
-  createMiddleware<{ Bindings: Env }>(async (c, next) => {
-    const { windowMs, maxRequests, keyPrefix } = { ...DEFAULT_CONFIG, ...config };
+  createMiddleware<{ Bindings: Env; Variables: { user?: { id: string } } }>(async (c, next) => {
+    const { windowMs, maxRequests, keyPrefix, perUser } = { ...DEFAULT_CONFIG, ...config };
     const ip = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
+    const subject = (perUser && c.get('user')?.id) || ip;
     const window = Math.floor(Date.now() / windowMs);
-    const key = `${keyPrefix}:${ip}:${window}`;
+    const key = `${keyPrefix}:${subject}:${window}`;
 
     try {
       const current = await c.env.KV.get(key);
@@ -87,4 +95,52 @@ export const emailCodeRateLimiter = rateLimiter({
   windowMs: 900_000,
   maxRequests: 5,
   keyPrefix: 'rl_email_code',
+});
+
+// Κωδικός επιβεβαίωσης κινητού. Πιο σφιχτό από το email (3 αντί για 5) επειδή
+// κάθε αποστολή κοστίζει πραγματικά χρήματα στο Twilio. Δεύτερο, ανεξάρτητο
+// φρένο υπάρχει στη βάση: σκληρό όριο συνολικών SMS ανά λογαριασμό.
+export const phoneCodeRateLimiter = rateLimiter({
+  windowMs: 900_000,
+  maxRequests: 3,
+  keyPrefix: 'rl_phone_code',
+  perUser: true,
+});
+
+/**
+ * Φρένο στο *μάντεμα* του 6ψήφιου κωδικού (email και κινητού).
+ *
+ * Η αποστολή είχε ήδη φρένο, η επιβεβαίωση όχι: κάποιος μπορούσε να δοκιμάζει
+ * νούμερα μέχρι να βρει το σωστό. Με 10 προσπάθειες ανά 15 λεπτά, το να
+ * σαρώσει κανείς και το ένα εκατομμύριο συνδυασμούς θέλει ~28 χρόνια.
+ *
+ * Μετράει ανά χρήστη (τρέχει μετά το requireAuth), ώστε να μην κόβονται αθώοι
+ * που τυχαίνει να μοιράζονται IP κινητής τηλεφωνίας. Το 10 αφήνει άνετο
+ * περιθώριο σε όποιον πληκτρολογήσει λάθος ή δοκιμάσει παλιό κωδικό.
+ */
+export const confirmCodeRateLimiter = rateLimiter({
+  windowMs: 900_000,
+  maxRequests: 10,
+  keyPrefix: 'rl_confirm_code',
+  perUser: true,
+});
+
+/**
+ * Το δεύτερο βήμα της σύνδεσης (διπλή επαλήθευση).
+ *
+ * Μετράει ανά IP επειδή σε αυτό το σημείο ο χρήστης **δεν έχει ακόμη
+ * συνεδρία** — έχει μόνο μια προσωρινή «απόδειξη ότι ο κωδικός ήταν σωστός».
+ *
+ * Ξεχωριστό prefix από το `rl_auth`, ώστε οι προσπάθειες του 6ψήφιου να **μην**
+ * γεμίζουν τον κουβά της σύνδεσης: αλλιώς μερικές λάθος πληκτρολογήσεις θα
+ * εμπόδιζαν τον χρήστη να ξαναρχίσει από την αρχή.
+ *
+ * Το 20 είναι χαλαρό επίτηδες. Τα πραγματικά φρένα είναι εκείνα που μετράνε
+ * ανά **λογαριασμό** μέσα στο `auth.ts` (5 ανά απόπειρα σύνδεσης, 10 ανά 15
+ * λεπτά)· αυτό εδώ απλώς εμποδίζει κάποιον να σφυροκοπάει από μία IP.
+ */
+export const twoFactorRateLimiter = rateLimiter({
+  windowMs: 900_000,
+  maxRequests: 20,
+  keyPrefix: 'rl_2fa',
 });

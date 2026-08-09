@@ -14,6 +14,10 @@ interface VerificationRow {
   status: 'pending' | 'approved' | 'rejected';
   document_url: string;
   document_type: string;
+  /** 'id' | 'passport' | 'license' — κενό στις αιτήσεις πριν το 0048. */
+  document_kind: string | null;
+  /** Πίσω όψη — κενή σε διαβατήριο και στις παλιές αιτήσεις. */
+  document_back_url: string | null;
   vat_number: string | null;
   registry_number: string | null;
   notes: string | null;
@@ -26,6 +30,7 @@ interface VerificationRow {
   worker_phone: string | null;
   company_name: string | null;
   email_confirmed_at: string | null;
+  phone_confirmed_at: string | null;
 }
 
 type Tab = 'pending' | 'approved' | 'rejected';
@@ -38,6 +43,16 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 
 const displayName = (r: VerificationRow) =>
   r.company_name || r.worker_full_name || r.email || '—';
+
+const DOC_KIND_LABELS: Record<string, string> = {
+  id: '🪪 Ταυτότητα',
+  passport: '📘 Διαβατήριο',
+  license: '🚗 Δίπλωμα οδήγησης',
+};
+
+/** Παλιές αιτήσεις δεν έχουν τύπο — δείχνουμε ουδέτερη ετικέτα, όχι κενό. */
+const docKindLabel = (r: VerificationRow) =>
+  DOC_KIND_LABELS[r.document_kind || ''] || '📄 Έγγραφο ταυτοποίησης';
 
 export default function VerificationsPage() {
   const [tab, setTab] = useState<Tab>('pending');
@@ -231,7 +246,18 @@ export default function VerificationsPage() {
                     <p className="mt-1 font-mono text-sm font-semibold text-gray-900">
                       {selected.worker_phone || '—'}
                     </p>
-                    <p className="mt-1 text-[10px] text-gray-500">Επιβεβαίωσέ το με κλήση/SMS</p>
+                    {/* Αν έχει σταλεί κωδικός SMS και επιβεβαιώθηκε, δεν χρειάζεται
+                        να κάνει τίποτα ο ελεγκτής. Αλλιώς το κινητό είναι απλώς
+                        δηλωμένο και θέλει τηλεφωνική επιβεβαίωση. */}
+                    <p
+                      className={`mt-1 text-[10px] font-semibold ${
+                        selected.phone_confirmed_at ? 'text-emerald-700' : 'text-amber-700'
+                      }`}
+                    >
+                      {selected.phone_confirmed_at
+                        ? '✓ Επιβεβαιωμένο με SMS'
+                        : '⏳ Χρειάζεται τηλεφωνική επιβεβαίωση'}
+                    </p>
                   </div>
                   <div className="rounded-lg bg-gray-50 p-3">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Email</p>
@@ -262,14 +288,37 @@ export default function VerificationsPage() {
 
               <div>
                 <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">Δικαιολογητικό</p>
-                <a
-                  href={selected.document_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-700 hover:bg-blue-100"
-                >
-                  📎 Άνοιγμα σε νέα καρτέλα
-                </a>
+                {selected.role !== 'business' && (
+                  <p className="mb-2 inline-block rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-700">
+                    {docKindLabel(selected)}
+                  </p>
+                )}
+                <div className="space-y-2">
+                  <a
+                    href={selected.document_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+                  >
+                    📎 {selected.role === 'business'
+                      ? 'Άνοιγμα σε νέα καρτέλα'
+                      : selected.document_kind === 'passport'
+                        ? 'Σελίδα με τη φωτογραφία'
+                        : 'Μπροστινή όψη'}
+                  </a>
+                  {/* Ο δεύτερος σύνδεσμος μόνο αν υπάρχει: οι αιτήσεις πριν το
+                      0048 και τα διαβατήρια έχουν μία μόνο όψη. */}
+                  {selected.document_back_url && (
+                    <a
+                      href={selected.document_back_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+                    >
+                      📎 Πίσω όψη
+                    </a>
+                  )}
+                </div>
               </div>
 
               {selected.rejection_reason && (

@@ -101,11 +101,19 @@ export default function SettingsPage() {
     }
     setSavingPassword(true);
     try {
-      await api.auth.changePassword({
+      const res = await api.auth.changePassword({
         currentPassword: data.currentPassword,
         password: data.newPassword,
         confirmPassword: data.confirmPassword,
       });
+      // Η αλλαγή κωδικού διώχνει όλες τις ανοιχτές συνεδρίες σε όλες τις
+      // συσκευές — αυτό ακριβώς είναι το ζητούμενο. Ο διακομιστής όμως μας
+      // δίνει αμέσως καινούριο «κλειδί» για ΑΥΤΗ τη συσκευή, ώστε να μη βρεθεί
+      // ο χρήστης ξαφνικά αποσυνδεδεμένος τη στιγμή που όλα πήγαν καλά.
+      // Ο client επιστρέφει ολόκληρη την απάντηση ({ success, data }), οπότε το
+      // νέο κλειδί βρίσκεται μέσα στο `data`.
+      const fresh = (res as { data?: { token?: string } } | undefined)?.data?.token;
+      if (fresh) localStorage.setItem('staffnow_token', fresh);
       toast.success('Ο κωδικός αλλάχτηκε επιτυχώς!');
       passwordForm.reset();
     } catch (err) {

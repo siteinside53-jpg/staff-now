@@ -16,6 +16,12 @@ interface AuthContextType {
   subscription: any;
   loading: boolean;
   login: (email: string, password: string) => Promise<any>;
+  /**
+   * Το δεύτερο βήμα της σύνδεσης, όταν ο λογαριασμός έχει διπλή επαλήθευση.
+   * Καταλήγει **στις ίδιες ακριβώς γραμμές** με το `login`, ώστε η συνεδρία να
+   * στήνεται με έναν και μόνο τρόπο.
+   */
+  completeTwoFactor: (challenge: string, code: string, mode: 'totp' | 'recovery') => Promise<any>;
   register: (data: { email: string; password: string; confirmPassword: string; role: string; acceptTerms: boolean }) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -48,16 +54,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshUser().finally(() => setLoading(false));
   }, [refreshUser]);
 
+  /** Το κοινό τέλος και των δύο δρόμων σύνδεσης. */
+  const applySession = async (data: any) => {
+    if (data.token) {
+      localStorage.setItem('staffnow_token', data.token);
+    }
+    setUser(data.user);
+    await refreshUser();
+    return data.user;
+  };
+
   const login = async (email: string, password: string) => {
     const res = await api.auth.login({ email, password });
     if (res.success && res.data) {
       const data = res.data as any;
-      if (data.token) {
-        localStorage.setItem('staffnow_token', data.token);
+      // Λογαριασμός με διπλή επαλήθευση: εδώ ΔΕΝ υπάρχει token. Επιστρέφουμε
+      // την «απόδειξη» για να τη δώσει το παράθυρο στο δεύτερο βήμα.
+      if (data.twoFactorRequired) {
+        return {
+          twoFactorRequired: true,
+          challenge: data.challenge as string,
+          expiresIn: data.expiresIn as number,
+        };
       }
-      setUser(data.user);
-      await refreshUser();
-      return data.user;
+      return applySession(data);
+    }
+    return null;
+  };
+
+  const completeTwoFactor = async (
+    challenge: string,
+    code: string,
+    mode: 'totp' | 'recovery',
+  ) => {
+    const res =
+      mode === 'recovery'
+        ? await api.auth.twoFactorRecovery({ challenge, code })
+        : await api.auth.twoFactorVerify({ challenge, code });
+    if (res.success && res.data) {
+      return applySession(res.data as any);
     }
     return null;
   };
@@ -86,7 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, subscription, loading, login, register, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, profile, subscription, loading, login, completeTwoFactor, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
