@@ -71,13 +71,18 @@ function HireCard({
   const working = busy === hire.id || busy === hire.job_id;
 
   if (hire.status === 'pending') {
+    /*
+      ΠΟΙΟΣ επιβεβαιώνει δεν το ορίζει ο ρόλος αλλά το ποιος τη δήλωσε — πλέον
+      μπορεί και ο εργαζόμενος. Το `i_declared` το υπολογίζει ο server.
+    */
+    const iDeclared = Number(hire.i_declared) > 0;
     return (
       <div className={`${shell} border-emerald-200 bg-emerald-50`}>
         <p className="text-sm font-semibold text-emerald-900">🤝 Δήλωση πρόσληψης</p>
-        {isWorker ? (
+        {!iDeclared ? (
           <>
             <p className="mt-1 text-sm text-emerald-800">
-              {who} δηλώνει ότι σε προσέλαβε{jobLine}. Επιβεβαίωσε για να μετρήσει.
+              {who} δηλώνει ότι {isWorker ? 'σε προσέλαβε' : `τον/την προσέλαβες`}{jobLine}. Επιβεβαίωσε για να μετρήσει.
             </p>
             <div className="mt-3 flex gap-2">
               <button
@@ -85,7 +90,7 @@ function HireCard({
                 onClick={() => onAnswer(hire.id, 'confirm')}
                 className="flex-1 rounded-xl bg-emerald-600 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
               >
-                Ναι, ξεκίνησα
+                {isWorker ? 'Ναι, ξεκίνησα' : 'Ναι, τον/την προσέλαβα'}
               </button>
               <button
                 disabled={working}
@@ -98,7 +103,13 @@ function HireCard({
           </>
         ) : (
           <p className="mt-1 text-sm text-emerald-800">
-            Δήλωσες ότι προσέλαβες {whoAcc}{jobLine}. Περιμένουμε την επιβεβαίωσή του/της.
+            {/* Χωρίς όνομα στην πλευρά του εργαζόμενου: το «σε προσέλαβε την
+                επιχείρηση» βγαίνει σε λάθος πτώση, και το όνομα φαίνεται ήδη
+                στην κορυφή της συνομιλίας. */}
+            {isWorker
+              ? `Δήλωσες ότι σε προσέλαβαν${jobLine}.`
+              : `Δήλωσες ότι προσέλαβες ${whoAcc}${jobLine}.`}{' '}
+            Περιμένουμε την επιβεβαίωσή του/της.
           </p>
         )}
         {timeStr && <p className="mt-2 text-right text-[10px] text-emerald-600">{timeStr}</p>}
@@ -231,6 +242,13 @@ function MessagesInner() {
   // μέσα στο chat για να ξέρει σε ποιο από τα 4 βήματα βρισκόμαστε.
   const [hires, setHires] = useState<Record<string, any>>({});
   const [hireBusy, setHireBusy] = useState<string | null>(null);
+  /*
+    Ποιες συνομιλίες «περιμένουν απάντηση» στο «έγινε πρόσληψη;». Ο κανόνας
+    (2+ μέρες σιωπή, μίλησαν και οι δύο, καμία δηλωμένη πρόσληψη) ζει ΜΟΝΟ στον
+    server. Μία κλήση για όλη τη σελίδα — όχι μία ανά συνομιλία — και ταΐζει
+    ταυτόχρονα τη λωρίδα της ανοιχτής συνομιλίας και τα 🤝 της λίστας.
+  */
+  const [hirePrompts, setHirePrompts] = useState<Set<string>>(new Set());
   // Ποια πρόσληψη αξιολογούμε αυτή τη στιγμή (Βήμα 4).
   const [ratingHire, setRatingHire] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -312,6 +330,18 @@ function MessagesInner() {
     setHires({});
     refreshHires();
   }, [selectedConv, refreshHires]);
+
+  const refreshPrompts = useCallback(async () => {
+    try {
+      const res = (await api.hires.prompts()) as any;
+      const list: any[] = res?.data?.prompts || [];
+      setHirePrompts(new Set(list.map((p) => p.conversationId)));
+    } catch {
+      // Σιωπηλά: η λωρίδα είναι βοηθητική, δεν χαλάει τα μηνύματα.
+    }
+  }, []);
+
+  useEffect(() => { refreshPrompts(); }, [refreshPrompts]);
 
   // Αν έφτασε μήνυμα-κάρτα πρόσληψης που δεν το ξέρουμε ακόμη (π.χ. μόλις το
   // έστειλε η άλλη πλευρά), ξαναδιαβάζουμε — αλλιώς η κάρτα μένει άδεια.
@@ -592,6 +622,26 @@ function MessagesInner() {
     } catch (e: any) {
       toast.error(e?.message || 'Σφάλμα σύνδεσης');
     }
+    await refreshPrompts();
+    setHireBusy(null);
+  };
+
+  /** Το «Όχι ακόμη» της πράσινης λωρίδας: σιωπή 7 μέρες, τη 2η φορά οριστικά. */
+  const snoozeHirePrompt = async () => {
+    if (!selectedConv || hireBusy) return;
+    setHireBusy('snooze');
+    try {
+      const res = (await api.hires.snoozePrompt(selectedConv)) as any;
+      const d = res?.data;
+      if (d) {
+        toast.success(d.stopped ? 'Εντάξει, δεν θα ξαναρωτήσουμε.' : `Θα ξαναρωτήσουμε σε ${d.days} μέρες.`);
+      } else {
+        toast.error(res?.error?.message || 'Σφάλμα');
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Σφάλμα σύνδεσης');
+    }
+    await refreshPrompts();
     setHireBusy(null);
   };
 
@@ -695,6 +745,14 @@ function MessagesInner() {
                       <div className="flex items-center gap-2">
                         <p className={`truncate text-sm ${c.unreadCount > 0 && !isActive ? 'font-bold text-gray-900' : 'font-semibold text-gray-900'}`}>{otherName}</p>
                         {c.matchStatus === 'archived' && <span className="text-[10px] text-amber-600 font-medium">Αρχείο</span>}
+                        {/*
+                          🤝 = «αυτή η συζήτηση περιμένει απάντηση στο έγινε
+                          πρόσληψη;». Έτσι φαίνεται ποια είναι, χωρίς να την
+                          ανοίξεις. Ίδια λίστα με τη λωρίδα μέσα στη συνομιλία.
+                        */}
+                        {hirePrompts.has(c.id) && (
+                          <span title="Έγινε πρόσληψη;" className="flex-shrink-0 text-sm">🤝</span>
+                        )}
                       </div>
                       {lastMsg && <p className={`text-xs truncate ${c.unreadCount > 0 && !isActive ? 'font-semibold text-gray-700' : 'text-gray-500'}`}>{lastMsg}</p>}
                       {dateStr && (() => { const d = new Date(dateStr); return !isNaN(d.getTime()) ? <p className="text-xs text-gray-400">{d.toLocaleDateString('el-GR')}</p> : null; })()}
@@ -877,6 +935,47 @@ function MessagesInner() {
                         className="flex items-center gap-1 rounded-full bg-red-500 px-3 py-2 text-sm font-bold text-white hover:bg-red-600"
                       >
                         ✕
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/*
+                  «Έγινε πρόσληψη;» — η λωρίδα που ρωτάει μόνη της.
+                  Ίδιο μοτίβο με τη λωρίδα εισερχόμενης κλήσης από πάνω.
+                  Κρύβεται όσο υπάρχει κλήση, για να μη μαζευτούν δύο λωρίδες.
+                */}
+                {selectedConv && hirePrompts.has(selectedConv) && !incomingCall && !videoCallRoom && (
+                  <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-2 border-b border-emerald-200 bg-emerald-50 px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">🤝</span>
+                      <div>
+                        <p className="text-sm font-bold text-emerald-900">
+                          {user?.role === 'worker'
+                            ? `Σε προσέλαβε ${activeName};`
+                            : `Προσέλαβες ${activeName};`}
+                        </p>
+                        <p className="text-xs text-emerald-700">
+                          {user?.role === 'worker'
+                            ? 'Δήλωσέ το — μετράει στο προφίλ σου.'
+                            : 'Δήλωσέ το για να κλείσει η θέση.'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={declareHire}
+                        disabled={hireBusy !== null}
+                        className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50"
+                      >
+                        {user?.role === 'worker' ? 'Ναι, με προσέλαβαν' : 'Ναι, τον/την προσέλαβα'}
+                      </button>
+                      <button
+                        onClick={snoozeHirePrompt}
+                        disabled={hireBusy !== null}
+                        className="rounded-full border border-emerald-300 bg-white px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100 disabled:opacity-50"
+                      >
+                        Όχι ακόμη
                       </button>
                     </div>
                   </div>

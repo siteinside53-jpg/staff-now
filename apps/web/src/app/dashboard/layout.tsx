@@ -11,12 +11,18 @@ import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
 import { CreditsProvider } from '@/components/credits/credits-context';
 
+// ΠΡΟΣΟΧΗ στη σειρά: η κάτω μπάρα του κινητού δείχνει τα ΠΡΩΤΑ ΠΕΝΤΕ
+// (`navItems.slice(0, 5)` πιο κάτω). Οι «Προσλήψεις» και οι «Αξιολογήσεις»
+// μπαίνουν σκόπιμα από την 6η θέση και μετά, ώστε η μπάρα να μείνει ακριβώς
+// όπως την ξέρει ο κόσμος.
 const workerNavItems = [
   { href: '/dashboard', label: 'Αρχική', icon: HomeIcon },
   { href: '/dashboard/discover', label: 'Εύρεση', icon: DiscoverIcon },
   { href: '/dashboard/matches', label: 'Matches', icon: MatchIcon },
   { href: '/dashboard/messages', label: 'Μηνύματα', icon: MessageIcon },
   { href: '/dashboard/profile', label: 'Προφίλ', icon: ProfileIcon },
+  { href: '/dashboard/hires', label: 'Προσλήψεις', icon: HireIcon },
+  { href: '/dashboard/ratings', label: 'Αξιολογήσεις', icon: StarIcon },
   { href: '/dashboard/interests', label: 'Ενδιαφέρον', icon: HeartIcon },
   { href: '/dashboard/billing', label: 'Premium', icon: BillingIcon },
   { href: '/dashboard/settings', label: 'Ρυθμίσεις', icon: SettingsIcon },
@@ -28,6 +34,8 @@ const businessNavItems = [
   { href: '/dashboard/discover', label: 'Εύρεση', icon: DiscoverIcon },
   { href: '/dashboard/matches', label: 'Matches', icon: MatchIcon },
   { href: '/dashboard/messages', label: 'Μηνύματα', icon: MessageIcon },
+  { href: '/dashboard/hires', label: 'Προσλήψεις', icon: HireIcon },
+  { href: '/dashboard/ratings', label: 'Αξιολογήσεις', icon: StarIcon },
   { href: '/dashboard/interests', label: 'Ενδιαφέρον', icon: HeartIcon },
   { href: '/dashboard/profile', label: 'Προφίλ', icon: ProfileIcon },
   { href: '/dashboard/billing', label: 'Συνδρομή', icon: BillingIcon },
@@ -588,6 +596,22 @@ function HeartIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
+    </svg>
+  );
+}
+
+function HireIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+    </svg>
+  );
+}
+
+function StarIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
     </svg>
   );
 }

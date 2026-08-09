@@ -27,13 +27,17 @@ interface Hire {
   they_rated: number;
   job_target: number | null;
   job_confirmed: number | null;
+  /** 1 = τη δήλωσα εγώ, 0 = τη δήλωσε η άλλη πλευρά. Το λέει ο server. */
+  i_declared: number;
 }
 
 /** Τι ακριβώς περιμένει τον χρήστη σε αυτή την πρόσληψη. */
 type Kind = 'confirm' | 'awaiting' | 'rate' | 'view' | 'waiting-them' | null;
 
-function classify(h: Hire, isWorker: boolean): Kind {
-  if (h.status === 'pending') return isWorker ? 'confirm' : 'awaiting';
+function classify(h: Hire): Kind {
+  // ΔΕΝ μαντεύουμε από τον ρόλο: πλέον τη δηλώνει όποια πλευρά το θυμηθεί πρώτη.
+  // Όποιος τη δήλωσε περιμένει· ο άλλος επιβεβαιώνει.
+  if (h.status === 'pending') return h.i_declared ? 'awaiting' : 'confirm';
   if (h.status !== 'confirmed') return null;
   const opensAt = h.rating_opens_at ? Date.parse(h.rating_opens_at) : null;
   const open = opensAt != null && Date.now() >= opensAt;
@@ -78,7 +82,7 @@ export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
   };
 
   const rows = hires
-    .map((h) => ({ h, kind: classify(h, isWorker) }))
+    .map((h) => ({ h, kind: classify(h) }))
     .filter((r): r is { h: Hire; kind: Exclude<Kind, null> } => r.kind !== null);
 
   if (rows.length === 0) return null;
@@ -102,8 +106,17 @@ export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
               <div key={h.id} className="rounded-xl border border-gray-200 bg-white p-4">
                 {kind === 'confirm' && (
                   <>
+                    {/*
+                      Το όνομα σε δική του γραμμή, χωρίς άρθρο: τη δήλωση μπορεί
+                      πλέον να την κάνει και ο εργαζόμενος, οπότε το «Η …» θα
+                      έβγαινε λάθος στη μισή περίπτωση.
+                    */}
+                    <p className="text-sm font-bold text-gray-900">
+                      {other(h)}
+                      {job}
+                    </p>
                     <p className="text-sm font-semibold text-gray-900">
-                      Η {other(h)} δηλώνει ότι σε προσέλαβε{job}.
+                      {isWorker ? 'δηλώνει ότι σε προσέλαβε.' : 'δηλώνει ότι τον/την προσέλαβες.'}
                     </p>
                     <p className="mt-0.5 text-xs text-gray-500">
                       Μετράει μόνο αν το επιβεβαιώσεις εσύ.
@@ -114,14 +127,14 @@ export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
                         disabled={busy === h.id}
                         className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
                       >
-                        ✅ Ναι, ξεκίνησα
+                        {isWorker ? '✅ Ναι, ξεκίνησα' : '✅ Ναι, τον/την προσέλαβα'}
                       </button>
                       <button
                         onClick={() => answer(h.id, 'decline')}
                         disabled={busy === h.id}
                         className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                       >
-                        Όχι, δεν ξεκίνησα
+                        {isWorker ? 'Όχι, δεν ξεκίνησα' : 'Όχι, δεν έγινε'}
                       </button>
                     </div>
                   </>
@@ -129,8 +142,12 @@ export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
 
                 {kind === 'awaiting' && (
                   <>
+                    <p className="text-sm font-bold text-gray-900">
+                      {other(h)}
+                      {job}
+                    </p>
                     <p className="text-sm font-semibold text-gray-900">
-                      Δήλωσες ότι προσέλαβες {other(h)}{job}.
+                      {isWorker ? 'Δήλωσες ότι σε προσέλαβαν.' : 'Δήλωσες ότι τον/την προσέλαβες.'}
                     </p>
                     <p className="mt-0.5 text-xs text-gray-500">
                       Περιμένουμε την επιβεβαίωσή του/της. Μέχρι τότε δεν μετράει στις θέσεις.

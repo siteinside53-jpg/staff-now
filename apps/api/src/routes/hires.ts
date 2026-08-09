@@ -15,11 +15,20 @@
  */
 
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import type { Env, AuthUser } from '../types';
-import { requireAuth, requireRole } from '../middleware/auth';
+import { requireAuth } from '../middleware/auth';
 import { success, error } from '../lib/response';
 import { generateId } from '../lib/id';
 import { notifyUser } from '../lib/notify';
+import {
+  HIRE_MSG_PREFIX,
+  MAX_SNOOZES,
+  PROMPT_AFTER_DAYS,
+  SNOOZE_DAYS,
+  pendingPromptsFor,
+  snoozePrompt,
+} from '../lib/hire-prompts';
 
 /**
  * Δωρεάν credits που παίρνει η επιχείρηση σε κάθε επιβεβαιωμένη πρόσληψη.
@@ -33,9 +42,9 @@ const RATING_OPENS_AFTER_DAYS = 15;
 /** Πόσες μέρες μετά το άνοιγμα αποκαλύπτεται ούτως ή άλλως η άλλη αξιολόγηση. */
 const RATING_REVEAL_AFTER_DAYS = 14;
 
-const HIRE_MSG_PREFIX = '🤝 Πρόσληψη:';
-
 const hires = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
+
+type HireCtx = Context<{ Bindings: Env; Variables: { user: AuthUser } }>;
 
 function plusDays(iso: string, days: number): string {
   return new Date(Date.parse(iso) + days * 86_400_000).toISOString();
@@ -49,9 +58,50 @@ interface HireRow {
   conversation_id: string | null;
   status: string;
   declared_at: string;
+  declared_by: string | null;
   confirmed_at: string | null;
   rating_opens_at: string | null;
   rating_reveal_at: string | null;
+}
+
+/**
+ * Ποιος δήλωσε την πρόσληψη και ποιος πρέπει να την επιβεβαιώσει.
+ *
+ * Μέχρι το 0051 τη δήλωνε πάντα η επιχείρηση, οπότε το `declared_by` λείπει από
+ * τις παλιές γραμμές. Το fallback στο `business_id` κρατάει τη σωστή συμπεριφορά
+ * ακόμη κι αν ο server ανέβει πριν τρέξει η μετανάστευση — έτσι τα δύο βήματα
+ * του ανεβάσματος δεν χρειάζεται να γίνουν την ίδια στιγμή.
+ */
+function sides(hire: Pick<HireRow, 'worker_id' | 'business_id' | 'declared_by'>) {
+  const declarer = hire.declared_by || hire.business_id;
+  const confirmer = declarer === hire.worker_id ? hire.business_id : hire.worker_id;
+  return { declarer, confirmer };
+}
+
+/**
+ * Τι απαντάμε όταν η πρόσληψη υπάρχει ήδη.
+ *
+ * Αν τη δήλωσε ο ΑΛΛΟΣ (π.χ. πατήσαμε και οι δύο ταυτόχρονα), δεν είναι σφάλμα:
+ * επιστρέφουμε 200 με τη γραμμή, ώστε η οθόνη να δείξει την κάρτα επιβεβαίωσης
+ * αντί για κόκκινο μήνυμα. Αν τη δήλωσα εγώ, το 409 μένει όπως ήταν.
+ */
+function hireExistsResponse(
+  c: HireCtx,
+  existing: { id: string; status: string; declared_by: string | null; business_id: string; worker_id: string },
+  userId: string,
+) {
+  const { declarer } = sides(existing);
+  if (declarer !== userId && existing.status === 'pending') {
+    return success(c, { hire: existing, alreadyExisted: true });
+  }
+  return error(
+    c,
+    'HIRE_EXISTS',
+    existing.status === 'pending'
+      ? 'Έχεις ήδη δηλώσει την πρόσληψη — περιμένουμε την επιβεβαίωσή του/της.'
+      : 'Η πρόσληψη έχει ήδη επιβεβαιωθεί.',
+    409,
+  );
 }
 
 /** Ονόματα και των δύο πλευρών, για ειδοποιήσεις και λίστες. */
@@ -112,16 +162,22 @@ async function inAppNotify(
 }
 
 // ---------------------------------------------------------------------------
-// Βήμα 1 — POST /hires : η επιχείρηση δηλώνει την πρόσληψη
+// Βήμα 1 — POST /hires : δήλωση πρόσληψης
+//
+// Τη δηλώνουν ΚΑΙ ΟΙ ΔΥΟ πλευρές: όποιος το πατήσει πρώτος, ο άλλος επιβεβαιώνει.
+// Μέχρι το 0051 το δικαιούταν μόνο η επιχείρηση, αλλά στην πράξη τη δουλειά την
+// ξεκινάει ο εργαζόμενος και συχνά είναι αυτός που θυμάται να το δηλώσει.
+// Ο κανόνας «τίποτα δεν μετράει χωρίς επιβεβαίωση της άλλης πλευράς» μένει —
+// απλώς πλέον είναι συμμετρικός.
 // ---------------------------------------------------------------------------
-hires.post('/', requireAuth, requireRole('business'), async (c) => {
+hires.post('/', requireAuth, async (c) => {
   const user = c.get('user');
   const db = c.env.DB;
   const body = await c.req.json<{ conversationId?: string }>().catch(() => ({}) as any);
   const conversationId = body.conversationId;
   if (!conversationId) return error(c, 'BAD_REQUEST', 'Λείπει η συνομιλία', 400);
 
-  // Η συνομιλία ξέρει ήδη ποιος είναι ο εργαζόμενος και σε ποια αγγελία ανήκει.
+  // Η συνομιλία ξέρει ήδη και τις δύο πλευρές και σε ποια αγγελία ανήκει.
   const conv = await db
     .prepare(
       `SELECT c.id, c.worker_id, c.business_id, m.job_id
@@ -133,49 +189,67 @@ hires.post('/', requireAuth, requireRole('business'), async (c) => {
     .first<{ id: string; worker_id: string; business_id: string; job_id: string | null }>();
 
   if (!conv) return error(c, 'NOT_FOUND', 'Η συνομιλία δεν βρέθηκε', 404);
-  if (conv.business_id !== user.id) return error(c, 'FORBIDDEN', 'Δεν έχεις πρόσβαση σε αυτή τη συνομιλία', 403);
+  if (conv.worker_id !== user.id && conv.business_id !== user.id) {
+    return error(c, 'FORBIDDEN', 'Δεν έχεις πρόσβαση σε αυτή τη συνομιλία', 403);
+  }
 
   const workerId = conv.worker_id;
+  const businessId = conv.business_id;
   const jobId = conv.job_id;
+  // Ο παραλήπτης της ειδοποίησης είναι πάντα «ο άλλος».
+  const otherId = user.id === workerId ? businessId : workerId;
 
-  // Το UNIQUE(worker_id,business_id,job_id) δεν αφήνει διπλή πρόσληψη, αλλά
-  // δίνουμε καθαρό μήνυμα αντί για σφάλμα βάσης.
+  // Καθαρό μήνυμα αντί για σφάλμα βάσης, όταν υπάρχει ήδη ζωντανή πρόσληψη.
+  // Ψάχνουμε και ανά συνομιλία: το UNIQUE(worker_id,business_id,job_id) του 0047
+  // δεν πιάνει όταν η αγγελία λείπει (η SQLite θεωρεί κάθε NULL διαφορετικό) —
+  // γι' αυτό το 0051 πρόσθεσε και το ux_hires_live_conversation.
   const existing = await db
     .prepare(
-      `SELECT id, status FROM hires
-        WHERE worker_id = ? AND business_id = ? AND (job_id IS ? OR job_id = ?)
-        ORDER BY declared_at DESC LIMIT 1`,
+      `SELECT id, status, declared_by, business_id, worker_id FROM hires
+        WHERE (worker_id = ? AND business_id = ? AND (job_id IS ? OR job_id = ?))
+           OR conversation_id = ?
+        ORDER BY CASE status WHEN 'confirmed' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END,
+                 declared_at DESC
+        LIMIT 1`,
     )
-    .bind(workerId, user.id, jobId, jobId)
-    .first<{ id: string; status: string }>();
+    .bind(workerId, businessId, jobId, jobId, conversationId)
+    .first<{ id: string; status: string; declared_by: string | null; business_id: string; worker_id: string }>();
 
   if (existing && (existing.status === 'pending' || existing.status === 'confirmed')) {
-    return error(
-      c,
-      'HIRE_EXISTS',
-      existing.status === 'pending'
-        ? 'Έχεις ήδη δηλώσει την πρόσληψη — περιμένουμε την επιβεβαίωσή του/της.'
-        : 'Η πρόσληψη έχει ήδη επιβεβαιωθεί.',
-      409,
-    );
+    return hireExistsResponse(c, existing, user.id);
   }
 
   const now = new Date().toISOString();
   const hireId = generateId('hr');
 
   // Αν υπήρχε παλιά declined/cancelled για το ίδιο ζευγάρι+αγγελία, τη σβήνουμε
-  // ώστε να μη σκοντάψει το UNIQUE — η επιχείρηση δικαιούται νέα προσπάθεια.
+  // ώστε να μη σκοντάψει το UNIQUE — δικαιούνται νέα προσπάθεια.
   if (existing) {
     await db.prepare('DELETE FROM hires WHERE id = ?').bind(existing.id).run();
   }
 
-  await db
-    .prepare(
-      `INSERT INTO hires (id, worker_id, business_id, job_id, conversation_id, status, declared_at)
-       VALUES (?, ?, ?, ?, ?, 'pending', ?)`,
-    )
-    .bind(hireId, workerId, user.id, jobId, conversationId, now)
-    .run();
+  try {
+    await db
+      .prepare(
+        `INSERT INTO hires (id, worker_id, business_id, job_id, conversation_id, status, declared_at, declared_by)
+         VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)`,
+      )
+      .bind(hireId, workerId, businessId, jobId, conversationId, now, user.id)
+      .run();
+  } catch (e) {
+    // Οι δύο πλευρές πάτησαν ταυτόχρονα. Η βάση κράτησε μία — δείχνουμε εκείνη
+    // αντί για οθόνη σφάλματος. Ο έλεγχος από πάνω δεν αρκεί: ανάμεσα στο SELECT
+    // και στο INSERT χωράει το αίτημα του άλλου.
+    const winner = await db
+      .prepare(
+        `SELECT id, status, declared_by, business_id, worker_id FROM hires
+          WHERE conversation_id = ? AND status IN ('pending','confirmed') LIMIT 1`,
+      )
+      .bind(conversationId)
+      .first<{ id: string; status: string; declared_by: string | null; business_id: string; worker_id: string }>();
+    if (winner) return hireExistsResponse(c, winner, user.id);
+    throw e;
+  }
 
   // Το μήνυμα-κάρτα μέσα στη συνομιλία, με το ίδιο μοτίβο που ήδη χρησιμοποιεί
   // η βιντεοκλήση («📹 Video κλήση: …»): πρόθεμα που το αναγνωρίζει η οθόνη.
@@ -185,29 +259,46 @@ hires.post('/', requireAuth, requireRole('business'), async (c) => {
     .run();
   await db.prepare('UPDATE conversations SET last_message_at = ? WHERE id = ?').bind(now, conversationId).run();
 
-  const { businessName } = await partyNames(db, workerId, user.id);
+  const { workerName, businessName } = await partyNames(db, workerId, businessId);
   const url = `/dashboard/messages?c=${conversationId}`;
   const title = '🤝 Δήλωση πρόσληψης';
-  const msg = `${businessName} δηλώνει ότι σε προσέλαβε. Επιβεβαίωσε για να μετρήσει.`;
+  const msg =
+    user.id === businessId
+      ? `${businessName} δηλώνει ότι σε προσέλαβε. Επιβεβαίωσε για να μετρήσει.`
+      : `${workerName} δηλώνει ότι τον/την προσέλαβες. Επιβεβαίωσε για να μετρήσει.`;
 
-  await inAppNotify(db, workerId, 'hire_pending', title, msg, url, { hireId });
+  await inAppNotify(db, otherId, 'hire_pending', title, msg, url, { hireId });
   c.executionCtx.waitUntil(
-    notifyUser(c.env, { userId: workerId, title, body: msg, url, ctaText: 'Επιβεβαίωση' }),
+    notifyUser(c.env, { userId: otherId, title, body: msg, url, ctaText: 'Επιβεβαίωση' }),
   );
 
-  return success(c, { hire: { id: hireId, status: 'pending', worker_id: workerId, business_id: user.id, job_id: jobId } }, 201);
+  return success(
+    c,
+    { hire: { id: hireId, status: 'pending', worker_id: workerId, business_id: businessId, job_id: jobId, declared_by: user.id } },
+    201,
+  );
 });
 
 // ---------------------------------------------------------------------------
-// Βήμα 2 — POST /hires/:id/confirm : ο εργαζόμενος επιβεβαιώνει
+// Βήμα 2 — POST /hires/:id/confirm : επιβεβαιώνει η ΑΛΛΗ πλευρά
+//
+// «Άλλη» και όχι «ο εργαζόμενος»: από το 0051 τη δήλωση την ξεκινάει όποιος
+// θυμηθεί πρώτος. Αυτός που τη δήλωσε δεν μπορεί να επιβεβαιώσει τον εαυτό του —
+// αυτό ακριβώς κρατάει το σήμα «Προσλήφθηκε X φορές» μη πλαστογραφήσιμο.
 // ---------------------------------------------------------------------------
-hires.post('/:id/confirm', requireAuth, requireRole('worker'), async (c) => {
+hires.post('/:id/confirm', requireAuth, async (c) => {
   const user = c.get('user');
   const db = c.env.DB;
   const hire = await db.prepare('SELECT * FROM hires WHERE id = ?').bind(c.req.param('id')).first<HireRow>();
 
   if (!hire) return error(c, 'NOT_FOUND', 'Η πρόσληψη δεν βρέθηκε', 404);
-  if (hire.worker_id !== user.id) return error(c, 'FORBIDDEN', 'Δεν είναι δική σου πρόσληψη', 403);
+  const { declarer, confirmer } = sides(hire);
+  if (hire.worker_id !== user.id && hire.business_id !== user.id) {
+    return error(c, 'FORBIDDEN', 'Δεν είναι δική σου πρόσληψη', 403);
+  }
+  if (user.id !== confirmer) {
+    return error(c, 'FORBIDDEN', 'Την πρόσληψη τη δήλωσες εσύ — την επιβεβαιώνει η άλλη πλευρά.', 403);
+  }
   if (hire.status === 'confirmed') return error(c, 'ALREADY_CONFIRMED', 'Έχει ήδη επιβεβαιωθεί', 409);
   if (hire.status !== 'pending') return error(c, 'NOT_PENDING', 'Η δήλωση δεν είναι πλέον ενεργή', 409);
 
@@ -220,7 +311,9 @@ hires.post('/:id/confirm', requireAuth, requireRole('worker'), async (c) => {
     .bind(now, opensAt, revealAt, hire.id)
     .run();
 
-  const { workerName } = await partyNames(db, hire.worker_id, hire.business_id);
+  const { workerName, businessName } = await partyNames(db, hire.worker_id, hire.business_id);
+  // Ποιος πάτησε «επιβεβαιώνω» — αυτόν ονομάζει το μήνυμα προς τον δηλώσαντα.
+  const confirmerName = confirmer === hire.worker_id ? workerName : businessName;
   const progress = await jobProgress(db, hire.job_id);
   const url = hire.conversation_id ? `/dashboard/messages?c=${hire.conversation_id}` : '/dashboard/jobs';
 
@@ -237,16 +330,19 @@ hires.post('/:id/confirm', requireAuth, requireRole('worker'), async (c) => {
     autoClosed = true;
   }
 
+  // Η ειδοποίηση πάει σε αυτόν που ΔΗΛΩΣΕ — αυτός περιμένει απάντηση. Τα νούμερα
+  // των θέσεων τα βλέπει μόνο η επιχείρηση: στον εργαζόμενο δεν λένε τίποτα.
   const title = '✅ Η πρόσληψη επιβεβαιώθηκε';
-  const msg = !progress
-    ? `${workerName} επιβεβαίωσε την πρόσληψη.`
-    : autoClosed
-      ? `${workerName} επιβεβαίωσε. Καλύφθηκαν και οι ${progress.target} θέσεις — η αγγελία έκλεισε.`
-      : `${workerName} επιβεβαίωσε. Καλύφθηκαν ${progress.confirmed} από ${progress.target} θέσεις.`;
+  const msg =
+    !progress || declarer !== hire.business_id
+      ? `${confirmerName} επιβεβαίωσε την πρόσληψη.`
+      : autoClosed
+        ? `${confirmerName} επιβεβαίωσε. Καλύφθηκαν και οι ${progress.target} θέσεις — η αγγελία έκλεισε.`
+        : `${confirmerName} επιβεβαίωσε. Καλύφθηκαν ${progress.confirmed} από ${progress.target} θέσεις.`;
 
-  await inAppNotify(db, hire.business_id, 'hire_confirmed', title, msg, url, { hireId: hire.id });
+  await inAppNotify(db, declarer, 'hire_confirmed', title, msg, url, { hireId: hire.id });
   c.executionCtx.waitUntil(
-    notifyUser(c.env, { userId: hire.business_id, title, body: msg, url, ctaText: 'Άνοιγμα' }),
+    notifyUser(c.env, { userId: declarer, title, body: msg, url, ctaText: 'Άνοιγμα' }),
   );
 
   // Δωρεάν credits — κλειστά από προεπιλογή (HIRE_BONUS_CREDITS = 0).
@@ -288,42 +384,54 @@ hires.post('/:id/confirm', requireAuth, requireRole('worker'), async (c) => {
 });
 
 // ---------------------------------------------------------------------------
-// POST /hires/:id/decline : «Όχι, δεν ξεκίνησα»
+// POST /hires/:id/decline : «Όχι, δεν έγινε»
+//
+// Το πατάει η πλευρά που ΔΕΝ δήλωσε — ό,τι ισχύει και για το confirm.
 // ---------------------------------------------------------------------------
-hires.post('/:id/decline', requireAuth, requireRole('worker'), async (c) => {
+hires.post('/:id/decline', requireAuth, async (c) => {
   const user = c.get('user');
   const db = c.env.DB;
   const hire = await db.prepare('SELECT * FROM hires WHERE id = ?').bind(c.req.param('id')).first<HireRow>();
 
   if (!hire) return error(c, 'NOT_FOUND', 'Η πρόσληψη δεν βρέθηκε', 404);
-  if (hire.worker_id !== user.id) return error(c, 'FORBIDDEN', 'Δεν είναι δική σου πρόσληψη', 403);
+  const { declarer, confirmer } = sides(hire);
+  if (hire.worker_id !== user.id && hire.business_id !== user.id) {
+    return error(c, 'FORBIDDEN', 'Δεν είναι δική σου πρόσληψη', 403);
+  }
+  if (user.id !== confirmer) {
+    return error(c, 'FORBIDDEN', 'Τη δήλωση την έκανες εσύ — ακύρωσέ την αντί να την απορρίψεις.', 403);
+  }
   if (hire.status !== 'pending') return error(c, 'NOT_PENDING', 'Η δήλωση δεν είναι πλέον ενεργή', 409);
 
   await db.prepare("UPDATE hires SET status = 'declined' WHERE id = ?").bind(hire.id).run();
 
-  const { workerName } = await partyNames(db, hire.worker_id, hire.business_id);
+  const { workerName, businessName } = await partyNames(db, hire.worker_id, hire.business_id);
+  const declinerName = confirmer === hire.worker_id ? workerName : businessName;
   const url = hire.conversation_id ? `/dashboard/messages?c=${hire.conversation_id}` : '/dashboard/messages';
   const title = 'Η πρόσληψη δεν επιβεβαιώθηκε';
-  const msg = `${workerName} δήλωσε ότι δεν ξεκίνησε. Η αγγελία μένει ανοιχτή.`;
+  const msg = `${declinerName} δήλωσε ότι δεν έγινε πρόσληψη. Η αγγελία μένει ανοιχτή.`;
 
-  await inAppNotify(db, hire.business_id, 'hire_declined', title, msg, url, { hireId: hire.id });
-  c.executionCtx.waitUntil(notifyUser(c.env, { userId: hire.business_id, title, body: msg, url }));
+  await inAppNotify(db, declarer, 'hire_declined', title, msg, url, { hireId: hire.id });
+  c.executionCtx.waitUntil(notifyUser(c.env, { userId: declarer, title, body: msg, url }));
 
   return success(c, { hire: { ...hire, status: 'declined' } });
 });
 
 // ---------------------------------------------------------------------------
-// DELETE /hires/:id : ακύρωση από την επιχείρηση, μόνο όσο είναι pending
+// DELETE /hires/:id : ακύρωση από ΑΥΤΟΝ ΠΟΥ ΤΗ ΔΗΛΩΣΕ, μόνο όσο είναι pending
 // ---------------------------------------------------------------------------
-hires.delete('/:id', requireAuth, requireRole('business'), async (c) => {
+hires.delete('/:id', requireAuth, async (c) => {
   const user = c.get('user');
   const db = c.env.DB;
   const hire = await db.prepare('SELECT * FROM hires WHERE id = ?').bind(c.req.param('id')).first<HireRow>();
 
   if (!hire) return error(c, 'NOT_FOUND', 'Η πρόσληψη δεν βρέθηκε', 404);
-  if (hire.business_id !== user.id) return error(c, 'FORBIDDEN', 'Δεν είναι δική σου πρόσληψη', 403);
+  const { declarer } = sides(hire);
+  if (user.id !== declarer) {
+    return error(c, 'FORBIDDEN', 'Την ακυρώνει μόνο αυτός που τη δήλωσε', 403);
+  }
   if (hire.status !== 'pending') {
-    return error(c, 'NOT_PENDING', 'Ακυρώνεται μόνο όσο δεν έχει απαντήσει ο εργαζόμενος', 409);
+    return error(c, 'NOT_PENDING', 'Ακυρώνεται μόνο όσο δεν έχει απαντήσει η άλλη πλευρά', 409);
   }
 
   await db.prepare("UPDATE hires SET status = 'cancelled' WHERE id = ?").bind(hire.id).run();
@@ -350,7 +458,11 @@ hires.get('/', requireAuth, async (c) => {
               MAX(1, COALESCE(CASE WHEN j.listing_kind = 'shift' THEN j.shift_positions ELSE j.positions END, 1)) as job_target,
               (SELECT COUNT(*) FROM hires h2 WHERE h2.job_id = h.job_id AND h2.status = 'confirmed') as job_confirmed,
               (SELECT COUNT(*) FROM hire_ratings r WHERE r.hire_id = h.id AND r.rater_id = ?) as i_rated,
-              (SELECT COUNT(*) FROM hire_ratings r WHERE r.hire_id = h.id AND r.rater_id <> ?) as they_rated
+              (SELECT COUNT(*) FROM hire_ratings r WHERE r.hire_id = h.id AND r.rater_id <> ?) as they_rated,
+              -- Ποιος τη δήλωσε; Πλέον μπορεί ΟΠΟΙΑΔΗΠΟΤΕ πλευρά, οπότε η οθόνη
+              -- δεν επιτρέπεται να το μαντεύει από τον ρόλο. Το COALESCE καλύπτει
+              -- παλιές γραμμές που γράφτηκαν πριν μπει η στήλη.
+              (COALESCE(h.declared_by, h.business_id) = ?) as i_declared
          FROM hires h
          LEFT JOIN job_listings j ON j.id = h.job_id
          LEFT JOIN worker_profiles wp ON wp.user_id = h.worker_id
@@ -360,10 +472,81 @@ hires.get('/', requireAuth, async (c) => {
         ORDER BY h.declared_at DESC
         LIMIT 200`,
     )
-    .bind(user.id, user.id, user.id, convId ?? null, convId ?? null)
+    .bind(user.id, user.id, user.id, user.id, convId ?? null, convId ?? null)
     .all();
 
   return success(c, { hires: rows.results || [] });
+});
+
+// ---------------------------------------------------------------------------
+// GET /hires/prompts : «ποιες συνομιλίες μου περιμένουν απάντηση»
+//
+// Το τρώει η κάρτα της αρχικής και η πράσινη λωρίδα της συνομιλίας. Ο κανόνας
+// ζει στο lib/hire-prompts.ts — εδώ μόνο ρωτάμε.
+//
+// Δηλώνεται ΠΡΙΝ από οτιδήποτε μοιάζει με `/:id`, για να μην υπάρχει αμφιβολία
+// ποια διαδρομή ταιριάζει πρώτη.
+// ---------------------------------------------------------------------------
+hires.get('/prompts', requireAuth, async (c) => {
+  const user = c.get('user');
+  // Ο διαχειριστής δεν έχει συνομιλίες ως πλευρά — του γυρνάμε άδειο, όχι σφάλμα.
+  if (user.role !== 'worker' && user.role !== 'business') {
+    return success(c, { prompts: [], afterDays: PROMPT_AFTER_DAYS });
+  }
+
+  const rows = await pendingPromptsFor(c.env.DB, user.id, user.role);
+  const isWorker = user.role === 'worker';
+
+  return success(c, {
+    prompts: rows.map((r) => ({
+      conversationId: r.conversation_id,
+      // «Ο άλλος» — αυτόν ονομάζει η ερώτηση, όχι τον εαυτό σου.
+      otherId: isWorker ? r.business_id : r.worker_id,
+      // Εφεδρικό όνομα όταν λείπει το προφίλ — λέει τουλάχιστον ΤΙ είναι.
+      otherName:
+        (isWorker ? r.business_name : r.worker_name) ||
+        (isWorker ? 'Επιχείρηση χωρίς όνομα' : 'Εργαζόμενος χωρίς όνομα'),
+      otherAvatar: isWorker ? r.business_logo : r.worker_avatar,
+      jobId: r.job_id,
+      jobTitle: r.job_title,
+      lastMessageAt: r.last_message_at,
+      snoozeCount: isWorker ? r.worker_snooze_count : r.business_snooze_count,
+    })),
+    afterDays: PROMPT_AFTER_DAYS,
+  });
+});
+
+// ---------------------------------------------------------------------------
+// POST /hires/prompts/:conversationId/snooze : το «Όχι ακόμη»
+//
+// +7 μέρες σιωπή. Στη 2η φορά σταματάμε οριστικά (MAX_SNOOZES) — δεν θέλουμε να
+// γίνει το StaffNow η εφαρμογή που γκρινιάζει.
+// ---------------------------------------------------------------------------
+hires.post('/prompts/:conversationId/snooze', requireAuth, async (c) => {
+  const user = c.get('user');
+  const db = c.env.DB;
+  const conversationId = c.req.param('conversationId');
+
+  const conv = await db
+    .prepare('SELECT worker_id, business_id FROM conversations WHERE id = ?')
+    .bind(conversationId)
+    .first<{ worker_id: string; business_id: string }>();
+
+  if (!conv) return error(c, 'NOT_FOUND', 'Η συνομιλία δεν βρέθηκε', 404);
+  if (conv.worker_id !== user.id && conv.business_id !== user.id) {
+    return error(c, 'FORBIDDEN', 'Δεν έχεις πρόσβαση σε αυτή τη συνομιλία', 403);
+  }
+
+  const side = conv.worker_id === user.id ? 'worker' : 'business';
+  const { count, until, stopped } = await snoozePrompt(db, conversationId, side);
+
+  return success(c, {
+    snoozedUntil: until,
+    count,
+    maxCount: MAX_SNOOZES,
+    stopped,
+    days: SNOOZE_DAYS,
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -376,6 +559,106 @@ async function loadMyHire(db: D1Database, hireId: string, userId: string) {
   if (!hire) return { hire: null as HireRow | null, mine: false };
   return { hire, mine: hire.worker_id === userId || hire.business_id === userId };
 }
+
+/**
+ * GET /hires/ratings/mine — όλο το ιστορικό αξιολογήσεων του χρήστη.
+ *
+ * Υπάρχει για τη σελίδα «Αξιολογήσεις». Χωρίς αυτό η σελίδα θα έπρεπε να καλέσει
+ * το `/hires/:id/rating` μία φορά ανά πρόσληψη — δεκάδες αιτήματα που θα έτρωγαν
+ * το φρένο του server.
+ *
+ * Δηλώνεται ΠΡΙΝ το `/:id/rating` ώστε να μην υπάρχει καμία αμφιβολία για το ποια
+ * διαδρομή ταιριάζει πρώτη.
+ *
+ * Ο κανόνας της διπλής τυφλότητας είναι ΑΚΡΙΒΩΣ ο ίδιος με το `/:id/rating`:
+ * βλέπω τι μου έγραψαν μόνο αφού γράψω τη δική μου (ή αφού περάσει η προθεσμία).
+ * Η απόφαση παίρνεται εδώ, στον server· ό,τι δεν επιτρέπεται δεν φεύγει καν από
+ * το μηχάνημα.
+ */
+hires.get('/ratings/mine', requireAuth, async (c) => {
+  const user = c.get('user');
+  const db = c.env.DB;
+  const isWorker = user.role === 'worker';
+  const mineCol = isWorker ? 'h.worker_id' : 'h.business_id';
+
+  // Ένα JOIN αντί για `WHERE hire_id IN (…)`: το D1 έχει όριο στα δεσμευμένα
+  // ορίσματα ανά ερώτημα, και μια λίστα 200 προσλήψεων θα το ξεπερνούσε.
+  // Επιστρέφει έως 2 γραμμές ανά πρόσληψη (μία ανά πλευρά) και τις ενώνουμε εδώ.
+  const rows = await db
+    .prepare(
+      `SELECT h.id AS hire_id, h.status AS hire_status, h.declared_at, h.confirmed_at,
+              h.rating_opens_at, h.rating_reveal_at,
+              j.title AS job_title,
+              wp.full_name AS worker_name, wp.photo_url AS worker_avatar,
+              bp.company_name AS business_name, bp.logo_url AS business_logo,
+              r.id AS rating_id, r.rater_id, r.rater_role, r.overall,
+              r.score_a, r.score_b, r.score_c, r.comment, r.created_at AS rated_at
+         FROM hires h
+         LEFT JOIN job_listings j ON j.id = h.job_id
+         LEFT JOIN worker_profiles wp ON wp.user_id = h.worker_id
+         LEFT JOIN business_profiles bp ON bp.user_id = h.business_id
+         LEFT JOIN hire_ratings r ON r.hire_id = h.id
+        WHERE ${mineCol} = ? AND h.status = 'confirmed'
+        ORDER BY h.declared_at DESC
+        LIMIT 400`,
+    )
+    .bind(user.id)
+    .all<Record<string, unknown>>();
+
+  const now = Date.now();
+  const byHire = new Map<string, any>();
+
+  for (const row of rows.results || []) {
+    const id = String(row.hire_id);
+    let item = byHire.get(id);
+    if (!item) {
+      const opensAt = row.rating_opens_at ? Date.parse(String(row.rating_opens_at)) : null;
+      const revealAt = row.rating_reveal_at ? Date.parse(String(row.rating_reveal_at)) : null;
+      item = {
+        hire_id: id,
+        job_title: row.job_title ?? null,
+        declared_at: row.declared_at ?? null,
+        confirmed_at: row.confirmed_at ?? null,
+        rating_opens_at: row.rating_opens_at ?? null,
+        other_name: (isWorker ? row.business_name : row.worker_name) ?? null,
+        other_avatar: (isWorker ? row.business_logo : row.worker_avatar) ?? null,
+        open: opensAt !== null && now >= opensAt,
+        _revealAt: revealAt,
+        mine: null as Record<string, unknown> | null,
+        theirs: null as Record<string, unknown> | null,
+      };
+      byHire.set(id, item);
+    }
+    if (!row.rating_id) continue;
+    const rating = {
+      id: row.rating_id,
+      rater_role: row.rater_role,
+      overall: row.overall,
+      score_a: row.score_a,
+      score_b: row.score_b,
+      score_c: row.score_c,
+      comment: row.comment,
+      created_at: row.rated_at,
+    };
+    if (row.rater_id === user.id) item.mine = rating;
+    else item.theirs = rating;
+  }
+
+  const items = [...byHire.values()].map((it) => {
+    const revealed = Boolean(it.mine) || (it._revealAt !== null && now >= it._revealAt);
+    const { _revealAt, ...rest } = it;
+    return {
+      ...rest,
+      canRate: it.open && !it.mine,
+      theyRated: Boolean(it.theirs),
+      revealed,
+      // Η αξιολόγηση του άλλου φεύγει από τον server ΜΟΝΟ όταν επιτρέπεται.
+      theirs: revealed ? it.theirs : null,
+    };
+  });
+
+  return success(c, { items });
+});
 
 hires.get('/:id/rating', requireAuth, async (c) => {
   const user = c.get('user');

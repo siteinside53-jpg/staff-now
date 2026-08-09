@@ -21,6 +21,23 @@ export class StaffNowApi {
     deleteAccount: () => this.client.delete<any>('/auth/me'),
     sendEmailCode: () => this.client.post<any>('/auth/email/send-code'),
     confirmEmail: (body: { code: string }) => this.client.post<any>('/auth/email/confirm', body),
+    sendPhoneCode: (body: { phone: string }) => this.client.post<any>('/auth/phone/send-code', body),
+    confirmPhone: (body: { code: string }) => this.client.post<any>('/auth/phone/confirm', body),
+
+    // Διπλή επαλήθευση. Όλες επιστρέφουν τον ΠΛΗΡΗ φάκελο `{ success, data }` —
+    // κάθε κλήση πρέπει να διαβάζει `res.data`, όχι απευθείας το πεδίο.
+    twoFactorStatus: () => this.client.get<any>('/auth/2fa/status'),
+    twoFactorSetup: (body: { password: string }) => this.client.post<any>('/auth/2fa/setup', body),
+    twoFactorEnable: (body: { code: string }) => this.client.post<any>('/auth/2fa/enable', body),
+    twoFactorDisable: (body: { password: string; code: string }) =>
+      this.client.post<any>('/auth/2fa/disable', body),
+    twoFactorRegenerateRecoveryCodes: (body: { password: string; code: string }) =>
+      this.client.post<any>('/auth/2fa/recovery-codes/regenerate', body),
+    twoFactorVerify: (body: { challenge: string; code: string }) =>
+      this.client.post<any>('/auth/2fa/verify', body),
+    twoFactorRecovery: (body: { challenge: string; code: string }) =>
+      this.client.post<any>('/auth/2fa/recovery', body),
+    revokeOtherSessions: () => this.client.post<any>('/auth/sessions/revoke-others'),
   };
 
   workers = {
@@ -88,7 +105,7 @@ export class StaffNowApi {
 
   /**
    * Πρόσληψη σε 4 βήματα:
-   * 1) η επιχείρηση δηλώνει (`create`), 2) ο εργαζόμενος επιβεβαιώνει
+   * 1) δηλώνει ΟΠΟΙΑ πλευρά το θυμηθεί πρώτη (`create`), 2) η άλλη επιβεβαιώνει
    * (`confirm`), 3) κλείνει η αγγελία, 4) μετά από 15 μέρες αξιολογούν και οι
    * δύο (`rate`) — ο καθένας βλέπει την αξιολόγηση του άλλου μόνο αφού γράψει
    * τη δική του (το ελέγχει ο server, όχι η οθόνη).
@@ -100,7 +117,18 @@ export class StaffNowApi {
     confirm: (id: string) => this.client.post<any>(`/hires/${id}/confirm`),
     decline: (id: string) => this.client.post<any>(`/hires/${id}/decline`),
     cancel: (id: string) => this.client.delete<any>(`/hires/${id}`),
+    /**
+     * «Ποιες συνομιλίες μου περιμένουν απάντηση» — 2+ μέρες σιωπής, μίλησαν και
+     * οι δύο, καμία δηλωμένη πρόσληψη ακόμη. Το τρώει η κάρτα της αρχικής και η
+     * πράσινη λωρίδα μέσα στη συνομιλία.
+     */
+    prompts: () => this.client.get<any>('/hires/prompts'),
+    /** Το «Όχι ακόμη»: +7 μέρες σιωπή· τη 2η φορά σταματάει οριστικά. */
+    snoozePrompt: (conversationId: string) =>
+      this.client.post<any>(`/hires/prompts/${conversationId}/snooze`),
     getRating: (id: string) => this.client.get<any>(`/hires/${id}/rating`),
+    /** Όλο το ιστορικό αξιολογήσεων με μία κλήση (σελίδα «Αξιολογήσεις»). */
+    myRatings: () => this.client.get<any>('/hires/ratings/mine'),
     rate: (
       id: string,
       body: {

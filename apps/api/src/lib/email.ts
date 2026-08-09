@@ -55,8 +55,19 @@ export function emailLayout(opts: {
   icon?: string;
   /** Soft background tint for the hero badge, e.g. "#dbeafe". */
   tint?: string;
+  /**
+   * Optional low-emphasis second action, rendered as a plain grey link under
+   * the main button. Used where the email asks a yes/no question and the "no"
+   * must be answerable without making it look as important as the "yes".
+   */
+  secondary?: { text: string; url: string };
+  /**
+   * Use the polite plural in the footer sentence. Set for emails addressed to
+   * businesses, whose body text is written in the plural too.
+   */
+  formal?: boolean;
 }): string {
-  const { title, body, ctaText, ctaUrl, icon, tint } = opts;
+  const { title, body, ctaText, ctaUrl, icon, tint, secondary, formal } = opts;
   const brand = 'linear-gradient(135deg,#3b82f6 0%,#2563eb 100%)';
   // With a hero badge present, drop a leading emoji from the headline (it stays
   // in the email subject) so the title reads clean, like a polished brand email.
@@ -129,13 +140,20 @@ export function emailLayout(opts: {
                     </td>
                   </tr>
                 </table>
+                ${
+                  secondary
+                    ? `<p style="margin:14px 0 0;font-size:13.5px;line-height:1.5;">
+                  <a href="${secondary.url}" style="color:#94a3b8;text-decoration:underline;">${secondary.text}</a>
+                </p>`
+                    : ''
+                }
               </td>
             </tr>
             <!-- Footer -->
             <tr>
               <td style="padding:20px 30px 26px;border-top:1px solid #eef2f7;">
                 <p style="margin:0 0 6px;font-size:12.5px;line-height:1.6;color:#94a3b8;">
-                  Λαμβάνεις αυτό το email επειδή έχεις λογαριασμό στο
+                  ${formal ? 'Λαμβάνετε αυτό το email επειδή έχετε' : 'Λαμβάνεις αυτό το email επειδή έχεις'} λογαριασμό στο
                   <a href="https://staffnow.gr" style="color:#2563eb;text-decoration:none;font-weight:600;">StaffNow</a>.
                 </p>
                 <p style="margin:0;font-size:12.5px;line-height:1.6;color:#cbd5e1;">© 2026 StaffNow · Βρες δουλειά ή προσωπικό σε κάθε κλάδο</p>

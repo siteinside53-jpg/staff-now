@@ -11,6 +11,7 @@ import { generateId } from '../lib/id';
 import { recordActivity, getRequestIp, getGeoFromRequest, recordDataChange, computeDiff } from '../lib/activity';
 import { notifyUser } from '../lib/notify';
 import { getReputation } from '../lib/reputation';
+import { smsConfigured } from '../lib/sms';
 
 const workers = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
 
@@ -1655,9 +1656,14 @@ workers.get('/me/verification', requireAuth, requireRole('worker'), async (c) =>
   if (!profile) return error(c, 'Το προφίλ δεν βρέθηκε', 404);
 
   const account = await db
-    .prepare('SELECT email, email_confirmed_at FROM users WHERE id = ?')
+    .prepare('SELECT email, email_confirmed_at, phone, phone_confirmed_at FROM users WHERE id = ?')
     .bind(user.id)
-    .first<{ email: string; email_confirmed_at: string | null }>();
+    .first<{
+      email: string;
+      email_confirmed_at: string | null;
+      phone: string | null;
+      phone_confirmed_at: string | null;
+    }>();
 
   const request = await db
     .prepare(
@@ -1670,7 +1676,14 @@ workers.get('/me/verification', requireAuth, requireRole('worker'), async (c) =>
   return success(c, {
     verified: profile.verified === 1,
     fullName: profile.full_name || '',
-    phone: profile.phone || '',
+    // Το users.phone είναι η νέα πηγή αλήθειας (0048). Το worker_profiles.phone
+    // κρατιέται συγχρονισμένο και μένει fallback για παλιούς λογαριασμούς που
+    // είχαν δώσει τηλέφωνο πριν μπει η επιβεβαίωση.
+    phone: account?.phone || profile.phone || '',
+    phoneConfirmed: !!account?.phone_confirmed_at,
+    // Λέει στη σελίδα ποια από τις δύο εκδοχές να δείξει: κωδικό SMS ή
+    // «θα σε πάρουμε τηλέφωνο». Χωρίς αυτό θα υποσχόταν SMS που δεν έρχεται.
+    smsAvailable: smsConfigured(c.env),
     email: account?.email || '',
     emailConfirmed: !!account?.email_confirmed_at,
     request: request || null,
@@ -1681,20 +1694,45 @@ workers.post('/me/verify', requireAuth, requireRole('worker'), async (c) => {
   const user = c.get('user');
   const db = c.env.DB;
 
-  const body = await c.req.json<{ document_url?: string; phone?: string; notes?: string }>().catch(() => null);
+  const body = await c.req
+    .json<{
+      document_url?: string;
+      document_back_url?: string;
+      document_kind?: string;
+      notes?: string;
+    }>()
+    .catch(() => null);
   if (!body) return error(c, 'Μη έγκυρα δεδομένα', 400);
+
+  // Ταυτότητα / διαβατήριο / δίπλωμα οδήγησης. Το document_type του πίνακα δεν
+  // πειράζεται — κρατάει 'id'/'business' και ξεχωρίζει εργαζόμενο από επιχείρηση.
+  const kind = (body.document_kind || '').trim();
+  if (!['id', 'passport', 'license'].includes(kind)) {
+    return error(c, 'Διάλεξε τύπο εγγράφου', 400);
+  }
 
   // Το document_url είναι NOT NULL στον πίνακα (migration 0010).
   const documentUrl = (body.document_url || '').trim();
   if (!documentUrl) {
-    return error(c, 'Χρειάζεται φωτογραφία ταυτότητας ή διαβατηρίου', 400);
+    return error(c, 'Χρειάζεται φωτογραφία της μπροστινής όψης', 400);
   }
 
-  // Ελληνικό κινητό: 10 ψηφία που ξεκινούν από 69 (δεχόμαστε και +30 μπροστά).
-  const phone = (body.phone || '').replace(/[\s.-]/g, '').replace(/^\+30/, '');
-  if (!/^69\d{8}$/.test(phone)) {
-    return error(c, 'Δώσε έγκυρο κινητό (10 ψηφία, ξεκινά με 69)', 400);
+  // Η ταυτότητα και το δίπλωμα έχουν στοιχεία και στις δύο όψεις. Το διαβατήριο
+  // τα έχει όλα στη σελίδα με τη φωτογραφία, οπότε εκεί η πίσω όψη είναι προαιρετική.
+  const documentBackUrl = (body.document_back_url || '').trim();
+  if (!documentBackUrl && kind !== 'passport') {
+    return error(c, 'Χρειάζεται και φωτογραφία της πίσω όψης', 400);
   }
+
+  // Το κινητό είναι δευτερεύον: η επαλήθευση του λογαριασμού κρίνεται από το
+  // έγγραφο ταυτοποίησης και την έγκριση του admin. Το κρατάμε αν έχει δοθεί,
+  // αλλά δεν εμποδίζει κανέναν να υποβάλει.
+  const account = await db
+    .prepare('SELECT phone FROM users WHERE id = ?')
+    .bind(user.id)
+    .first<{ phone: string | null }>();
+
+  const phone = account?.phone || '';
 
   const profile = await db
     .prepare('SELECT id, verified FROM worker_profiles WHERE user_id = ?')
@@ -1714,18 +1752,22 @@ workers.post('/me/verify', requireAuth, requireRole('worker'), async (c) => {
   const id = generateId();
   const now = new Date().toISOString();
 
-  await db
-    .prepare('UPDATE worker_profiles SET phone = ?, updated_at = ? WHERE user_id = ?')
-    .bind(phone, now, user.id)
-    .run();
+  // Μόνο αν όντως δόθηκε νούμερο — αλλιώς θα σβήναμε τηλέφωνο που υπάρχει ήδη
+  // στο προφίλ από παλιότερα.
+  if (phone) {
+    await db
+      .prepare('UPDATE worker_profiles SET phone = ?, updated_at = ? WHERE user_id = ?')
+      .bind(phone, now, user.id)
+      .run();
+  }
 
   await db
     .prepare(
       `INSERT INTO verification_requests
-         (id, user_id, document_url, document_type, status, notes, created_at)
-       VALUES (?, ?, ?, 'id', 'pending', ?, ?)`,
+         (id, user_id, document_url, document_back_url, document_type, document_kind, status, notes, created_at)
+       VALUES (?, ?, ?, ?, 'id', ?, 'pending', ?, ?)`,
     )
-    .bind(id, user.id, documentUrl, (body.notes || '').trim() || null, now)
+    .bind(id, user.id, documentUrl, documentBackUrl || null, kind, (body.notes || '').trim() || null, now)
     .run();
 
   return success(c, { id, status: 'pending', createdAt: now }, 201);

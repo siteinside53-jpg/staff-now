@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { AIHiringChat } from '@/components/dashboard/ai-hiring-chat';
 import { HireActionsCard } from '@/components/dashboard/hire-actions-card';
+import { HirePromptCard } from '@/components/dashboard/hire-prompt-card';
 
 interface DashboardStats {
   totalMatches: number;
@@ -232,6 +233,13 @@ export default function DashboardPage() {
         όταν δεν εκκρεμεί τίποτα.
       */}
       {(isWorker || isBusiness) && <HireActionsCard isWorker={isWorker} />}
+
+      {/*
+        «Έγινε πρόσληψη;» — ρωτάει από μόνη της για συνομιλίες που σώπασαν 2+
+        μέρες. Μπαίνει από κάτω γιατί η από πάνω έχει ήδη-δηλωμένες προσλήψεις
+        (πιο επείγον). Κρύβεται μόνη της όταν δεν εκκρεμεί τίποτα.
+      */}
+      {(isWorker || isBusiness) && <HirePromptCard isWorker={isWorker} />}
 
       {/*
         Υπενθύμιση για τους εργαζόμενους που δεν έχουν συμπληρώσει προφίλ.

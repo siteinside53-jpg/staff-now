@@ -775,6 +775,69 @@ async function scheduled(event: ScheduledEvent, env: Env, _ctx: ExecutionContext
   } catch (err) {
     console.error('[cron] rating reminders failed', err);
   }
+
+  // «Έγινε πρόσληψη;» — 2 μέρες μετά το τελευταίο μήνυμα, μία φορά ανά πλευρά.
+  //
+  // Πρώτα ρωτάμε την επιχείρηση (αυτή ξέρει). Τον εργαζόμενο μόνο αν η
+  // επιχείρηση δεν κάνει τίποτα για άλλες 3 μέρες — αν είχε κάνει κάτι, η
+  // συνομιλία δεν θα ήταν πια υποψήφια και δεν θα εμφανιζόταν καν εδώ.
+  //
+  // ⚠️ Σημειώνουμε «στάλθηκε» ΠΡΙΝ στείλουμε, σε αντίθεση με την υπενθύμιση
+  // αξιολόγησης από πάνω. Αν το cron σκάσει στη μέση της λίστας, το χειρότερο
+  // σενάριο γίνεται «δεν στάλθηκε ένα email» αντί για «στάλθηκε ξανά αύριο».
+  try {
+    const { notifyUser } = await import('./lib/notify');
+    const { generateId } = await import('./lib/id');
+    const { promptsDueForEmail, markEmailed } = await import('./lib/hire-prompts');
+
+    let sent = 0;
+    for (const side of ['business', 'worker'] as const) {
+      const rows = await promptsDueForEmail(env.DB, side);
+      for (const p of rows) {
+        const userId = side === 'business' ? p.business_id : p.worker_id;
+        const otherName =
+          (side === 'business' ? p.worker_name : p.business_name) || 'τον χρήστη';
+        const url = `/dashboard/messages?c=${p.conversation_id}`;
+        const title = '🤝 Έγινε η πρόσληψη;';
+        const body =
+          side === 'business'
+            ? `Μιλήσατε με ${otherName} και έκτοτε ησυχία. Αν τον/την προσέλαβες, δήλωσέ το με ένα πάτημα — κλείνει η θέση και ανοίγει η αξιολόγηση.`
+            : `Μιλήσατε με ${otherName} και έκτοτε ησυχία. Αν σε προσέλαβαν, δήλωσέ το με ένα πάτημα — μετράει στο προφίλ σου.`;
+
+        // Πρώτα το σημειώνουμε, μετά στέλνουμε. Σκόπιμα με αυτή τη σειρά.
+        await markEmailed(env.DB, p.conversation_id, side);
+
+        await env.DB.prepare(
+          "INSERT INTO notifications (id, user_id, type, title, body, data, created_at) VALUES (?, ?, 'system', ?, ?, ?, ?)",
+        )
+          .bind(
+            generateId('nt'),
+            userId,
+            title,
+            body,
+            JSON.stringify({ subtype: 'hire_prompt', url, conversationId: p.conversation_id }),
+            new Date().toISOString(),
+          )
+          .run();
+
+        await notifyUser(env, {
+          userId,
+          title,
+          body,
+          url,
+          ctaText: 'Δήλωσε την πρόσληψη',
+          emailCategory: 'hire_prompt',
+          // Φρένο μιας εβδομάδας: ακόμη κι αν κάτι πάει στραβά παραπάνω, ο ίδιος
+          // χρήστης δεν παίρνει δεύτερο τέτοιο email μέσα στην ίδια εβδομάδα.
+          emailCooldownMinutes: 7 * 24 * 60,
+        });
+        sent++;
+      }
+    }
+    console.log('[cron] hire prompts emailed:', sent);
+  } catch (err) {
+    console.error('[cron] hire prompts failed', err);
+  }
 }
 
 export default {

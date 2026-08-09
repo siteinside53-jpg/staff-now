@@ -14,7 +14,7 @@ import { api } from '@/lib/api';
 import { Spinner } from '@/components/ui/spinner';
 
 // Οι τρεις υποβαθμολογίες αλλάζουν νόημα ανάλογα με το ποιος γράφει.
-const LABELS = {
+export const LABELS = {
   worker: ['Οργάνωση', 'Πληρωμή στην ώρα της', 'Επικοινωνία'],
   business: ['Επαγγελματισμός', 'Συνέπεια', 'Επικοινωνία'],
 } as const;
@@ -39,7 +39,7 @@ function StarPicker({
   );
 }
 
-function ReadOnlyRating({ title, rating, labels }: { title: string; rating: any; labels: readonly string[] }) {
+export function ReadOnlyRating({ title, rating, labels }: { title: string; rating: any; labels: readonly string[] }) {
   const full = Math.round(Number(rating.overall) || 0);
   return (
     <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">

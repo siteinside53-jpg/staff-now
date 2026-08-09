@@ -68,6 +68,8 @@ function heroFor(category: string, title: string): { icon: string; tint: string 
       return { icon: '👤', tint: '#e0e7ff' }; // new worker — indigo
     case 'new_job':
       return { icon: '💼', tint: '#fef3c7' }; // new job — amber
+    case 'hire_prompt':
+      return { icon: '🤝', tint: '#dcfce7' }; // "did a hire happen?" — green
   }
   // Fallback: read the emoji the title already carries.
   const lead = title.trim().match(/^\p{Extended_Pictographic}(?:\uFE0F)?/u)?.[0];

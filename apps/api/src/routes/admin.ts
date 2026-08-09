@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { Env, AuthUser } from '../types';
-import { requireAuth, requireRole } from '../middleware/auth';
+import { requireAuth, requireRole, sessionStillValid } from '../middleware/auth';
 import { success, error, paginated } from '../lib/response';
 import { generateId } from '../lib/id';
 import { resolveAllPlans, resolvePlan } from '../lib/plans';
@@ -8,6 +8,7 @@ import type { PlanId } from '@staffnow/config';
 import { PLANS } from '@staffnow/config';
 import { hashPassword } from '../lib/password';
 import { notifyUser } from '../lib/notify';
+import { signFileUrl } from '../lib/signed-url';
 
 const admin = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
 
@@ -554,9 +555,11 @@ admin.get('/verifications', async (c) => {
   const results = await db
     .prepare(
       `SELECT vr.*,
-         u.email, u.role, u.email_confirmed_at,
+         u.email, u.role, u.email_confirmed_at, u.phone_confirmed_at,
          wp.full_name as worker_full_name,
-         wp.phone as worker_phone,
+         -- Το users.phone είναι η πηγή αλήθειας μετά το 0048· το worker_profiles
+         -- κρατιέται συγχρονισμένο και μένει fallback για παλιές αιτήσεις.
+         COALESCE(u.phone, wp.phone) as worker_phone,
          bp.company_name
        FROM verification_requests vr
        JOIN users u ON u.id = vr.user_id
@@ -569,7 +572,22 @@ admin.get('/verifications', async (c) => {
     .bind(status, limit, offset)
     .all();
 
-  return paginated(c, results.results, total, page, limit);
+  // Τα έγγραφα ταυτοποίησης δεν είναι πια ανοιχτά σε όποιον ξέρει το URL. Εδώ
+  // φτιάχνουμε φρέσκια υπογραφή μίας ώρας για κάθε αίτηση που βλέπει ο
+  // διαχειριστής. Ό,τι δεν είναι έγγραφο επαλήθευσης μένει ως έχει.
+  const rows = await Promise.all(
+    (results.results as Record<string, unknown>[]).map(async (row) => ({
+      ...row,
+      document_url: await signFileUrl(row.document_url as string | null, c.env.JWT_SECRET, 3600),
+      document_back_url: await signFileUrl(
+        row.document_back_url as string | null,
+        c.env.JWT_SECRET,
+        3600,
+      ),
+    })),
+  );
+
+  return paginated(c, rows, total, page, limit);
 });
 
 // =====================================================================
@@ -3015,12 +3033,20 @@ admin.get('/security/stream', async (c) => {
   if (!payload) return error(c, 'UNAUTHORIZED', 'Μη έγκυρο token.', 401);
 
   const me = await c.env.DB.prepare(
-    'SELECT id, role, status FROM users WHERE id = ?',
+    'SELECT id, role, status, sessions_valid_from FROM users WHERE id = ?',
   )
     .bind(payload.sub)
-    .first<{ id: string; role: string; status: string }>();
+    .first<{ id: string; role: string; status: string; sessions_valid_from: string | null }>();
   if (!me || me.role !== 'admin' || me.status !== 'active') {
     return error(c, 'FORBIDDEN', 'Μόνο admins.', 403);
+  }
+
+  // Ο έλεγχος ακύρωσης συνεδρίας. Κάθε άλλο endpoint τον κάνει μέσω του
+  // `requireAuth`· εδώ, που ο έλεγχος είναι γραμμένος με το χέρι, έλειπε —
+  // δηλαδή ένα κλεμμένο token συνέχιζε να διαβάζει από αυτή τη ροή ακόμη και
+  // μετά από αποσύνδεση ή αλλαγή κωδικού, μέχρι να λήξει από μόνο του.
+  if (!sessionStillValid(me.sessions_valid_from, payload.iat)) {
+    return error(c, 'UNAUTHORIZED', 'Η συνεδρία έληξε. Συνδεθείτε ξανά.', 401);
   }
 
   // Cursors initialised "now" so the client only receives new events.
@@ -3131,12 +3157,17 @@ admin.get('/analytics/stream', async (c) => {
   if (!payload) return error(c, 'UNAUTHORIZED', 'Μη έγκυρο token.', 401);
 
   const me = await c.env.DB.prepare(
-    'SELECT id, role, status FROM users WHERE id = ?',
+    'SELECT id, role, status, sessions_valid_from FROM users WHERE id = ?',
   )
     .bind(payload.sub)
-    .first<{ id: string; role: string; status: string }>();
+    .first<{ id: string; role: string; status: string; sessions_valid_from: string | null }>();
   if (!me || me.role !== 'admin' || me.status !== 'active') {
     return error(c, 'FORBIDDEN', 'Μόνο admins.', 403);
+  }
+
+  // Ο ίδιος έλεγχος ακύρωσης συνεδρίας που έλειπε και από τη ροή ασφαλείας.
+  if (!sessionStillValid(me.sessions_valid_from, payload.iat)) {
+    return error(c, 'UNAUTHORIZED', 'Η συνεδρία έληξε. Συνδεθείτε ξανά.', 401);
   }
 
   const encoder = new TextEncoder();
