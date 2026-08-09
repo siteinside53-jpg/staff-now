@@ -14,6 +14,20 @@
       "port": 8787
     },
     {
+      "name": "api-cron",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "wrangler",
+        "dev",
+        "-c",
+        "apps/api/wrangler.toml",
+        "--test-scheduled",
+        "--port",
+        "8788"
+      ],
+      "port": 8788
+    },
+    {
       "name": "web-static",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["dlx", "serve", "apps/web/out", "-l", "3005"],
