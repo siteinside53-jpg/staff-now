@@ -19,7 +19,7 @@ export function HowItWorksTabs() {
   const steps = tab === 'business' ? businessSteps : workerSteps;
 
   return (
-    <section id="how-it-works" className="bg-gray-50 py-20 sm:py-28">
+    <section id="how-it-works" className="bg-white py-20 sm:py-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">Απλά &amp; Γρήγορα</p>

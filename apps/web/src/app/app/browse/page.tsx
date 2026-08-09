@@ -22,28 +22,27 @@ const BUSINESS_TYPE_LABELS: Record<string, string> = {
   other: 'Επιχείρηση',
 };
 
-// ==================== FAKE NOTIFICATIONS ====================
-const WORKER_NOTIFICATIONS = [
-  { icon: '🆕', text: '3 νέοι εργαζόμενοι έκαναν εγγραφή', time: 'πριν 2 λεπτά', type: 'signup' },
-  { icon: '🎉', text: 'Ο Γιώργος Π. προσελήφθη από το Sunset Beach Bar', time: 'πριν 15 λεπτά', type: 'hire' },
-  { icon: '✨', text: 'Η Μαρία Κ. ενημέρωσε το προφίλ της', time: 'πριν 28 λεπτά', type: 'update' },
-  { icon: '🆕', text: '5 νέοι σερβιτόροι εγγράφηκαν από Μύκονο', time: 'πριν 45 λεπτά', type: 'signup' },
-  { icon: '🎉', text: 'Ο Νίκος Δ. ξεκίνησε δουλειά στο Athens Rooftop', time: 'πριν 1 ώρα', type: 'hire' },
-  { icon: '⭐', text: 'Η Ελένη Μ. πήρε 5 αστέρια αξιολόγηση', time: 'πριν 1.5 ώρα', type: 'rating' },
-  { icon: '🆕', text: '2 νέοι bartenders εγγράφηκαν από Σαντορίνη', time: 'πριν 2 ώρες', type: 'signup' },
-  { icon: '🎉', text: 'Η Σοφία Τ. προσελήφθη από το Crete Beach Resort', time: 'πριν 3 ώρες', type: 'hire' },
-];
+// ==================== Πραγματική ροή δραστηριότητας ====================
+type ActivityItem = {
+  id: string;
+  icon: string;
+  text: string;
+  location: string | null;
+  photoUrl: string | null;
+  createdAt: string;
+};
 
-const BUSINESS_NOTIFICATIONS = [
-  { icon: '🏢', text: '3 νέες επιχειρήσεις δημιουργήθηκαν', time: 'πριν 2 λεπτά', type: 'new' },
-  { icon: '📢', text: 'Η εταιρεία Sunset Beach Bar δημοσίευσε νέα αγγελία', time: 'πριν 10 λεπτά', type: 'job' },
-  { icon: '🌟', text: 'Το Mykonos Grand Hotel έλαβε νέα κριτική 5 αστέρων', time: 'πριν 25 λεπτά', type: 'review' },
-  { icon: '🏢', text: '2 νέα ξενοδοχεία στη Σαντορίνη εγγράφηκαν', time: 'πριν 40 λεπτά', type: 'new' },
-  { icon: '📢', text: 'Το Athens Rooftop Bar αναζητά 5 σερβιτόρους', time: 'πριν 1 ώρα', type: 'job' },
-  { icon: '🌟', text: 'Κριτική: "Εξαιρετικό περιβάλλον εργασίας" - Crete Resort', time: 'πριν 1.5 ώρα', type: 'review' },
-  { icon: '🏢', text: 'Νέο Beach Bar εγγράφηκε στην Πάρο', time: 'πριν 2 ώρες', type: 'new' },
-  { icon: '📢', text: 'Η εταιρεία Blue Horizon δημοσίευσε 3 αγγελίες', time: 'πριν 3 ώρες', type: 'job' },
-];
+function timeAgo(iso: string): string {
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return 'μόλις τώρα';
+  if (mins < 60) return `πριν ${mins} λεπτά`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `πριν ${hours} ${hours === 1 ? 'ώρα' : 'ώρες'}`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `πριν ${days} ${days === 1 ? 'μέρα' : 'μέρες'}`;
+  const months = Math.floor(days / 30);
+  return `πριν ${months} ${months === 1 ? 'μήνα' : 'μήνες'}`;
+}
 
 // ==================== Category filter mapping ====================
 const BUSINESS_CATEGORIES = [
@@ -52,15 +51,6 @@ const BUSINESS_CATEGORIES = [
   { key: 'tourism', label: 'Τουρισμός', types: ['tourism_company', 'resort', 'villa'] },
   { key: 'bars', label: 'Bars', types: ['bar', 'beach_bar'] },
   { key: 'hotels', label: 'Ξενοδοχεία', types: ['hotel'] },
-];
-
-// ==================== Mock reviews data ====================
-const MOCK_REVIEWS = [
-  { name: 'Μαρία Κ.', role: 'Σερβιτόρα', rating: 5, text: 'Εξαιρετικό περιβάλλον εργασίας! Πολύ φιλική ατμόσφαιρα και σωστή διαχείριση.', time: 'πριν 2 εβδομάδες' },
-  { name: 'Γιώργος Π.', role: 'Bartender', rating: 5, text: 'Πολύ καλή ομάδα, σωστά ωράρια και πάντα στην ώρα τους οι πληρωμές.', time: 'πριν 1 μήνα' },
-  { name: 'Ελένη Δ.', role: 'Καμαριέρα', rating: 4, text: 'Καλές συνθήκες εργασίας. Η διαμονή που παρέχεται είναι πολύ καθαρή.', time: 'πριν 1.5 μήνα' },
-  { name: 'Νίκος Α.', role: 'Σεφ', rating: 5, text: 'Από τις καλύτερες δουλειές που είχα. Σύγχρονος εξοπλισμός και σεβασμός.', time: 'πριν 2 μήνες' },
-  { name: 'Κατερίνα Μ.', role: 'Ρεσεψιονίστ', rating: 4, text: 'Πολύ καλή εμπειρία συνολικά. Θα ήθελα λίγο πιο ευέλικτο ωράριο.', time: 'πριν 3 μήνες' },
 ];
 
 function BrowseContent() {
@@ -73,7 +63,8 @@ function BrowseContent() {
   // Shared state
   const [workers, setWorkers] = useState<any[]>([]);
   const [businesses, setBusinesses] = useState<any[]>([]);
-  const [stats, setStats] = useState({ totalUsers: 0, totalJobs: 0, totalMatches: 0 });
+  const [stats, setStats] = useState({ totalWorkers: 0, totalBusinesses: 0, totalJobs: 0 });
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -85,7 +76,7 @@ function BrowseContent() {
   // Worker role (browsing businesses) state
   const [businessCategory, setBusinessCategory] = useState('all');
   const [selectedBusiness, setSelectedBusiness] = useState<any | null>(null);
-  const [businessProfileTab, setBusinessProfileTab] = useState<'about' | 'jobs' | 'reviews'>('jobs');
+  const [businessProfileTab, setBusinessProfileTab] = useState<'about' | 'jobs'>('jobs');
   const [businessJobs, setBusinessJobs] = useState<any[]>([]);
   const [businessJobsLoading, setBusinessJobsLoading] = useState(false);
 
@@ -94,24 +85,15 @@ function BrowseContent() {
   const [filterLocation, setFilterLocation] = useState('');
   const [filterSpecialty, setFilterSpecialty] = useState('');
 
-  // Notification rotation
+  // Εναλλαγή στην πραγματική ροή — μόνο αν υπάρχουν αρκετά γεγονότα να δείξουμε
   const [visibleNotifIndex, setVisibleNotifIndex] = useState(0);
-  const notifications = isBusiness ? WORKER_NOTIFICATIONS : BUSINESS_NOTIFICATIONS;
   useEffect(() => {
+    if (activity.length <= 3) return;
     const interval = setInterval(() => {
-      setVisibleNotifIndex((prev) => (prev + 1) % Math.max(1, notifications.length - 2));
+      setVisibleNotifIndex((prev) => (prev + 1) % (activity.length - 2));
     }, 6000);
     return () => clearInterval(interval);
-  }, [notifications.length]);
-
-  // Online count (fake but realistic)
-  const [onlineCount, setOnlineCount] = useState(672);
-  useEffect(() => {
-    const i = setInterval(() => {
-      setOnlineCount((c) => Math.max(600, c + Math.floor(Math.random() * 7) - 3));
-    }, 5000);
-    return () => clearInterval(i);
-  }, []);
+  }, [activity.length]);
 
   // If logged in, redirect
   useEffect(() => {
@@ -122,20 +104,20 @@ function BrowseContent() {
   useEffect(() => {
     (async () => {
       try {
-        if (isBusiness) {
-          const [workersRes, activityRes] = await Promise.all([
-            fetch(`${API_BASE}/public/workers?limit=30`).then((r) => r.json()),
-            fetch(`${API_BASE}/public/activity`).then((r) => r.json()),
-          ]);
-          if (workersRes.success) setWorkers(workersRes.data || []);
-          if (activityRes.success) setStats(activityRes.data.stats);
-        } else {
-          const [businessesRes, activityRes] = await Promise.all([
-            fetch(`${API_BASE}/public/businesses?limit=30`).then((r) => r.json()),
-            fetch(`${API_BASE}/public/activity`).then((r) => r.json()),
-          ]);
-          if (businessesRes.success) setBusinesses(businessesRes.data || []);
-          if (activityRes.success) setStats(activityRes.data.stats);
+        const listUrl = isBusiness
+          ? `${API_BASE}/public/workers?limit=30`
+          : `${API_BASE}/public/businesses?limit=30`;
+        const [listRes, activityRes] = await Promise.all([
+          fetch(listUrl).then((r) => r.json()),
+          fetch(`${API_BASE}/public/activity`).then((r) => r.json()),
+        ]);
+        if (listRes.success) {
+          if (isBusiness) setWorkers(listRes.data || []);
+          else setBusinesses(listRes.data || []);
+        }
+        if (activityRes.success) {
+          setStats(activityRes.data.stats);
+          setActivity(activityRes.data.activity || []);
         }
       } catch {} finally {
         setLoading(false);
@@ -225,10 +207,8 @@ function BrowseContent() {
     return true;
   });
 
-  const totalCount = isBusiness ? (stats.totalUsers || 12458) : 5842;
+  const totalCount = isBusiness ? stats.totalWorkers : stats.totalBusinesses;
   const totalLabel = isBusiness ? 'Εργαζόμενοι στην πλατφόρμα' : 'Επιχειρήσεις στην πλατφόρμα';
-  const onlineLabel = isBusiness ? 'Online τώρα' : 'Online τώρα';
-  const displayOnlineCount = isBusiness ? 1247 + Math.floor(onlineCount / 2) : onlineCount;
 
   if (loading) {
     return (
@@ -276,45 +256,47 @@ function BrowseContent() {
           </div>
           <div className="rounded-2xl bg-emerald-50 border border-emerald-100 p-3 text-center">
             <div className="flex items-center justify-center gap-1.5 mb-1">
-              <span className="relative flex h-3 w-3">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500" />
-              </span>
+              <span className="text-lg">💼</span>
             </div>
-            <p className="text-2xl font-extrabold text-emerald-700 tabular-nums">{displayOnlineCount.toLocaleString('el-GR')}</p>
-            <p className="text-[10px] font-semibold text-emerald-500 mt-0.5">Online τώρα</p>
+            <p className="text-2xl font-extrabold text-emerald-700 tabular-nums">{stats.totalJobs.toLocaleString('el-GR')}</p>
+            <p className="text-[10px] font-semibold text-emerald-500 mt-0.5">Ενεργές αγγελίες</p>
           </div>
         </div>
       </div>
 
-      {/* ====== NOTIFICATIONS (fake for marketing) — last 10, auto-refresh ====== */}
-      <div className="bg-white border-b border-gray-100 px-4 py-3">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
-            <span className="flex h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-            Ενημερώσεις
-          </p>
-          <button className="text-[10px] font-semibold text-blue-600 hover:underline">
-            Προβολή όλων
-          </button>
-        </div>
-        <div className="space-y-2">
-          {notifications.slice(visibleNotifIndex, visibleNotifIndex + 3).map((n, i) => (
-            <div
-              key={`${visibleNotifIndex}-${i}`}
-              className={`flex items-start gap-2.5 rounded-xl p-2.5 transition-all animate-in fade-in duration-500 ${
-                i === 0 ? 'bg-blue-50 border border-blue-100' : 'bg-gray-50'
-              }`}
-            >
-              <span className="text-base mt-0.5">{n.icon}</span>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-gray-900 leading-snug">{n.text}</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">{n.time}</p>
+      {/* ====== Πραγματική ροή δραστηριότητας από /public/activity ====== */}
+      {activity.length > 0 && (
+        <div className="bg-white border-b border-gray-100 px-4 py-3">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+              <span className="flex h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+              Ενημερώσεις
+            </p>
+          </div>
+          <div className="space-y-2">
+            {activity.slice(visibleNotifIndex, visibleNotifIndex + 3).map((n, i) => (
+              <div
+                key={n.id}
+                className={`flex items-start gap-2.5 rounded-xl p-2.5 transition-all animate-in fade-in duration-500 ${
+                  i === 0 ? 'bg-blue-50 border border-blue-100' : 'bg-gray-50'
+                }`}
+              >
+                {n.photoUrl ? (
+                  <img src={n.photoUrl} alt="" className="h-7 w-7 flex-shrink-0 rounded-full object-cover" />
+                ) : (
+                  <span className="text-base mt-0.5">{n.icon}</span>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-gray-900 leading-snug">{n.text}</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">
+                    {n.location ? `${n.location} · ` : ''}{timeAgo(n.createdAt)}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ====== SEARCH BAR + FILTER BUTTON ====== */}
       <div className="sticky top-[53px] z-20 bg-white border-b border-gray-100 px-4 py-2.5">
@@ -790,7 +772,6 @@ function BrowseContent() {
                 {[
                   { key: 'jobs' as const, label: `Θέσεις εργασίας (${selectedBusiness.openJobs || 0})` },
                   { key: 'about' as const, label: 'Σχετικά' },
-                  { key: 'reviews' as const, label: 'Κριτικές' },
                 ].map((tab) => (
                   <button
                     key={tab.key}
@@ -965,82 +946,6 @@ function BrowseContent() {
                 </div>
               )}
 
-              {/* ---- Κριτικές tab ---- */}
-              {businessProfileTab === 'reviews' && (
-                <div className="mt-4">
-                  {/* Rating summary */}
-                  <div className="rounded-2xl bg-gray-50 border border-gray-100 p-4 mb-4">
-                    <div className="flex items-center gap-4">
-                      <div className="text-center">
-                        <p className="text-3xl font-extrabold text-gray-900">4.6</p>
-                        <div className="flex gap-0.5 mt-1">
-                          {[1, 2, 3, 4, 5].map((s) => (
-                            <svg
-                              key={s}
-                              className={`h-3.5 w-3.5 ${s <= 4 ? 'text-amber-400' : 'text-gray-300'}`}
-                              fill="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                            </svg>
-                          ))}
-                        </div>
-                        <p className="text-[10px] text-gray-400 mt-0.5">23 κριτικές</p>
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        {[
-                          { stars: 5, pct: 65 },
-                          { stars: 4, pct: 22 },
-                          { stars: 3, pct: 9 },
-                          { stars: 2, pct: 3 },
-                          { stars: 1, pct: 1 },
-                        ].map((row) => (
-                          <div key={row.stars} className="flex items-center gap-2">
-                            <span className="text-[10px] text-gray-500 w-3 text-right">{row.stars}</span>
-                            <svg className="h-2.5 w-2.5 text-amber-400 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                            </svg>
-                            <div className="flex-1 h-1.5 rounded-full bg-gray-200 overflow-hidden">
-                              <div className="h-full rounded-full bg-amber-400" style={{ width: `${row.pct}%` }} />
-                            </div>
-                            <span className="text-[10px] text-gray-400 w-7 text-right">{row.pct}%</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Individual reviews */}
-                  <div className="space-y-3">
-                    {MOCK_REVIEWS.map((rev, i) => (
-                      <div key={i} className="rounded-2xl bg-gray-50 border border-gray-100 p-3.5">
-                        <div className="flex items-center gap-2.5">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
-                            {rev.name[0]}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-gray-900">{rev.name}</p>
-                            <p className="text-[10px] text-gray-400">{rev.role} · {rev.time}</p>
-                          </div>
-                          <div className="flex gap-0.5 flex-shrink-0">
-                            {[1, 2, 3, 4, 5].map((s) => (
-                              <svg
-                                key={s}
-                                className={`h-3 w-3 ${s <= rev.rating ? 'text-amber-400' : 'text-gray-300'}`}
-                                fill="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                              </svg>
-                            ))}
-                          </div>
-                        </div>
-                        <p className="mt-2 text-xs text-gray-600 leading-relaxed">{rev.text}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Bottom sticky CTA */}

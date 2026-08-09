@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { LiveBadge } from '@/components/marketing/live-badge';
 import { LiveCounters } from '@/components/marketing/live-counters';
 import { ActivityMarquee } from '@/components/marketing/activity-marquee';
-import { LiveWorkersHeroCard } from '@/components/marketing/live-workers';
+import { LiveWorkersHeroCard, LiveWorkersPanel, LiveJobsPanel } from '@/components/marketing/live-workers';
 import { HeroGradient } from '@/components/marketing/hero-gradient';
 import { HowItWorksTabs } from '@/components/marketing/how-it-works-tabs';
 import { TrustBar } from '@/components/marketing/trust-bar';
@@ -45,30 +45,6 @@ const categories = [
   { slug: 'agriculture',          label: 'Αγροτικά',                icon: '🌾' },
   { slug: 'legal',                label: 'Νομικά',                  icon: '⚖️' },
   { slug: 'maritime',             label: 'Ναυτιλία',                icon: '⚓' },
-];
-
-const testimonials = [
-  {
-    quote: 'Βρήκα σερβιτόρο σε 2 ώρες. Πριν περίμενα βδομάδες στα social media.',
-    name: 'Γιώργος Π.',
-    role: 'Sunset Beach Bar, Μύκονος',
-    initials: 'ΓΠ',
-    color: 'bg-blue-100 text-blue-700',
-  },
-  {
-    quote: 'Βρήκα δουλειά σε αποθήκη κοντά μου μέσα σε μια μέρα. Εύκολο και γρήγορο.',
-    name: 'Δημήτρης Λ.',
-    role: 'Αποθηκάριος, Θεσσαλονίκη',
-    initials: 'ΔΛ',
-    color: 'bg-emerald-100 text-emerald-700',
-  },
-  {
-    quote: 'Το AI matching μας βρήκε ακριβώς τον υπάλληλο που χρειαζόμασταν για το κατάστημα.',
-    name: 'Ελένη Μ.',
-    role: 'Fashion Store, Αθήνα',
-    initials: 'ΕΜ',
-    color: 'bg-pink-100 text-pink-700',
-  },
 ];
 
 /* ── page ────────────────────────────────────────────────────── */
@@ -196,36 +172,9 @@ export default function HomePage() {
               </Link>
             </div>
 
-            {/* Right — visual card */}
+            {/* Right — visual card (πραγματικοί εργαζόμενοι) */}
             <div className="relative hidden lg:block">
-              <div className="rounded-3xl bg-gradient-to-br from-blue-50 to-white p-8 border border-blue-100 shadow-xl">
-                <div className="text-center mb-6">
-                  <p className="text-sm font-semibold text-blue-600 uppercase tracking-wider">Τώρα διαθέσιμοι κοντά σου</p>
-                </div>
-                <div className="space-y-4">
-                  {[
-                    { name: 'Μαρία Κ.', role: 'Σερβιτόρα', rating: 4.9, exp: '5 χρόνια', initials: 'ΜΚ', color: 'bg-pink-100 text-pink-700', match: 95 },
-                    { name: 'Αλέξης Ρ.', role: 'Πωλητής Retail', rating: 4.8, exp: '3 χρόνια', initials: 'ΑΡ', color: 'bg-amber-100 text-amber-700', match: 92 },
-                    { name: 'Κώστας Δ.', role: 'Αποθηκάριος', rating: 4.9, exp: '7 χρόνια', initials: 'ΚΔ', color: 'bg-blue-100 text-blue-700', match: 88 },
-                  ].map((w) => (
-                    <div key={w.name} className="flex items-center justify-between rounded-2xl bg-white p-4 shadow-sm border border-gray-100">
-                      <div className="flex items-center gap-3">
-                        <div className={`flex h-12 w-12 items-center justify-center rounded-full font-bold ${w.color}`}>{w.initials}</div>
-                        <div>
-                          <p className="font-bold text-gray-900 text-sm">{w.name}</p>
-                          <p className="text-xs text-gray-500">{w.role} &middot; {w.exp}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700">{w.match}% match</span>
-                        <div className="mt-1 flex items-center gap-1 text-xs text-gray-400">
-                          <span className="text-yellow-500">&#9733;</span> {w.rating}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <LiveWorkersPanel />
             </div>
           </div>
         </div>
@@ -235,31 +184,9 @@ export default function HomePage() {
       <section className="bg-gray-50 py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid items-center gap-12 lg:grid-cols-2">
-            {/* Left — visual (desktop) */}
+            {/* Left — visual (desktop, πραγματικές αγγελίες) */}
             <div className="relative hidden lg:block order-1 lg:order-none">
-              <div className="rounded-3xl bg-gradient-to-br from-emerald-50 to-white p-8 border border-emerald-100 shadow-xl">
-                <div className="text-center mb-6">
-                  <p className="text-sm font-semibold text-emerald-600 uppercase tracking-wider">Θέσεις κοντά σου</p>
-                </div>
-                <div className="space-y-4">
-                  {[
-                    { title: 'Πωλητής/τρια', place: 'Fashion Store', location: 'Αθήνα', salary: '900-1.200€', type: 'Full-time', color: 'bg-blue-50 text-blue-700' },
-                    { title: 'Σερβιτόρος/α', place: 'Sunset Beach Bar', location: 'Μύκονος', salary: '1.200-1.500€', type: 'Σεζόν', color: 'bg-amber-50 text-amber-700' },
-                    { title: 'Αποθηκάριος', place: 'Express Logistics', location: 'Θεσσαλονίκη', salary: '1.100-1.400€', type: 'Full-time', color: 'bg-emerald-50 text-emerald-700' },
-                  ].map((j) => (
-                    <div key={j.title + j.place} className="flex items-center justify-between rounded-2xl bg-white p-4 shadow-sm border border-gray-100">
-                      <div>
-                        <p className="font-bold text-gray-900 text-sm">{j.title}</p>
-                        <p className="text-xs text-gray-500">{j.place} &middot; {j.location}</p>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-sm font-bold text-gray-900">{j.salary}</span>
-                        <span className={`mt-1 block rounded-full px-2.5 py-0.5 text-xs font-semibold ${j.color}`}>{j.type}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <LiveJobsPanel />
             </div>
 
             {/* Right — text */}
@@ -318,44 +245,18 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ====== SOCIAL PROOF ====== */}
-      <section className="bg-white py-20 sm:py-28">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-14">
-            <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">Τι λένε οι χρήστες μας</p>
-            <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">Εμπιστοσύνη από χιλιάδες</h2>
-          </div>
-
-          <div className="grid gap-8 md:grid-cols-3">
-            {testimonials.map((t) => (
-              <div key={t.name} className="rounded-2xl bg-gray-50 p-6 sm:p-8 border border-gray-100">
-                {/* Stars */}
-                <div className="flex gap-1 text-yellow-400 mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <svg key={i} className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
-                  ))}
-                </div>
-                <p className="text-gray-700 leading-relaxed italic">&ldquo;{t.quote}&rdquo;</p>
-                <div className="mt-6 flex items-center gap-3">
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ${t.color}`}>
-                    {t.initials}
-                  </div>
-                  <div>
-                    <p className="font-bold text-gray-900 text-sm">{t.name}</p>
-                    <p className="text-xs text-gray-500">{t.role}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/*
+        Εδώ υπήρχε τμήμα «Τι λένε οι χρήστες μας» με τρεις κριτικές γραμμένες
+        στο χέρι. Δεν ήταν αληθινές, οπότε αφαιρέθηκε ολόκληρο. Αν κάποτε
+        μπουν εδώ κριτικές, θα έρχονται από πραγματικές αξιολογήσεις χρηστών
+        και με τη συγκατάθεσή τους — ποτέ γραμμένες από εμάς.
+      */}
 
       {/* ====== HOW IT WORKS (TABS) ====== */}
       <HowItWorksTabs />
 
       {/* ====== CATEGORIES — όλοι οι κλάδοι ====== */}
-      <section className="bg-white py-16 sm:py-20" aria-labelledby="categories-heading">
+      <section className="bg-gray-50 py-16 sm:py-20" aria-labelledby="categories-heading">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10">
             <h2 id="categories-heading" className="text-2xl font-bold text-gray-900 sm:text-3xl">
@@ -392,7 +293,7 @@ export default function HomePage() {
       {/* ====== DOWNLOAD APP ====== */}
       <section
         id="download-app"
-        className="w-full scroll-mt-20 bg-gray-50 py-10 sm:py-14"
+        className="w-full scroll-mt-20 bg-white py-10 sm:py-14"
       >
         <div className="mx-auto grid max-w-7xl items-center gap-8 px-4 sm:px-6 lg:grid-cols-[5fr_7fr] lg:gap-10 lg:px-8">
           {/* LEFT — text + store buttons + stats */}

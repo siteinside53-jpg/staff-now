@@ -386,3 +386,144 @@ export function LiveWorkersHeroCard() {
 
 // Compat export
 export function LiveWorkersGrid() { return null; }
+
+/* ── Κοινό φόρτωμα για τα δύο panel της αρχικής ──────
+ * Τα panel «Τώρα διαθέσιμοι κοντά σου» και «Θέσεις κοντά σου» έδειχναν
+ * χειρόγραφα παραδείγματα (Sunset Beach Bar κ.λπ.). Τώρα δείχνουν τους
+ * πραγματικούς εργαζόμενους και τις πραγματικές αγγελίες — κι αν δεν υπάρχουν,
+ * δεν εμφανίζονται καθόλου.
+ */
+function useLiveLists() {
+  const [workers, setWorkers] = useState<Worker[]>(DEV_DEMO_WORKERS);
+  const [jobs, setJobs] = useState<Job[]>(DEV_DEMO_JOBS);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [wRes, jRes] = await Promise.all([
+          fetch(`${API_BASE}/public/workers?limit=12`),
+          fetch(`${API_BASE}/public/jobs?limit=12`),
+        ]);
+        if (wRes.ok) {
+          const data = (await wRes.json())?.data;
+          if (Array.isArray(data) && data.length > 0 && !cancelled) {
+            setWorkers(data.map((w: any, i: number) => {
+              const name = w.full_name || 'Χρήστης';
+              const firstName = name.split(' ')[0];
+              const lastInitial = name.split(' ')[1]?.[0] || '';
+              const roleKey = w.roles?.[0] || '';
+              return {
+                id: w.user_id || `pw_${i}`,
+                name: lastInitial ? `${firstName} ${lastInitial}.` : firstName,
+                role: ROLE_LABELS[roleKey] || roleKey || 'Εργαζόμενος',
+                exp: expLabel(w.years_of_experience),
+                initials: getInitials(name),
+                color: COLORS[i % COLORS.length] || COLORS[0]!,
+                city: resolveCityName(w.city || w.region || ''),
+                photo: w.photo_url || null,
+              };
+            }));
+          }
+        }
+        if (jRes.ok) {
+          const data = (await jRes.json())?.data;
+          if (Array.isArray(data) && data.length > 0 && !cancelled) {
+            setJobs(data.map((j: any, i: number) => ({
+              id: j.id?.toString() || `pj_${i}`,
+              title: j.title || 'Θέση εργασίας',
+              company: j.display_company_name || j.company_name || 'Επιχείρηση',
+              city: resolveCityName(j.city || j.region || ''),
+              salary: j.salary_min && j.salary_max
+                ? `${j.salary_min}-${j.salary_max}€`
+                : j.salary_min ? `${j.salary_min}€+` : '',
+              type: TYPE_LABELS[j.employment_type] || j.employment_type || '',
+              color: TYPE_COLORS[j.employment_type] || 'bg-blue-50 text-blue-700',
+              logo: j.company_logo || null,
+            })));
+          }
+        }
+      } catch { /* κανένα fake — μένει άδειο */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  return { workers, jobs };
+}
+
+/** Panel αρχικής, ενότητα «Για Επιχειρήσεις» — πραγματικοί εργαζόμενοι. */
+export function LiveWorkersPanel() {
+  const { workers } = useLiveLists();
+  // Σε 3 μόνο θέσεις δείχνουμε προφίλ που έχουν όντως συμπληρωθεί (όνομα +
+  // ειδικότητα). Τα μισοάδεια θα εμφανίζονταν ως «Εργαζόμενος · Εργαζόμενος».
+  const shown = workers
+    .filter((w) => w.role !== 'Εργαζόμενος' && w.name !== 'Εργαζόμενος')
+    .slice(0, 3);
+  if (shown.length === 0) return null;
+
+  return (
+    <div className="rounded-3xl bg-gradient-to-br from-blue-50 to-white p-8 border border-blue-100 shadow-xl">
+      <div className="text-center mb-6">
+        <p className="text-sm font-semibold text-blue-600 uppercase tracking-wider">Τώρα διαθέσιμοι κοντά σου</p>
+      </div>
+      <div className="space-y-4">
+        {shown.map((w) => (
+          <div key={w.id} className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm border border-gray-100">
+            {w.photo ? (
+              <AvatarImg
+                src={w.photo}
+                alt=""
+                fallback={w.initials}
+                className="h-12 w-12 flex-shrink-0 rounded-full object-cover"
+                fallbackClassName={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full font-bold ${w.color}`}
+              />
+            ) : (
+              <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full font-bold ${w.color}`}>
+                {w.initials}
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="font-bold text-gray-900 text-sm truncate">{w.name}</p>
+              <p className="text-xs text-gray-500 truncate">
+                {w.role} &middot; {w.exp}{w.city ? ` · ${w.city}` : ''}
+              </p>
+            </div>
+            <span className="flex h-2 w-2 flex-shrink-0 rounded-full bg-emerald-400 animate-pulse" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Panel αρχικής, ενότητα «Για Εργαζόμενους» — πραγματικές αγγελίες. */
+export function LiveJobsPanel() {
+  const { jobs } = useLiveLists();
+  if (jobs.length === 0) return null;
+
+  return (
+    <div className="rounded-3xl bg-gradient-to-br from-emerald-50 to-white p-8 border border-emerald-100 shadow-xl">
+      <div className="text-center mb-6">
+        <p className="text-sm font-semibold text-emerald-600 uppercase tracking-wider">Θέσεις κοντά σου</p>
+      </div>
+      <div className="space-y-4">
+        {jobs.slice(0, 3).map((j) => (
+          <div key={j.id} className="flex items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm border border-gray-100">
+            <div className="min-w-0">
+              <p className="font-bold text-gray-900 text-sm truncate">{j.title}</p>
+              <p className="text-xs text-gray-500 truncate">
+                {j.company}{j.city ? ` · ${j.city}` : ''}
+              </p>
+            </div>
+            <div className="text-right flex-shrink-0">
+              {j.salary && <span className="text-sm font-bold text-gray-900">{j.salary}</span>}
+              {j.type && (
+                <span className={`mt-1 block rounded-full px-2.5 py-0.5 text-xs font-semibold ${j.color}`}>{j.type}</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
