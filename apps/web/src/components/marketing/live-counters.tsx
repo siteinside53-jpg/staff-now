@@ -22,10 +22,6 @@ interface Counter {
   value: number;
   icon: string;
   color: 'blue' | 'emerald' | 'amber' | 'purple';
-  min: number;
-  max: number;
-  intervalMin: number;
-  intervalMax: number;
 }
 
 const COLOR_MAP = {
@@ -43,8 +39,6 @@ function buildCounters(stats: { totalUsers: number; totalJobs: number; totalMatc
       value: stats.totalUsers || 0,
       icon: '⚡',
       color: 'blue',
-      min: 1, max: 5,
-      intervalMin: 3000, intervalMax: 6000,
     },
     {
       label: 'Matches μέχρι τώρα',
@@ -52,8 +46,6 @@ function buildCounters(stats: { totalUsers: number; totalJobs: number; totalMatc
       value: stats.totalMatches || 0,
       icon: '🎯',
       color: 'emerald',
-      min: 1, max: 3,
-      intervalMin: 4500, intervalMax: 8000,
     },
     {
       label: 'Ενεργές αγγελίες',
@@ -61,8 +53,6 @@ function buildCounters(stats: { totalUsers: number; totalJobs: number; totalMatc
       value: stats.totalJobs || 0,
       icon: '💼',
       color: 'amber',
-      min: 0, max: 2,
-      intervalMin: 6000, intervalMax: 10000,
     },
     {
       label: 'Επιχειρήσεις εγγεγραμμένες',
@@ -70,8 +60,6 @@ function buildCounters(stats: { totalUsers: number; totalJobs: number; totalMatc
       value: stats.totalBusinesses || 0,
       icon: '🏢',
       color: 'purple',
-      min: 0, max: 2,
-      intervalMin: 7000, intervalMax: 12000,
     },
   ];
 }
@@ -85,7 +73,6 @@ export function LiveCounters() {
   const [values, setValues] = useState<number[]>(
     DEV_DEMO_STATS ? buildCounters(DEV_DEMO_STATS).map((c) => c.value) : [],
   );
-  const [flashingIndices] = useState<Set<number>>(new Set());
 
   // Ανανέωση ΠΡΑΓΜΑΤΙΚΩΝ στατιστικών κάθε 25s (χωρίς fake drift).
   // Το usePoll κάνει το πρώτο φόρτωμα, παύει όταν η καρτέλα είναι κρυφή και
@@ -112,16 +99,10 @@ export function LiveCounters() {
       {/* ===== MOBILE: compact inline strip ===== */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:hidden">
         {counters.map((c, i) => {
-          const isFlashing = flashingIndices.has(i);
-          const colors = COLOR_MAP[c.color];
           return (
             <div key={c.label} className="flex items-center gap-1.5">
               <span className="text-sm">{c.icon}</span>
-              <span
-                className={`text-sm font-bold tabular-nums transition-colors duration-300 ${
-                  isFlashing ? colors.glow : 'text-white'
-                }`}
-              >
+              <span className="text-sm font-bold tabular-nums text-white">
                 {values[i]?.toLocaleString('el-GR') || '0'}
               </span>
               <span className="text-[11px] text-gray-500">{c.shortLabel}</span>
@@ -134,27 +115,15 @@ export function LiveCounters() {
       <div className="hidden sm:grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
         {counters.map((c, i) => {
           const colors = COLOR_MAP[c.color];
-          const isFlashing = flashingIndices.has(i);
           return (
             <div
               key={c.label}
-              className={`rounded-2xl border backdrop-blur-sm p-4 transition-all duration-300 ${colors.bg} ${colors.border} ${
-                isFlashing ? 'scale-[1.02] shadow-lg' : ''
-              }`}
+              className={`rounded-2xl border backdrop-blur-sm p-4 ${colors.bg} ${colors.border}`}
             >
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xl">{c.icon}</span>
-                {isFlashing && (
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 animate-pulse">
-                    +{c.min + Math.floor(Math.random() * (c.max - c.min + 1))}
-                  </span>
-                )}
               </div>
-              <p
-                className={`text-2xl font-extrabold tabular-nums transition-colors duration-500 ${
-                  isFlashing ? colors.glow : 'text-white'
-                }`}
-              >
+              <p className="text-2xl font-extrabold tabular-nums text-white">
                 {values[i]?.toLocaleString('el-GR') || '0'}
               </p>
               <p className="mt-1 text-[11px] text-gray-400 leading-tight">{c.label}</p>

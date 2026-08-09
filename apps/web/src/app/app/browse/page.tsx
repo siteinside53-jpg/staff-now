@@ -350,7 +350,7 @@ function BrowseContent() {
             <>
               {[
                 { key: 'all' as const, label: 'Όλοι οι εργαζόμενοι' },
-                { key: 'online' as const, label: 'Online τώρα' },
+                { key: 'online' as const, label: 'Άμεσα διαθέσιμοι' },
                 { key: 'new' as const, label: 'Νέοι' },
               ].map((f) => (
                 <button
@@ -404,8 +404,10 @@ function BrowseContent() {
             </div>
           ) : (
             filteredWorkers.map((w) => {
-              const matchPercent = 70 + Math.floor(Math.random() * 25);
-              const isOnline = w.availability === 'immediate' || Math.random() > 0.4;
+              // Το «% Match» έβγαινε από Math.random() και το πράσινο σημάδι
+              // άναβε στο 60% των καρτών στην τύχη. Τώρα μένει μόνο ό,τι λέει
+              // πραγματικά ο εργαζόμενος: ότι είναι άμεσα διαθέσιμος.
+              const availableNow = w.availability === 'immediate';
               return (
                 <button
                   key={w.user_id}
@@ -421,7 +423,7 @@ function BrowseContent() {
                         {(w.full_name || '?')[0]?.toUpperCase()}
                       </div>
                     )}
-                    {isOnline && (
+                    {availableNow && (
                       <span className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-white bg-emerald-500">
                         <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-60" />
                       </span>
@@ -443,17 +445,12 @@ function BrowseContent() {
                     </p>
                   </div>
 
-                  {/* Match % + online label */}
+                  {/* Διαθεσιμότητα — δηλωμένη από τον ίδιο τον εργαζόμενο */}
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                      matchPercent >= 85
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        : 'bg-blue-50 text-blue-700 border border-blue-200'
-                    }`}>
-                      {matchPercent}% Match
-                    </span>
-                    {isOnline && (
-                      <span className="text-[9px] font-semibold text-emerald-600">Online</span>
+                    {availableNow && (
+                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                        Άμεσα διαθέσιμος
+                      </span>
                     )}
                   </div>
 
@@ -479,7 +476,10 @@ function BrowseContent() {
             </div>
           ) : (
             filteredBusinesses.map((b) => {
-              const isOnline = Math.random() > 0.35;
+              // Ήταν Math.random() — άναβε «Online» σε 2 στις 3 επιχειρήσεις
+              // στην τύχη. Τώρα το πράσινο σημάδι σημαίνει κάτι αληθινό:
+              // η επιχείρηση έχει ανοιχτές θέσεις αυτή τη στιγμή.
+              const hiring = (b.openJobs || 0) > 0;
               return (
                 <button
                   key={b.userId}
@@ -499,7 +499,7 @@ function BrowseContent() {
                         {(b.companyName || '?')[0]?.toUpperCase()}
                       </div>
                     )}
-                    {isOnline && (
+                    {hiring && (
                       <span className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-white bg-emerald-500">
                         <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-60" />
                       </span>
@@ -522,10 +522,10 @@ function BrowseContent() {
                           💼 {b.openJobs} {b.openJobs === 1 ? 'θέση' : 'θέσεις'}
                         </span>
                       )}
-                      {isOnline && (
+                      {hiring && (
                         <span className="text-[9px] font-semibold text-emerald-600 flex items-center gap-0.5">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                          Online
+                          Προσλαμβάνει
                         </span>
                       )}
                     </div>
@@ -565,9 +565,13 @@ function BrowseContent() {
                       {(selectedWorker.full_name || '?')[0]?.toUpperCase()}
                     </div>
                   )}
-                  <span className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 border-2 border-white">
-                    <span className="h-2 w-2 rounded-full bg-white" />
-                  </span>
+                  {/* Άναβε σε κάθε προφίλ ανεξαιρέτως. Τώρα μόνο σε όποιον
+                    * έχει δηλώσει ότι μπορεί να ξεκινήσει άμεσα. */}
+                  {selectedWorker.availability === 'immediate' && (
+                    <span className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 border-2 border-white">
+                      <span className="h-2 w-2 rounded-full bg-white" />
+                    </span>
+                  )}
                 </div>
 
                 <h2 className="mt-3 text-xl font-extrabold text-gray-900">{selectedWorker.full_name || 'Εργαζόμενος'}</h2>
@@ -577,9 +581,11 @@ function BrowseContent() {
                 {selectedWorker.city && (
                   <p className="mt-1 text-xs text-gray-400">📍 {[selectedWorker.city, selectedWorker.region].filter(Boolean).join(', ')}</p>
                 )}
-                <div className="mt-2 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-bold text-blue-700">
-                  🧠 {70 + Math.floor(Math.random() * 25)}% Match
-                </div>
+                {selectedWorker.availability === 'immediate' && (
+                  <div className="mt-2 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-bold text-emerald-700">
+                    ⚡ Άμεσα διαθέσιμος
+                  </div>
+                )}
               </div>
 
               {/* Εμπειρία */}
@@ -754,16 +760,20 @@ function BrowseContent() {
                   <span className="text-xs text-gray-500">📍 {[selectedBusiness.city, selectedBusiness.region].filter(Boolean).join(', ')}</span>
                 )}
               </div>
-              <div className="flex items-center gap-3 mt-2">
-                <span className="text-xs text-gray-500">👥 {5 + Math.floor(Math.random() * 30)} εργαζόμενοι</span>
-                <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600">
-                  <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              {/* Ο αριθμός εργαζομένων ήταν τυχαίος (5-34) και το «Online»
+                * άναβε πάντα. Μένει μόνο το πλήθος των ανοιχτών θέσεων. */}
+              {(selectedBusiness.openJobs || 0) > 0 && (
+                <div className="flex items-center gap-3 mt-2">
+                  <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600">
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                    </span>
+                    Προσλαμβάνει τώρα · {selectedBusiness.openJobs}{' '}
+                    {selectedBusiness.openJobs === 1 ? 'θέση' : 'θέσεις'}
                   </span>
-                  Online
-                </span>
-              </div>
+                </div>
+              )}
             </div>
 
             {/* Tabs */}
