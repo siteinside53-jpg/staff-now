@@ -1,12 +1,18 @@
 /**
- * Φτιάχνει τη σελίδα «όλα τα email που φεύγουν στον πελάτη».
+ * Φτιάχνει τον κατάλογο «όλα τα email που φεύγουν στον πελάτη».
  *
  * ΓΙΑΤΙ ΕΤΣΙ: δεν ζωγραφίζει μακέτα. Διαβάζει τον ΑΛΗΘΙΝΟ `emailLayout()` από
  * το `src/lib/email.ts` και τον ΑΛΗΘΙΝΟ `heroFor()` από το `src/lib/notify.ts`,
- * και τα εκτελεί. Ό,τι βλέπεις στη σελίδα είναι byte-πρός-byte αυτό που
- * παραδίδει το Resend στο inbox. Αν αύριο αλλάξει το πρότυπο, ξανατρέχεις:
+ * και τα εκτελεί. Ό,τι βλέπεις είναι byte-πρός-byte αυτό που παραδίδει το
+ * Resend στο inbox. Αν αύριο αλλάξει το πρότυπο, ξανατρέχεις:
  *
  *   node scripts/gen-email-preview.mjs
+ *
+ * ΠΟΥ ΚΑΤΑΛΗΓΕΙ: σε αρχείο κώδικα ΜΕΣΑ στον server (`src/lib/email-previews.
+ * generated.ts`), όχι σε δημόσιο φάκελο της ιστοσελίδας. Παλιά έβγαινε στο
+ * `apps/web/public/emails/`, δηλαδή σε διεύθυνση που άνοιγε ο οποιοσδήποτε
+ * χωρίς κωδικό. Τώρα ο κατάλογος δίνεται μόνο από το `GET /admin/email-previews`,
+ * που ζητάει λογαριασμό διαχειριστή.
  *
  * Τα ονόματα/ποσά στα δείγματα είναι ΦΑΝΤΑΣΤΙΚΑ και το λέει η σελίδα καθαρά.
  */
@@ -33,7 +39,9 @@ function HERE_ROOT() {
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const API_SRC = join(HERE, '..', 'src');
-const OUT_DIR = join(HERE, '..', '..', 'web', 'public', 'emails');
+const OUT_FILE = join(API_SRC, 'lib', 'email-previews.generated.ts');
+/** Ο παλιός δημόσιος φάκελος. Τον σβήνουμε αν έχει μείνει από προηγούμενο τρέξιμο. */
+const OLD_PUBLIC_DIR = join(HERE, '..', '..', 'web', 'public', 'emails');
 const TMP = join(HERE, '.tmp-email-preview');
 
 // --- 1. Ο αληθινός emailLayout, μεταγλωττισμένος από το ίδιο το αρχείο -------
@@ -403,125 +411,69 @@ const CATALOG = [
   },
 ];
 
-// --- 4. Γράψιμο ------------------------------------------------------------
-rmSync(OUT_DIR, { recursive: true, force: true });
-mkdirSync(OUT_DIR, { recursive: true });
+// --- 4. Γράψιμο -------------------------------------------------------------
+// Βγαίνει ΕΝΑ αρχείο κώδικα μέσα στον server. Δεν γράφουμε πια ούτε σελίδα
+// ούτε ξεχωριστά .html — η εμφάνιση γίνεται πλέον από τη σελίδα
+// `/admin/emails`, που ζητάει λογαριασμό διαχειριστή για να πάρει τα δεδομένα.
+rmSync(OLD_PUBLIC_DIR, { recursive: true, force: true });
 
-const esc = (s) =>
-  String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-// Ελληνικά → λατινικά. Το παλιό `[^a-zα-ω0-9]` έκοβε ΜΟΝΟ τα άτονα γράμματα:
-// τα τονισμένα (ά έ ή ί ό ύ ώ) είναι έξω από το εύρος α-ω και γίνονταν παύλες,
-// οπότε το «Έκτακτη βάρδια» κατέληγε «κτακτη-β-ρδια». Τώρα βγαίνει καθαρό
-// λατινικό όνομα, χωρίς κανέναν χαρακτήρα που να χρειάζεται κωδικοποίηση στο URL.
-const GREEK = {
-  α: 'a', β: 'v', γ: 'g', δ: 'd', ε: 'e', ζ: 'z', η: 'i', θ: 'th', ι: 'i',
-  κ: 'k', λ: 'l', μ: 'm', ν: 'n', ξ: 'x', ο: 'o', π: 'p', ρ: 'r', σ: 's',
-  ς: 's', τ: 't', υ: 'y', φ: 'f', χ: 'ch', ψ: 'ps', ω: 'o',
-  ά: 'a', έ: 'e', ή: 'i', ί: 'i', ό: 'o', ύ: 'y', ώ: 'o',
-  ϊ: 'i', ϋ: 'y', ΐ: 'i', ΰ: 'y',
-};
-
-const slug = (s, i) =>
-  String(i).padStart(2, '0') +
-  '-' +
-  s
-    .toLowerCase()
-    .replace(/[α-ωάέήίόύώϊϋΐΰς]/g, (c) => GREEK[c] ?? '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .slice(0, 40)
-    .replace(/^-|-$/g, '');
+/** Πόσο συχνά επιτρέπεται δεύτερο email της ίδιας κατηγορίας, σε ανθρώπινα λόγια. */
+const cooldownLabel = (m) =>
+  m == null ? null : m >= 1440 ? `${m / 1440} ημέρες` : m >= 60 ? `${m / 60} ώρες` : `${m} λεπτά`;
 
 let n = 0;
-let total = 0;
-const sections = CATALOG.map((g) => {
-  const cards = g.items
-    .map((it) => {
-      n++;
-      total++;
-      // Το preview μπαίνει με `srcdoc`, δηλαδή το email είναι γραμμένο μέσα
-      // στη σελίδα. Πριν ήταν `src="./αρχείο.html"`: 23 ξεχωριστά αιτήματα, που
-      // το Cloudflare Pages τα γύριζε πρώτα με 308 (κόβει την κατάληξη .html).
-      // Αν έστω ένα από αυτά αστοχούσε, ο χρήστης έβλεπε «Η σελίδα δεν βρέθηκε»
-      // μέσα στην κάρτα. Τώρα δεν υπάρχει αίτημα, άρα δεν υπάρχει και αστοχία.
-      // Το αρχείο μένει μόνο για τον σύνδεσμο «Άνοιγμα σε δικό του παράθυρο».
-      const file = `${slug(it.name, n)}.html`;
-      writeFileSync(join(OUT_DIR, file), it.html);
-      const meta = [
-        it.cooldown ? `φρένο: ${cd(it.cooldown)}` : null,
-        `κώδικας: ${it.src}`,
-      ]
-        .filter(Boolean)
-        .map((t) => `<span class="tag">${esc(t)}</span>`)
-        .join('');
-      return `
-      <article class="card">
-        <header>
-          <div class="num">${n}</div>
-          <div>
-            <h3>${esc(it.name)}${it.isNew ? ' <span class="new">ΝΕΟ</span>' : ''}</h3>
-            <p class="when">${esc(it.when)}</p>
-          </div>
-        </header>
-        <p class="subj"><b>Θέμα:</b> ${esc(it.subject)}</p>
-        ${it.note ? `<p class="note">${esc(it.note)}</p>` : ''}
-        <div class="meta">${meta}</div>
-        <div class="frame"><iframe srcdoc="${esc(it.html)}" loading="lazy" title="${esc(it.name)}"></iframe></div>
-        <p class="open"><a href="./${file}" target="_blank">Άνοιγμα σε δικό του παράθυρο ↗</a></p>
-      </article>`;
-    })
-    .join('');
-  return `<section><h2>${esc(g.group)}</h2><div class="grid">${cards}</div></section>`;
-}).join('');
+const groups = CATALOG.map((g) => ({
+  group: g.group,
+  items: g.items.map((it) => ({
+    n: ++n,
+    name: it.name,
+    when: it.when,
+    src: it.src,
+    note: it.note ?? null,
+    isNew: it.isNew === true,
+    cooldown: cooldownLabel(it.cooldown),
+    subject: it.subject,
+    html: it.html,
+  })),
+}));
+const total = n;
 
-const index = `<!doctype html>
-<html lang="el">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow">
-<title>StaffNow — όλα τα email που φεύγουν στον πελάτη</title>
-<style>
-  *{box-sizing:border-box}
-  body{margin:0;background:#f1f5f9;color:#0f172a;font:15px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
-  .wrap{max-width:1180px;margin:0 auto;padding:28px 18px 70px}
-  h1{font-size:27px;margin:0 0 6px;letter-spacing:-.5px}
-  .lead{color:#475569;margin:0 0 18px;max-width:70ch}
-  .warn{background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:13px 16px;margin:0 0 26px;color:#78350f;max-width:70ch}
-  h2{font-size:19px;margin:34px 0 14px;padding-bottom:9px;border-bottom:2px solid #cbd5e1}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:18px}
-  .card{background:#fff;border:1px solid #e2e8f0;border-radius:15px;padding:16px;display:flex;flex-direction:column}
-  .card header{display:flex;gap:11px;align-items:flex-start;margin-bottom:9px}
-  .num{flex:0 0 27px;height:27px;border-radius:8px;background:#2563eb;color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center}
-  h3{margin:0;font-size:15.5px;line-height:1.35}
-  .new{background:#dcfce7;color:#166534;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:20px;vertical-align:middle}
-  .when{margin:4px 0 0;font-size:13px;color:#64748b}
-  .subj{margin:0 0 7px;font-size:13.5px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;padding:8px 11px;word-break:break-word}
-  .note{margin:0 0 8px;font-size:12.5px;color:#7c2d12;background:#fff7ed;border-left:3px solid #fdba74;padding:7px 11px;border-radius:0 8px 8px 0}
-  .meta{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:11px}
-  .tag{font-size:11.5px;background:#eef2ff;color:#3730a3;border-radius:20px;padding:3px 10px;font-family:ui-monospace,Menlo,monospace}
-  .frame{border:1px solid #e2e8f0;border-radius:11px;overflow:hidden;background:#eef2f7;height:530px}
-  iframe{width:100%;height:100%;border:0;display:block}
-  .open{margin:9px 0 0;font-size:13px}
-  .open a{color:#2563eb;text-decoration:none;font-weight:600}
-  footer{margin-top:40px;color:#94a3b8;font-size:12.5px}
-</style>
-</head>
-<body>
-<div class="wrap">
-  <h1>Όλα τα email που φεύγουν στον πελάτη</h1>
-  <p class="lead"><b>${total} διαφορετικά email.</b> Δεν είναι μακέτες: η σελίδα τρέχει τον ίδιο κώδικα
-  (<code>lib/email.ts</code> + <code>lib/notify.ts</code>) που στέλνει τα αληθινά. Ό,τι βλέπεις εδώ είναι
-  ακριβώς αυτό που φτάνει στο inbox.</p>
-  <div class="warn"><b>Τα ονόματα είναι φανταστικά.</b> «Νίκος Παπαδόπουλος», «Καφέ Ακρογιάλι» και οι
-  ημερομηνίες μπαίνουν μόνο για να φαίνεται πώς δείχνει το email γεμάτο. Κανένα αληθινό στοιχείο πελάτη.</div>
-  ${sections}
-  <footer>Παράγεται από <code>apps/api/scripts/gen-email-preview.mjs</code> · Αποστολέας: StaffNow &lt;no-reply@staffnow.gr&gt; μέσω Resend ·
-  «φρένο» = πόση ώρα πρέπει να περάσει πριν σταλεί δεύτερο email της ίδιας κατηγορίας στο ίδιο άτομο.</footer>
-</div>
-</body>
-</html>`;
+const file = `/**
+ * ΠΑΡΑΓΕΤΑΙ ΑΥΤΟΜΑΤΑ — μην το πειράζεις με το χέρι.
+ * Πηγή: apps/api/scripts/gen-email-preview.mjs  ·  ξανατρέξ' το με:
+ *   node scripts/gen-email-preview.mjs
+ *
+ * Περιέχει ${total} δείγματα email, φτιαγμένα από τον ίδιο τον κώδικα που
+ * στέλνει τα αληθινά. Τα ονόματα και τα ποσά μέσα τους είναι φανταστικά.
+ * Δίνεται μόνο από το GET /admin/email-previews, πίσω από έλεγχο διαχειριστή.
+ */
 
-writeFileSync(join(OUT_DIR, 'index.html'), index);
+export interface EmailPreviewItem {
+  /** Αύξων αριθμός σε ΟΛΟΝ τον κατάλογο, όχι μέσα στην ομάδα. */
+  n: number;
+  name: string;
+  /** Πότε φεύγει αυτό το email. */
+  when: string;
+  /** Σε ποιο σημείο του κώδικα στέλνεται — για επαλήθευση. */
+  src: string;
+  note: string | null;
+  isNew: boolean;
+  /** Πόσο πρέπει να περάσει πριν σταλεί δεύτερο ίδιο. null = χωρίς φρένο. */
+  cooldown: string | null;
+  subject: string;
+  html: string;
+}
+
+export interface EmailPreviewGroup {
+  group: string;
+  items: EmailPreviewItem[];
+}
+
+export const EMAIL_PREVIEW_TOTAL = ${total};
+
+export const EMAIL_PREVIEW_GROUPS: EmailPreviewGroup[] = ${JSON.stringify(groups, null, 2)};
+`;
+
+writeFileSync(OUT_FILE, file);
 rmSync(TMP, { recursive: true, force: true });
-console.log(`✓ ${total} email → ${OUT_DIR}/index.html`);
+console.log(`✓ ${total} email → ${OUT_FILE}`);

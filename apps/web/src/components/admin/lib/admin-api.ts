@@ -146,6 +146,45 @@ export const adminApi = {
     return handle<any>(res);
   },
 
+  // ---------- Προσλήψεις & Αξιολογήσεις ----------
+  async getHires(
+    params: { page?: number; limit?: number; status?: string; search?: string } = {},
+  ) {
+    const res = await fetch(`${API_BASE}/admin/hires?${buildQS(params)}`, { headers: authHeaders() });
+    return handlePaginated<any>(res);
+  },
+
+  async getRatings(
+    params: { page?: number; limit?: number; role?: string; rating?: string; search?: string } = {},
+  ) {
+    const res = await fetch(`${API_BASE}/admin/ratings?${buildQS(params)}`, { headers: authHeaders() });
+    return handlePaginated<any>(res);
+  },
+
+  // ---------- Δείγματα email ----------
+  // Τα δείγματα κατεβαίνουν από τον server με το κλειδί του διαχειριστή. Δεν
+  // υπάρχουν σε δημόσιο φάκελο, οπότε δεν μπορεί να τα δει κάποιος άλλος.
+  async getEmailPreviews() {
+    const res = await fetch(`${API_BASE}/admin/email-previews`, { headers: authHeaders() });
+    return handle<{
+      total: number;
+      groups: {
+        group: string;
+        items: {
+          n: number;
+          name: string;
+          when: string;
+          src: string;
+          note: string | null;
+          isNew: boolean;
+          cooldown: string | null;
+          subject: string;
+          html: string;
+        }[];
+      }[];
+    }>(res);
+  },
+
   // ---------- Jobs ----------
   async getJobs(params: { page?: number; limit?: number; status?: string; search?: string } = {}) {
     const res = await fetch(`${API_BASE}/admin/jobs?${buildQS(params)}`, { headers: authHeaders() });

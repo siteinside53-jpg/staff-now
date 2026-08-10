@@ -7,6 +7,10 @@ const STATUS_STYLES: Record<string, { label: string; classes: string; dot: strin
   active:        { label: 'Ενεργός', classes: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
   published:     { label: 'Δημοσιευμένη', classes: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
   pending:       { label: 'Σε αναμονή', classes: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500' },
+  // Καταστάσεις πρόσληψης. Χωρίς αυτές το σήμα έδειχνε την αγγλική λέξη ωμή.
+  confirmed:     { label: 'Επιβεβαιώθηκε', classes: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
+  declined:      { label: 'Δεν έγινε', classes: 'bg-red-50 text-red-700 border-red-200', dot: 'bg-red-500' },
+  cancelled:     { label: 'Ακυρώθηκε', classes: 'bg-gray-50 text-gray-600 border-gray-200', dot: 'bg-gray-400' },
   draft:         { label: 'Πρόχειρη', classes: 'bg-gray-50 text-gray-700 border-gray-200', dot: 'bg-gray-400' },
   paused:        { label: 'Σε παύση', classes: 'bg-orange-50 text-orange-700 border-orange-200', dot: 'bg-orange-500' },
   archived:      { label: 'Αρχειοθετημένη', classes: 'bg-gray-50 text-gray-600 border-gray-200', dot: 'bg-gray-400' },

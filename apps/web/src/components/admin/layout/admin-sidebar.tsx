@@ -20,6 +20,8 @@ const NAV: NavItem[] = [
   { href: '/admin/jobs', label: 'Αγγελίες', icon: '💼', section: 'Marketplace' },
   { href: '/admin/matches', label: 'Matches', icon: '🎯', section: 'Marketplace' },
   { href: '/admin/messages', label: 'Μηνύματα', icon: '💬', section: 'Marketplace' },
+  { href: '/admin/hires', label: 'Προσλήψεις', icon: '🤝', section: 'Marketplace' },
+  { href: '/admin/ratings', label: 'Αξιολογήσεις', icon: '⭐', section: 'Marketplace' },
 
   { href: '/admin/reports', label: 'Αναφορές', icon: '🚨', section: 'Trust & Safety' },
   { href: '/admin/verifications', label: 'Επαληθεύσεις', icon: '✅', section: 'Trust & Safety' },
@@ -33,6 +35,7 @@ const NAV: NavItem[] = [
   { href: '/admin/analytics', label: 'KPIs / Analytics', icon: '📈', section: 'Οικονομικά' },
 
   { href: '/admin/blog', label: 'Blog', icon: '📝', section: 'Διαχείριση' },
+  { href: '/admin/emails', label: 'Email πελατών', icon: '✉️', section: 'Διαχείριση' },
   { href: '/admin/settings', label: 'Ρυθμίσεις Πλατφόρμας', icon: '⚙️', section: 'Διαχείριση' },
   { href: '/admin/admin-users', label: 'Ομάδα Admin', icon: '🛡️', section: 'Διαχείριση' },
 ];

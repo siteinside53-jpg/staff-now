@@ -9,6 +9,7 @@ import { PLANS } from '@staffnow/config';
 import { hashPassword } from '../lib/password';
 import { notifyUser } from '../lib/notify';
 import { signFileUrl } from '../lib/signed-url';
+import { EMAIL_PREVIEW_GROUPS, EMAIL_PREVIEW_TOTAL } from '../lib/email-previews.generated';
 
 const admin = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
 
@@ -3775,6 +3776,170 @@ admin.post('/backfill-digest', async (c) => {
     failed,
     sample: dryRun ? sample : undefined,
   });
+});
+
+// ===========================================================================
+// GET /admin/email-previews : ο κατάλογος «όλα τα email που φεύγουν στον πελάτη»
+//
+// ΓΙΑΤΙ ΠΕΡΝΑΕΙ ΑΠΟ ΕΔΩ: μέχρι σήμερα ο κατάλογος ήταν αρχεία στον δημόσιο
+// φάκελο της ιστοσελίδας — δηλαδή ο καθένας που ήξερε τη διεύθυνση τα έβλεπε,
+// χωρίς κωδικό. Το να τα κρύψουμε απλώς πίσω από μια σελίδα «/admin/...» ΔΕΝ
+// θα ήταν προστασία: ο έλεγχος ταυτότητας της ιστοσελίδας τρέχει στον browser,
+// άρα το περιεχόμενο θα κατέβαινε ούτως ή άλλως. Τώρα τα δείγματα ζουν μέσα
+// στον server και βγαίνουν μόνο από αυτή τη διαδρομή, που περνάει από τον
+// έλεγχο διαχειριστή στην αρχή του αρχείου.
+// ===========================================================================
+admin.get('/email-previews', async (c) => {
+  return success(c, {
+    total: EMAIL_PREVIEW_TOTAL,
+    groups: EMAIL_PREVIEW_GROUPS,
+  });
+});
+
+// ===========================================================================
+// GET /admin/hires : όλες οι προσλήψεις της πλατφόρμας
+//
+// Το `/hires` δείχνει σε κάθε χρήστη ΜΟΝΟ τις δικές του. Ο διαχειριστής
+// χρειάζεται τη συνολική εικόνα: ποιος δήλωσε, ποιος επιβεβαίωσε, πόσες
+// έμειναν στη μέση. Μόνο ανάγνωση — καμία ενέργεια, για να μη μπορεί ο
+// διαχειριστής να «φτιάξει» πρόσληψη που δεν έγινε.
+//   ?status=pending|confirmed|declined|cancelled
+//   ?search=  όνομα εργαζομένου / επωνυμία / τίτλος αγγελίας
+// ===========================================================================
+admin.get('/hires', async (c) => {
+  const db = c.env.DB;
+  const page = parseInt(c.req.query('page') || '1', 10);
+  const limit = Math.min(parseInt(c.req.query('limit') || '50', 10), 100);
+  const offset = (page - 1) * limit;
+  const status = c.req.query('status');
+  const search = c.req.query('search');
+
+  const conditions: string[] = [];
+  const params: any[] = [];
+
+  if (status) {
+    conditions.push('h.status = ?');
+    params.push(status);
+  }
+  if (search) {
+    conditions.push('(wp.full_name LIKE ? OR bp.company_name LIKE ? OR j.title LIKE ?)');
+    const t = `%${search}%`;
+    params.push(t, t, t);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  const from = `FROM hires h
+      LEFT JOIN job_listings j ON j.id = h.job_id
+      LEFT JOIN worker_profiles wp ON wp.user_id = h.worker_id
+      LEFT JOIN business_profiles bp ON bp.user_id = h.business_id`;
+
+  const countRes = await db
+    .prepare(`SELECT COUNT(*) as total ${from} ${where}`)
+    .bind(...params)
+    .first<{ total: number }>();
+
+  const rows = await db
+    .prepare(
+      `SELECT h.id, h.status, h.declared_at, h.confirmed_at, h.rating_opens_at,
+              h.worker_id, h.business_id, h.job_id, h.conversation_id,
+              wp.full_name  as worker_name,
+              bp.company_name as business_name,
+              j.title as job_title,
+              -- Ποιος πάτησε πρώτος. Το COALESCE καλύπτει τις παλιές γραμμές
+              -- που γράφτηκαν πριν υπάρξει η στήλη — τότε δήλωνε πάντα η
+              -- επιχείρηση, οπότε η υπόθεση είναι ασφαλής.
+              CASE WHEN COALESCE(h.declared_by, h.business_id) = h.worker_id
+                   THEN 'worker' ELSE 'business' END as declared_side,
+              (SELECT COUNT(*) FROM hire_ratings r WHERE r.hire_id = h.id) as ratings_count
+         ${from}
+         ${where}
+        ORDER BY h.declared_at DESC
+        LIMIT ? OFFSET ?`,
+    )
+    .bind(...params, limit, offset)
+    .all();
+
+  return paginated(c, rows.results || [], countRes?.total || 0, page, limit);
+});
+
+// ===========================================================================
+// GET /admin/ratings : όλες οι αξιολογήσεις της πλατφόρμας
+//
+// ΠΡΟΣΟΧΗ ΣΤΟ ΔΙΠΛΟ-ΤΥΦΛΟ: στους χρήστες η αξιολόγηση κρύβεται μέχρι να
+// γράψουν και οι δύο. Ο διαχειριστής τις βλέπει όλες — αλλιώς δεν μπορεί να
+// ελέγξει καταγγελία για υβριστικό σχόλιο. Δεν αλλάζει τίποτα στο τι βλέπει
+// ο χρήστης· ο κανόνας της αποκάλυψης μένει ακριβώς ως έχει.
+//   ?role=worker|business  ποιος έγραψε την αξιολόγηση
+//   ?rating=1..5           μόνο συγκεκριμένη βαθμολογία
+//   ?search=               όνομα όποιου έγραψε ή όποιου αξιολογήθηκε
+// ===========================================================================
+admin.get('/ratings', async (c) => {
+  const db = c.env.DB;
+  const page = parseInt(c.req.query('page') || '1', 10);
+  const limit = Math.min(parseInt(c.req.query('limit') || '50', 10), 100);
+  const offset = (page - 1) * limit;
+  const role = c.req.query('role');
+  const rating = c.req.query('rating');
+  const search = c.req.query('search');
+
+  const conditions: string[] = [];
+  const params: any[] = [];
+
+  if (role === 'worker' || role === 'business') {
+    conditions.push('r.rater_role = ?');
+    params.push(role);
+  }
+  if (rating) {
+    const v = parseInt(rating, 10);
+    if (v >= 1 && v <= 5) {
+      conditions.push('r.overall = ?');
+      params.push(v);
+    }
+  }
+  if (search) {
+    conditions.push(
+      '(rater_w.full_name LIKE ? OR rater_b.company_name LIKE ? OR ratee_w.full_name LIKE ? OR ratee_b.company_name LIKE ?)',
+    );
+    const t = `%${search}%`;
+    params.push(t, t, t, t);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  // Ο αξιολογητής μπορεί να είναι εργαζόμενος Ή επιχείρηση, οπότε ενώνουμε και
+  // τους δύο πίνακες προφίλ και κρατάμε όποιο από τα δύο ονόματα υπάρχει.
+  const from = `FROM hire_ratings r
+      LEFT JOIN hires h ON h.id = r.hire_id
+      LEFT JOIN job_listings j ON j.id = h.job_id
+      LEFT JOIN worker_profiles   rater_w ON rater_w.user_id = r.rater_id
+      LEFT JOIN business_profiles rater_b ON rater_b.user_id = r.rater_id
+      LEFT JOIN worker_profiles   ratee_w ON ratee_w.user_id = r.ratee_id
+      LEFT JOIN business_profiles ratee_b ON ratee_b.user_id = r.ratee_id`;
+
+  const countRes = await db
+    .prepare(`SELECT COUNT(*) as total ${from} ${where}`)
+    .bind(...params)
+    .first<{ total: number }>();
+
+  const rows = await db
+    .prepare(
+      `SELECT r.id, r.hire_id, r.rater_id, r.ratee_id, r.rater_role,
+              r.overall, r.score_a, r.score_b, r.score_c, r.comment, r.created_at,
+              COALESCE(rater_w.full_name, rater_b.company_name) as rater_name,
+              COALESCE(ratee_w.full_name, ratee_b.company_name) as ratee_name,
+              j.title as job_title,
+              h.status as hire_status,
+              -- Έγραψε και η άλλη πλευρά; Αν ναι, την έχουν δει και οι δύο.
+              (SELECT COUNT(*) FROM hire_ratings r2
+                WHERE r2.hire_id = r.hire_id AND r2.rater_id <> r.rater_id) as other_rated
+         ${from}
+         ${where}
+        ORDER BY r.created_at DESC
+        LIMIT ? OFFSET ?`,
+    )
+    .bind(...params, limit, offset)
+    .all();
+
+  return paginated(c, rows.results || [], countRes?.total || 0, page, limit);
 });
 
 export default admin;
