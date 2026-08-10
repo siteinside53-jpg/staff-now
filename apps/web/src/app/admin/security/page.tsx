@@ -8,6 +8,7 @@ import { adminApi } from '@/components/admin/lib/admin-api';
 import { useSecurityStream, type LiveEvent } from '@/components/admin/lib/use-security-stream';
 import { EmptyState } from '@/components/admin/ui/empty-state';
 import { SeverityBadge, type Severity } from '@/components/admin/ui/severity-badge';
+import { TwoFactorCard } from '@/components/admin/settings/two-factor-card';
 
 type Tab = 'overview' | 'errors' | 'suspicious' | 'live';
 
@@ -32,6 +33,12 @@ export default function SecurityPage() {
           παραβιάσεις.
         </p>
       </div>
+
+      {/* Η διπλή επαλήθευση του δικού μου λογαριασμού.
+        * Ήταν στις «Ρυθμίσεις Πλατφόρμας» — δηλαδή μαζί με τιμές και κατηγορίες,
+        * εκεί που κανείς δεν ψάχνει για ασφάλεια. Μπαίνει πάνω από τις καρτέλες
+        * ώστε να φαίνεται όποια κι αν είναι επιλεγμένη. */}
+      <TwoFactorCard />
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-xl bg-white border border-gray-200 p-1 text-sm">

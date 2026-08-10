@@ -408,14 +408,27 @@ mkdirSync(OUT_DIR, { recursive: true });
 const esc = (s) =>
   String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+// Ελληνικά → λατινικά. Το παλιό `[^a-zα-ω0-9]` έκοβε ΜΟΝΟ τα άτονα γράμματα:
+// τα τονισμένα (ά έ ή ί ό ύ ώ) είναι έξω από το εύρος α-ω και γίνονταν παύλες,
+// οπότε το «Έκτακτη βάρδια» κατέληγε «κτακτη-β-ρδια». Τώρα βγαίνει καθαρό
+// λατινικό όνομα, χωρίς κανέναν χαρακτήρα που να χρειάζεται κωδικοποίηση στο URL.
+const GREEK = {
+  α: 'a', β: 'v', γ: 'g', δ: 'd', ε: 'e', ζ: 'z', η: 'i', θ: 'th', ι: 'i',
+  κ: 'k', λ: 'l', μ: 'm', ν: 'n', ξ: 'x', ο: 'o', π: 'p', ρ: 'r', σ: 's',
+  ς: 's', τ: 't', υ: 'y', φ: 'f', χ: 'ch', ψ: 'ps', ω: 'o',
+  ά: 'a', έ: 'e', ή: 'i', ί: 'i', ό: 'o', ύ: 'y', ώ: 'o',
+  ϊ: 'i', ϋ: 'y', ΐ: 'i', ΰ: 'y',
+};
+
 const slug = (s, i) =>
   String(i).padStart(2, '0') +
   '-' +
   s
     .toLowerCase()
-    .replace(/[^a-zα-ω0-9]+/gi, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 40);
+    .replace(/[α-ωάέήίόύώϊϋΐΰς]/g, (c) => GREEK[c] ?? '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .slice(0, 40)
+    .replace(/^-|-$/g, '');
 
 let n = 0;
 let total = 0;
@@ -424,6 +437,12 @@ const sections = CATALOG.map((g) => {
     .map((it) => {
       n++;
       total++;
+      // Το preview μπαίνει με `srcdoc`, δηλαδή το email είναι γραμμένο μέσα
+      // στη σελίδα. Πριν ήταν `src="./αρχείο.html"`: 23 ξεχωριστά αιτήματα, που
+      // το Cloudflare Pages τα γύριζε πρώτα με 308 (κόβει την κατάληξη .html).
+      // Αν έστω ένα από αυτά αστοχούσε, ο χρήστης έβλεπε «Η σελίδα δεν βρέθηκε»
+      // μέσα στην κάρτα. Τώρα δεν υπάρχει αίτημα, άρα δεν υπάρχει και αστοχία.
+      // Το αρχείο μένει μόνο για τον σύνδεσμο «Άνοιγμα σε δικό του παράθυρο».
       const file = `${slug(it.name, n)}.html`;
       writeFileSync(join(OUT_DIR, file), it.html);
       const meta = [
@@ -445,7 +464,7 @@ const sections = CATALOG.map((g) => {
         <p class="subj"><b>Θέμα:</b> ${esc(it.subject)}</p>
         ${it.note ? `<p class="note">${esc(it.note)}</p>` : ''}
         <div class="meta">${meta}</div>
-        <div class="frame"><iframe src="./${file}" loading="lazy" title="${esc(it.name)}"></iframe></div>
+        <div class="frame"><iframe srcdoc="${esc(it.html)}" loading="lazy" title="${esc(it.name)}"></iframe></div>
         <p class="open"><a href="./${file}" target="_blank">Άνοιγμα σε δικό του παράθυρο ↗</a></p>
       </article>`;
     })

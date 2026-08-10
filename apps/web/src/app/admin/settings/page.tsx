@@ -14,7 +14,6 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { TwoFactorCard } from '@/components/admin/settings/two-factor-card';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://staffnow-api-production.siteinside53.workers.dev';
 
@@ -166,8 +165,9 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      {/* ─── Ασφάλεια του δικού σου λογαριασμού ─── */}
-      <TwoFactorCard />
+      {/* Η διπλή επαλήθευση μετακόμισε στο μενού «Ασφάλεια».
+        * Εδώ είναι ρυθμίσεις της πλατφόρμας (τιμές, κατηγορίες, flags) —
+        * η ασφάλεια του προσωπικού λογαριασμού δεν ανήκε ποτέ εδώ. */}
 
       {/* ─── Plans (editable) ─── */}
       <section>
