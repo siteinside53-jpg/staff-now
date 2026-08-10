@@ -57,7 +57,15 @@ function BrowseContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  const role = searchParams.get('role') || localStorage.getItem('staffnow_guest_role') || 'business';
+  // Ο ρόλος του επισκέπτη: πρώτα από τη διεύθυνση, αλλιώς από ό,τι διάλεξε την
+  // προηγούμενη φορά. Το `localStorage` υπάρχει μόνο στον browser — όταν φτιάχνεται
+  // η σελίδα στον υπολογιστή μας, δεν υπάρχει, και το διάβασμα πετούσε σφάλμα σε
+  // κάθε build. Ο έλεγχος `typeof window` το κόβει· η τιμή διαβάζεται μία φορά,
+  // οπότε δεν υπάρχει ούτε δεύτερη φόρτωση δεδομένων ούτε αναβόσβημα.
+  const [guestRole] = useState<string | null>(() =>
+    typeof window === 'undefined' ? null : localStorage.getItem('staffnow_guest_role'),
+  );
+  const role = searchParams.get('role') || guestRole || 'business';
   const isBusiness = role === 'business';
 
   // Shared state
