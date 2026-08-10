@@ -3728,7 +3728,9 @@ admin.post('/backfill-digest', async (c) => {
     const title = `Έχετε ${summary} στο StaffNow`;
     const body = `${summary} περιμένουν την απάντησή σας. Συνδεθείτε για να δείτε ποιος ενδιαφέρεται.`;
     const path = pending > 0 ? '/dashboard/interests' : '/dashboard/messages';
-    const ctaText = pending > 0 ? 'Δες τα αιτήματα' : 'Δες τα μηνύματα';
+    // Πληθυντικός ευγενείας, όπως και ο τίτλος/σώμα λίγο πιο πάνω: είναι το μόνο
+    // email που πάει σε άτομο που δεν έχει ξαναμιλήσει μαζί μας.
+    const ctaText = pending > 0 ? 'Δείτε τα αιτήματα' : 'Δείτε τα μηνύματα';
 
     if (dryRun) {
       if (sample.length < 50) sample.push({ userId: r.user_id, role: r.role, email: r.email, pending, unread, title });
@@ -3753,6 +3755,7 @@ admin.post('/backfill-digest', async (c) => {
         ctaText,
         emailCategory: 'backfill_digest_v1',
         emailCooldownMinutes: COOLDOWN_MIN,
+        formal: true,
       });
       sent++;
     } catch {

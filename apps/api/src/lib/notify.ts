@@ -34,6 +34,11 @@ export interface NotifyInput {
   emailCategory?: string;
   /** Minimum minutes between emails of the same `emailCategory` to this user. */
   emailCooldownMinutes?: number;
+  /**
+   * Write the email footer in the polite plural. Set it on the few emails whose
+   * body is written that way, so the footer does not switch person mid-email.
+   */
+  formal?: boolean;
 }
 
 function vapidFrom(env: Env): VapidConfig | null {
@@ -177,6 +182,7 @@ async function dispatchEmail(env: Env, input: NotifyInput, path: string): Promis
     ctaUrl: `${WEB_ORIGIN}${path}`,
     icon,
     tint,
+    formal: input.formal,
   });
   const ok = await sendEmail(cfg, { to: user.email, subject: input.title, html });
   if (ok && category && cooldown > 0) {

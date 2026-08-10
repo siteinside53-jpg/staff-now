@@ -65,7 +65,7 @@ const { heroFor } = await import(pathToFileURL(join(TMP, 'hero.mjs')).href);
 const WEB = 'https://staffnow.gr';
 
 /** Ό,τι περνάει από notifyUser() — δηλαδή σχεδόν όλα. */
-function viaNotify({ title, body, ctaText, url, category }) {
+function viaNotify({ title, body, ctaText, url, category, formal }) {
   const { icon, tint } = heroFor(category || '', title);
   return {
     subject: title,
@@ -76,6 +76,7 @@ function viaNotify({ title, body, ctaText, url, category }) {
       ctaUrl: `${WEB}${url || '/dashboard'}`,
       icon,
       tint,
+      formal,
     }),
   };
 }
@@ -392,9 +393,10 @@ const CATALOG = [
         ...viaNotify({
           title: 'Έχετε 3 νέα ενδιαφέροντα και 2 αδιάβαστα μηνύματα στο StaffNow',
           body: '3 νέα ενδιαφέροντα και 2 αδιάβαστα μηνύματα περιμένουν την απάντησή σας. Συνδεθείτε για να δείτε ποιος ενδιαφέρεται.',
-          ctaText: 'Δες τα αιτήματα',
+          ctaText: 'Δείτε τα αιτήματα',
           url: '/dashboard/interests',
           category: 'backfill_digest_v1',
+          formal: true,
         }),
       },
     ],
