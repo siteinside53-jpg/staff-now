@@ -42,6 +42,43 @@ function buildQS(params: Record<string, any>): string {
   return qs.toString();
 }
 
+// ---------- Επισκέψεις χρήστη ----------
+// Καθρέφτης του apps/api/src/lib/user-visits.ts. Αν αλλάξει εκεί, άλλαξέ το κι εδώ.
+export interface VisitSummary {
+  started_at: string;
+  ended_at: string;
+  duration_sec: number;
+  events: number;
+  errors: number;
+  city: string | null;
+  country: string | null;
+  user_agent: string | null;
+  /** Η τελευταία σελίδα της επίσκεψης — εκεί μας άφησε. */
+  exit_path: string | null;
+  /** Είδε σφάλμα μέσα στο τελευταίο λεπτό πριν φύγει. */
+  left_after_error: boolean;
+}
+
+export interface VisitEvent {
+  at: string;
+  /** 'page' = παραμονή σε σελίδα · 'error' = σφάλμα · 'action' = ενέργεια. */
+  kind: string;
+  type: string;
+  target: string | null;
+  metadata: string | null;
+  duration_sec?: number;
+  stuck?: boolean;
+  revisit?: boolean;
+  exit?: boolean;
+}
+
+export interface VisitsOverview {
+  visits: number;
+  total_sec: number;
+  errors: number;
+  exits: Array<{ path: string; count: number }>;
+}
+
 export const adminApi = {
   // ---------- Stats / Overview ----------
   async getStats() {
@@ -158,6 +195,23 @@ export const adminApi = {
     params: { page?: number; limit?: number; role?: string; rating?: string; search?: string } = {},
   ) {
     const res = await fetch(`${API_BASE}/admin/ratings?${buildQS(params)}`, { headers: authHeaders() });
+    return handlePaginated<any>(res);
+  },
+
+  // ---------- Αιτήματα (ενδιαφέρον) ----------
+  async getInterests(
+    params: {
+      page?: number;
+      limit?: number;
+      kind?: string;
+      direction?: string;
+      matched?: string;
+      search?: string;
+    } = {},
+  ) {
+    const res = await fetch(`${API_BASE}/admin/interests?${buildQS(params)}`, {
+      headers: authHeaders(),
+    });
     return handlePaginated<any>(res);
   },
 
@@ -340,6 +394,27 @@ export const adminApi = {
       sessions: any[];
       topPages: Array<{ path: string; count: number }>;
     }>(res);
+  },
+
+  // Το ιστορικό χωρισμένο σε επισκέψεις. Η getUserTimeline από πάνω μένει —
+  // τη χρησιμοποιεί ακόμα το προφίλ/σύνοψη της ίδιας σελίδας.
+  async getUserVisits(id: string, params: { before?: string | null; limit?: number } = {}) {
+    const qs = buildQS({ before: params.before || undefined, limit: params.limit ?? 10 });
+    const res = await fetch(`${API_BASE}/admin/users/${id}/visits?${qs}`, { headers: authHeaders() });
+    return handle<{
+      visits: VisitSummary[];
+      overview: VisitsOverview | null;
+      hasMore: boolean;
+      nextBefore: string | null;
+    }>(res);
+  },
+
+  async getVisitEvents(id: string, startedAt: string, endedAt: string) {
+    const res = await fetch(
+      `${API_BASE}/admin/users/${id}/visits/${encodeURIComponent(startedAt)}?endedAt=${encodeURIComponent(endedAt)}`,
+      { headers: authHeaders() },
+    );
+    return handle<{ events: VisitEvent[] }>(res);
   },
 
   async getJobDetails(id: string) {

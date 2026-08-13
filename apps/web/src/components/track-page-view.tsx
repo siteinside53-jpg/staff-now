@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { startHeartbeat, stopHeartbeat, trackPageView } from '@/lib/track-activity';
+import { installErrorTracking, startHeartbeat, stopHeartbeat, trackPageView } from '@/lib/track-activity';
 
 /**
  * Mount once near the root.
@@ -20,6 +20,8 @@ export function TrackPageView() {
   }, [pathname]);
 
   useEffect(() => {
+    // Τα σφάλματα που βλέπει ο χρήστης — αλλιώς δεν μαθαίνουμε ποτέ γιατί έφυγε.
+    installErrorTracking();
     startHeartbeat();
     return () => stopHeartbeat();
   }, []);

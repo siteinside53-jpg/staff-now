@@ -30,6 +30,66 @@ interface Prompt {
   snoozeCount: number;
 }
 
+/**
+ * Το μικρό όνομα σε αιτιατική, για να χωρέσει μέσα στην ερώτηση.
+ *
+ * Χωρίς αυτό θα έβγαινε «Προσέλαβες τον Ευγένιος;» — που δεν το λέει κανείς.
+ * Ο κανόνας είναι ο απλός κανόνας των ελληνικών μικρών ονομάτων:
+ *   τελειώνει σε -ς        → αρσενικό, φεύγει το -ς   (Ευγένιος → τον Ευγένιο)
+ *   τελειώνει σε -α -η -ω  → θηλυκό, μένει ίδιο       (Αθανασία → την Αθανασία)
+ *
+ * Ό,τι δεν πέφτει καθαρά σε αυτά τα δύο — ξενόγλωσσα ονόματα («Ana»), ή
+ * ελληνογραμμένα που δεν κλίνονται («Αρντίτ», «Ομάρ») — γυρίζει null και η
+ * κάρτα ξαναγράφει το ουδέτερο «Τον/την προσέλαβες;».
+ * Προτιμώ να μη γράψω όνομα, παρά να το γράψω λάθος.
+ *
+ * Χρησιμοποιείται ΜΟΝΟ στη μεριά της επιχείρησης: εκεί ο άλλος είναι πάντα
+ * εργαζόμενος, δηλαδή άνθρωπος. Στη μεριά του εργαζομένου ο άλλος είναι
+ * επιχείρηση («Ουζερί Το Στέκι») και η πρόταση δεν παίρνει καθόλου όνομα.
+ */
+function accusative(fullName: string): { phrase: string; clitic: string } | null {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  const name = parts[0] || '';
+  if (name.length < 2) return null;
+  const lower = name.toLowerCase();
+
+  if (lower.endsWith('ς')) {
+    return { phrase: `τον ${name.slice(0, -1)}`, clitic: 'τον' };
+  }
+  if (['α', 'ά', 'η', 'ή', 'ω', 'ώ', 'ου', 'ού'].some((e) => lower.endsWith(e))) {
+    // Πολλοί γράφουν ΕΠΩΝΥΜΟ πρώτα. Το «Βούλκογλου Δημήτρης» έβγαζε «τη
+    // Βούλκογλου» — λάθος γένος σε άντρα. Το είδα σε αληθινό όνομα της βάσης.
+    // Αν λοιπόν κάποιο άλλο κομμάτι είναι φανερά αντρικό, σταματάω εδώ.
+    if (parts.slice(1).some(looksMale)) return null;
+    return { phrase: `${femArticle(lower)} ${name}`, clitic: 'την' };
+  }
+  return null;
+}
+
+/**
+ * «Δημήτρης», «Παπαδόπουλος», «Κώστας» → αντρικό.
+ * Το «-ους» εξαιρείται επίτηδες: είναι γυναικείο επώνυμο σε γενική
+ * («Κυριακή Χαραλάμπους»), και χωρίς την εξαίρεση θα την έλεγα άντρα.
+ */
+function looksMale(part: string): boolean {
+  const l = part.toLowerCase();
+  if (l.endsWith('ους')) return false;
+  return /(?:ος|ός|ης|ής|ας|άς)$/.test(l);
+}
+
+/**
+ * Το τελικό -ν του «την» κρατιέται μόνο πριν από φωνήεν, πριν από κ/π/τ/ξ/ψ
+ * και πριν από μπ/ντ/γκ/τσ/τζ. Αλλιώς πέφτει: «τη Μαρία», αλλά «την Κατερίνα».
+ */
+function femArticle(lower: string): string {
+  const first = lower.charAt(0);
+  const keepsNu =
+    'αεηιουωάέήίόύώϊϋ'.includes(first) ||
+    'κπτξψ'.includes(first) ||
+    ['μπ', 'ντ', 'γκ', 'τσ', 'τζ'].includes(lower.slice(0, 2));
+  return keepsNu ? 'την' : 'τη';
+}
+
 export function HirePromptCard({ isWorker }: { isWorker: boolean }) {
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
@@ -109,6 +169,8 @@ export function HirePromptCard({ isWorker }: { isWorker: boolean }) {
       <div className="space-y-3">
         {prompts.map((p) => {
           const job = p.jobTitle ? ` για «${p.jobTitle}»` : '';
+          // Μόνο η επιχείρηση ονομάζει τον άλλον μέσα στην πρόταση.
+          const acc = isWorker ? null : accusative(p.otherName);
           return (
             <div key={p.conversationId} className="rounded-xl border border-gray-200 bg-white p-4">
               {/*
@@ -121,7 +183,11 @@ export function HirePromptCard({ isWorker }: { isWorker: boolean }) {
                 {job}
               </p>
               <p className="text-sm font-semibold text-gray-900">
-                {isWorker ? 'Σε προσέλαβαν;' : 'Τον/την προσέλαβες;'}
+                {isWorker
+                  ? 'Σε προσέλαβαν;'
+                  : acc
+                    ? `Προσέλαβες ${acc.phrase};`
+                    : 'Τον/την προσέλαβες;'}
               </p>
               <p className="mt-0.5 text-xs text-gray-500">
                 {isWorker
@@ -134,7 +200,11 @@ export function HirePromptCard({ isWorker }: { isWorker: boolean }) {
                   disabled={busy === p.conversationId}
                   className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
                 >
-                  {isWorker ? '✅ Ναι, με προσέλαβαν' : '✅ Ναι, τον/την προσέλαβα'}
+                  {isWorker
+                    ? '✅ Ναι, με προσέλαβαν'
+                    : acc
+                      ? `✅ Ναι, ${acc.clitic} προσέλαβα`
+                      : '✅ Ναι, τον/την προσέλαβα'}
                 </button>
                 <button
                   onClick={() => snooze(p)}

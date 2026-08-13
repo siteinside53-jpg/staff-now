@@ -4,19 +4,10 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { adminApi } from '@/components/admin/lib/admin-api';
+import { UserVisits } from '@/components/admin/user-visits';
+import { pageName } from '@/lib/page-names';
 
 export const dynamic = 'force-static';
-
-interface ActivityRow {
-  id: string;
-  activity_type: string;
-  entity_type?: string | null;
-  entity_id?: string | null;
-  metadata?: string | null;
-  ip_address?: string | null;
-  user_agent?: string | null;
-  created_at: string;
-}
 
 interface SessionRow {
   id: string;
@@ -58,7 +49,6 @@ interface TimelineData {
   };
   subscription: { plan_id: string; status: string; current_period_end?: string } | null;
   branches?: BusinessBranch[];
-  activity: ActivityRow[];
   sessions: SessionRow[];
   topPages: Array<{ path: string; count: number }>;
 }
@@ -239,37 +229,12 @@ function UserTimeline() {
         <BusinessesSection branches={data.branches || []} fallbackProfile={p} />
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Activity Timeline */}
-        <div className="lg:col-span-2 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-base font-bold text-gray-900">Χρονολόγιο δραστηριότητας</h2>
-            <span className="text-xs text-gray-400">{data.activity.length} ενέργειες</span>
-          </div>
-          {data.activity.length === 0 ? (
-            <p className="py-8 text-center text-sm text-gray-400">Καμία καταγραμμένη δραστηριότητα.</p>
-          ) : (
-            <ol className="relative border-l-2 border-gray-100 ml-3 space-y-3 max-h-[640px] overflow-y-auto">
-              {data.activity.map((row) => (
-                <li key={row.id} className="ml-5">
-                  <span className="absolute -left-[10px] mt-1 flex h-5 w-5 items-center justify-center rounded-full bg-white ring-2 ring-gray-100 text-[10px]">
-                    {ICON_MAP[row.activity_type] || '⚡'}
-                  </span>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900">{describe(row)}</p>
-                      {row.entity_id && (
-                        <p className="text-[11px] text-gray-500 truncate">{row.entity_id}</p>
-                      )}
-                    </div>
-                    <span className="text-[11px] text-gray-400 flex-shrink-0">{formatDate(row.created_at)}</span>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
+      {/* ============== ΤΙ ΕΚΑΝΕ — ΑΝΑ ΕΠΙΣΚΕΨΗ ============== */}
+      {/* Αντικατέστησε την επίπεδη λίστα των 200 τελευταίων ωμών γραμμών, που
+          σε βαρύ χρήστη έδειχνε μόνο «heartbeat» της τελευταίας ώρας. */}
+      <UserVisits userId={id} />
 
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Side: pages + sessions */}
         <div className="space-y-4">
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -279,15 +244,17 @@ function UserTimeline() {
             ) : (
               <ul className="space-y-1.5">
                 {data.topPages.map((p) => (
-                  <li key={p.path} className="flex items-center justify-between text-xs">
-                    <span className="font-mono text-gray-700 truncate max-w-[70%]">{p.path}</span>
-                    <span className="font-semibold text-gray-500">{p.count}</span>
+                  <li key={p.path} className="flex items-center justify-between gap-2 text-xs">
+                    <span className="text-gray-700 truncate" title={p.path}>{pageName(p.path)}</span>
+                    <span className="font-semibold text-gray-500 flex-shrink-0">{p.count}</span>
                   </li>
                 ))}
               </ul>
             )}
           </div>
+        </div>
 
+        <div className="space-y-4">
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <h2 className="mb-2 text-base font-bold text-gray-900">🔐 Sessions</h2>
             {data.sessions.length === 0 ? (
@@ -320,41 +287,6 @@ function UserTimeline() {
       </div>
     </div>
   );
-}
-
-const ICON_MAP: Record<string, string> = {
-  login: '🔓',
-  logout: '🔒',
-  register: '🆕',
-  page_view: '👁️',
-  swipe_like: '❤️',
-  swipe_skip: '➡️',
-  match: '🎯',
-  message_send: '💬',
-  profile_update: '📝',
-  job_post: '📢',
-  job_pause: '⏸️',
-};
-
-function describe(row: ActivityRow): string {
-  const meta = (() => {
-    if (!row.metadata) return null;
-    try { return JSON.parse(row.metadata); } catch { return null; }
-  })();
-  switch (row.activity_type) {
-    case 'login': return 'Συνδέθηκε';
-    case 'logout': return 'Αποσυνδέθηκε';
-    case 'register': return `Εγγράφηκε${meta?.role ? ` ως ${meta.role}` : ''}`;
-    case 'page_view': return 'Άνοιξε σελίδα';
-    case 'swipe_like': return 'Έκανε like';
-    case 'swipe_skip': return 'Πέρασε χωρίς like';
-    case 'match': return 'Νέο match';
-    case 'message_send': return 'Έστειλε μήνυμα';
-    case 'profile_update': return 'Ενημέρωσε προφίλ';
-    case 'job_post': return 'Δημοσίευσε αγγελία';
-    case 'job_pause': return 'Σταμάτησε αγγελία';
-    default: return row.activity_type;
-  }
 }
 
 function formatDate(s: string): string {

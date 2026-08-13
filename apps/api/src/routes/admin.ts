@@ -2634,6 +2634,59 @@ admin.get('/users/:id/timeline', async (c) => {
 });
 
 // =====================================================================
+// «Πού κόλλησε, πού έφυγε» — το ιστορικό χωρισμένο σε ΕΠΙΣΚΕΨΕΙΣ.
+//
+// Η παλιά /users/:id/timeline μένει ακριβώς ως έχει· δεν την πειράζω.
+// Το πρόβλημά της είναι ότι φέρνει τις 200 τελευταίες ωμές γραμμές, και σε
+// χρήστη με 25.515 γραμμές (19.719 από αυτές heartbeat) οι 200 τελευταίες
+// είναι μόνο η τελευταία ώρα. Εδώ κατεβαίνει πρώτα ΜΟΝΟ η σύνοψη κάθε
+// επίσκεψης, και τα γεγονότα μόνο της επίσκεψης που θα ανοίξει ο διαχειριστής.
+// =====================================================================
+
+// GET /users/:id/visits?before=&limit=10 — οι επισκέψεις, νεότερη πρώτα.
+admin.get('/users/:id/visits', async (c) => {
+  const db = c.env.DB;
+  const userId = c.req.param('id');
+  const before = c.req.query('before') || null;
+  const limit = Math.min(Math.max(parseInt(c.req.query('limit') || '10', 10) || 10, 1), 50);
+
+  const exists = await db.prepare('SELECT id FROM users WHERE id = ?').bind(userId).first<any>();
+  if (!exists) return error(c, 'NOT_FOUND', 'Δεν βρέθηκε ο χρήστης.', 404);
+
+  const { listVisits, visitsOverview } = await import('../lib/user-visits');
+
+  const visits = await listVisits(db, userId, { before, limit });
+
+  // Η σύνοψη («έφυγε από: …») είναι το ακριβό ερώτημα και δεν αλλάζει όσο
+  // κατεβάζεις παλαιότερες — τη στέλνω μόνο στην πρώτη σελίδα.
+  const overview = before ? null : await visitsOverview(db, userId);
+
+  return success(c, {
+    visits,
+    overview,
+    hasMore: visits.length === limit,
+    nextBefore: visits.length ? visits[visits.length - 1]!.started_at : null,
+  });
+});
+
+// GET /users/:id/visits/:startedAt?endedAt= — τα γεγονότα ΜΙΑΣ επίσκεψης.
+admin.get('/users/:id/visits/:startedAt', async (c) => {
+  const db = c.env.DB;
+  const userId = c.req.param('id');
+  const startedAt = c.req.param('startedAt');
+  const endedAt = c.req.query('endedAt');
+
+  if (!startedAt || !endedAt) {
+    return error(c, 'BAD_REQUEST', 'Λείπει η αρχή ή το τέλος της επίσκεψης.', 400);
+  }
+
+  const { getVisitEvents } = await import('../lib/user-visits');
+  const events = await getVisitEvents(db, userId, startedAt, endedAt);
+
+  return success(c, { events });
+});
+
+// =====================================================================
 // GET /cohort-stats?role=worker|business — real aggregate stats for the
 // workers/employers admin pages (replaces hardcoded "4.8 rating" etc).
 // =====================================================================
@@ -3934,6 +3987,110 @@ admin.get('/ratings', async (c) => {
          ${from}
          ${where}
         ORDER BY r.created_at DESC
+        LIMIT ? OFFSET ?`,
+    )
+    .bind(...params, limit, offset)
+    .all();
+
+  return paginated(c, rows.results || [], countRes?.total || 0, page, limit);
+});
+
+/**
+ * GET /admin/interests — ποιος έκανε αίτημα σε ποιον.
+ *
+ * Ένα «αίτημα» είναι μια γραμμή στον πίνακα `swipes` με direction='like'.
+ * Υπάρχουν δύο κατευθύνσεις και ΔΕΝ είναι συμμετρικές:
+ *
+ *   target_type='worker' → επιχείρηση ενδιαφέρεται για εργαζόμενο.
+ *                          Το target_id είναι users.id του εργαζομένου.
+ *   target_type='job'    → εργαζόμενος κάνει αίτηση σε αγγελία.
+ *                          Το target_id είναι job_listings.id.
+ *
+ * ⚠ Παγίδα: το `job_listings.business_id` δείχνει στο `business_profiles.id`,
+ * ΟΧΙ στο users.id. Γι' αυτό χρειάζεται διπλό join για να βρεθεί η επιχείρηση
+ * που δέχτηκε την αίτηση.
+ *
+ * Το «έγινε match» δεν το υποθέτω από το swipe — το ρωτάω στον πίνακα matches.
+ */
+admin.get('/interests', async (c) => {
+  const db = c.env.DB;
+  const page = parseInt(c.req.query('page') || '1', 10);
+  const limit = Math.min(parseInt(c.req.query('limit') || '50', 10), 200);
+  const offset = (page - 1) * limit;
+  const kind = c.req.query('kind'); // 'business_to_worker' | 'worker_to_job'
+  const direction = c.req.query('direction') || 'like'; // 'like' | 'skip' | 'all'
+  const matched = c.req.query('matched'); // 'yes' | 'no'
+  const search = c.req.query('search');
+
+  const conditions: string[] = [];
+  const params: any[] = [];
+
+  if (direction !== 'all') {
+    conditions.push('s.direction = ?');
+    params.push(direction);
+  }
+  if (kind === 'business_to_worker') conditions.push("s.target_type = 'worker'");
+  if (kind === 'worker_to_job') conditions.push("s.target_type = 'job'");
+
+  // Ο αποστολέας μπορεί να είναι επιχείρηση ή εργαζόμενος, γι' αυτό ψάχνω
+  // και στα δύο προφίλ — και στον τίτλο της αγγελίας.
+  if (search) {
+    conditions.push(
+      `(COALESCE(sw_b.company_name, sw_w.full_name, su.email) LIKE ?
+        OR COALESCE(tw.full_name, tu.email) LIKE ?
+        OR j.title LIKE ?
+        OR COALESCE(NULLIF(tb.company_name,''), tbu.display_name, tbu.email) LIKE ?)`,
+    );
+    const t = `%${search}%`;
+    params.push(t, t, t, t);
+  }
+
+  const from = `FROM swipes s
+      JOIN users su ON su.id = s.swiper_id
+      LEFT JOIN business_profiles sw_b ON sw_b.user_id = s.swiper_id
+      LEFT JOIN worker_profiles  sw_w ON sw_w.user_id = s.swiper_id
+      LEFT JOIN users tu ON tu.id = s.target_id AND s.target_type = 'worker'
+      LEFT JOIN worker_profiles tw ON tw.user_id = s.target_id AND s.target_type = 'worker'
+      LEFT JOIN job_listings j ON j.id = s.target_id AND s.target_type = 'job'
+      LEFT JOIN business_profiles tb ON tb.id = j.business_id
+      LEFT JOIN users tbu ON tbu.id = tb.user_id`;
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  // Το «έγινε match» υπολογίζεται και στα δύο σκέλη με το ίδιο ζευγάρι
+  // (εργαζόμενος, επιχείρηση), όποιος κι αν ήταν ο αποστολέας.
+  const matchedExpr = `(SELECT COUNT(*) FROM matches m
+        WHERE m.status = 'active'
+          AND m.worker_id   = CASE WHEN s.target_type = 'worker' THEN s.target_id ELSE s.swiper_id END
+          AND m.business_id = CASE WHEN s.target_type = 'worker' THEN s.swiper_id ELSE tb.user_id END)`;
+
+  const having = matched === 'yes' ? `AND ${matchedExpr} > 0` : matched === 'no' ? `AND ${matchedExpr} = 0` : '';
+  const whereFull = having ? (where ? `${where} ${having}` : `WHERE 1=1 ${having}`) : where;
+
+  const countRes = await db
+    .prepare(`SELECT COUNT(*) as total ${from} ${whereFull}`)
+    .bind(...params)
+    .first<{ total: number }>();
+
+  const rows = await db
+    .prepare(
+      `SELECT s.id, s.created_at, s.direction, s.target_type,
+              s.swiper_id, s.target_id,
+              su.role as swiper_role,
+              COALESCE(NULLIF(sw_b.company_name,''), NULLIF(sw_w.full_name,''), su.display_name, su.email) as swiper_name,
+              COALESCE(sw_b.logo_url, sw_w.photo_url, su.avatar_url) as swiper_avatar,
+              COALESCE(NULLIF(tw.full_name,''), tu.display_name, tu.email) as target_worker_name,
+              COALESCE(tw.photo_url, tu.avatar_url) as target_worker_avatar,
+              j.title as job_title,
+              -- Μερικές επιχειρήσεις δεν έχουν συμπληρώσει επωνυμία. Δεν αφήνω
+              -- κενό κελί: πέφτω στο εμφανιζόμενο όνομα και τελευταία στο email.
+              COALESCE(NULLIF(tb.company_name,''), tbu.display_name, tbu.email) as job_company_name,
+              tb.logo_url as job_company_logo,
+              tb.user_id as job_business_user_id,
+              ${matchedExpr} as is_matched
+         ${from}
+         ${whereFull}
+        ORDER BY s.created_at DESC
         LIMIT ? OFFSET ?`,
     )
     .bind(...params, limit, offset)

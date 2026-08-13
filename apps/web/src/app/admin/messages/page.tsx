@@ -56,6 +56,22 @@ function MessageContent({ content, fromBusiness }: { content: string; fromBusine
       </a>
     );
   }
+  // Το «🤝 Πρόσληψη:hr_…» δεν είναι μήνυμα που έγραψε άνθρωπος — το βάζει το
+  // σύστημα όταν κάποια πλευρά δηλώνει πρόσληψη, και η οθόνη του χρήστη το
+  // δείχνει σαν κάρτα. Στον admin έβγαινε ο ωμός κωδικός, που δεν λέει τίποτα.
+  const hireMatch = trimmed.match(/^🤝\s*Πρόσληψη:\s*(\S+)\s*$/);
+  if (hireMatch) {
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold ${
+          fromBusiness ? 'bg-emerald-50 text-emerald-700' : 'bg-white/15 text-white'
+        }`}
+        title={`Κωδικός πρόσληψης: ${hireMatch[1]}`}
+      >
+        🤝 Δήλωσε ότι έγινε πρόσληψη
+      </span>
+    );
+  }
   return <p className="whitespace-pre-wrap break-words">{content}</p>;
 }
 
@@ -318,6 +334,20 @@ export default function MessagesPage() {
                   Η πρόσβαση καταγράφεται στο audit log
                 </span>
               </div>
+              {/*
+                Ποιος μιλάει σε ποιον. Χωρίς αυτή τη γραμμή, το μόνο που ξεχώριζε
+                τους δύο ήταν η πλευρά και το χρώμα — που δεν τα εξηγούσε κανείς.
+              */}
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-gray-500">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full border border-gray-300 bg-white" />
+                  Αριστερά · 🏢 {openConv.company_name || 'Επιχείρηση'}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
+                  Δεξιά · 👤 {openConv.worker_name || 'Εργαζόμενος'}
+                </span>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto bg-gray-50 p-4 space-y-2">
@@ -326,15 +356,32 @@ export default function MessagesPage() {
               ) : !convData || convData.messages.length === 0 ? (
                 <EmptyState icon="💬" title="Δεν υπάρχουν μηνύματα" description="Η συνομιλία είναι κενή." />
               ) : (
-                convData.messages.map((m: any) => {
+                convData.messages.map((m: any, i: number) => {
                   const fromBusiness = m.sender_id === openConv.business_id;
                   // Image-only messages render bare (no bubble background) so the
                   // photo doesn't get a coloured frame. Text/file/call messages
                   // keep the standard chat bubble.
                   const trimmed = (m.content || '').trim();
                   const isImageOnly = /^📷\s*\[([^\]]+)\]\((https?:\/\/[^)]+)\)\s*$/.test(trimmed);
+                  // Το όνομα μπαίνει μόνο όταν αλλάζει ομιλητής. Αν το έβαζα σε
+                  // κάθε μήνυμα, μια συνομιλία 30 μηνυμάτων θα γινόταν αδιάβαστη.
+                  const prev = i > 0 ? convData.messages[i - 1] : null;
+                  const showName = !prev || prev.sender_id !== m.sender_id;
+                  const senderName = fromBusiness
+                    ? openConv.company_name || 'Επιχείρηση'
+                    : openConv.worker_name || 'Εργαζόμενος';
                   return (
-                    <div key={m.id} className={`flex ${fromBusiness ? 'justify-start' : 'justify-end'}`}>
+                    <div key={m.id}>
+                      {showName && (
+                        <p
+                          className={`${i > 0 ? 'mt-3 ' : ''}mb-1 px-1 text-[10px] font-bold uppercase tracking-wide text-gray-500 ${
+                            fromBusiness ? 'text-left' : 'text-right'
+                          }`}
+                        >
+                          {fromBusiness ? '🏢' : '👤'} {senderName}
+                        </p>
+                      )}
+                      <div className={`flex ${fromBusiness ? 'justify-start' : 'justify-end'}`}>
                       {isImageOnly ? (
                         <div className="max-w-[80%]">
                           <MessageContent content={m.content || ''} fromBusiness={fromBusiness} />
@@ -354,6 +401,7 @@ export default function MessagesPage() {
                           </p>
                         </div>
                       )}
+                      </div>
                     </div>
                   );
                 })

@@ -18,6 +18,7 @@ const NAV: NavItem[] = [
   { href: '/admin/workers', label: 'Εργαζόμενοι', icon: '👤', section: 'Κεντρικά' },
 
   { href: '/admin/jobs', label: 'Αγγελίες', icon: '💼', section: 'Marketplace' },
+  { href: '/admin/interests', label: 'Αιτήματα', icon: '🙋', section: 'Marketplace' },
   { href: '/admin/matches', label: 'Matches', icon: '🎯', section: 'Marketplace' },
   { href: '/admin/messages', label: 'Μηνύματα', icon: '💬', section: 'Marketplace' },
   { href: '/admin/hires', label: 'Προσλήψεις', icon: '🤝', section: 'Marketplace' },

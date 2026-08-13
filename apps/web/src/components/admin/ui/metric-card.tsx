@@ -32,7 +32,12 @@ export function MetricCard({ label, value, icon, trend, context, tone = 'default
     <div className={`rounded-xl border p-5 transition-shadow hover:shadow-sm ${TONE_STYLES[tone]}`}>
       <div className="flex items-start justify-between">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{label}</p>
+          {/*
+            Οι ελληνικές λέξεις είναι μεγάλες («ΕΡΓΑΖΟΜΕΝΟΥΣ», «ΕΠΙΧΕΙΡΗΣΕΙΣ») και
+            σε κινητό δεν χωρούσαν στην κάρτα — έβγαιναν κομμένες. Το break-words
+            κόβει ΜΟΝΟ όσες δεν χωράνε· όσες χωρούσαν μένουν ακριβώς ίδιες.
+          */}
+          <p className="text-xs font-medium uppercase tracking-wide text-gray-500 break-words">{label}</p>
           <p className="mt-2 text-2xl font-bold text-gray-900 tabular-nums">
             {loading ? (
               <span className="inline-block h-7 w-20 animate-pulse rounded bg-gray-200" />

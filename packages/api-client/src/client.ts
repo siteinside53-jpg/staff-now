@@ -2,6 +2,12 @@ export interface ClientConfig {
   baseUrl: string;
   getToken?: () => Promise<string | null>;
   onUnauthorized?: () => void;
+  /**
+   * Optional. Called whenever a request fails, so the app can log what the
+   * user actually saw. Same pattern as onUnauthorized — if you don't pass it,
+   * nothing changes.
+   */
+  onError?: (info: { status: number; message: string; path: string; code?: string }) => void;
   headers?: Record<string, string>;
 }
 
@@ -58,11 +64,10 @@ export class ApiClient {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new ApiClientError(
-        (data as any).error?.message || 'Request failed',
-        response.status,
-        (data as any).error?.code,
-      );
+      const message = (data as any).error?.message || 'Request failed';
+      const code = (data as any).error?.code;
+      this.config.onError?.({ status: response.status, message, path, code });
+      throw new ApiClientError(message, response.status, code);
     }
 
     return data as T;
@@ -115,11 +120,10 @@ export class ApiClient {
 
     const data = await response.json();
     if (!response.ok) {
-      throw new ApiClientError(
-        (data as any).error?.message || 'Upload failed',
-        response.status,
-        (data as any).error?.code,
-      );
+      const message = (data as any).error?.message || 'Upload failed';
+      const code = (data as any).error?.code;
+      this.config.onError?.({ status: response.status, message, path, code });
+      throw new ApiClientError(message, response.status, code);
     }
 
     return data as T;

@@ -16,6 +16,7 @@ const PAGE_META: Record<string, { title: string; subtitle?: string }> = {
   '/admin/employers': { title: 'Επιχειρήσεις', subtitle: 'Διαχείριση επιχειρήσεων και συνδρομών' },
   '/admin/workers': { title: 'Εργαζόμενοι', subtitle: 'Διαχείριση εργαζομένων και προφίλ' },
   '/admin/jobs': { title: 'Αγγελίες', subtitle: 'Μετριοπαθής διαχείριση περιεχομένου' },
+  '/admin/interests': { title: 'Αιτήματα', subtitle: 'Ποιος ενδιαφέρθηκε για ποιον — και αν βρήκε ανταπόκριση' },
   '/admin/matches': { title: 'Matches', subtitle: 'Παρακολούθηση matching και conversion' },
   '/admin/messages': { title: 'Μηνύματα', subtitle: 'Trust & Safety moderation' },
   '/admin/hires': { title: 'Προσλήψεις', subtitle: 'Κάθε δήλωση πρόσληψης — ποιος τη δήλωσε, ποιος την επιβεβαίωσε' },
