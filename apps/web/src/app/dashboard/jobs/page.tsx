@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Spinner } from '@/components/ui/spinner';
 import { JobPreviewPanel } from '@/components/dashboard/job-preview-panel';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ShareJob } from '@/components/share-job';
 import { whenLabel } from '@/lib/shift-display';
 import {
   WORKER_JOB_ROLE_LABELS_EL,
@@ -655,7 +656,11 @@ export default function JobsPage() {
                       </div>
                     )}
                   </div>
-                  <div className="ml-auto flex flex-shrink-0 gap-1.5">
+                  {/* Στο κινητό τα κουμπιά δεν χωράνε σε μία σειρά, οπότε αναδιπλώνονται
+                      σε δεύτερη γραμμή. Χωρίς αυτό, τα τελευταία (Προεπισκόπηση,
+                      Επεξεργασία, Διαγραφή) έβγαιναν έξω από την οθόνη και δεν
+                      πατιόνταν καθόλου. */}
+                  <div className="ml-auto flex min-w-0 flex-wrap justify-end gap-1.5">
                     {(job.status === 'published' || job.status === 'paused') && (
                       <button onClick={() => handlePauseResume(job.id, job.status)}
                         title={job.status === 'published' ? 'Παύση' : 'Επανεκκίνηση'}
@@ -690,6 +695,13 @@ export default function JobsPage() {
                         className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-100">
                         ↩ Άνοιγμα
                       </button>
+                    )}
+                    {/* Κοινοποίηση: μόνο για δημοσιευμένες μόνιμες αγγελίες, γιατί
+                        μόνο αυτές έχουν δημόσια σελίδα (το /public/jobs φέρνει
+                        status='published' AND listing_kind='job'). Οι βάρδιες και
+                        τα προσχέδια δεν έχουν σελίδα να μοιραστεί κανείς. */}
+                    {job.status === 'published' && job.listing_kind !== 'shift' && (
+                      <ShareJob jobId={job.id} jobTitle={job.title} compact />
                     )}
                     <button onClick={() => setPreviewJobId(job.id)} title="Προεπισκόπηση" className="rounded-lg border border-gray-200 p-2 hover:bg-gray-50 text-gray-400 hover:text-emerald-600 transition-colors">
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>

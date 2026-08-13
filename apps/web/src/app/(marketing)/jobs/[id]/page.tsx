@@ -10,6 +10,7 @@ import {
   roleLabel,
   type PublicJob,
 } from '@/lib/seo-data';
+import { ShareJob } from '@/components/share-job';
 
 export const dynamic = 'force-static';
 
@@ -64,7 +65,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
       description,
       type: 'website',
       url: `https://staffnow.gr/jobs/${id}`,
-      images: job.company_logo ? [{ url: job.company_logo }] : undefined,
+      // Καμία «images» εδώ επίτηδες: την εικόνα τη φτιάχνει το opengraph-image.tsx
+      // δίπλα σε αυτό το αρχείο, για ΚΑΘΕ αγγελία. Παλιά έμπαινε το λογότυπο της
+      // επιχείρησης — αλλά μόνο 2 από τις 12 επιχειρήσεις έχουν ανεβάσει
+      // λογότυπο, οπότε οι υπόλοιπες 10 έβγαιναν στο Facebook χωρίς καμία εικόνα.
     },
   };
 }
@@ -199,12 +203,15 @@ export default async function JobPage({ params }: Params) {
           </div>
 
           <div className="mt-8">
-            <Link
-              href={`/auth/register?role=worker&next=${encodeURIComponent(`/dashboard/discover?focus=${job.id}`)}`}
-              className="inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-700 px-8 py-3.5 text-sm font-semibold text-white shadow transition"
-            >
-              Κάνε αίτηση δωρεάν →
-            </Link>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <Link
+                href={`/auth/register?role=worker&next=${encodeURIComponent(`/dashboard/discover?focus=${job.id}`)}`}
+                className="inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-700 px-8 py-3.5 text-sm font-semibold text-white shadow transition"
+              >
+                Κάνε αίτηση δωρεάν →
+              </Link>
+              <ShareJob jobId={String(job.id)} jobTitle={job.title} />
+            </div>
             <p className="mt-2 text-xs text-gray-400">Δωρεάν εγγραφή σε 30'' · Χωρίς πιστωτική κάρτα</p>
           </div>
         </header>

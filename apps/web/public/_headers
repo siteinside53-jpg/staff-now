@@ -17,6 +17,15 @@
   Content-Type: application/manifest+json
   Cache-Control: public, max-age=86400
 
+# Η αυτόματη εικόνα κάθε αγγελίας (αυτή που βλέπει ο κόσμος στο Facebook).
+# Το Next τη γράφει ως αρχείο ΧΩΡΙΣ κατάληξη .png, οπότε ο server δεν μπορεί να
+# μαντέψει τι είναι — και επειδή πιο πάνω δηλώνουμε «nosniff», το Facebook θα
+# την πετούσε. Εδώ το δηλώνουμε ρητά. Μέσα σε αυτούς τους φακέλους δεν υπάρχει
+# τίποτε άλλο εκτός από την εικόνα, οπότε ο κανόνας δεν αγγίζει άλλο αρχείο.
+/jobs/:id/*
+  Content-Type: image/png
+  Cache-Control: public, max-age=3600
+
 /icon-*.png
   Cache-Control: public, max-age=31536000, immutable
 
