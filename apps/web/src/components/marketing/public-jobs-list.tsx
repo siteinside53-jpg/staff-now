@@ -9,6 +9,7 @@ import { BrowseStatBand } from './browse-hero';
 import { WORKER_JOB_ROLE_GROUPS, WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
 import { buildCityCategories, matchesCitySelection, normText, splitLocation } from '@/lib/location';
 import { API_URL } from '@/lib/config';
+import { ShareJob } from '@/components/share-job';
 
 type Job = {
   id: string;
@@ -494,13 +495,29 @@ export function PublicJobsList() {
               Σύνδεση / Εγγραφή για αίτηση
             </button>
 
+            {/*
+              Η κοινοποίηση δεν απαιτεί λογαριασμό: ο επισκέπτης μπορεί να στείλει
+              την αγγελία σε φίλο ή στο Facebook χωρίς να κάνει εγγραφή. Δεν
+              εμφανίζεται στα δείγματα, γιατί αυτά δεν έχουν δημόσια σελίδα.
+            */}
             {!String(selected.id).startsWith('sample-') && (
-              <Link
-                href={`/jobs/${selected.id}`}
-                className="mt-2 block text-center text-xs text-gray-500 hover:text-emerald-600"
-              >
-                Άνοιξε ως ξεχωριστή σελίδα ↗
-              </Link>
+              <>
+                <div className="mt-3">
+                  <ShareJob
+                    jobId={selected.id}
+                    jobTitle={selected.title}
+                    dropUp
+                    fullWidth
+                  />
+                </div>
+
+                <Link
+                  href={`/jobs/${selected.id}`}
+                  className="mt-2 block text-center text-xs text-gray-500 hover:text-emerald-600"
+                >
+                  Άνοιξε ως ξεχωριστή σελίδα ↗
+                </Link>
+              </>
             )}
           </div>
         )}

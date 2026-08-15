@@ -6,6 +6,7 @@ import { API_URL } from '@/lib/config';
 import { Spinner } from '@/components/ui/spinner';
 import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
 import { durationLabel, expiresLabel, netOf, whenLabel } from '@/lib/shift-display';
+import { ShareJob } from '@/components/share-job';
 
 interface Props {
   jobId: string;
@@ -437,6 +438,18 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
                 <button onClick={onClose} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-100 py-3 text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors">
                   Κλείσιμο
                 </button>
+              )}
+
+              {/*
+                Κοινοποίηση: ο εργαζόμενος μπορεί να στείλει την αγγελία σε φίλο
+                ή στο Facebook. Μόνο για μόνιμες αγγελίες — οι βάρδιες δεν έχουν
+                δημόσια σελίδα (το /public/jobs φέρνει μόνο listing_kind='job'),
+                οπότε ο σύνδεσμος θα ήταν νεκρός.
+              */}
+              {j.listing_kind !== 'shift' && (
+                <div className="mt-3 flex justify-center">
+                  <ShareJob jobId={jobId} jobTitle={j.title || 'Αγγελία'} dropUp compact />
+                </div>
               )}
             </div>
           </div>

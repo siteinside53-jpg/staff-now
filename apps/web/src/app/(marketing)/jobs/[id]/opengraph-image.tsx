@@ -98,7 +98,8 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         {/* Πάνω: το σήμα του StaffNow */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={logoDataUri()} width={72} height={72} style={{ borderRadius: 18 }} alt="" />
+          {/* borderRadius = μισό του πλάτους → κύκλος, όπως παντού αλλού. */}
+          <img src={logoDataUri()} width={72} height={72} style={{ borderRadius: 36 }} alt="" />
           <div
             style={{
               display: 'flex',
