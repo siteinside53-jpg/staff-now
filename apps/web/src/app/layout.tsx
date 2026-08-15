@@ -74,15 +74,22 @@ export const metadata: Metadata = {
   formatDetection: {
     telephone: false,
   },
+  /*
+   * Το `?v=2` δεν είναι διακοσμητικό. Όσοι έχουν ήδη μπει στο staffnow.gr κρατάνε
+   * το παλιό εικονίδιο στον υπολογιστή τους με εντολή «μην ξαναρωτήσεις για έναν
+   * χρόνο» (βλ. public/_headers — το φτιάξαμε, αλλά μόνο για τους επόμενους).
+   * Αλλάζοντας τη διεύθυνση, ο browser το βλέπει ως άλλο αρχείο και το κατεβάζει
+   * αμέσως. Αν ξαναλλάξει το λογότυπο, ανέβασε τον αριθμό.
+   */
   icons: {
     icon: [
-      { url: '/favicon-16.png', sizes: '16x16', type: 'image/png' },
-      { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
-      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon-16.png?v=2', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-32.png?v=2', sizes: '32x32', type: 'image/png' },
+      { url: '/icon.svg?v=2', type: 'image/svg+xml' },
     ],
-    shortcut: '/favicon-32.png',
+    shortcut: '/favicon-32.png?v=2',
     apple: [
-      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      { url: '/apple-touch-icon.png?v=2', sizes: '180x180', type: 'image/png' },
     ],
   },
   openGraph: {

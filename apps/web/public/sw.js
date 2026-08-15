@@ -10,7 +10,9 @@
  * Versioned cache keys allow clean upgrades on new deploys.
  */
 
-const CACHE_VERSION = 'v1';
+// v1 → v2: το παλιό λογότυπο ήταν αποθηκευμένο εδώ μέσα. Ανεβάζοντας τον αριθμό,
+// το `activate` πιο κάτω σβήνει ολόκληρη την παλιά αποθήκη και ξαναφορτώνει.
+const CACHE_VERSION = 'v2';
 const STATIC_CACHE = `staffnow-static-${CACHE_VERSION}`;
 const PAGES_CACHE = `staffnow-pages-${CACHE_VERSION}`;
 const IMAGE_CACHE = `staffnow-images-${CACHE_VERSION}`;
