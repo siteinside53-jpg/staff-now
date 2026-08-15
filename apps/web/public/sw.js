@@ -21,11 +21,13 @@ const IMAGE_CACHE = `staffnow-images-${CACHE_VERSION}`;
 const PRECACHE_URLS = [
   '/',
   '/manifest.webmanifest',
-  '/icon.svg',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/apple-touch-icon.png',
-  '/favicon-32.png',
+  // Οι ίδιες διευθύνσεις με ?v=2 που ζητάει η σελίδα και το manifest — αλλιώς
+  // θα κατεβάζαμε εδώ το παλιό λογότυπο και θα το κρατούσαμε κιόλας.
+  '/icon.svg?v=2',
+  '/icon-192.png?v=2',
+  '/icon-512.png?v=2',
+  '/apple-touch-icon.png?v=2',
+  '/favicon-32.png?v=2',
 ];
 
 // ---------- Install: pre-cache critical assets ----------

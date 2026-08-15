@@ -135,7 +135,8 @@ const organizationSchema = {
   name: 'StaffNow',
   alternateName: ['Staff Now', 'staffnow.gr'],
   url: 'https://staffnow.gr',
-  logo: 'https://staffnow.gr/icon-512.png',
+  // Το λογότυπο που διαβάζει η Google. Το ?v=2 για τον ίδιο λόγο με πιο πάνω.
+  logo: 'https://staffnow.gr/icon-512.png?v=2',
   description:
     'Η Νο.1 πλατφόρμα στην Ελλάδα για εύρεση προσωπικού και αναζήτηση εργασίας με AI swipe-based matching.',
   foundingDate: '2024',

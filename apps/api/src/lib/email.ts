@@ -108,7 +108,10 @@ export function emailLayout(opts: {
                 <table role="presentation" cellpadding="0" cellspacing="0">
                   <tr>
                     <td style="vertical-align:middle;">
-                      <img src="https://staffnow.gr/icon-192.png" width="40" height="40" alt="StaffNow" style="display:block;border-radius:50%;border:0;" />
+                      <!-- Το ?v=2 φέρνει το νέο, στρογγυλό λογότυπο. Χωρίς αυτό, το
+                           Gmail κρατούσε στη μνήμη του το παλιό. Αν ξαναλλάξει το
+                           λογότυπο, ανέβασε τον αριθμό (και στο apps/web/src/app/layout.tsx). -->
+                      <img src="https://staffnow.gr/icon-192.png?v=2" width="40" height="40" alt="StaffNow" style="display:block;border-radius:50%;border:0;" />
                     </td>
                     <td style="vertical-align:middle;padding-left:11px;">
                       <span style="font-size:22px;font-weight:800;letter-spacing:-0.4px;"><span style="color:#1f2937;">Staff</span><span style="color:#3b82f6;">Now</span></span>
