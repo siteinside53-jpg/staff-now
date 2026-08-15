@@ -58,21 +58,21 @@
       "short_name": "Εύρεση",
       "description": "Ανακάλυψη διαθέσιμων εργαζομένων",
       "url": "/dashboard/discover",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192.png?v=2", "sizes": "192x192" }]
     },
     {
       "name": "Μηνύματα",
       "short_name": "Μηνύματα",
       "description": "Άνοιξε τις συνομιλίες σου",
       "url": "/dashboard/messages",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192.png?v=2", "sizes": "192x192" }]
     },
     {
       "name": "Αγγελίες",
       "short_name": "Αγγελίες",
       "description": "Οι αγγελίες μου",
       "url": "/dashboard/jobs",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192.png?v=2", "sizes": "192x192" }]
     }
   ],
   "prefer_related_applications": false

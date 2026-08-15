@@ -410,8 +410,14 @@ app.get('/public/jobs', async (c) => {
 
   const results = await db
     .prepare(
+      // Οι πέντε παροχές στέλνονται όλες. Πριν έφευγαν μόνο διαμονή και γεύματα,
+      // οπότε η εικόνα που βγαίνει στο Facebook δεν μπορούσε να δείξει μεταφορά,
+      // bonus ή ασφάλιση — και στις 12 ζωντανές αγγελίες αυτά τα τρία υπάρχουν
+      // (2, 5 και 7 αγγελίες αντίστοιχα).
       `SELECT j.id, j.title, j.description, j.city, j.region, j.employment_type,
-         j.salary_min, j.salary_max, j.salary_type, j.housing_provided, j.meals_provided,
+         j.salary_min, j.salary_max, j.salary_type,
+         j.housing_provided, j.meals_provided, j.transport_provided,
+         j.bonus_provided, j.insurance_provided,
          j.created_at,
          bp.company_name, bp.user_id as business_user_id,
          COALESCE(br.logo_url, bp.logo_url) as company_logo,

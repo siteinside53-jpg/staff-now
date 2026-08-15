@@ -15,6 +15,9 @@ export type PublicJob = {
   employment_type?: string;
   housing_provided?: number | boolean;
   meals_provided?: number | boolean;
+  transport_provided?: number | boolean;
+  bonus_provided?: number | boolean;
+  insurance_provided?: number | boolean;
   created_at?: string;
   company_logo?: string | null;
   roles?: string[];
@@ -103,6 +106,48 @@ export function employmentGreek(t?: string): string {
 export function roleLabel(key?: string): string {
   if (!key) return 'Εργαζόμενος/η';
   return WORKER_JOB_ROLE_LABELS_EL[key] ?? key;
+}
+
+/**
+ * Ο μισθός σε μία φράση, με τελεία στις χιλιάδες όπως τον γράφουμε στην Ελλάδα
+ * (1500 -> 1.500). Αν η επιχείρηση δεν έχει δηλώσει ποσό, το λέμε καθαρά αντί
+ * να αφήσουμε κενό — σε εικόνα που θα δει κόσμος στο Facebook, το κενό μοιάζει
+ * με σφάλμα.
+ */
+const SALARY_UNIT: Record<string, string> = {
+  hourly: '€/ώρα',
+  daily: '€/ημέρα',
+  monthly: '€/μήνα',
+};
+
+function grouped(n: number): string {
+  return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+export function jobSalaryText(j: PublicJob): string | null {
+  const unit = SALARY_UNIT[j.salary_type || ''] ?? '€';
+  const min = Number(j.salary_min) || 0;
+  const max = Number(j.salary_max) || 0;
+  if (min && max) return min === max ? `${grouped(min)} ${unit}` : `${grouped(min)}-${grouped(max)} ${unit}`;
+  if (min) return `Από ${grouped(min)} ${unit}`;
+  if (max) return `Έως ${grouped(max)} ${unit}`;
+  return null;
+}
+
+/**
+ * Οι παροχές της αγγελίας («τα καλά»), με τη σειρά που τραβάει το μάτι.
+ * Και οι πέντε έρχονται από το /public/jobs.
+ */
+const BENEFITS: Array<[keyof PublicJob, string]> = [
+  ['housing_provided', 'Διαμονή'],
+  ['meals_provided', 'Γεύματα'],
+  ['transport_provided', 'Μεταφορά'],
+  ['insurance_provided', 'Ασφάλιση'],
+  ['bonus_provided', 'Bonus'],
+];
+
+export function jobBenefits(j: PublicJob): string[] {
+  return BENEFITS.filter(([key]) => Boolean(j[key])).map(([, label]) => label);
 }
 
 // «Μαρία Καρατζά» -> «Μαρία Κ.»
