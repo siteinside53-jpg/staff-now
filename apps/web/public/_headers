@@ -11,13 +11,19 @@
 #
 # Το (self) κρατάει την προστασία: επιτρέπεται μόνο στο staffnow.gr, ποτέ σε ξένο
 # πλαίσιο μέσα στη σελίδα μας.
+#
+# Το ίδιο και για το payment, προληπτικά: σήμερα οι πληρωμές γίνονται με
+# ανακατεύθυνση στη σελίδα του Stripe, οπότε δεν μας αγγίζει. Αν όμως κάποτε
+# μπει κουμπί Apple Pay / Google Pay ΜΕΣΑ στη σελίδα μας, με «()» δεν θα
+# δούλευε — και θα ψάχναμε πάλι στις ρυθμίσεις της συσκευής αντί εδώ, ακριβώς
+# όπως έγινε με την κάμερα.
 /*
   Cache-Control: public, max-age=0, must-revalidate
   Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
   X-Frame-Options: SAMEORIGIN
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
-  Permissions-Policy: geolocation=(self), camera=(self), microphone=(self), payment=()
+  Permissions-Policy: geolocation=(self), camera=(self), microphone=(self), payment=(self)
 
 /_next/static/*
   Cache-Control: public, max-age=31536000, immutable
