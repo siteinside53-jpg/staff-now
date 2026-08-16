@@ -652,16 +652,28 @@ app.get('/public/activity', async (c) => {
   const activity: any[] = [];
 
   for (const w of recentWorkers.results as any[]) {
-    const firstName = (w.full_name || '').split(' ')[0] || 'Νέος';
     const roleSlug = w.roles ? w.roles.split(',')[0] : '';
     const roleLabel = roleSlug ? (WORKER_JOB_ROLE_LABELS_EL[roleSlug] || '') : '';
+
+    // ΧΩΡΙΣ ΟΝΟΜΑ ΚΑΙ ΧΩΡΙΣ ΦΩΤΟΓΡΑΦΙΑ.
+    //
+    // Αυτή η διαδρομή είναι ΔΗΜΟΣΙΑ — απαντά χωρίς σύνδεση, σε οποιονδήποτε στο
+    // internet. Έβγαζε μικρό όνομα, ειδικότητα, πόλη ΚΑΙ τη διεύθυνση της
+    // πραγματικής φωτογραφίας προφίλ: «Μαρία-Βαλασία εγγράφηκε ως Δάσκαλος /
+    // Παιδαγωγός · Θεσσαλονίκη» μαζί με το πορτρέτο της.
+    //
+    // Κανείς δεν έδωσε τέτοια συγκατάθεση κάνοντας εγγραφή για να βρει δουλειά.
+    // Ένας άνθρωπος που ψάχνει εργασία μπορεί να μη θέλει να ξέρει ο εργοδότης
+    // του ότι ψάχνει — και εδώ το ανακοινώναμε δημόσια, με φωτογραφία.
+    //
+    // Η αίσθηση «ζωντανό» δεν χρειάζεται ταυτότητα: αρκεί το γεγονός, η
+    // ειδικότητα και η πόλη.
     activity.push({
       id: `w_${w.created_at}`,
       type: 'signup',
       icon: '🆕',
-      text: `${firstName} εγγράφηκε${roleLabel ? ` ως ${roleLabel}` : ''}`,
+      text: roleLabel ? `Νέος εργαζόμενος: ${roleLabel}` : 'Νέος εργαζόμενος εγγράφηκε',
       location: w.city || undefined,
-      photoUrl: w.photo_url || undefined,
       createdAt: w.created_at,
     });
   }
