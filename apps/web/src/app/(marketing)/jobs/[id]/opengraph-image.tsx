@@ -55,6 +55,35 @@ function logoDataUri(): string {
   return `data:image/png;base64,${buf.toString('base64')}`;
 }
 
+/**
+ * Η φωτογραφία/λογότυπο της επιχείρησης, αν έχει ανεβάσει.
+ *
+ * Την κατεβάζουμε ΕΜΕΙΣ εδώ και τη βάζουμε μέσα στην εικόνα, αντί να αφήσουμε
+ * τη διεύθυνσή της στο <img>. Δύο λόγοι: (α) αν ο διακομιστής δεν απαντήσει
+ * την ώρα του χτισίματος, γυρνάμε null και η εικόνα βγαίνει κανονικά χωρίς
+ * λογότυπο — δεν σταματάει το ανέβασμα ολόκληρου του site· (β) δεν εξαρτάται
+ * μετά από τίποτα εξωτερικό, όπως και η γραμματοσειρά παραπάνω.
+ *
+ * Πολύ μεγάλα αρχεία τα αγνοούμε: θα φούσκωναν άσκοπα το τελικό PNG.
+ */
+const MAX_LOGO_BYTES = 3 * 1024 * 1024;
+
+async function companyLogoDataUri(url?: string | null): Promise<string | null> {
+  if (!url || !/^https?:\/\//i.test(url)) return null;
+  try {
+    const res = await fetch(url, { cache: 'force-cache' });
+    if (!res.ok) return null;
+    const type = res.headers.get('content-type') || '';
+    // Μόνο png και jpeg: αυτά ξέρει σίγουρα να ζωγραφίσει η βιβλιοθήκη.
+    if (!/^image\/(png|jpeg)/i.test(type)) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (!buf.length || buf.length > MAX_LOGO_BYTES) return null;
+    return `data:${type.split(';')[0]};base64,${buf.toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+
 // Κόβουμε εμείς το κείμενο αντί να το αφήσουμε στη στοίχιση, ώστε να ξέρουμε
 // σίγουρα ότι χωράει και δεν ξεχειλίζει έξω από την εικόνα.
 function clamp(s: string, max: number): string {
@@ -133,6 +162,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   const salary = (job && jobSalaryText(job)) || 'Κατόπιν συνεννόησης';
   const employment = job ? employmentGreek(job.employment_type) : '';
   const benefits = job ? jobBenefits(job) : [];
+  const companyLogo = await companyLogoDataUri(job?.company_logo);
 
   return new ImageResponse(
     (
@@ -213,8 +243,32 @@ export default async function Image({ params }: { params: Promise<{ id: string }
               {title}
             </div>
 
-            <div style={{ display: 'flex', width: INNER_W, marginTop: 12, fontSize: 27, color: '#475569' }}>
-              {company}
+            {/* Η επιχείρηση: με τη φωτογραφία της αν έχει ανεβάσει, αλλιώς σκέτο
+                το όνομα. Στρογγυλή, όπως δείχνουμε τα λογότυπα παντού αλλού. */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                width: INNER_W,
+                marginTop: 12,
+              }}
+            >
+              {companyLogo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={companyLogo}
+                  width={58}
+                  height={58}
+                  alt=""
+                  style={{
+                    marginRight: 14,
+                    borderRadius: 29,
+                    border: '2px solid #e2e8f0',
+                    objectFit: 'cover',
+                  }}
+                />
+              ) : null}
+              <div style={{ display: 'flex', fontSize: 27, color: '#475569' }}>{company}</div>
             </div>
 
             {/* flexWrap: αν τα κουτάκια δεν χωρέσουν στη σειρά, πέφτουν από κάτω
