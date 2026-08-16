@@ -151,25 +151,8 @@ export class StaffNowApi {
     list: (params?: Params) => this.client.get<any>('/conversations', params),
     getMessages: (id: string, params?: Params) => this.client.get<any>(`/conversations/${id}/messages`, params),
     sendMessage: (id: string, body: { content: string }) => this.client.post<any>(`/conversations/${id}/messages`, body),
-  };
-
-  /**
-   * Βιντεοκλήσεις. Ο server δεν βλέπει ποτέ εικόνα ή ήχο — μόνο τα κείμενα που
-   * χρειάζονται οι δύο browsers για να βρει ο ένας τον άλλον.
-   */
-  calls = {
-    iceServers: () => this.client.get<any>('/calls/ice'),
-    start: (body: { conversationId: string; offer: string }) =>
-      this.client.post<any>('/calls', body),
-    pending: () => this.client.get<any>('/calls/pending'),
-    /** `since` = ο σελιδοδείκτης από την προηγούμενη απάντηση. */
-    poll: (id: string, since: number) => this.client.get<any>(`/calls/${id}`, { since }),
-    answer: (id: string, body: { answer: string }) =>
-      this.client.post<any>(`/calls/${id}/answer`, body),
-    addCandidates: (id: string, body: { candidates: string[] }) =>
-      this.client.post<any>(`/calls/${id}/candidates`, body),
-    decline: (id: string) => this.client.post<any>(`/calls/${id}/decline`),
-    hangup: (id: string) => this.client.post<any>(`/calls/${id}/hangup`),
+    /** Σημειώνει ως διαβασμένα όσα έστειλε ο άλλος (PATCH χωρίς action). */
+    markRead: (id: string) => this.client.patch<any>(`/conversations/${id}`, {}),
   };
 
   notifications = {
