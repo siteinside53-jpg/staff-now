@@ -151,7 +151,7 @@ export default function DashboardLayout({
   const markAllNotificationsRead = async () => {
     try {
       const token = localStorage.getItem('staffnow_token');
-      await fetch('https://staffnow-api-production.siteinside53.workers.dev/notifications/read-all', {
+      await fetch(`${API_URL}/notifications/read-all`, {
         method: 'POST', headers: { 'Authorization': `Bearer ${token}` },
       });
       setNotifUnread(0);
@@ -168,13 +168,17 @@ export default function DashboardLayout({
     if (!n.read_at) setNotifUnread((u) => Math.max(0, u - 1));
     try {
       const token = localStorage.getItem('staffnow_token');
-      fetch(`https://staffnow-api-production.siteinside53.workers.dev/notifications/${n.id}/read`, {
+      fetch(`${API_URL}/notifications/${n.id}/read`, {
         method: 'POST', headers: { 'Authorization': `Bearer ${token}` },
       }).catch(() => {});
     } catch {}
   };
 
+  // Δεν μπαίνει ΠΟΤΕ στο κόκκινο σημαδάκι του καμπανακιού — μόνο οι αδιάβαστες
+  // ειδοποιήσεις. Παλιότερα το χρησιμοποιούσαμε σαν εφεδρικό νούμερο και το
+  // καμπανάκι έδειχνε π.χ. «3» ενώ η λίστα έλεγε σωστά «καμία ειδοποίηση».
   const totalNotifs = (badges.matches || 0) + (badges.messages || 0) + (badges.interests || 0);
+  void totalNotifs;
 
   if (loading || !user) {
     return (
@@ -405,11 +409,23 @@ export default function DashboardLayout({
         <div className="flex items-center gap-2">
           {/* Notification bell with dropdown */}
           <div className="relative">
-            <button onClick={() => { setNotifOpen(!notifOpen); if (!notifOpen && notifUnread > 0) markAllNotificationsRead(); }} className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100">
+            {/*
+              ΠΡΟΣΟΧΗ — δύο λάθη που είχε αυτό το κουμπί και δεν πρέπει να ξαναμπούν:
+
+              1) Σημείωνε ΟΛΕΣ τις ειδοποιήσεις ως διαβασμένες μόλις το πατούσες.
+                 Επειδή η λίστα από κάτω δείχνει μόνο τις αδιάβαστες, άνοιγε και
+                 άδειαζε μπροστά στα μάτια σου: «δεν υπάρχουν ειδοποιήσεις».
+                 Διαβασμένες τις κάνει ο χρήστης — πατώντας μία-μία ή το
+                 «Διάβασα όλες».
+              2) Το κόκκινο σημαδάκι έδειχνε `notifUnread || totalNotifs`, δηλαδή
+                 έβαζε νούμερο ακόμη κι όταν δεν υπήρχε καμία αδιάβαστη — και μετά
+                 η λίστα έλεγε σωστά «καμία». Δείχνει μόνο αδιάβαστες.
+            */}
+            <button onClick={() => setNotifOpen(!notifOpen)} className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100">
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
-              {(notifUnread > 0 || totalNotifs > 0) && (
+              {notifUnread > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
-                  {notifUnread || totalNotifs}
+                  {notifUnread}
                 </span>
               )}
             </button>

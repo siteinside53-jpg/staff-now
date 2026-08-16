@@ -180,6 +180,97 @@ function checkApiRoutes() {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
+// 3β. Το καμπανάκι δεν αυτοκαταστρέφεται, και κανείς δεν χτυπάει καρφωτά την
+//     παραγωγή
+//
+// Δύο λάθη που έφτασαν σε χρήστες:
+//   • Το καμπανάκι στο κινητό σημείωνε ΟΛΕΣ τις ειδοποιήσεις ως διαβασμένες
+//     μόλις το πατούσες. Η λίστα δείχνει μόνο τις αδιάβαστες, άρα άνοιγε και
+//     άδειαζε μπροστά σου: «δεν υπάρχουν ειδοποιήσεις».
+//   • Δύο σημεία καλούσαν καρφωτά τη διεύθυνση της παραγωγής, οπότε δοκιμές
+//     από το τοπικό πείραζαν πραγματικά δεδομένα.
+// ───────────────────────────────────────────────────────────────────────────
+function checkNotificationBell() {
+  const src = read('apps/web/src/app/dashboard/layout.tsx');
+  const clean = stripComments(src);
+
+  // Άνοιγμα καμπανακιού ΚΑΙ «διάβασέ τα όλα» στην ίδια χειρονομία.
+  const suicidal = clean
+    .split('\n')
+    .some((l) => l.includes('setNotifOpen(') && l.includes('markAllNotificationsRead('));
+  if (suicidal) {
+    fail(
+      'Το καμπανάκι σβήνει τις ειδοποιήσεις μόλις το ανοίξεις',
+      'στο apps/web/src/app/dashboard/layout.tsx το κουμπί καλεί markAllNotificationsRead() πάνω στο άνοιγμα· διαβασμένες τις κάνει ο χρήστης'
+    );
+  } else {
+    ok('Το καμπανάκι δεν σβήνει μόνο του τις ειδοποιήσεις');
+  }
+
+  const hardcoded = [];
+  for (const dir of ['apps/web/src', 'apps/mobile/src']) {
+    for (const file of walk(dir)) {
+      if (/config\.ts|\.test\./.test(file)) continue;
+      if (stripComments(read(file)).includes('staffnow-api-production.siteinside53.workers.dev')) {
+        hardcoded.push(file);
+      }
+    }
+  }
+  // Γραμμή βάσης: αυτά τα αρχεία το έκαναν ΗΔΗ πριν μπει ο έλεγχος. Δουλεύουν
+  // στην παραγωγή, οπότε δεν μπλοκάρουν το ανέβασμα — αλλά ούτε προστίθενται
+  // καινούργια. Όποτε καθαρίζεται ένα, βγάζεις τη γραμμή του από εδώ και δεν
+  // μπορεί να ξαναγυρίσει.
+  const KNOWN_HARDCODED = new Set([
+  'apps/web/src/app/(marketing)/contact/page.tsx',
+  'apps/web/src/app/(marketing)/pricing/page.tsx',
+  'apps/web/src/app/admin/admin-users/page.tsx',
+  'apps/web/src/app/admin/payments/page.tsx',
+  'apps/web/src/app/admin/settings/page.tsx',
+  'apps/web/src/app/admin/users/page.tsx',
+  'apps/web/src/app/app/browse/page.tsx',
+  'apps/web/src/app/auth/google-callback/page.tsx',
+  'apps/web/src/app/dashboard/discover/page.tsx',
+  'apps/web/src/app/dashboard/interests/page.tsx',
+  'apps/web/src/app/dashboard/matches/page.tsx',
+  'apps/web/src/app/dashboard/page.tsx',
+  'apps/web/src/app/dashboard/profile/page.tsx',
+  'apps/web/src/app/dashboard/settings/page.tsx',
+  'apps/web/src/app/dashboard/view-profile/page.tsx',
+  'apps/web/src/components/admin/lib/admin-api.ts',
+  'apps/web/src/components/auth/login-modal.tsx',
+  'apps/web/src/components/billing/founding-members-card.tsx',
+  'apps/web/src/components/billing/subscription-section.tsx',
+  'apps/web/src/components/billing/upgrade-modal.tsx',
+  'apps/web/src/components/billing/worker-billing-section.tsx',
+  'apps/web/src/components/credits/credits-context.tsx',
+  'apps/web/src/components/dashboard/ai-hiring-chat.tsx',
+  'apps/web/src/components/dashboard/business-profile.tsx',
+  'apps/web/src/components/marketing/activity-marquee.tsx',
+  'apps/web/src/components/marketing/blog-list.tsx',
+  'apps/web/src/components/marketing/live-activity-toasts.tsx',
+  'apps/web/src/components/marketing/live-badge.tsx',
+  'apps/web/src/components/marketing/live-counters.tsx',
+  'apps/web/src/components/marketing/live-workers.tsx',
+  'apps/web/src/components/marketing/newsletter-form.tsx',
+  'apps/web/src/components/marketing/swipe-teaser.tsx',
+  'apps/web/src/lib/track-activity.ts',
+  ]);
+  const fresh = hardcoded.filter((f) => !KNOWN_HARDCODED.has(f));
+  const left = hardcoded.filter((f) => KNOWN_HARDCODED.has(f)).length;
+
+  if (fresh.length) {
+    fail(
+      `${fresh.length} ΝΕΑ αρχεία χτυπούν καρφωτά τον server της παραγωγής`,
+      `Δοκιμές από το τοπικό θα πειράξουν αληθινά δεδομένα. Χρησιμοποίησε το API_URL.\n      ${fresh.join('\n      ')}`
+    );
+  } else if (left) {
+    ok(`Καμία νέα καρφωτή διεύθυνση (μένουν ${left} παλιές προς καθαρισμό)`);
+  } else {
+    ok('Κανένα αρχείο δεν χτυπάει καρφωτά την παραγωγή');
+  }
+}
+
+// ───────────────────────────────────────────────────────────────────────────
 // 4. Οι εικόνες του φόντου δεν καθυστερούν την αρχική
 //
 // Κάθονται πάνω ακριβώς στην πρώτη οθόνη. Μισό κοινό μας είναι σε φθηνό
@@ -257,6 +348,7 @@ async function checkLive() {
 checkApiSurface();
 checkPermissionsPolicy();
 checkApiRoutes();
+checkNotificationBell();
 checkHeroPhotos();
 if (LIVE) await checkLive();
 
