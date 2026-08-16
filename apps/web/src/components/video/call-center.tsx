@@ -11,7 +11,8 @@ import {
 } from 'react';
 import { api } from '@/lib/api';
 import { Avatar } from '@/components/ui/avatar';
-import { CallEngine, type CallEndReason, type CallStatus } from '@/lib/call-engine';
+import { CallEngine, type CallEndReason, type CallStatus, type MediaFailure } from '@/lib/call-engine';
+import { PermissionGuide } from './permission-guide';
 import { Ringtone } from '@/lib/ringtone';
 import { CallWindow } from './call-window';
 
@@ -71,6 +72,8 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
     avatar: null,
   });
   const [notice, setNotice] = useState<string | null>(null);
+  /** Όταν φταίει η άδεια κάμερας, δείχνουμε οδηγό με βήματα αντί για μήνυμα. */
+  const [permissionIssue, setPermissionIssue] = useState<MediaFailure | null>(null);
 
   const engineRef = useRef<CallEngine | null>(null);
   const ringtoneRef = useRef<Ringtone | null>(null);
@@ -78,6 +81,9 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
   const connectedRef = useRef(false);
   /** Κλήσεις που ο χρήστης απέρριψε — να μην ξαναχτυπήσουν στο επόμενο ρώτημα. */
   const handledRef = useRef<Set<string>>(new Set());
+  /** Η τελευταία κλήση που θέλησε ο χρήστης — για να ξαναρχίσει μόνη της μόλις
+   *  δοθεί η άδεια, χωρίς να ψάχνει πάλι το κουμπί. */
+  const lastIntentRef = useRef<{ conversationId: string; peerName: string; peerAvatar: string | null } | null>(null);
 
   const inCall = status !== 'idle' && status !== 'ended';
 
@@ -137,11 +143,17 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
     (conversationId: string, peerName: string, peerAvatar?: string | null) => {
       if (engineRef.current) return;
       setNotice(null);
+      setPermissionIssue(null);
       setPeer({ name: peerName, avatar: peerAvatar || null });
       conversationRef.current = conversationId;
+      // Το κρατάμε ώστε, αν χρειαστεί άδεια κάμερας, να ξαναρχίσει η κλήση μόνη
+      // της μόλις τη δώσει ο χρήστης — χωρίς να ψάχνει πάλι το κουμπί.
+      lastIntentRef.current = { conversationId, peerName, peerAvatar: peerAvatar || null };
       const engine = buildEngine();
       void engine.call(conversationId).then((res) => {
-        if (!res.ok && res.message) setNotice(res.message);
+        if (res.ok) return;
+        if (res.mediaFailure) setPermissionIssue(res.mediaFailure);
+        else if (res.message) setNotice(res.message);
       });
     },
     [buildEngine]
@@ -155,11 +167,14 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
     handledRef.current.add(call.id);
     setIncoming(null);
     setNotice(null);
+    setPermissionIssue(null);
     setPeer({ name: call.callerName, avatar: call.callerAvatar });
     conversationRef.current = call.conversationId;
     const engine = buildEngine();
     void engine.accept(call.id).then((res) => {
-      if (!res.ok && res.message) setNotice(res.message);
+      if (res.ok) return;
+      if (res.mediaFailure) setPermissionIssue(res.mediaFailure);
+      else if (res.message) setNotice(res.message);
     });
   }, [incoming, buildEngine, stopRinging]);
 
@@ -316,6 +331,24 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
           localStream={localStream}
           remoteStream={remoteStream}
           onHangup={() => void engineRef.current?.hangup()}
+        />
+      )}
+
+      {/* Άδεια κάμερας: οδηγός με βήματα και κουμπί που ξαναζητάει την άδεια.
+          Αν ο browser είναι διατεθειμένος να ρωτήσει, το πάτημα εμφανίζει
+          εκείνη τη στιγμή το κανονικό παράθυρο «Να επιτρέπεται;». */}
+      {permissionIssue && !inCall && (
+        <PermissionGuide
+          failure={permissionIssue}
+          onClose={() => setPermissionIssue(null)}
+          onGranted={() => {
+            setPermissionIssue(null);
+            const intent = lastIntentRef.current;
+            // Η άδεια δόθηκε: συνεχίζουμε την κλήση που ήθελε εξαρχής, αντί να
+            // τον αφήσουμε να ψάχνει ξανά το κουμπί.
+            if (intent) startCall(intent.conversationId, intent.peerName, intent.peerAvatar);
+            else setNotice('Η κάμερα ξεκλείδωσε. Τώρα μπορείς να καλέσεις.');
+          }}
         />
       )}
 

@@ -34,9 +34,100 @@ function isIOS(): boolean {
 }
 
 /**
- * Οδηγία που μπορεί πραγματικά να ακολουθήσει ο χρήστης. Το σκέτο «χρειάζεται
- * άδεια» δεν βοηθάει σε τίποτα: αν έχει ήδη αρνηθεί μία φορά, ο browser ΔΕΝ
- * ξαναρωτάει και το κουμπί μοιάζει χαλασμένο.
+ * Ζητάει άδεια για κάμερα και μικρόφωνο ΚΑΙ ΤΙΠΟΤΑ ΑΛΛΟ.
+ *
+ * Χρησιμεύει στο κουμπί «Ξαναδοκίμασε»: αν ο browser είναι διατεθειμένος να
+ * ρωτήσει, εμφανίζεται εκείνη τη στιγμή το κανονικό παράθυρο «Να επιτρέπεται;».
+ * Αν ο χρήστης έχει ήδη αρνηθεί μόνιμα, γυρνάει 'denied' χωρίς να ρωτήσει —
+ * καμία ιστοσελίδα δεν μπορεί να ανοίξει τις ρυθμίσεις της συσκευής, το
+ * απαγορεύουν Apple και Google.
+ *
+ * Η ροή κλείνει αμέσως: εδώ μας ενδιαφέρει μόνο η απάντηση, όχι η εικόνα.
+ */
+export async function requestMediaAccess(): Promise<{ ok: boolean; failure?: MediaFailure }> {
+  if (!navigator.mediaDevices?.getUserMedia) return { ok: false, failure: 'unsupported' };
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+    s.getTracks().forEach((t) => t.stop());
+    return { ok: true };
+  } catch (err) {
+    const name = (err as { name?: string })?.name || '';
+    if (name === 'NotAllowedError' || name === 'SecurityError') return { ok: false, failure: 'denied' };
+    if (name === 'NotFoundError') {
+      // Χωρίς κάμερα, αλλά ίσως με μικρόφωνο — αρκεί για κλήση μόνο με φωνή.
+      try {
+        const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+        s.getTracks().forEach((t) => t.stop());
+        return { ok: true };
+      } catch {
+        return { ok: false, failure: 'notfound' };
+      }
+    }
+    return { ok: false, failure: 'other' };
+  }
+}
+
+/** Τα βήματα που πρέπει να πατήσει ο χρήστης, ένα-ένα. */
+export function mediaFailureSteps(failure: MediaFailure): { title: string; steps: string[] } {
+  if (failure === 'unsupported') {
+    return isIOS()
+      ? {
+          title: 'Άνοιξέ το στο Safari',
+          steps: [
+            'Είσαι μέσα σε άλλη εφαρμογή (π.χ. Facebook ή Instagram) — εκεί η κάμερα είναι κλειδωμένη.',
+            'Πάτα το εικονίδιο «…» πάνω δεξιά.',
+            'Διάλεξε «Άνοιγμα στο Safari» και ξαναδοκίμασε την κλήση.',
+          ],
+        }
+      : {
+          title: 'Άνοιξέ το στο Chrome',
+          steps: [
+            'Είσαι μέσα σε άλλη εφαρμογή — εκεί η κάμερα είναι κλειδωμένη.',
+            'Πάτα το μενού «⋮» πάνω δεξιά.',
+            'Διάλεξε «Άνοιγμα στο Chrome» και ξαναδοκίμασε την κλήση.',
+          ],
+        };
+  }
+  if (failure === 'notfound') {
+    return {
+      title: 'Δεν βρέθηκε κάμερα',
+      steps: ['Η συσκευή δεν έχει διαθέσιμη κάμερα ή μικρόφωνο αυτή τη στιγμή.'],
+    };
+  }
+  if (failure === 'denied') {
+    return isIOS()
+      ? {
+          title: 'Ξεκλείδωσε την κάμερα για το StaffNow',
+          steps: [
+            'Πάτα το «ΑΑ» αριστερά στη γραμμή διεύθυνσης, πάνω στην οθόνη.',
+            'Διάλεξε «Ρυθμίσεις ιστότοπου».',
+            'Βάλε Κάμερα και Μικρόφωνο σε «Να επιτρέπεται».',
+            'Γύρνα εδώ και πάτα «Ξαναδοκίμασε».',
+          ],
+        }
+      : {
+          title: 'Ξεκλείδωσε την κάμερα για το StaffNow',
+          steps: [
+            'Πάτα το λουκέτο δίπλα στη διεύθυνση, πάνω στην οθόνη.',
+            'Διάλεξε «Άδειες» ή «Ρυθμίσεις ιστότοπου».',
+            'Βάλε Κάμερα και Μικρόφωνο σε «Να επιτρέπεται».',
+            'Γύρνα εδώ και πάτα «Ξαναδοκίμασε».',
+          ],
+        };
+  }
+  return {
+    title: 'Δεν άνοιξε η κάμερα',
+    steps: [
+      'Κλείσε άλλες εφαρμογές που μπορεί να χρησιμοποιούν την κάμερα.',
+      'Μετά πάτα «Ξαναδοκίμασε».',
+    ],
+  };
+}
+
+/**
+ * Η ίδια πληροφορία σε μία γραμμή, για όπου δεν χωράει ολόκληρος οδηγός.
+ * Το σκέτο «χρειάζεται άδεια» δεν βοηθάει σε τίποτα: αν ο χρήστης έχει ήδη
+ * αρνηθεί μία φορά, ο browser ΔΕΝ ξαναρωτάει και το κουμπί μοιάζει χαλασμένο.
  */
 export function mediaFailureMessage(failure: MediaFailure): string {
   if (failure === 'unsupported') {
@@ -53,6 +144,14 @@ export function mediaFailureMessage(failure: MediaFailure): string {
       : 'Η κάμερα είναι κλειστή για το staffnow.gr. Πάτα το λουκέτο δίπλα στη διεύθυνση → Άδειες → Κάμερα και Μικρόφωνο → Να επιτρέπεται. Μετά ξαναδοκίμασε.';
   }
   return 'Δεν άνοιξε η κάμερα. Κλείσε άλλες εφαρμογές που μπορεί να τη χρησιμοποιούν και ξαναδοκίμασε.';
+}
+
+/** Το αποτέλεσμα μιας προσπάθειας κλήσης. Το `mediaFailure` μπαίνει μόνο όταν
+ *  φταίει η άδεια κάμερας/μικροφώνου — τότε αξίζει οδηγός, όχι σκέτο μήνυμα. */
+export interface CallAttempt {
+  ok: boolean;
+  message?: string;
+  mediaFailure?: MediaFailure;
 }
 
 export interface CallEngineEvents {
@@ -279,7 +378,7 @@ export class CallEngine {
   }
 
   /** Ξεκίνα κλήση προς τον άλλον της συνομιλίας. */
-  async call(conversationId: string): Promise<{ ok: boolean; message?: string }> {
+  async call(conversationId: string): Promise<CallAttempt> {
     this.setStatus('preparing');
 
     // Ίδιος κανόνας με την απάντηση: η κάμερα ζητιέται πρώτη, χωρίς να
@@ -287,7 +386,7 @@ export class CallEngine {
     const { stream: media, failure } = await this.getMedia();
     if (!media) {
       this.finish('no_media', false);
-      return { ok: false, message: mediaFailureMessage(failure || 'other') };
+      return { ok: false, mediaFailure: failure || 'other', message: mediaFailureMessage(failure || 'other') };
     }
     this.local = media;
     this.events.onLocalStream(media);
@@ -325,7 +424,7 @@ export class CallEngine {
   }
 
   /** Απάντησε σε κλήση που χτυπάει. */
-  async accept(callId: string): Promise<{ ok: boolean; message?: string }> {
+  async accept(callId: string): Promise<CallAttempt> {
     this.callId = callId;
     this.setStatus('preparing');
 
@@ -338,7 +437,7 @@ export class CallEngine {
     if (!media) {
       await this.api.decline(callId).catch(() => {});
       this.finish('no_media', false);
-      return { ok: false, message: mediaFailureMessage(failure || 'other') };
+      return { ok: false, mediaFailure: failure || 'other', message: mediaFailureMessage(failure || 'other') };
     }
     this.local = media;
     this.events.onLocalStream(media);
