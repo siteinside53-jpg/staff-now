@@ -39,6 +39,12 @@ export interface NotifyInput {
    * body is written that way, so the footer does not switch person mid-email.
    */
   formal?: boolean;
+  /**
+   * Skip the email channel entirely — push only. Set it on alerts that are
+   * worthless once they are late: a ringing video call is over in 45 seconds,
+   * so an email about it would land as spam after the fact.
+   */
+  pushOnly?: boolean;
 }
 
 function vapidFrom(env: Env): VapidConfig | null {
@@ -195,6 +201,6 @@ export async function notifyUser(env: Env, input: NotifyInput): Promise<void> {
   const path = input.url || '/dashboard';
   await Promise.allSettled([
     dispatchPush(env, input, path).catch(() => {}),
-    dispatchEmail(env, input, path).catch(() => {}),
+    input.pushOnly ? Promise.resolve() : dispatchEmail(env, input, path).catch(() => {}),
   ]);
 }

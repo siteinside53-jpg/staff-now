@@ -12,6 +12,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { WorkerProfilePanel } from '@/components/dashboard/worker-profile-panel';
 import { BusinessProfilePanel } from '@/components/dashboard/business-profile-panel';
 import { RatingModal } from '@/components/dashboard/rating-modal';
+import { useCallCenter } from '@/components/video/call-center';
 // Η διεύθυνση του server έμπαινε γραμμένη στο χέρι μέσα στη σελίδα, οπότε ακόμη
 // και όταν δοκιμάζαμε τοπικά, οι κλήσεις έφευγαν στον ΖΩΝΤΑΝΟ server. Στην
 // παραγωγή η τιμή είναι ακριβώς η ίδια, άρα δεν αλλάζει τίποτα εκεί.
@@ -213,6 +214,7 @@ function formatMessagePreview(content: string | undefined): string {
 
 function MessagesInner() {
   const { user } = useAuth();
+  const callCenter = useCallCenter();
   const searchParams = useSearchParams();
   // Δύο ονόματα για την ίδια παράμετρο: οι παλιοί σύνδεσμοι στέλνουν `?id=`,
   // οι ειδοποιήσεις των προσλήψεων στέλνουν `?c=`. Χωρίς το `c` η σελίδα άνοιγε
@@ -233,9 +235,6 @@ function MessagesInner() {
   const [reportModal, setReportModal] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState('');
   const [convTab, setConvTab] = useState<'active' | 'archived' | 'blocked'>('active');
-  const [videoCallRoom, setVideoCallRoom] = useState<string | null>(null);
-  const [incomingCall, setIncomingCall] = useState<{ roomName: string; callerName: string; convId: string } | null>(null);
-  const dismissedCallRef = useRef<string | null>(null);
   const [viewWorkerProfile, setViewWorkerProfile] = useState<string | null>(null);
   const [viewBusinessProfile, setViewBusinessProfile] = useState<string | null>(null);
   // Οι προσλήψεις αυτής της συνομιλίας, με κλειδί το id — τις διαβάζει η κάρτα
@@ -292,7 +291,6 @@ function MessagesInner() {
   // Load messages
   useEffect(() => {
     if (!selectedConv) return;
-    setVideoCallRoom(null); // Close video call when switching conversations
     async function loadMsgs() {
       setLoadingMsgs(true);
       try {
@@ -362,9 +360,13 @@ function MessagesInner() {
     if (missing) refreshHires();
   }, [messages, hires, refreshHires]);
 
-  // Poll for new messages + detect incoming calls.
-  // Μένει στα 5 δευτ. — εδώ χρειάζεται η ταχύτητα. Το κέρδος έρχεται από την
-  // παύση του usePoll όταν η καρτέλα είναι κρυφή.
+  // Νέα μηνύματα. Μένει στα 5 δευτ. — εδώ χρειάζεται η ταχύτητα. Το κέρδος
+  // έρχεται από την παύση του usePoll όταν η καρτέλα είναι κρυφή.
+  //
+  // Οι εισερχόμενες κλήσεις ΔΕΝ ανιχνεύονται πια από εδώ. Παλιά η κλήση ήταν
+  // ένα μήνυμα με σύνδεσμο, οπότε την έβλεπες μόνο αν είχες ανοιχτή ακριβώς
+  // αυτή τη συνομιλία. Τώρα το χτύπημα το αναλαμβάνει το κέντρο κλήσεων, που
+  // ζει πάνω από όλες τις σελίδες.
   const lastKnownMsgId = useRef<string | null>(null);
   const pollMessages = useCallback(async () => {
     if (!selectedConv) return;
@@ -376,26 +378,8 @@ function MessagesInner() {
     if (newestId && newestId !== lastKnownMsgId.current) {
       lastKnownMsgId.current = newestId;
       setMessages(sorted);
-
-      // Check for incoming call from the OTHER person (last 2 minutes)
-      const twoMinsAgo = Date.now() - 120000;
-      const callMsg = sorted.filter((m: any) =>
-        m.sender_id !== user?.id &&
-        (m.content?.includes('jitsi.member.fsf.org') || m.content?.includes('8x8.vc') || m.content?.includes('daily.co') || m.content?.includes('meet.jit.si')) &&
-        m.content?.startsWith('📹') &&
-        new Date(m.created_at).getTime() > twoMinsAgo
-      ).pop();
-
-      if (callMsg && !videoCallRoom) {
-        const urlMatch = callMsg.content.match(/https:\/\/(?:jitsi\.member\.fsf\.org|meet\.jit\.si)\/([^\s#]+)/);
-        const roomName = urlMatch?.[1] || '';
-        if (roomName && roomName !== dismissedCallRef.current) {
-          const callerName = callMsg.sender_name || 'Κάποιος';
-          setIncomingCall({ roomName, callerName, convId: cId });
-        }
-      }
     }
-  }, [selectedConv, user?.id, videoCallRoom]);
+  }, [selectedConv]);
   usePoll(pollMessages, 5_000, !!selectedConv);
 
   // Λίστα συνομιλιών: 20 δευτ. αντί για 8. Είναι μόνο η στήλη αριστερά — τα
@@ -690,7 +674,6 @@ function MessagesInner() {
   const closeChat = () => {
     setSelectedConv(null);
     setMessages([]);
-    setVideoCallRoom(null);
     setShowChatMenu(false);
   };
 
@@ -833,7 +816,7 @@ function MessagesInner() {
                  πάνω από την πάνω μπάρα και το κάτω μενού του dashboard (z-30),
                  όπως σε κανονική εφαρμογή μηνυμάτων. Από lg: και πάνω γυρίζει
                  στην κανονική κάρτα δίπλα στη λίστα. */
-              <div className={`fixed inset-0 z-40 flex flex-col bg-white lg:static lg:z-auto lg:overflow-hidden lg:rounded-2xl lg:border lg:border-gray-100 lg:shadow-sm ${videoCallRoom ? 'lg:h-[700px]' : 'lg:h-[550px]'}`}>
+              <div className="fixed inset-0 z-40 flex flex-col bg-white lg:static lg:z-auto lg:h-[550px] lg:overflow-hidden lg:rounded-2xl lg:border lg:border-gray-100 lg:shadow-sm">
                 {/* Chat header — clickable to view profile */}
                 <div className="flex flex-shrink-0 items-center gap-2 border-b border-gray-100 bg-white px-3 py-2.5">
                   {/* Πίσω — μόνο στο κινητό, όπου το chat καλύπτει τη λίστα */}
@@ -862,38 +845,23 @@ function MessagesInner() {
                       )}
                     </div>
                   </button>
-                  {/* Video call button */}
+                  {/* Βιντεοκλήση — δική μας. Ένα πάτημα και χτυπάει στον άλλον. */}
                   {!activeConv?.isBlocked && (
                     <button
-                      onClick={async () => {
-                        if (videoCallRoom) {
-                          setVideoCallRoom(null);
-                        } else {
-                          try {
-                            const room = `staffnow-${selectedConv?.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16)}-${Date.now().toString(36)}`;
-                            setVideoCallRoom(room);
-                            const callUrl = `https://jitsi.member.fsf.org/${room}`;
-                            api.conversations.sendMessage(selectedConv!, { content: `📹 Video κλήση: ${callUrl}` });
-                            setMessages((prev) => [...prev, {
-                              id: `call_${Date.now()}`,
-                              sender_id: user?.id,
-                              content: `📹 Video κλήση: ${callUrl}`,
-                              created_at: new Date().toISOString(),
-                              status: 'sent',
-                            }]);
-                          } catch (err: any) {
-                            toast.error('Σφάλμα. Δοκίμασε ξανά.');
-                          }
-                        }
+                      onClick={() => {
+                        if (!selectedConv) return;
+                        if (callCenter.busy) return;
+                        callCenter.startCall(
+                          selectedConv,
+                          activeConv?.otherParty?.name || 'Χρήστης',
+                          activeConv?.otherParty?.avatar || null,
+                        );
                       }}
-                      className={`flex-shrink-0 rounded-full p-2 transition-colors ${videoCallRoom ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}
-                      title={videoCallRoom ? 'Τερματισμός κλήσης' : 'Video κλήση'}
+                      disabled={callCenter.busy}
+                      className="flex-shrink-0 rounded-full bg-emerald-50 p-2 text-emerald-600 transition-colors hover:bg-emerald-100 disabled:opacity-50"
+                      title="Βιντεοκλήση"
                     >
-                      {videoCallRoom ? (
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /><line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" strokeWidth={2} /></svg>
-                      ) : (
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
-                      )}
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
                     </button>
                   )}
                   {/* Μενού συνομιλίας */}
@@ -904,48 +872,10 @@ function MessagesInner() {
                   </button>
                 </div>
 
-                {/* Incoming Call Banner */}
-                {incomingCall && !videoCallRoom && (
-                  <div className="flex flex-shrink-0 animate-pulse items-center justify-between gap-2 bg-gradient-to-r from-emerald-600 to-blue-600 px-4 py-3">
-                    <div className="flex items-center gap-3 text-white">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20">
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold">📹 Εισερχόμενη Video Κλήση</p>
-                        <p className="text-xs opacity-80">Από {incomingCall.callerName}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          setVideoCallRoom(incomingCall.roomName);
-                          setIncomingCall(null);
-                        }}
-                        className="flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-bold text-emerald-700 hover:bg-emerald-50 shadow-lg"
-                      >
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
-                        Αποδοχή
-                      </button>
-                      <button
-                        onClick={() => {
-                          dismissedCallRef.current = incomingCall.roomName;
-                          setIncomingCall(null);
-                        }}
-                        className="flex items-center gap-1 rounded-full bg-red-500 px-3 py-2 text-sm font-bold text-white hover:bg-red-600"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  </div>
-                )}
-
                 {/*
                   «Έγινε πρόσληψη;» — η λωρίδα που ρωτάει μόνη της.
-                  Ίδιο μοτίβο με τη λωρίδα εισερχόμενης κλήσης από πάνω.
-                  Κρύβεται όσο υπάρχει κλήση, για να μη μαζευτούν δύο λωρίδες.
                 */}
-                {selectedConv && hirePrompts.has(selectedConv) && !incomingCall && !videoCallRoom && (
+                {selectedConv && hirePrompts.has(selectedConv) && (
                   <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-2 border-b border-emerald-200 bg-emerald-50 px-4 py-3">
                     <div className="flex items-center gap-3">
                       <span className="text-xl">🤝</span>
@@ -981,31 +911,8 @@ function MessagesInner() {
                   </div>
                 )}
 
-                {/* Video Call iframe */}
-                {videoCallRoom && (() => {
-                  const conv = conversations.find((c) => c.id === selectedConv);
-                  const myName = encodeURIComponent(
-                    user?.role === 'worker' ? (conv?.worker_name || 'User') : (conv?.business_name || 'User')
-                  );
-                  const src = `https://jitsi.member.fsf.org/${videoCallRoom}#config.prejoinConfig.enabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false&config.disableDeepLinking=true&config.hideConferenceSubject=true&config.hideConferenceTimer=true&config.requireDisplayName=false&userInfo.displayName=%22${myName}%22&interfaceConfig.SHOW_JITSI_WATERMARK=false&interfaceConfig.MOBILE_APP_PROMO=false`;
-                  return (
-                    <div className="relative flex-shrink-0 bg-gray-900">
-                      <iframe
-                        src={src}
-                        className="h-[280px] w-full sm:h-[400px]"
-                        allow="camera *; microphone *; fullscreen; display-capture; autoplay"
-                        style={{ border: 'none' }}
-                      />
-                      <button onClick={() => setVideoCallRoom(null)}
-                        className="absolute top-2 right-2 flex items-center gap-1.5 rounded-full bg-red-600 px-4 py-2 text-sm font-bold text-white hover:bg-red-700 shadow-lg z-10">
-                        📞 Τέλος κλήσης
-                      </button>
-                    </div>
-                  );
-                })()}
-
                 {/* Messages */}
-                <div className={`flex-1 space-y-2.5 overflow-y-auto bg-gray-50 p-3 sm:px-5 sm:py-4 ${videoCallRoom ? 'max-h-[140px]' : ''}`}>
+                <div className="flex-1 space-y-2.5 overflow-y-auto bg-gray-50 p-3 sm:px-5 sm:py-4">
                   {loadingMsgs ? (
                     <div className="flex justify-center py-10"><Spinner className="h-6 w-6" /></div>
                   ) : messages.length === 0 ? (
@@ -1044,25 +951,21 @@ function MessagesInner() {
                       return (
                         <div key={m.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                           <div className="group relative max-w-[75%]">
-                            {m.content?.startsWith('📹') && (m.content.includes('jitsi.member.fsf.org') || m.content.includes('8x8.vc') || m.content.includes('daily.co') || m.content.includes('meet.jit.si')) ? (
-                              /* Video call — join button */
-                              (() => {
-                                const urlMatch = m.content.match(/https:\/\/(?:jitsi\.member\.fsf\.org|meet\.jit\.si)\/([^\s#]+)/);
-                                const room = urlMatch?.[1] || '';
-                                return (
-                                  <div className={`rounded-2xl px-4 py-3 ${isMine ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 shadow-sm'}`}>
-                                    <p className="text-sm mb-2">📹 Video κλήση</p>
-                                    {videoCallRoom === room ? (
-                                      <span className="text-xs opacity-75">Σε κλήση...</span>
-                                    ) : (
-                                      <button onClick={() => setVideoCallRoom(room)}
-                                        className={`rounded-lg px-4 py-1.5 text-xs font-semibold transition-colors ${isMine ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}>
-                                        📹 Συμμετοχή
-                                      </button>
-                                    )}
+                            {m.content?.startsWith('📞') || m.content?.startsWith('📹') ? (
+                              /* Σημείωμα κλήσης. Οι παλιές γραμμές είχαν μέσα και
+                                 σύνδεσμο προς την ξένη υπηρεσία που δεν
+                                 χρησιμοποιούμε πια — τον κρύβουμε, δεν οδηγεί
+                                 πουθενά. Η κλήση ξεκινά από το κουμπί επάνω. */
+                              <div className={`rounded-2xl px-4 py-3 ${isMine ? 'bg-blue-600 text-white' : 'border border-gray-200 bg-white shadow-sm'}`}>
+                                <p className="text-sm">
+                                  {m.content.replace(/https?:\/\/\S+/g, '').replace(/:\s*$/, '').trim()}
+                                </p>
+                                {timeStr && (
+                                  <div className={`mt-1 text-right text-[10px] ${isMine ? 'text-blue-100' : 'text-gray-400'}`}>
+                                    {timeStr}
                                   </div>
-                                );
-                              })()
+                                )}
+                              </div>
                             ) : m.content?.startsWith('📷') && m.content.includes('](') ? (
                               /* Image — no bubble, just image */
                               <div className={isFailed ? 'opacity-60' : ''}>

@@ -20,6 +20,7 @@ import aiRoutes from './routes/ai';
 import creditRoutes from './routes/credits';
 import pushRoutes from './routes/push';
 import hireRoutes from './routes/hires';
+import callRoutes from './routes/calls';
 import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
 import { errorHandler } from './middleware/error-handler';
 import { globalRateLimiter } from './middleware/rate-limiter';
@@ -90,6 +91,7 @@ app.route('/ai', aiRoutes);
 app.route('/credits', creditRoutes);
 app.route('/push', pushRoutes);
 app.route('/hires', hireRoutes);
+app.route('/calls', callRoutes);
 
 // POST /activity/track — page-view / action ping from logged-in clients
 app.post('/activity/track', requireAuth, async (c) => {
