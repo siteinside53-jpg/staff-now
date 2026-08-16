@@ -134,6 +134,44 @@ calls.get('/ice', requireAuth, async (c) => {
   return success(c, { iceServers });
 });
 
+// ── GET /ice/status — «δουλεύει ο αναμεταδότης;» ──────────────────────────
+//
+// ΧΩΡΙΣ σύνδεση, επίτηδες, και ΧΩΡΙΣ να επιστρέφει κανένα στοιχείο σύνδεσης:
+// μόνο ένα ναι/όχι και ένα πλήθος. Υπάρχει για να μπορεί να επιβεβαιωθεί η
+// ρύθμιση χωρίς τον λογαριασμό κανενός — σήμερα που μπήκαν τα κλειδιά, και
+// αύριο αν λήξουν ή σβηστούν κατά λάθος. Χωρίς αυτό, το μόνο σύμπτωμα θα ήταν
+// κλήσεις που δεν ενώνονται, και θα το μαθαίναμε από παράπονα.
+//
+// Η απάντηση κρατιέται 5 λεπτά, ώστε να μη χτυπάει την Cloudflare σε κάθε
+// αίτημα. Η δημιουργία στοιχείων δεν κοστίζει — μόνο τα δεδομένα που όντως
+// περνούν από τον αναμεταδότη χρεώνονται.
+calls.get('/ice/status', async (c) => {
+  const CACHE_KEY = 'turn:status';
+  try {
+    const cached = await c.env.KV.get(CACHE_KEY, 'json');
+    if (cached) return success(c, cached as Record<string, unknown>);
+  } catch {
+    /* χωρίς κρυφή μνήμη, απλώς ρωτάμε κατευθείαν */
+  }
+
+  const iceServers = await getIceServers(c.env);
+  const urls = iceServers.flatMap((s) => (Array.isArray(s.urls) ? s.urls : [s.urls]));
+  const payload = {
+    // «turn:» ή «turns:» = πραγματικός αναμεταδότης. Το «stun:» απλώς βρίσκει
+    // τη δημόσια διεύθυνση και υπάρχει πάντα, οπότε δεν αποδεικνύει τίποτα.
+    relay: urls.some((u) => u.startsWith('turn:') || u.startsWith('turns:')),
+    servers: iceServers.length,
+    urls: urls.length,
+  };
+
+  try {
+    await c.env.KV.put(CACHE_KEY, JSON.stringify(payload), { expirationTtl: 300 });
+  } catch {
+    /* ignore */
+  }
+  return success(c, payload);
+});
+
 // ── POST / — ξεκίνα κλήση ─────────────────────────────────────────────────
 calls.post('/', requireAuth, async (c) => {
   const user = c.get('user');
