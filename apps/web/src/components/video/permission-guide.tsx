@@ -4,6 +4,7 @@ import { useState } from 'react';
 import {
   requestMediaAccess,
   mediaFailureSteps,
+  type BlockedDevice,
   type MediaFailure,
 } from '@/lib/call-engine';
 
@@ -27,17 +28,29 @@ import {
 
 interface PermissionGuideProps {
   failure: MediaFailure;
+  /** Ποια συσκευή είναι κλειδωμένη — κάμερα, μικρόφωνο ή και τα δύο. */
+  blocked?: BlockedDevice;
+  /** Η ωμή ονομασία σφάλματος του browser. Φαίνεται μικρή, κάτω-κάτω. */
+  reason?: string;
   /** Καλείται όταν η άδεια δόθηκε τελικά. */
   onGranted: () => void;
   onClose: () => void;
 }
 
-export function PermissionGuide({ failure, onGranted, onClose }: PermissionGuideProps) {
+export function PermissionGuide({
+  failure,
+  blocked,
+  reason,
+  onGranted,
+  onClose,
+}: PermissionGuideProps) {
   const [current, setCurrent] = useState<MediaFailure>(failure);
+  const [currentBlocked, setCurrentBlocked] = useState<BlockedDevice | undefined>(blocked);
+  const [currentReason, setCurrentReason] = useState<string | undefined>(reason);
   const [checking, setChecking] = useState(false);
   const [stillBlocked, setStillBlocked] = useState(false);
 
-  const { title, steps } = mediaFailureSteps(current);
+  const { title, steps } = mediaFailureSteps(current, currentBlocked);
 
   const retry = async () => {
     setChecking(true);
@@ -49,6 +62,8 @@ export function PermissionGuide({ failure, onGranted, onClose }: PermissionGuide
       return;
     }
     setCurrent(res.failure || 'other');
+    setCurrentBlocked(res.blocked);
+    setCurrentReason(res.reason);
     setStillBlocked(true);
   };
 
@@ -76,6 +91,12 @@ export function PermissionGuide({ failure, onGranted, onClose }: PermissionGuide
         {stillBlocked && (
           <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
             Η κάμερα είναι ακόμη κλειστή. Κάνε τα βήματα παραπάνω και ξαναπάτησε.
+          </p>
+        )}
+
+        {currentReason && (
+          <p className="mt-3 text-center text-[11px] text-gray-400">
+            Ο browser απαντά: {currentReason}
           </p>
         )}
 

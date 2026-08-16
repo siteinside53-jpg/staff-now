@@ -33,6 +33,86 @@ function isIOS(): boolean {
   );
 }
 
+/** Ποιο από τα δύο είναι κλειδωμένο. Στο iPhone είναι ΞΕΧΩΡΙΣΤΕΣ ρυθμίσεις. */
+export type BlockedDevice = 'camera' | 'mic' | 'both';
+
+export interface MediaOutcome {
+  stream: MediaStream | null;
+  failure?: MediaFailure;
+  /** Τι ακριβώς λείπει, όταν φταίει η άδεια. */
+  blocked?: BlockedDevice;
+  /** Η κλήση προχωράει, αλλά χωρίς εικόνα (μόνο ήχος). */
+  audioOnly?: boolean;
+  /** Η ωμή ονομασία σφάλματος του browser — για να μη μαντεύουμε. */
+  reason?: string;
+}
+
+/**
+ * Παίρνει κάμερα και μικρόφωνο, με ανοχή στο ότι είναι ΞΕΧΩΡΙΣΤΕΣ ΑΔΕΙΕΣ.
+ *
+ * Το λάθος που έκανε η πρώτη έκδοση: ζητούσε «ήχο ΚΑΙ εικόνα» μαζί και, αν
+ * έστω το ένα ήταν κλειδωμένο, ο browser πετούσε μία γενική άρνηση. Εμείς την
+ * παρουσιάζαμε ως «κλειστά και τα δύο» — και ο χρήστης που είχε ήδη ανοίξει την
+ * κάμερα έβλεπε πάλι το ίδιο μήνυμα και δικαίως απορούσε.
+ *
+ * Τώρα, μόλις αποτύχει το συνδυασμένο αίτημα, ρωτάμε ένα-ένα ώστε να ξέρουμε
+ * ΠΟΙΟ φταίει, και προχωράμε με ό,τι υπάρχει: αν έχουμε μικρόφωνο αλλά όχι
+ * κάμερα, η κλήση γίνεται κανονικά μόνο με φωνή.
+ */
+export async function acquireMedia(): Promise<MediaOutcome> {
+  // Σε παλιό browser, σε σύνδεση χωρίς κρυπτογράφηση ή μέσα σε ενσωματωμένο
+  // browser (π.χ. του Facebook) η δυνατότητα λείπει εντελώς.
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return { stream: null, failure: 'unsupported' };
+  }
+
+  const VIDEO = { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } as const;
+  const AUDIO = { echoCancellation: true, noiseSuppression: true } as const;
+
+  const grab = async (c: MediaStreamConstraints) => {
+    try {
+      return { stream: await navigator.mediaDevices.getUserMedia(c), name: '' };
+    } catch (err) {
+      return { stream: null, name: (err as { name?: string })?.name || 'UnknownError' };
+    }
+  };
+
+  const both = await grab({ audio: AUDIO, video: VIDEO });
+  if (both.stream) return { stream: both.stream };
+
+  // Ένα-ένα, για να μάθουμε ποιο φταίει πραγματικά.
+  const mic = await grab({ audio: AUDIO });
+  if (mic.stream) {
+    // Έχουμε φωνή. Δοκιμάζουμε και εικόνα· αν δεν δοθεί, συνεχίζουμε χωρίς.
+    const cam = await grab({ video: VIDEO });
+    if (cam.stream) {
+      cam.stream.getVideoTracks().forEach((t) => mic.stream!.addTrack(t));
+      return { stream: mic.stream };
+    }
+    return { stream: mic.stream, audioOnly: true, blocked: 'camera', reason: cam.name };
+  }
+
+  // Ούτε μικρόφωνο. Μήπως τουλάχιστον κάμερα;
+  const cam = await grab({ video: VIDEO });
+  if (cam.stream) {
+    cam.stream.getTracks().forEach((t) => t.stop());
+  }
+
+  const denied = (n: string) => n === 'NotAllowedError' || n === 'SecurityError';
+  if (denied(mic.name) || denied(both.name)) {
+    return {
+      stream: null,
+      failure: 'denied',
+      blocked: cam.stream ? 'mic' : 'both',
+      reason: mic.name || both.name,
+    };
+  }
+  if (mic.name === 'NotFoundError') {
+    return { stream: null, failure: 'notfound', reason: mic.name };
+  }
+  return { stream: null, failure: 'other', reason: mic.name || both.name };
+}
+
 /**
  * Ζητάει άδεια για κάμερα και μικρόφωνο ΚΑΙ ΤΙΠΟΤΑ ΑΛΛΟ.
  *
@@ -44,31 +124,26 @@ function isIOS(): boolean {
  *
  * Η ροή κλείνει αμέσως: εδώ μας ενδιαφέρει μόνο η απάντηση, όχι η εικόνα.
  */
-export async function requestMediaAccess(): Promise<{ ok: boolean; failure?: MediaFailure }> {
-  if (!navigator.mediaDevices?.getUserMedia) return { ok: false, failure: 'unsupported' };
-  try {
-    const s = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-    s.getTracks().forEach((t) => t.stop());
-    return { ok: true };
-  } catch (err) {
-    const name = (err as { name?: string })?.name || '';
-    if (name === 'NotAllowedError' || name === 'SecurityError') return { ok: false, failure: 'denied' };
-    if (name === 'NotFoundError') {
-      // Χωρίς κάμερα, αλλά ίσως με μικρόφωνο — αρκεί για κλήση μόνο με φωνή.
-      try {
-        const s = await navigator.mediaDevices.getUserMedia({ audio: true });
-        s.getTracks().forEach((t) => t.stop());
-        return { ok: true };
-      } catch {
-        return { ok: false, failure: 'notfound' };
-      }
-    }
-    return { ok: false, failure: 'other' };
-  }
+export async function requestMediaAccess(): Promise<{
+  ok: boolean;
+  failure?: MediaFailure;
+  blocked?: BlockedDevice;
+  reason?: string;
+}> {
+  const res = await acquireMedia();
+  // Εδώ μας ενδιαφέρει μόνο η απάντηση, όχι η ροή — την κλείνουμε αμέσως.
+  res.stream?.getTracks().forEach((t) => t.stop());
+  // Με μικρόφωνο και χωρίς κάμερα η κλήση ΓΙΝΕΤΑΙ, μόνο με φωνή. Δεν το λέμε
+  // αποτυχία — θα ήταν ψέμα και θα εμπόδιζε τον χρήστη χωρίς λόγο.
+  if (res.stream) return { ok: true, blocked: res.blocked };
+  return { ok: false, failure: res.failure, blocked: res.blocked, reason: res.reason };
 }
 
 /** Τα βήματα που πρέπει να πατήσει ο χρήστης, ένα-ένα. */
-export function mediaFailureSteps(failure: MediaFailure): { title: string; steps: string[] } {
+export function mediaFailureSteps(
+  failure: MediaFailure,
+  blocked?: BlockedDevice
+): { title: string; steps: string[] } {
   if (failure === 'unsupported') {
     return isIOS()
       ? {
@@ -95,22 +170,37 @@ export function mediaFailureSteps(failure: MediaFailure): { title: string; steps
     };
   }
   if (failure === 'denied') {
+    // ΠΟΙΟ φταίει. Στο iPhone η Κάμερα και το Μικρόφωνο είναι δύο ξεχωριστοί
+    // διακόπτες: πολύ συχνά ο κόσμος ανοίγει τον έναν και νομίζει ότι τελείωσε.
+    const what =
+      blocked === 'mic'
+        ? 'το Μικρόφωνο'
+        : blocked === 'camera'
+          ? 'την Κάμερα'
+          : 'Κάμερα ΚΑΙ Μικρόφωνο';
+    const title =
+      blocked === 'mic'
+        ? 'Λείπει η άδεια για το μικρόφωνο'
+        : blocked === 'camera'
+          ? 'Λείπει η άδεια για την κάμερα'
+          : 'Λείπει η άδεια για κάμερα και μικρόφωνο';
+
     return isIOS()
       ? {
-          title: 'Ξεκλείδωσε την κάμερα για το StaffNow',
+          title,
           steps: [
             'Πάτα το «ΑΑ» αριστερά στη γραμμή διεύθυνσης, πάνω στην οθόνη.',
             'Διάλεξε «Ρυθμίσεις ιστότοπου».',
-            'Βάλε Κάμερα και Μικρόφωνο σε «Να επιτρέπεται».',
+            `Βάλε ${what} σε «Να επιτρέπεται». Είναι δύο ξεχωριστοί διακόπτες — χρειάζονται και οι δύο.`,
             'Γύρνα εδώ και πάτα «Ξαναδοκίμασε».',
           ],
         }
       : {
-          title: 'Ξεκλείδωσε την κάμερα για το StaffNow',
+          title,
           steps: [
             'Πάτα το λουκέτο δίπλα στη διεύθυνση, πάνω στην οθόνη.',
             'Διάλεξε «Άδειες» ή «Ρυθμίσεις ιστότοπου».',
-            'Βάλε Κάμερα και Μικρόφωνο σε «Να επιτρέπεται».',
+            `Βάλε ${what} σε «Να επιτρέπεται». Είναι δύο ξεχωριστοί διακόπτες — χρειάζονται και οι δύο.`,
             'Γύρνα εδώ και πάτα «Ξαναδοκίμασε».',
           ],
         };
@@ -152,6 +242,10 @@ export interface CallAttempt {
   ok: boolean;
   message?: string;
   mediaFailure?: MediaFailure;
+  /** Ποια συσκευή είναι κλειδωμένη, όταν φταίει η άδεια. */
+  blocked?: BlockedDevice;
+  /** Η ωμή ονομασία σφάλματος του browser, για διάγνωση χωρίς μαντεψιές. */
+  reason?: string;
 }
 
 export interface CallEngineEvents {
@@ -219,37 +313,8 @@ export class CallEngine {
    * αγγίγματος· αν μεσολαβήσει αναμονή δικτύου, αρνείται ΣΙΩΠΗΛΑ — ο χρήστης
    * βλέπει «χρειάζεται άδεια» χωρίς να του εμφανιστεί ποτέ ερώτηση.
    */
-  private async getMedia(): Promise<{ stream: MediaStream | null; failure?: MediaFailure }> {
-    // Σε παλιό browser, σε σύνδεση χωρίς κρυπτογράφηση ή μέσα σε ενσωματωμένο
-    // browser (π.χ. του Facebook) η δυνατότητα λείπει εντελώς.
-    if (!navigator.mediaDevices?.getUserMedia) {
-      return { stream: null, failure: 'unsupported' };
-    }
-
-    const withVideo: MediaStreamConstraints = {
-      audio: { echoCancellation: true, noiseSuppression: true },
-      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
-    };
-    try {
-      return { stream: await navigator.mediaDevices.getUserMedia(withVideo) };
-    } catch (err) {
-      const name = (err as { name?: string })?.name || '';
-      // Άρνηση του χρήστη: δεν έχει νόημα να ξαναρωτήσουμε για μόνο ήχο, θα
-      // αποτύχει κι αυτό. Θέλει αλλαγή ρύθμισης στη συσκευή.
-      if (name === 'NotAllowedError' || name === 'SecurityError') {
-        return { stream: null, failure: 'denied' };
-      }
-      // Χωρίς κάμερα ή κατειλημμένη κάμερα: δοκιμάζουμε μόνο με ήχο.
-      try {
-        return { stream: await navigator.mediaDevices.getUserMedia({ audio: true }) };
-      } catch (err2) {
-        const name2 = (err2 as { name?: string })?.name || '';
-        if (name2 === 'NotAllowedError' || name2 === 'SecurityError') {
-          return { stream: null, failure: 'denied' };
-        }
-        return { stream: null, failure: name2 === 'NotFoundError' ? 'notfound' : 'other' };
-      }
-    }
+  private async getMedia(): Promise<MediaOutcome> {
+    return acquireMedia();
   }
 
   private async buildConnection(): Promise<RTCPeerConnection> {
@@ -383,11 +448,18 @@ export class CallEngine {
 
     // Ίδιος κανόνας με την απάντηση: η κάμερα ζητιέται πρώτη, χωρίς να
     // μεσολαβήσει αναμονή δικτύου, αλλιώς το iPhone δεν δείχνει ερώτηση.
-    const { stream: media, failure } = await this.getMedia();
-    if (!media) {
+    const media0 = await this.getMedia();
+    if (!media0.stream) {
       this.finish('no_media', false);
-      return { ok: false, mediaFailure: failure || 'other', message: mediaFailureMessage(failure || 'other') };
+      return {
+        ok: false,
+        mediaFailure: media0.failure || 'other',
+        blocked: media0.blocked,
+        reason: media0.reason,
+        message: mediaFailureMessage(media0.failure || 'other'),
+      };
     }
+    const media = media0.stream;
     this.local = media;
     this.events.onLocalStream(media);
 
@@ -433,12 +505,19 @@ export class CallEngine {
     // μετά τη συσκευή. Στο iPhone αυτό σήμαινε ότι η ερώτηση άδειας δεν
     // εμφανιζόταν ΠΟΤΕ — μεσολαβούσε αναμονή δικτύου και το Safari έπαυε να
     // θεωρεί την ενέργεια αποτέλεσμα του αγγίγματος, οπότε αρνιόταν σιωπηλά.
-    const { stream: media, failure } = await this.getMedia();
-    if (!media) {
+    const media0 = await this.getMedia();
+    if (!media0.stream) {
       await this.api.decline(callId).catch(() => {});
       this.finish('no_media', false);
-      return { ok: false, mediaFailure: failure || 'other', message: mediaFailureMessage(failure || 'other') };
+      return {
+        ok: false,
+        mediaFailure: media0.failure || 'other',
+        blocked: media0.blocked,
+        reason: media0.reason,
+        message: mediaFailureMessage(media0.failure || 'other'),
+      };
     }
+    const media = media0.stream;
     this.local = media;
     this.events.onLocalStream(media);
 

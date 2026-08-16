@@ -11,7 +11,13 @@ import {
 } from 'react';
 import { api } from '@/lib/api';
 import { Avatar } from '@/components/ui/avatar';
-import { CallEngine, type CallEndReason, type CallStatus, type MediaFailure } from '@/lib/call-engine';
+import {
+  CallEngine,
+  type BlockedDevice,
+  type CallEndReason,
+  type CallStatus,
+  type MediaFailure,
+} from '@/lib/call-engine';
 import { PermissionGuide } from './permission-guide';
 import { Ringtone } from '@/lib/ringtone';
 import { CallWindow } from './call-window';
@@ -73,7 +79,9 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
   });
   const [notice, setNotice] = useState<string | null>(null);
   /** Όταν φταίει η άδεια κάμερας, δείχνουμε οδηγό με βήματα αντί για μήνυμα. */
-  const [permissionIssue, setPermissionIssue] = useState<MediaFailure | null>(null);
+  const [permissionIssue, setPermissionIssue] = useState<
+    { failure: MediaFailure; blocked?: BlockedDevice; reason?: string } | null
+  >(null);
 
   const engineRef = useRef<CallEngine | null>(null);
   const ringtoneRef = useRef<Ringtone | null>(null);
@@ -152,7 +160,8 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
       const engine = buildEngine();
       void engine.call(conversationId).then((res) => {
         if (res.ok) return;
-        if (res.mediaFailure) setPermissionIssue(res.mediaFailure);
+        if (res.mediaFailure)
+          setPermissionIssue({ failure: res.mediaFailure, blocked: res.blocked, reason: res.reason });
         else if (res.message) setNotice(res.message);
       });
     },
@@ -173,7 +182,8 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
     const engine = buildEngine();
     void engine.accept(call.id).then((res) => {
       if (res.ok) return;
-      if (res.mediaFailure) setPermissionIssue(res.mediaFailure);
+      if (res.mediaFailure)
+        setPermissionIssue({ failure: res.mediaFailure, blocked: res.blocked, reason: res.reason });
       else if (res.message) setNotice(res.message);
     });
   }, [incoming, buildEngine, stopRinging]);
@@ -339,7 +349,9 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
           εκείνη τη στιγμή το κανονικό παράθυρο «Να επιτρέπεται;». */}
       {permissionIssue && !inCall && (
         <PermissionGuide
-          failure={permissionIssue}
+          failure={permissionIssue.failure}
+          blocked={permissionIssue.blocked}
+          reason={permissionIssue.reason}
           onClose={() => setPermissionIssue(null)}
           onGranted={() => {
             setPermissionIssue(null);
