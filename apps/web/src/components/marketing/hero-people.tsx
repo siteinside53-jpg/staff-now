@@ -26,9 +26,18 @@
  * κίνηση» από τη συσκευή του.
  */
 
-/** Πόσες στήλες — λιγότερες σε κινητό, να μένει ελαφρύ. */
+/**
+ * Πόσα σχήματα χωράνε στο πλάτος.
+ *
+ * Δύο διαφορετικά πλέγματα, όχι ένα. Με το ίδιο πλέγμα παντού, στο κινητό
+ * στριμώχνονταν έξι σε 350 πίξελ και γίνονταν κουκκίδες — ψιλόλιγνο μοτίβο
+ * αντί για ανθρώπους. Στο κινητό μπαίνουν τρία, άρα διπλάσια σε μέγεθος.
+ * Ο υπολογιστής μένει ακριβώς όπως ήταν.
+ */
 const COLS = 6;
 const ROWS = 5;
+const COLS_MOBILE = 3;
+const ROWS_MOBILE = 4;
 
 /** Σιλουέτα ανθρώπου: κεφάλι + ώμοι. Ένα path, χωρίς λεπτομέρεια. */
 function PersonGlyph({ x, y, size }: { x: number; y: number; size: number }) {
@@ -55,9 +64,9 @@ function ShopGlyph({ x, y, size }: { x: number; y: number; size: number }) {
 }
 
 /** Ένα «πλακάκι» του πλέγματος. Κάθε 4ο είναι μαγαζί, τα υπόλοιπα άνθρωποι. */
-function Tile({ index, size }: { index: number; size: number }) {
-  const col = index % COLS;
-  const row = Math.floor(index / COLS);
+function Tile({ index, size, cols }: { index: number; size: number; cols: number }) {
+  const col = index % cols;
+  const row = Math.floor(index / cols);
   const x = col * size;
   const y = row * size;
   const isShop = index % 4 === 3;
@@ -68,13 +77,13 @@ function Tile({ index, size }: { index: number; size: number }) {
  * Το ίδιο πλέγμα, αλλά με εικόνες — μπαίνει μόνο αν υπάρχουν αρχεία στο
  * `public/hero/`. Οι κανόνες για το ΤΙ επιτρέπεται είναι στο lib/hero-photos.ts.
  */
-function PhotoWall({ photos }: { photos: string[] }) {
+function PhotoWall({ photos, cols, rows }: { photos: string[]; cols: number; rows: number }) {
   // Όσα πλακάκια χρειάζονται για να γεμίσει, επαναλαμβάνοντας τις εικόνες.
-  const tiles = Array.from({ length: COLS * ROWS }, (_, i) => photos[i % photos.length]);
+  const tiles = Array.from({ length: cols * rows }, (_, i) => photos[i % photos.length]);
   return (
     <div
       className="grid gap-3 p-3"
-      style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))` }}
+      style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
     >
       {tiles.map((src, i) => (
         // Σκέτο <img>: το next/image δεν κάνει τίποτα σε στατικό site, και εδώ
@@ -93,42 +102,62 @@ function PhotoWall({ photos }: { photos: string[] }) {
   );
 }
 
+/** Το κυλιόμενο ταπέτο σε ένα συγκεκριμένο πλέγμα. */
+function Track({
+  photos,
+  cols,
+  rows,
+  size,
+  className,
+}: {
+  photos: string[];
+  cols: number;
+  rows: number;
+  size: number;
+  className: string;
+}) {
+  const hasPhotos = photos.length > 0;
+  const tiles = Array.from({ length: cols * rows }, (_, i) => i);
+  return (
+    <div
+      className={`hero-people-track absolute inset-x-0 -top-4 ${className} ${
+        // Οι εικόνες σηκώνουν λίγη παραπάνω ένταση από τα σχέδια, αλλά μένουν
+        // φόντο: το κείμενο από πάνω δεν χάνει ποτέ αντίθεση.
+        hasPhotos ? 'opacity-[0.13] grayscale' : 'opacity-[0.055]'
+      }`}
+    >
+      {/* Δύο αντίγραφα το ένα κάτω από το άλλο: όταν το πρώτο ανέβει όσο το ύψος
+          του, το δεύτερο έχει πάρει ήδη τη θέση του — η κύλιση δεν «κόβεται». */}
+      {[0, 1].map((copy) =>
+        hasPhotos ? (
+          <PhotoWall key={copy} photos={photos} cols={cols} rows={rows} />
+        ) : (
+          <svg
+            key={copy}
+            viewBox={`0 0 ${cols * size} ${rows * size}`}
+            className="w-full"
+            fill="white"
+            role="presentation"
+          >
+            {tiles.map((i) => (
+              <Tile key={i} index={i} size={size} cols={cols} />
+            ))}
+          </svg>
+        )
+      )}
+    </div>
+  );
+}
+
 export function HeroPeople({ photos = [] }: { photos?: string[] }) {
   const SIZE = 96;
-  const width = COLS * SIZE;
-  const height = ROWS * SIZE;
-  const tiles = Array.from({ length: COLS * ROWS }, (_, i) => i);
-  const hasPhotos = photos.length > 0;
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-      {/* Δύο αντίγραφα το ένα κάτω από το άλλο: όταν το πρώτο ανέβει όσο το ύψος
-          του, το δεύτερο έχει πάρει ήδη τη θέση του — η κύλιση δεν «κόβεται». */}
-      <div
-        className={`hero-people-track absolute inset-x-0 -top-4 ${
-          // Οι εικόνες σηκώνουν λίγη παραπάνω ένταση από τα σχέδια, αλλά μένουν
-          // φόντο: το κείμενο από πάνω δεν χάνει ποτέ αντίθεση.
-          hasPhotos ? 'opacity-[0.13] grayscale' : 'opacity-[0.055]'
-        }`}
-      >
-        {[0, 1].map((copy) =>
-          hasPhotos ? (
-            <PhotoWall key={copy} photos={photos} />
-          ) : (
-            <svg
-              key={copy}
-              viewBox={`0 0 ${width} ${height}`}
-              className="w-full"
-              fill="white"
-              role="presentation"
-            >
-              {tiles.map((i) => (
-                <Tile key={i} index={i} size={SIZE} />
-              ))}
-            </svg>
-          )
-        )}
-      </div>
+      {/* Κινητό: λίγα και μεγάλα. */}
+      <Track photos={photos} cols={COLS_MOBILE} rows={ROWS_MOBILE} size={SIZE} className="lg:hidden" />
+      {/* Υπολογιστής: ακριβώς όπως ήταν. */}
+      <Track photos={photos} cols={COLS} rows={ROWS} size={SIZE} className="hidden lg:block" />
 
       <style
         dangerouslySetInnerHTML={{
