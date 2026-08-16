@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { API_URL } from '@/lib/config';
 
 /**
  * Σελίδα ελέγχου κάμερας και μικροφώνου.
@@ -88,6 +89,32 @@ export default function CameraCheckPage() {
     await tryGet('Δοκιμή μόνο μικροφώνου', { audio: true });
     await tryGet('Δοκιμή μόνο κάμερας', { video: true });
     await tryGet('Δοκιμή και των δύο', { audio: true, video: true });
+
+    // Ο αναμεταδότης: χωρίς αυτόν, οι κλήσεις από δεδομένα κινητής συχνά δεν
+    // ενώνονται ποτέ. Χρειάζεται σύνδεση, γιατί τα στοιχεία είναι προσωπικά και
+    // βραχύβια — γι' αυτό το λέμε καθαρά αντί να δείξουμε σφάλμα.
+    try {
+      const token = localStorage.getItem('staffnow_token');
+      if (!token) {
+        out.push({ label: 'Αναμεταδότης κλήσεων', value: 'χρειάζεται σύνδεση για έλεγχο' });
+      } else {
+        const res = await fetch(`${API_URL}/calls/ice`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = (await res.json()) as { data?: { iceServers?: { urls: string | string[] }[] } };
+        const list = data?.data?.iceServers || [];
+        const flat = list.flatMap((s0) => (Array.isArray(s0.urls) ? s0.urls : [s0.urls]));
+        const hasRelay = flat.some((u) => typeof u === 'string' && u.startsWith('turn:'));
+        out.push({
+          label: 'Αναμεταδότης κλήσεων',
+          value: hasRelay ? 'ενεργός ✓' : 'ΔΕΝ είναι ενεργός',
+          ok: hasRelay,
+        });
+        out.push({ label: 'Διακομιστές σύνδεσης', value: String(flat.length) });
+      }
+    } catch {
+      out.push({ label: 'Αναμεταδότης κλήσεων', value: 'δεν απάντησε ο server' });
+    }
 
     out.push({ label: 'Συσκευή', value: navigator.userAgent.slice(0, 120) });
 
