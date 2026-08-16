@@ -202,9 +202,21 @@ export default function DashboardLayout({
             <button onClick={() => setNotifOpen(!notifOpen)}
               className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100">
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" /></svg>
-              {(notifUnread > 0 || totalNotifs > 0) && (
+              {/*
+                Ο ΑΡΙΘΜΟΣ ΜΕΤΡΑΕΙ ΑΚΡΙΒΩΣ Ο,ΤΙ ΔΕΙΧΝΕΙ Η ΛΙΣΤΑ ΑΠΟ ΚΑΤΩ.
+
+                Έδειχνε `notifUnread || totalNotifs`: αν δεν υπήρχε αδιάβαστη
+                ειδοποίηση, έπεφτε πίσω στα αδιάβαστα μηνύματα και ενδιαφέροντα.
+                Αποτέλεσμα: «1» πάνω στο καμπανάκι και «Δεν υπάρχουν
+                ειδοποιήσεις» μέσα. Ο χρήστης το εκλάμβανε ως βλάβη, και δίκαια.
+
+                Τα μηνύματα δεν χάνονται: κάθε νέο μήνυμα γράφει και ειδοποίηση,
+                οπότε μετριέται εδώ κανονικά — και έχει και δικό του σημαδάκι
+                πάνω στο «Μηνύματα» του μενού.
+              */}
+              {notifUnread > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
-                  {notifUnread || totalNotifs}
+                  {notifUnread}
                 </span>
               )}
             </button>
