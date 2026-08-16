@@ -8,6 +8,7 @@ import { checkSwipeLimit, checkActiveMatchesLimit } from '../middleware/subscrip
 import { success, error, paginated } from '../lib/response';
 import { openaiChat } from '../lib/openai';
 import { generateId } from '../lib/id';
+import { displayNameFor } from '../lib/display-name';
 import { recordActivity, getRequestIp, getGeoFromRequest, recordDataChange, computeDiff } from '../lib/activity';
 import { notifyUser } from '../lib/notify';
 import { getReputation } from '../lib/reputation';
@@ -843,9 +844,11 @@ workers.post('/:id/like', requireAuth, requireRole('business'), async (c) => {
   // Αλλαγή γνώμης είναι φυσιολογική — δεν είναι λόγος να κλειδώσει ο χρήστης.
   const upgradingFromSkip = !!existingSwipe;
 
-  // Get business name for notification
-  const bizForNotif = await db.prepare('SELECT company_name FROM business_profiles WHERE user_id = ?').bind(user.id).first<{ company_name: string }>();
-  const bizNameForNotif = bizForNotif?.company_name || 'Μια επιχείρηση';
+  // Το όνομα που θα δει ο εργαζόμενος. Διάβαζε ΜΟΝΟ company_name, που για
+  // λογαριασμούς με υποκατάστημα είναι κενό — και η ειδοποίηση κατέληγε
+  // «Μια επιχείρηση ενδιαφέρθηκε», χωρίς να λέει ποια. Τώρα βγαίνει το ίδιο
+  // όνομα που βλέπει ο κόσμος στην οθόνη.
+  const bizNameForNotif = await displayNameFor(db, user.id);
 
   // Notify worker about interest
   await db.prepare(

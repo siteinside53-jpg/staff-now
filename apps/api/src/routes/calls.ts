@@ -24,6 +24,7 @@ import { success, error } from '../lib/response';
 import { generateId } from '../lib/id';
 import { notifyUser } from '../lib/notify';
 import { getIceServers } from '../lib/turn';
+import { displayInfoFor } from '../lib/display-name';
 
 const calls = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
 
@@ -102,27 +103,10 @@ async function expireStaleCalls(db: D1Database, userId: string): Promise<void> {
     .run();
 }
 
-/** Όνομα και φωτογραφία, για την οθόνη που χτυπάει. */
-async function displayCard(
-  db: D1Database,
-  userId: string
-): Promise<{ name: string; avatar: string | null }> {
-  const row = await db
-    .prepare(
-      `SELECT COALESCE(
-                NULLIF(br.name, ''), NULLIF(bp.company_name, ''),
-                NULLIF(wp.full_name, ''), NULLIF(u.display_name, ''), u.email
-              ) AS name,
-              COALESCE(wp.photo_url, br.logo_url, bp.logo_url, u.avatar_url) AS avatar
-         FROM users u
-         LEFT JOIN worker_profiles wp   ON wp.user_id = u.id
-         LEFT JOIN business_profiles bp ON bp.user_id = u.id
-         LEFT JOIN business_branches br ON br.user_id = u.id
-        WHERE u.id = ?`
-    )
-    .bind(userId)
-    .first<{ name: string | null; avatar: string | null }>();
-  return { name: row?.name || 'Χρήστης', avatar: row?.avatar || null };
+/** Όνομα και φωτογραφία, για την οθόνη που χτυπάει. Κοινή πηγή με τις
+ *  ειδοποιήσεις, ώστε ο ίδιος άνθρωπος να λέγεται παντού το ίδιο. */
+async function displayCard(db: D1Database, userId: string) {
+  return displayInfoFor(db, userId);
 }
 
 // ── GET /ice — τα στοιχεία του αναμεταδότη ────────────────────────────────

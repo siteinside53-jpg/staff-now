@@ -5,6 +5,7 @@ import { success, error, paginated } from '../lib/response';
 import { generateId } from '../lib/id';
 import { recordActivity, getRequestIp, getGeoFromRequest } from '../lib/activity';
 import { notifyUser } from '../lib/notify';
+import { displayNameFor } from '../lib/display-name';
 
 const conversations = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
 
@@ -299,20 +300,12 @@ conversations.post('/:id/messages', requireAuth, async (c) => {
       .bind(now, conversationId)
       .run();
 
-    // Get sender display name
-    if (user.role === 'worker') {
-      const wp = await db
-        .prepare("SELECT full_name FROM worker_profiles WHERE user_id = ?")
-        .bind(user.id)
-        .first<{ full_name: string }>();
-      if (wp) senderName = wp.full_name || '';
-    } else {
-      const bp = await db
-        .prepare('SELECT company_name FROM business_profiles WHERE user_id = ?')
-        .bind(user.id)
-        .first<{ company_name: string }>();
-      if (bp) senderName = bp.company_name;
-    }
+    // Ποιος στέλνει — με το ίδιο όνομα που βλέπει ο κόσμος στην οθόνη.
+    //
+    // Πριν: για εργαζόμενο `wp.full_name || ''` (κενό όνομα → «Νέο μήνυμα από »
+    // και μετά τίποτα) και για επιχείρηση μόνο company_name, που είναι κενό
+    // όταν το όνομα ζει στο υποκατάστημα. Το email έφτανε χωρίς αποστολέα.
+    senderName = await displayNameFor(db, user.id);
 
     // Create notification for recipient
     await db
