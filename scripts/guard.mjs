@@ -180,7 +180,46 @@ function checkApiRoutes() {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// 4. Το πραγματικό site (μόνο με --live)
+// 4. Οι εικόνες του φόντου δεν καθυστερούν την αρχική
+//
+// Κάθονται πάνω ακριβώς στην πρώτη οθόνη. Μισό κοινό μας είναι σε φθηνό
+// Android με μέτριο σήμα: 3 MB φόντο σημαίνει δευτερόλεπτα λευκή οθόνη πριν
+// διαβάσει την πρώτη λέξη.
+// ───────────────────────────────────────────────────────────────────────────
+const HERO_BUDGET_BYTES = 1_200_000;
+
+function checkHeroPhotos() {
+  let files;
+  try {
+    files = readdirSync(join(ROOT, 'apps/web/public/hero')).filter((f) =>
+      /\.(jpe?g|png|webp|avif)$/i.test(f)
+    );
+  } catch {
+    return; // δεν υπάρχει φάκελος — μια χαρά
+  }
+  if (!files.length) return; // άδειος — τρέχουν τα σχέδια
+
+  let total = 0;
+  const heavy = [];
+  for (const f of files) {
+    const { size } = statSync(join(ROOT, 'apps/web/public/hero', f));
+    total += size;
+    if (size > 200_000) heavy.push(`${f} (${Math.round(size / 1024)} KB)`);
+  }
+
+  if (total > HERO_BUDGET_BYTES) {
+    fail(
+      `Οι εικόνες του φόντου είναι ${Math.round(total / 1024)} KB — πολύ βαριές`,
+      `Θα αργεί η αρχική σε κινητό. Μίκρυνέ τες στα ~400x400 (όριο ${Math.round(HERO_BUDGET_BYTES / 1024)} KB συνολικά).` +
+        (heavy.length ? `\n      Οι πιο βαριές: ${heavy.join(', ')}` : '')
+    );
+  } else {
+    ok(`Φόντο αρχικής: ${files.length} εικόνες, ${Math.round(total / 1024)} KB συνολικά`);
+  }
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// 5. Το πραγματικό site (μόνο με --live)
 // ───────────────────────────────────────────────────────────────────────────
 async function checkLive() {
   try {
@@ -218,6 +257,7 @@ async function checkLive() {
 checkApiSurface();
 checkPermissionsPolicy();
 checkApiRoutes();
+checkHeroPhotos();
 if (LIVE) await checkLive();
 
 console.log('');
