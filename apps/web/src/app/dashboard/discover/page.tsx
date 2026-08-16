@@ -1611,8 +1611,11 @@ export default function DiscoverPage() {
           jobId={viewingJobDetail.id}
           jobData={viewingJobDetail}
           onClose={() => setViewingJobDetail(null)}
-          onLike={() => handleAction('like')}
-          onSkip={() => handleAction('skip')}
+          /* Ίδιο σφάλμα με το πάνελ εργαζομένου, στην πλευρά του εργαζομένου:
+             το handleAction ενεργεί στην τρέχουσα κάρτα, ενώ ο χρήστης έχει
+             ανοίξει ΣΥΓΚΕΚΡΙΜΕΝΗ αγγελία από τη λίστα. Ενεργούμε σε αυτήν. */
+          onLike={() => void actOnProfileId(viewingJobDetail.id, 'like')}
+          onSkip={() => void actOnProfileId(viewingJobDetail.id, 'skip')}
           isMatched={viewingJobDetail.isMatched}
           swipeStatus={viewingJobDetail.swipeStatus}
         />
