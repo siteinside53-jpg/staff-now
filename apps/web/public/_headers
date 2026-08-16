@@ -1,10 +1,23 @@
+# ⚠️ camera / microphone: ΠΡΕΠΕΙ να μένουν (self).
+#
+# Ήταν γραμμένα «camera=(), microphone=()». Το κενό δεν σημαίνει «προεπιλογή» —
+# σημαίνει ΑΠΑΓΟΡΕΥΜΕΝΟ ΓΙΑ ΟΛΟΥΣ, μαζί και για το ίδιο μας το site. Έτσι ο
+# browser απαντούσε NotAllowedError σε κάθε βιντεοκλήση, όσες άδειες κι αν
+# έδινε ο χρήστης στο κινητό του: το φράγμα ήταν εδώ και δεν παρακάμπτεται από
+# καμία ρύθμιση συσκευής.
+#
+# Δεν φάνηκε στις δοκιμές γιατί ο τοπικός server δεν στέλνει αυτή την κεφαλίδα —
+# όλα δούλευαν τοπικά και μόνο το live αρνιόταν.
+#
+# Το (self) κρατάει την προστασία: επιτρέπεται μόνο στο staffnow.gr, ποτέ σε ξένο
+# πλαίσιο μέσα στη σελίδα μας.
 /*
   Cache-Control: public, max-age=0, must-revalidate
   Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
   X-Frame-Options: SAMEORIGIN
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
-  Permissions-Policy: geolocation=(self), camera=(), microphone=(), payment=()
+  Permissions-Policy: geolocation=(self), camera=(self), microphone=(self), payment=()
 
 /_next/static/*
   Cache-Control: public, max-age=31536000, immutable
