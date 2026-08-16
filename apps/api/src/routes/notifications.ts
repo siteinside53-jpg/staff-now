@@ -127,4 +127,83 @@ notifications.post('/read-all', requireAuth, async (c) => {
   });
 });
 
+/**
+ * Ρυθμίσεις ειδοποιήσεων.
+ *
+ * Έλειπαν εντελώς: η σελίδα «Ρυθμίσεις» καλούσε λειτουργία που δεν υπήρχε,
+ * οπότε ο χρήστης έβλεπε πάντα «Αποτυχία αποθήκευσης». Όποιος δεν έχει
+ * αποθηκεύσει ποτέ, παίρνει τις προεπιλογές από εδώ.
+ */
+const DEFAULT_SETTINGS = {
+  emailMatches: true,
+  emailMessages: true,
+  emailMarketing: false,
+  pushMatches: true,
+  pushMessages: true,
+};
+
+type SettingsRow = {
+  email_matches: number;
+  email_messages: number;
+  email_marketing: number;
+  push_matches: number;
+  push_messages: number;
+};
+
+notifications.get('/settings', requireAuth, async (c) => {
+  const user = c.get('user');
+  const row = await c.env.DB.prepare(
+    'SELECT email_matches, email_messages, email_marketing, push_matches, push_messages FROM notification_settings WHERE user_id = ?'
+  )
+    .bind(user.id)
+    .first<SettingsRow>();
+
+  if (!row) return success(c, DEFAULT_SETTINGS);
+
+  return success(c, {
+    emailMatches: row.email_matches === 1,
+    emailMessages: row.email_messages === 1,
+    emailMarketing: row.email_marketing === 1,
+    pushMatches: row.push_matches === 1,
+    pushMessages: row.push_messages === 1,
+  });
+});
+
+notifications.patch('/settings', requireAuth, async (c) => {
+  const user = c.get('user');
+  const body = await c.req.json().catch(() => null);
+  if (!body || typeof body !== 'object') return error(c, 'VALIDATION_ERROR', 'Λείπουν οι ρυθμίσεις', 400);
+
+  // Δεχόμαστε μόνο τους πέντε γνωστούς διακόπτες, και μόνο ναι/όχι. Ό,τι
+  // λείπει κρατάει την προεπιλογή του — δεν σβήνουμε ρυθμίσεις κατά λάθος.
+  const merged = { ...DEFAULT_SETTINGS };
+  for (const key of Object.keys(DEFAULT_SETTINGS) as (keyof typeof DEFAULT_SETTINGS)[]) {
+    if (typeof body[key] === 'boolean') merged[key] = body[key];
+  }
+
+  await c.env.DB.prepare(
+    `INSERT INTO notification_settings
+       (user_id, email_matches, email_messages, email_marketing, push_matches, push_messages, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+     ON CONFLICT(user_id) DO UPDATE SET
+       email_matches = excluded.email_matches,
+       email_messages = excluded.email_messages,
+       email_marketing = excluded.email_marketing,
+       push_matches = excluded.push_matches,
+       push_messages = excluded.push_messages,
+       updated_at = excluded.updated_at`
+  )
+    .bind(
+      user.id,
+      merged.emailMatches ? 1 : 0,
+      merged.emailMessages ? 1 : 0,
+      merged.emailMarketing ? 1 : 0,
+      merged.pushMatches ? 1 : 0,
+      merged.pushMessages ? 1 : 0
+    )
+    .run();
+
+  return success(c, merged);
+});
+
 export default notifications;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
@@ -93,6 +93,27 @@ export default function SettingsPage() {
     pushMatches: true,
     pushMessages: true,
   });
+
+  // Φέρνουμε τις αποθηκευμένες επιλογές. Χωρίς αυτό, η σελίδα έδειχνε πάντα τις
+  // προεπιλογές — ο χρήστης έκλεινε π.χ. τα διαφημιστικά και την επόμενη φορά
+  // τα έβλεπε ξανά ανοιχτά.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await api.notifications.getSettings();
+        const s = res?.data ?? res;
+        if (!cancelled && s && typeof s === 'object') {
+          setNotifications((prev) => ({ ...prev, ...s }));
+        }
+      } catch {
+        // Δεν ενοχλούμε τον χρήστη: κρατάει τις προεπιλογές.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const onChangePassword = async (data: PasswordForm) => {
     if (data.newPassword !== data.confirmPassword) {

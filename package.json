@@ -18,7 +18,9 @@
     "clean": "turbo clean && rm -rf node_modules",
     "db:migrate": "pnpm --filter api db:migrate",
     "db:seed": "pnpm --filter api db:seed",
-    "db:reset": "pnpm --filter api db:reset"
+    "db:reset": "pnpm --filter api db:reset",
+    "guard": "node scripts/guard.mjs",
+    "guard:live": "node scripts/guard.mjs --live"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.0",

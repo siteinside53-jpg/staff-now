@@ -178,6 +178,15 @@ export class StaffNowApi {
     list: (params?: Params) => this.client.get<any>('/notifications', params),
     markRead: (id: string) => this.client.post<any>(`/notifications/${id}/read`),
     markAllRead: () => this.client.post<any>('/notifications/read-all'),
+    /** Οι διακόπτες «τι ειδοποιήσεις θέλω». */
+    getSettings: () => this.client.get<any>('/notifications/settings'),
+    updateSettings: (body: {
+      emailMatches?: boolean;
+      emailMessages?: boolean;
+      emailMarketing?: boolean;
+      pushMatches?: boolean;
+      pushMessages?: boolean;
+    }) => this.client.patch<any>('/notifications/settings', body),
   };
 
   billing = {
