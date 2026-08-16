@@ -8,7 +8,7 @@ import { HeroPeople } from './hero-people';
  * Deep blue base + 3 slow-moving blurred blobs (Stripe/Linear style).
  * No switcher — single polished look.
  */
-export function HeroGradient({ children }: { children: ReactNode }) {
+export function HeroGradient({ children, photos = [] }: { children: ReactNode; photos?: string[] }) {
   return (
     <section className="relative overflow-hidden text-white">
       {/* Base: deep dark blue */}
@@ -44,7 +44,7 @@ export function HeroGradient({ children }: { children: ReactNode }) {
       {/* Το πλήθος που αχνοφαίνεται. Μπαίνει ΠΡΙΝ το σκούρο πέπλο από κάτω,
           ώστε το πέπλο να περνάει από πάνω του και το κείμενο να μη χάνει
           ποτέ αντίθεση. */}
-      <HeroPeople />
+      <HeroPeople photos={photos} />
 
       {/* Top fade for text contrast */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/30" />

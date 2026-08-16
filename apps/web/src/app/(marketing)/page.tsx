@@ -4,6 +4,7 @@ import { LiveCounters } from '@/components/marketing/live-counters';
 import { ActivityMarquee } from '@/components/marketing/activity-marquee';
 import { LiveWorkersHeroCard, LiveWorkersPanel, LiveJobsPanel } from '@/components/marketing/live-workers';
 import { HeroGradient } from '@/components/marketing/hero-gradient';
+import { heroPhotos } from '@/lib/hero-photos';
 import { HowItWorksTabs } from '@/components/marketing/how-it-works-tabs';
 import { TrustBar } from '@/components/marketing/trust-bar';
 import { SwipeTeaser } from '@/components/marketing/swipe-teaser';
@@ -53,7 +54,7 @@ export default function HomePage() {
   return (
     <>
       {/* ====== HERO ====== */}
-      <HeroGradient>
+      <HeroGradient photos={heroPhotos()}>
         <div className="relative mx-auto max-w-7xl px-4 pt-6 pb-20 sm:px-6 sm:pt-8 sm:pb-28 lg:px-8 lg:pt-10 lg:pb-36">
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div>

@@ -64,30 +64,70 @@ function Tile({ index, size }: { index: number; size: number }) {
   return isShop ? <ShopGlyph x={x} y={y} size={size} /> : <PersonGlyph x={x} y={y} size={size} />;
 }
 
-export function HeroPeople() {
+/**
+ * Το ίδιο πλέγμα, αλλά με εικόνες — μπαίνει μόνο αν υπάρχουν αρχεία στο
+ * `public/hero/`. Οι κανόνες για το ΤΙ επιτρέπεται είναι στο lib/hero-photos.ts.
+ */
+function PhotoWall({ photos }: { photos: string[] }) {
+  // Όσα πλακάκια χρειάζονται για να γεμίσει, επαναλαμβάνοντας τις εικόνες.
+  const tiles = Array.from({ length: COLS * ROWS }, (_, i) => photos[i % photos.length]);
+  return (
+    <div
+      className="grid gap-3 p-3"
+      style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))` }}
+    >
+      {tiles.map((src, i) => (
+        // Σκέτο <img>: το next/image δεν κάνει τίποτα σε στατικό site, και εδώ
+        // δεν θέλουμε καν να «φορτώσει σωστά» — είναι φόντο.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={i}
+          src={src}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className="aspect-square w-full rounded-2xl object-cover"
+        />
+      ))}
+    </div>
+  );
+}
+
+export function HeroPeople({ photos = [] }: { photos?: string[] }) {
   const SIZE = 96;
   const width = COLS * SIZE;
   const height = ROWS * SIZE;
   const tiles = Array.from({ length: COLS * ROWS }, (_, i) => i);
+  const hasPhotos = photos.length > 0;
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
       {/* Δύο αντίγραφα το ένα κάτω από το άλλο: όταν το πρώτο ανέβει όσο το ύψος
           του, το δεύτερο έχει πάρει ήδη τη θέση του — η κύλιση δεν «κόβεται». */}
-      <div className="hero-people-track absolute inset-x-0 -top-4 opacity-[0.055]">
-        {[0, 1].map((copy) => (
-          <svg
-            key={copy}
-            viewBox={`0 0 ${width} ${height}`}
-            className="w-full"
-            fill="white"
-            role="presentation"
-          >
-            {tiles.map((i) => (
-              <Tile key={i} index={i} size={SIZE} />
-            ))}
-          </svg>
-        ))}
+      <div
+        className={`hero-people-track absolute inset-x-0 -top-4 ${
+          // Οι εικόνες σηκώνουν λίγη παραπάνω ένταση από τα σχέδια, αλλά μένουν
+          // φόντο: το κείμενο από πάνω δεν χάνει ποτέ αντίθεση.
+          hasPhotos ? 'opacity-[0.13] grayscale' : 'opacity-[0.055]'
+        }`}
+      >
+        {[0, 1].map((copy) =>
+          hasPhotos ? (
+            <PhotoWall key={copy} photos={photos} />
+          ) : (
+            <svg
+              key={copy}
+              viewBox={`0 0 ${width} ${height}`}
+              className="w-full"
+              fill="white"
+              role="presentation"
+            >
+              {tiles.map((i) => (
+                <Tile key={i} index={i} size={SIZE} />
+              ))}
+            </svg>
+          )
+        )}
       </div>
 
       <style
