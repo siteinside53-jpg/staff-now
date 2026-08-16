@@ -101,9 +101,11 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
       setRemoteStream(null);
       setStatus('idle');
 
-      if (reason === 'no_media') {
-        setNotice('Χρειάζεται άδεια για κάμερα και μικρόφωνο για να γίνει η κλήση.');
-      } else if (reason === 'failed') {
+      // Για την κάμερα ΔΕΝ γράφουμε μήνυμα εδώ: η μηχανή ξέρει την ακριβή αιτία
+      // (άρνηση, δεν υπάρχει κάμερα, ενσωματωμένος browser) και επιστρέφει
+      // οδηγία που μπορεί πραγματικά να ακολουθήσει ο χρήστης. Ένα γενικό
+      // «χρειάζεται άδεια» εδώ θα την έσβηνε.
+      if (reason === 'failed') {
         setNotice('Η σύνδεση δεν ήταν εφικτή. Δοκίμασε ξανά.');
       }
 
@@ -317,17 +319,21 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
         />
       )}
 
-      {/* Μήνυμα όταν κάτι δεν πήγε καλά */}
+      {/* Μήνυμα όταν κάτι δεν πήγε καλά. Οι οδηγίες για την άδεια κάμερας είναι
+          δύο-τρεις σειρές: στοιχισμένες αριστερά, με το κουμπί από κάτω, ώστε
+          να διαβάζονται σε κινητό. */}
       {notice && (
-        <div className="fixed inset-x-4 bottom-24 z-[80] mx-auto max-w-md rounded-2xl bg-gray-900 px-4 py-3 text-center text-sm text-white shadow-xl">
-          {notice}
-          <button
-            type="button"
-            onClick={() => setNotice(null)}
-            className="ml-3 font-bold text-blue-300"
-          >
-            Εντάξει
-          </button>
+        <div className="fixed inset-x-4 bottom-24 z-[80] mx-auto max-w-md rounded-2xl bg-gray-900 px-4 py-3 text-white shadow-xl">
+          <p className="text-sm leading-snug">{notice}</p>
+          <div className="mt-2 text-right">
+            <button
+              type="button"
+              onClick={() => setNotice(null)}
+              className="font-bold text-blue-300"
+            >
+              Εντάξει
+            </button>
+          </div>
         </div>
       )}
     </CallCenterContext.Provider>

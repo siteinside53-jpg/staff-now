@@ -20,6 +20,41 @@ export type CallStatus =
 
 export type CallEndReason = 'hangup' | 'declined' | 'missed' | 'failed' | 'busy' | 'no_media';
 
+/** Γιατί δεν πήραμε κάμερα/μικρόφωνο — καθορίζει τι οδηγία δίνουμε στον χρήστη. */
+export type MediaFailure = 'denied' | 'notfound' | 'unsupported' | 'other';
+
+/** Το iPhone και το Android λένε τα ίδια πράγματα σε διαφορετικά μέρη. */
+function isIOS(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    // iPad από iPadOS 13 και μετά δηλώνεται ως Mac με οθόνη αφής.
+    (navigator.platform === 'MacIntel' && (navigator as { maxTouchPoints?: number }).maxTouchPoints! > 1)
+  );
+}
+
+/**
+ * Οδηγία που μπορεί πραγματικά να ακολουθήσει ο χρήστης. Το σκέτο «χρειάζεται
+ * άδεια» δεν βοηθάει σε τίποτα: αν έχει ήδη αρνηθεί μία φορά, ο browser ΔΕΝ
+ * ξαναρωτάει και το κουμπί μοιάζει χαλασμένο.
+ */
+export function mediaFailureMessage(failure: MediaFailure): string {
+  if (failure === 'unsupported') {
+    return isIOS()
+      ? 'Άνοιξε το staffnow.gr στο Safari για να γίνει η κλήση. Μέσα από άλλη εφαρμογή (π.χ. Facebook) η κάμερα δεν επιτρέπεται.'
+      : 'Άνοιξε το staffnow.gr στο Chrome για να γίνει η κλήση. Μέσα από άλλη εφαρμογή η κάμερα δεν επιτρέπεται.';
+  }
+  if (failure === 'notfound') {
+    return 'Δεν βρέθηκε κάμερα ή μικρόφωνο στη συσκευή.';
+  }
+  if (failure === 'denied') {
+    return isIOS()
+      ? 'Η κάμερα είναι κλειστή για το staffnow.gr. Πάτα το «ΑΑ» αριστερά στη γραμμή διεύθυνσης → Ρυθμίσεις ιστότοπου → Κάμερα και Μικρόφωνο → Να επιτρέπεται. Μετά ξαναδοκίμασε.'
+      : 'Η κάμερα είναι κλειστή για το staffnow.gr. Πάτα το λουκέτο δίπλα στη διεύθυνση → Άδειες → Κάμερα και Μικρόφωνο → Να επιτρέπεται. Μετά ξαναδοκίμασε.';
+  }
+  return 'Δεν άνοιξε η κάμερα. Κλείσε άλλες εφαρμογές που μπορεί να τη χρησιμοποιούν και ξαναδοκίμασε.';
+}
+
 export interface CallEngineEvents {
   onStatus: (status: CallStatus) => void;
   onLocalStream: (stream: MediaStream) => void;
@@ -76,21 +111,44 @@ export class CallEngine {
   }
 
   /**
-   * Κάμερα και μικρόφωνο. Αν ο χρήστης αρνηθεί ή η συσκευή δεν έχει κάμερα,
-   * δοκιμάζουμε μόνο με ήχο — καλύτερα μια κλήση χωρίς εικόνα παρά καθόλου.
+   * Κάμερα και μικρόφωνο. Αν η συσκευή δεν έχει κάμερα, δοκιμάζουμε μόνο με
+   * ήχο — καλύτερα μια κλήση χωρίς εικόνα παρά καθόλου.
+   *
+   * ΠΡΟΣΟΧΗ ΣΤΗ ΣΤΙΓΜΗ ΤΗΣ ΚΛΗΣΗΣ: πρέπει να τρέξει ΑΜΕΣΩΣ μόλις πατήσει ο
+   * χρήστης, πριν από οποιοδήποτε αίτημα στον server. Το iPhone δείχνει το
+   * παράθυρο άδειας μόνο όσο θεωρεί ότι η ενέργεια είναι άμεσο αποτέλεσμα του
+   * αγγίγματος· αν μεσολαβήσει αναμονή δικτύου, αρνείται ΣΙΩΠΗΛΑ — ο χρήστης
+   * βλέπει «χρειάζεται άδεια» χωρίς να του εμφανιστεί ποτέ ερώτηση.
    */
-  private async getMedia(): Promise<MediaStream | null> {
+  private async getMedia(): Promise<{ stream: MediaStream | null; failure?: MediaFailure }> {
+    // Σε παλιό browser, σε σύνδεση χωρίς κρυπτογράφηση ή μέσα σε ενσωματωμένο
+    // browser (π.χ. του Facebook) η δυνατότητα λείπει εντελώς.
+    if (!navigator.mediaDevices?.getUserMedia) {
+      return { stream: null, failure: 'unsupported' };
+    }
+
     const withVideo: MediaStreamConstraints = {
       audio: { echoCancellation: true, noiseSuppression: true },
       video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
     };
     try {
-      return await navigator.mediaDevices.getUserMedia(withVideo);
-    } catch {
+      return { stream: await navigator.mediaDevices.getUserMedia(withVideo) };
+    } catch (err) {
+      const name = (err as { name?: string })?.name || '';
+      // Άρνηση του χρήστη: δεν έχει νόημα να ξαναρωτήσουμε για μόνο ήχο, θα
+      // αποτύχει κι αυτό. Θέλει αλλαγή ρύθμισης στη συσκευή.
+      if (name === 'NotAllowedError' || name === 'SecurityError') {
+        return { stream: null, failure: 'denied' };
+      }
+      // Χωρίς κάμερα ή κατειλημμένη κάμερα: δοκιμάζουμε μόνο με ήχο.
       try {
-        return await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch {
-        return null;
+        return { stream: await navigator.mediaDevices.getUserMedia({ audio: true }) };
+      } catch (err2) {
+        const name2 = (err2 as { name?: string })?.name || '';
+        if (name2 === 'NotAllowedError' || name2 === 'SecurityError') {
+          return { stream: null, failure: 'denied' };
+        }
+        return { stream: null, failure: name2 === 'NotFoundError' ? 'notfound' : 'other' };
       }
     }
   }
@@ -224,10 +282,12 @@ export class CallEngine {
   async call(conversationId: string): Promise<{ ok: boolean; message?: string }> {
     this.setStatus('preparing');
 
-    const media = await this.getMedia();
+    // Ίδιος κανόνας με την απάντηση: η κάμερα ζητιέται πρώτη, χωρίς να
+    // μεσολαβήσει αναμονή δικτύου, αλλιώς το iPhone δεν δείχνει ερώτηση.
+    const { stream: media, failure } = await this.getMedia();
     if (!media) {
       this.finish('no_media', false);
-      return { ok: false, message: 'Χρειάζεται άδεια για κάμερα και μικρόφωνο.' };
+      return { ok: false, message: mediaFailureMessage(failure || 'other') };
     }
     this.local = media;
     this.events.onLocalStream(media);
@@ -269,7 +329,21 @@ export class CallEngine {
     this.callId = callId;
     this.setStatus('preparing');
 
-    // Πρώτα η πρόταση της άλλης πλευράς — χωρίς αυτήν δεν στήνεται τίποτα.
+    // ΠΡΩΤΑ η κάμερα, ΠΡΙΝ από κάθε αίτημα στον server. Δεν είναι θέμα
+    // κομψότητας: παλιά ρωτούσαμε πρώτα τον server για την πρόταση σύνδεσης και
+    // μετά τη συσκευή. Στο iPhone αυτό σήμαινε ότι η ερώτηση άδειας δεν
+    // εμφανιζόταν ΠΟΤΕ — μεσολαβούσε αναμονή δικτύου και το Safari έπαυε να
+    // θεωρεί την ενέργεια αποτέλεσμα του αγγίγματος, οπότε αρνιόταν σιωπηλά.
+    const { stream: media, failure } = await this.getMedia();
+    if (!media) {
+      await this.api.decline(callId).catch(() => {});
+      this.finish('no_media', false);
+      return { ok: false, message: mediaFailureMessage(failure || 'other') };
+    }
+    this.local = media;
+    this.events.onLocalStream(media);
+
+    // Τώρα η πρόταση της άλλης πλευράς — χωρίς αυτήν δεν στήνεται τίποτα.
     let offer: string | null = null;
     try {
       const res = await this.api.poll(callId, 0);
@@ -287,15 +361,6 @@ export class CallEngine {
       this.finish('failed', false);
       return { ok: false, message: 'Δεν μπόρεσε να συνδεθεί η κλήση.' };
     }
-
-    const media = await this.getMedia();
-    if (!media) {
-      await this.api.decline(callId).catch(() => {});
-      this.finish('no_media', false);
-      return { ok: false, message: 'Χρειάζεται άδεια για κάμερα και μικρόφωνο.' };
-    }
-    this.local = media;
-    this.events.onLocalStream(media);
 
     this.pc = await this.buildConnection();
     await this.pc.setRemoteDescription(JSON.parse(offer));
