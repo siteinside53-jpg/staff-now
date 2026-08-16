@@ -820,17 +820,28 @@ workers.post('/:id/like', requireAuth, requireRole('business'), async (c) => {
     return error(c, 'Ο εργαζόμενος δεν βρέθηκε', 404);
   }
 
-  // Check duplicate
+  // Έχει ξαναπεράσει από εδώ ο χρήστης;
+  //
+  // ΠΡΟΣΟΧΗ ΣΤΗ ΔΙΑΦΟΡΑ LIKE / SKIP: παλιά μπλοκάραμε αν υπήρχε ΟΠΟΙΑΔΗΠΟΤΕ
+  // εγγραφή. Αυτό σήμαινε ότι όποιον προσπέρασες μία φορά δεν μπορούσες ΠΟΤΕ να
+  // τον ξαναδιαλέξεις — και μάλιστα με μήνυμα «έχεις ήδη δείξει ενδιαφέρον»,
+  // που ήταν και λάθος: ενδιαφέρον δεν είχες δείξει, τον είχες απορρίψει.
+  // Ο χρήστης έβλεπε κάποιον, πατούσε λάθος ή άλλαζε γνώμη, και έμενε
+  // κλειδωμένος χωρίς να φαίνεται πουθενά — ούτε στα Matches ούτε στα Αιτήματα.
   const existingSwipe = await db
     .prepare(
-      "SELECT id FROM swipes WHERE swiper_id = ? AND target_id = ? AND target_type = 'worker'"
+      "SELECT id, direction FROM swipes WHERE swiper_id = ? AND target_id = ? AND target_type = 'worker'"
     )
     .bind(user.id, targetId)
-    .first();
+    .first<{ id: string; direction: string }>();
 
-  if (existingSwipe) {
-    return error(c, 'Έχετε ήδη κάνει swipe σε αυτόν τον εργαζόμενο', 409);
+  if (existingSwipe?.direction === 'like') {
+    return error(c, 'Έχετε ήδη δηλώσει ενδιαφέρον για αυτόν τον εργαζόμενο', 409);
   }
+
+  // Ήταν προσπέραση: την αναβαθμίζουμε σε ενδιαφέρον και συνεχίζουμε κανονικά.
+  // Αλλαγή γνώμης είναι φυσιολογική — δεν είναι λόγος να κλειδώσει ο χρήστης.
+  const upgradingFromSkip = !!existingSwipe;
 
   // Get business name for notification
   const bizForNotif = await db.prepare('SELECT company_name FROM business_profiles WHERE user_id = ?').bind(user.id).first<{ company_name: string }>();
@@ -856,15 +867,25 @@ workers.post('/:id/like', requireAuth, requireRole('business'), async (c) => {
     }),
   );
 
-  // Create swipe
-  const swipeId = generateId();
-  await db
-    .prepare(
-      `INSERT INTO swipes (id, swiper_id, target_id, target_type, direction, created_at)
-       VALUES (?, ?, ?, 'worker', 'like', ?)`
-    )
-    .bind(swipeId, user.id, targetId, now)
-    .run();
+  // Γράφουμε το ενδιαφέρον: είτε νέα εγγραφή, είτε αναβάθμιση της παλιάς
+  // προσπέρασης. Κρατάμε ΜΙΑ γραμμή ανά ζευγάρι, ώστε να μη διπλασιάζονται.
+  let swipeId: string;
+  if (upgradingFromSkip && existingSwipe) {
+    swipeId = existingSwipe.id;
+    await db
+      .prepare("UPDATE swipes SET direction = 'like', created_at = ? WHERE id = ?")
+      .bind(now, swipeId)
+      .run();
+  } else {
+    swipeId = generateId();
+    await db
+      .prepare(
+        `INSERT INTO swipes (id, swiper_id, target_id, target_type, direction, created_at)
+         VALUES (?, ?, ?, 'worker', 'like', ?)`
+      )
+      .bind(swipeId, user.id, targetId, now)
+      .run();
+  }
 
   // Check for mutual match: the worker has already liked a job posted by this
   // business. Workers swipe jobs (target_type='job'), never the business

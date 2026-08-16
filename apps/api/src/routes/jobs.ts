@@ -1056,16 +1056,18 @@ jobs.post('/:id/like', requireAuth, requireRole('worker'), async (c) => {
     return error(c, 'Η βάρδια έχει ήδη ξεκινήσει', 410);
   }
 
-  // Check duplicate swipe
+  // Ίδιος κανόνας με εργαζόμενους/επιχειρήσεις: μπλοκάρει ΜΟΝΟ προηγούμενο
+  // «ενδιαφέρον». Μια αγγελία που προσπέρασες χθες πρέπει να μπορείς να την
+  // ξαναδιαλέξεις σήμερα — αλλιώς μια λάθος κίνηση χάνει τη δουλειά για πάντα.
   const existingSwipe = await db
     .prepare(
-      "SELECT id FROM swipes WHERE swiper_id = ? AND target_id = ? AND target_type = 'job'"
+      "SELECT id, direction FROM swipes WHERE swiper_id = ? AND target_id = ? AND target_type = 'job'"
     )
     .bind(user.id, jobId)
-    .first();
+    .first<{ id: string; direction: string }>();
 
-  if (existingSwipe) {
-    return error(c, 'Έχετε ήδη κάνει swipe σε αυτή την αγγελία', 409);
+  if (existingSwipe?.direction === 'like') {
+    return error(c, 'Έχετε ήδη δηλώσει ενδιαφέρον για αυτή την αγγελία', 409);
   }
 
   // Get business user_id from business_profile (early - needed for both notification + match check)
@@ -1108,14 +1110,21 @@ jobs.post('/:id/like', requireAuth, requireRole('worker'), async (c) => {
     }),
   );
 
-  // Create swipe
-  await db
-    .prepare(
-      `INSERT INTO swipes (id, swiper_id, target_id, target_type, direction, created_at)
-       VALUES (?, ?, ?, 'job', 'like', ?)`
-    )
-    .bind(generateId(), user.id, jobId, now)
-    .run();
+  // Νέο ενδιαφέρον ή αναβάθμιση παλιάς προσπέρασης — μία γραμμή ανά ζευγάρι.
+  if (existingSwipe) {
+    await db
+      .prepare("UPDATE swipes SET direction = 'like', created_at = ? WHERE id = ?")
+      .bind(now, existingSwipe.id)
+      .run();
+  } else {
+    await db
+      .prepare(
+        `INSERT INTO swipes (id, swiper_id, target_id, target_type, direction, created_at)
+         VALUES (?, ?, ?, 'job', 'like', ?)`
+      )
+      .bind(generateId(), user.id, jobId, now)
+      .run();
+  }
 
   // Get business user_id from business_profile
   const bizProfile = await db

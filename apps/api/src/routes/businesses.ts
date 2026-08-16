@@ -453,27 +453,38 @@ businesses.post('/:id/like', requireAuth, requireRole('worker'), checkSwipeLimit
     return error(c, 'Η επιχείρηση δεν βρέθηκε', 404);
   }
 
-  // Check duplicate
+  // Ίδιος κανόνας με τους εργαζόμενους: ΜΟΝΟ ένα προηγούμενο «ενδιαφέρον»
+  // μπλοκάρει. Μια παλιά προσπέραση δεν πρέπει να κλειδώνει τον χρήστη για
+  // πάντα — αλλάζει γνώμη ή πατάει λάθος, και είναι φυσιολογικό.
   const existingSwipe = await db
     .prepare(
-      "SELECT id FROM swipes WHERE swiper_id = ? AND target_id = ? AND target_type = 'business'"
+      "SELECT id, direction FROM swipes WHERE swiper_id = ? AND target_id = ? AND target_type = 'business'"
     )
     .bind(user.id, targetId)
-    .first();
+    .first<{ id: string; direction: string }>();
 
-  if (existingSwipe) {
-    return error(c, 'Έχετε ήδη κάνει swipe σε αυτή την επιχείρηση', 409);
+  if (existingSwipe?.direction === 'like') {
+    return error(c, 'Έχετε ήδη δηλώσει ενδιαφέρον για αυτή την επιχείρηση', 409);
   }
 
-  // Create swipe
-  const swipeId = generateId();
-  await db
-    .prepare(
-      `INSERT INTO swipes (id, swiper_id, target_id, target_type, direction, created_at)
-       VALUES (?, ?, ?, 'business', 'like', ?)`
-    )
-    .bind(swipeId, user.id, targetId, now)
-    .run();
+  // Νέο ενδιαφέρον ή αναβάθμιση παλιάς προσπέρασης — μία γραμμή ανά ζευγάρι.
+  let swipeId: string;
+  if (existingSwipe) {
+    swipeId = existingSwipe.id;
+    await db
+      .prepare("UPDATE swipes SET direction = 'like', created_at = ? WHERE id = ?")
+      .bind(now, swipeId)
+      .run();
+  } else {
+    swipeId = generateId();
+    await db
+      .prepare(
+        `INSERT INTO swipes (id, swiper_id, target_id, target_type, direction, created_at)
+         VALUES (?, ?, ?, 'business', 'like', ?)`
+      )
+      .bind(swipeId, user.id, targetId, now)
+      .run();
+  }
 
   // Notify the business about the incoming interest (in-app + off-site). This
   // event previously produced NO notification at all on a one-way like.
