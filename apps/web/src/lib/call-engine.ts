@@ -566,15 +566,21 @@ export class CallEngine {
     } catch (e: any) {
       const busy = e?.status === 409;
       this.finish(busy ? 'busy' : 'failed', false);
+      // ΛΕΜΕ ΤΗΝ ΑΙΤΙΑ. Σκέτο «δεν μπόρεσε» δεν βοηθάει κανέναν: ούτε τον χρήστη
+      // να καταλάβει αν φταίει το δίκτυό του, ούτε εμάς να το διορθώσουμε. Ό,τι
+      // ξέρουμε (κωδικός ή μήνυμα του server) μπαίνει σε παρένθεση.
+      const why = e?.status ? `κωδικός ${e.status}` : e?.message ? String(e.message).slice(0, 60) : 'χωρίς απάντηση';
       return {
         ok: false,
-        message: busy ? 'Ο άλλος μιλάει ήδη σε άλλη κλήση.' : 'Δεν μπόρεσε να ξεκινήσει η κλήση.',
+        message: busy
+          ? 'Ο άλλος μιλάει ήδη σε άλλη κλήση.'
+          : `Δεν μπόρεσε να ξεκινήσει η κλήση (${why}).`,
       };
     }
 
     if (!this.callId) {
       this.finish('failed', false);
-      return { ok: false, message: 'Δεν μπόρεσε να ξεκινήσει η κλήση.' };
+      return { ok: false, message: 'Δεν μπόρεσε να ξεκινήσει η κλήση (ο server δεν έδωσε κωδικό).' };
     }
 
     this.setStatus('calling');

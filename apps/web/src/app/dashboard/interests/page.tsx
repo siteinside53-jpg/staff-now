@@ -34,6 +34,16 @@ export default function InterestsPage() {
 
   const isWorker = user?.role === 'worker';
 
+  /*
+    ΜΟΝΟ ΟΣΑ ΠΕΡΙΜΕΝΟΥΝ ΑΠΑΝΤΗΣΗ.
+
+    Η λίστα έδειχνε και όσους έχουν ΗΔΗ γίνει match. Ο μετρητής όμως στην αρχική
+    μετράει μόνο τα αναπάντητα — οπότε ο χρήστης έβλεπε «Αιτήματα 0» και από
+    κάτω μια επιχείρηση, και δικαίως δεν καταλάβαινε τι κοιτάει. Όσοι έχουν
+    γίνει match ζουν ήδη στα Matches και στα Μηνύματα· εδώ δεν έχουν λόγο.
+  */
+  const pending = interests.filter((i: any) => !(i.is_matched > 0 || i.liked_back));
+
   useEffect(() => {
     async function load() {
       try {
@@ -85,16 +95,16 @@ export default function InterestsPage() {
         )}
       </div>
 
-      {interests.length === 0 ? (
+      {pending.length === 0 ? (
         <EmptyState
-          title="Κανένας δεν ενδιαφέρθηκε ακόμα"
+          title="Κανένα αίτημα σε αναμονή"
           description={isWorker
-            ? 'Συμπλήρωσε το προφίλ σου για να σε βρουν οι επιχειρήσεις!'
-            : 'Δημοσίευσε αγγελίες για να προσελκύσεις εργαζομένους!'}
+            ? 'Εδώ εμφανίζονται όσοι σε διάλεξαν και περιμένουν απάντηση.'
+            : 'Εδώ εμφανίζονται όσοι σε διάλεξαν και περιμένουν απάντηση.'}
         />
       ) : (
         <div className="space-y-4">
-          {interests.map((item: any) => {
+          {pending.map((item: any) => {
             const isMatched = item.is_matched > 0 || item.liked_back;
 
             if (isWorker) {

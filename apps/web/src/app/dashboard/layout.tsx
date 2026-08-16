@@ -236,11 +236,23 @@ export default function DashboardLayout({
                       </div>
                     )}
                     {notifications.filter((n: any) => !n.read_at).length === 0 ? (
+                      /*
+                        ΜΗΝ ΛΕΣ «δεν υπάρχουν ειδοποιήσεις» ΟΤΑΝ ΥΠΑΡΧΟΥΝ.
+
+                        Το κόκκινο σημαδάκι δείχνει `notifUnread || totalNotifs`,
+                        δηλαδή πέφτει πίσω στα αδιάβαστα μηνύματα και ενδιαφέροντα.
+                        Με ένα αδιάβαστο μήνυμα και κανένα καταγεγραμμένο νέο, ο
+                        χρήστης έβλεπε «1» πάνω και «Δεν υπάρχουν ειδοποιήσεις»
+                        μέσα — αντιφατικό, και τον έκανε να νομίζει ότι χάλασε.
+                        Τα σχετικά κουμπάκια από πάνω λένε ήδη τι εκκρεμεί.
+                      */
+                      badges.messages > 0 || badges.interests > 0 ? null : (
                       <div className="px-4 py-8 text-center">
                         <p className="text-3xl mb-2">🔔</p>
                         <p className="text-sm font-medium text-gray-500">Δεν υπάρχουν ειδοποιήσεις</p>
                         <p className="text-xs text-gray-400 mt-1">Θα σε ενημερώσουμε για matches, μηνύματα και ενδιαφέρον</p>
                       </div>
+                      )
                     ) : (
                       notifications.filter((n: any) => !n.read_at).map((n: any) => {
                         const icons: Record<string, string> = { new_match: '🎉', new_message: '💬', match: '🤝', interest: '❤️', new_like: '❤️', system: '⚡', reminder: '🔔', boost: '🚀' };
