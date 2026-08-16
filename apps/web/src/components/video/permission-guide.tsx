@@ -108,6 +108,15 @@ export function PermissionGuide({
           </p>
         )}
 
+        {/* Όταν τα βήματα δεν φτάνουν: σελίδα που λέει ΤΙ ακριβώς απαντά η
+            συσκευή, αντί να μαντεύουμε από περιγραφές. */}
+        <a
+          href="/elegxos-kameras"
+          className="mt-4 block text-center text-xs font-semibold text-blue-600 underline"
+        >
+          Δεν δουλεύει; Κάνε έλεγχο συσκευής
+        </a>
+
         <div className="mt-5 flex gap-3">
           <button
             type="button"
