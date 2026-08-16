@@ -535,6 +535,42 @@ export default function DiscoverPage() {
     }
   };
 
+  /*
+    ΕΝΕΡΓΕΙΑ ΑΠΟ ΑΝΟΙΧΤΟ ΠΡΟΦΙΛ — πάντα στο άτομο που ΒΛΕΠΕΙ ο χρήστης.
+
+    Το σφάλμα που διορθώνει: το πάνελ του προφίλ έστελνε σωστά το id αυτού που
+    έδειχνε, αλλά εδώ το πετούσαμε και καλούσαμε handleAction(), που ενεργεί
+    στην ΤΡΕΧΟΥΣΑ ΚΑΡΤΑ της στοίβας. Άνοιγες από τη λίστα το προφίλ της Ερμιόνης,
+    πατούσες «Ενδιαφέρομαι», και το αίτημα καταχωρούνταν στη Δέσποινα — σε όποιον
+    τύχαινε να είναι πάνω-πάνω. Λάθος άνθρωπος, χωρίς καμία ένδειξη.
+  */
+  const actOnProfileId = async (id: string, action: 'like' | 'skip') => {
+    const target = candidates.find((x) => x.id === id);
+    if (target) {
+      await listAction(target, action);
+      return;
+    }
+    // Δεν είναι στη στοίβα (π.χ. άνοιξε από τα αποθηκευμένα): ενεργούμε
+    // απευθείας με το id που μας έδωσε το πάνελ, ποτέ με τον δείκτη.
+    if (actionLoading) return;
+    setActionLoading(true);
+    try {
+      if (action === 'like') {
+        const res = (isWorker ? await api.jobs.like(id) : await api.workers.like(id)) as any;
+        toast.success(
+          res?.data?.matched
+            ? '🎉 Match! Μπορείτε τώρα να ξεκινήσετε συνομιλία!'
+            : '❤️ Ενδιαφέρον καταχωρήθηκε!',
+        );
+      }
+    } catch (err: any) {
+      if (err?.status === 409 || err?.code === 'CONFLICT') toast.info('Έχεις ήδη δείξει ενδιαφέρον.');
+      else toast.error(err?.message || 'Κάτι πήγε στραβά. Δοκίμασε ξανά.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleAction = async (action: 'like' | 'skip') => {
     if (!currentCandidate || actionLoading) return;
     setActionLoading(true);
@@ -1547,8 +1583,8 @@ export default function DiscoverPage() {
         <WorkerProfilePanel
           workerId={viewingProfileId}
           onClose={() => setViewingProfileId(null)}
-          onLike={(id) => handleAction('like')}
-          onSkip={(id) => handleAction('skip')}
+          onLike={(id) => actOnProfileId(id, 'like')}
+          onSkip={(id) => actOnProfileId(id, 'skip')}
         />
       )}
 
@@ -1556,8 +1592,17 @@ export default function DiscoverPage() {
         <BusinessProfilePanel
           businessUserId={viewingBusinessId}
           onClose={() => setViewingBusinessId(null)}
-          onLike={() => handleAction('like')}
-          onSkip={() => handleAction('skip')}
+          onLike={() => {
+            // Βρες την υποψηφιότητα ΑΥΤΗΣ της επιχείρησης, όχι της τρέχουσας κάρτας.
+            const c = candidates.find((x) => x.businessUserId === viewingBusinessId);
+            if (c) void listAction(c, 'like');
+            else void handleAction('like');
+          }}
+          onSkip={() => {
+            const c = candidates.find((x) => x.businessUserId === viewingBusinessId);
+            if (c) void listAction(c, 'skip');
+            else void handleAction('skip');
+          }}
         />
       )}
 
