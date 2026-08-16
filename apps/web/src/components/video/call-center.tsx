@@ -17,6 +17,7 @@ import {
   type CallEndReason,
   type CallStatus,
   type MediaFailure,
+  type PermSnapshot,
 } from '@/lib/call-engine';
 import { PermissionGuide } from './permission-guide';
 import { Ringtone } from '@/lib/ringtone';
@@ -80,7 +81,7 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
   const [notice, setNotice] = useState<string | null>(null);
   /** Όταν φταίει η άδεια κάμερας, δείχνουμε οδηγό με βήματα αντί για μήνυμα. */
   const [permissionIssue, setPermissionIssue] = useState<
-    { failure: MediaFailure; blocked?: BlockedDevice; reason?: string } | null
+    { failure: MediaFailure; blocked?: BlockedDevice; reason?: string; perms?: PermSnapshot } | null
   >(null);
 
   const engineRef = useRef<CallEngine | null>(null);
@@ -161,7 +162,12 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
       void engine.call(conversationId).then((res) => {
         if (res.ok) return;
         if (res.mediaFailure)
-          setPermissionIssue({ failure: res.mediaFailure, blocked: res.blocked, reason: res.reason });
+          setPermissionIssue({
+            failure: res.mediaFailure,
+            blocked: res.blocked,
+            reason: res.reason,
+            perms: res.perms,
+          });
         else if (res.message) setNotice(res.message);
       });
     },
@@ -183,7 +189,12 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
     void engine.accept(call.id).then((res) => {
       if (res.ok) return;
       if (res.mediaFailure)
-        setPermissionIssue({ failure: res.mediaFailure, blocked: res.blocked, reason: res.reason });
+        setPermissionIssue({
+            failure: res.mediaFailure,
+            blocked: res.blocked,
+            reason: res.reason,
+            perms: res.perms,
+          });
       else if (res.message) setNotice(res.message);
     });
   }, [incoming, buildEngine, stopRinging]);
@@ -352,6 +363,7 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
           failure={permissionIssue.failure}
           blocked={permissionIssue.blocked}
           reason={permissionIssue.reason}
+          perms={permissionIssue.perms}
           onClose={() => setPermissionIssue(null)}
           onGranted={() => {
             setPermissionIssue(null);

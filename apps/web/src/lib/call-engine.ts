@@ -45,6 +45,55 @@ export interface MediaOutcome {
   audioOnly?: boolean;
   /** Η ωμή ονομασία σφάλματος του browser — για να μη μαντεύουμε. */
   reason?: string;
+  /** Τι λέει ο browser για τις άδειες του site (όπου το υποστηρίζει). */
+  perms?: PermSnapshot;
+}
+
+/**
+ * Τι λέει ο ΙΔΙΟΣ ο browser για τις άδειες του site.
+ *
+ * Είναι το κλειδί για να ξεχωρίσουμε δύο εντελώς διαφορετικά προβλήματα που
+ * μοιάζουν ίδια από μέσα:
+ *
+ *   • «denied» → ο χρήστης έχει μπλοκάρει το site. Λύνεται από τις ρυθμίσεις
+ *     του ιστότοπου, μέσα στον browser.
+ *   • «granted» ή «prompt» ΑΛΛΑ η κάμερα αρνείται → το site είναι εντάξει· την
+ *     άδεια δεν την έχει Ο ΙΔΙΟΣ Ο BROWSER από το λειτουργικό. Στο Android αυτό
+ *     είναι πολύ συχνό: Chrome χωρίς άδεια κάμερας στις ρυθμίσεις του
+ *     τηλεφώνου. Όσο κι αν πατάει ο χρήστης μέσα στη σελίδα, δεν αλλάζει τίποτα.
+ *
+ * Δεν το υποστηρίζουν όλοι οι browsers (το Safari για χρόνια δεν το είχε), γι'
+ * αυτό όλα είναι προαιρετικά.
+ */
+export type PermState = 'granted' | 'denied' | 'prompt' | 'unknown';
+
+export interface PermSnapshot {
+  camera: PermState;
+  microphone: PermState;
+}
+
+export async function permissionSnapshot(): Promise<PermSnapshot> {
+  const q = async (name: string): Promise<PermState> => {
+    try {
+      const anyPerms = navigator.permissions as unknown as {
+        query?: (d: { name: string }) => Promise<{ state: PermState }>;
+      };
+      if (!anyPerms?.query) return 'unknown';
+      const res = await anyPerms.query({ name });
+      return res.state;
+    } catch {
+      return 'unknown';
+    }
+  };
+  const [camera, microphone] = await Promise.all([q('camera'), q('microphone')]);
+  return { camera, microphone };
+}
+
+/** Το site έχει άδεια, αλλά η συσκευή αρνείται → φταίει το λειτουργικό. */
+export function blockedByOS(snap?: PermSnapshot): boolean {
+  if (!snap) return false;
+  const siteIsFine = (s: PermState) => s === 'granted' || s === 'prompt';
+  return siteIsFine(snap.camera) && siteIsFine(snap.microphone);
 }
 
 /**
@@ -100,11 +149,15 @@ export async function acquireMedia(): Promise<MediaOutcome> {
 
   const denied = (n: string) => n === 'NotAllowedError' || n === 'SecurityError';
   if (denied(mic.name) || denied(both.name)) {
+    // Ρωτάμε τον browser τι λέει ο ΙΔΙΟΣ για το site. Αν λέει ότι όλα είναι
+    // εντάξει, τότε το φράγμα δεν είναι εδώ — είναι στο λειτουργικό.
+    const perms = await permissionSnapshot();
     return {
       stream: null,
       failure: 'denied',
       blocked: cam.stream ? 'mic' : 'both',
       reason: mic.name || both.name,
+      perms,
     };
   }
   if (mic.name === 'NotFoundError') {
@@ -129,6 +182,7 @@ export async function requestMediaAccess(): Promise<{
   failure?: MediaFailure;
   blocked?: BlockedDevice;
   reason?: string;
+  perms?: PermSnapshot;
 }> {
   const res = await acquireMedia();
   // Εδώ μας ενδιαφέρει μόνο η απάντηση, όχι η ροή — την κλείνουμε αμέσως.
@@ -136,13 +190,20 @@ export async function requestMediaAccess(): Promise<{
   // Με μικρόφωνο και χωρίς κάμερα η κλήση ΓΙΝΕΤΑΙ, μόνο με φωνή. Δεν το λέμε
   // αποτυχία — θα ήταν ψέμα και θα εμπόδιζε τον χρήστη χωρίς λόγο.
   if (res.stream) return { ok: true, blocked: res.blocked };
-  return { ok: false, failure: res.failure, blocked: res.blocked, reason: res.reason };
+  return {
+    ok: false,
+    failure: res.failure,
+    blocked: res.blocked,
+    reason: res.reason,
+    perms: res.perms,
+  };
 }
 
 /** Τα βήματα που πρέπει να πατήσει ο χρήστης, ένα-ένα. */
 export function mediaFailureSteps(
   failure: MediaFailure,
-  blocked?: BlockedDevice
+  blocked?: BlockedDevice,
+  perms?: PermSnapshot
 ): { title: string; steps: string[] } {
   if (failure === 'unsupported') {
     return isIOS()
@@ -170,6 +231,32 @@ export function mediaFailureSteps(
     };
   }
   if (failure === 'denied') {
+    // ΠΡΩΤΑ το πιο μπερδεμένο σενάριο: ο browser λέει ότι το site έχει άδεια,
+    // κι όμως η κάμερα αρνείται. Τότε το φράγμα ΔΕΝ είναι στη σελίδα — είναι
+    // στις ρυθμίσεις του τηλεφώνου, που δεν έχουν δώσει άδεια στον ίδιο τον
+    // browser. Όσο κι αν πατάει ο χρήστης μέσα στη σελίδα, δεν αλλάζει τίποτα.
+    if (blockedByOS(perms)) {
+      return isIOS()
+        ? {
+            title: 'Το iPhone δεν δίνει κάμερα στο Safari',
+            steps: [
+              'Η ρύθμιση του site είναι εντάξει — το φράγμα είναι στο τηλέφωνο.',
+              'Άνοιξε Ρυθμίσεις → Απόρρητο και ασφάλεια → Κάμερα και βεβαιώσου ότι το Safari είναι ανοιχτό.',
+              'Το ίδιο και για το Μικρόφωνο.',
+              'Γύρνα εδώ και πάτα «Ξαναδοκίμασε».',
+            ],
+          }
+        : {
+            title: 'Το τηλέφωνο δεν δίνει κάμερα στο Chrome',
+            steps: [
+              'Η ρύθμιση του site είναι εντάξει — το φράγμα είναι στο τηλέφωνο.',
+              'Άνοιξε Ρυθμίσεις του τηλεφώνου → Εφαρμογές → Chrome → Άδειες.',
+              'Βάλε Κάμερα και Μικρόφωνο σε «Να επιτρέπεται».',
+              'Γύρνα εδώ και πάτα «Ξαναδοκίμασε».',
+            ],
+          };
+    }
+
     // ΠΟΙΟ φταίει. Στο iPhone η Κάμερα και το Μικρόφωνο είναι δύο ξεχωριστοί
     // διακόπτες: πολύ συχνά ο κόσμος ανοίγει τον έναν και νομίζει ότι τελείωσε.
     const what =
@@ -201,6 +288,9 @@ export function mediaFailureSteps(
             'Πάτα το λουκέτο δίπλα στη διεύθυνση, πάνω στην οθόνη.',
             'Διάλεξε «Άδειες» ή «Ρυθμίσεις ιστότοπου».',
             `Βάλε ${what} σε «Να επιτρέπεται». Είναι δύο ξεχωριστοί διακόπτες — χρειάζονται και οι δύο.`,
+            // Το βήμα που λείπει από κάθε οδηγό και είναι η πιο συχνή αιτία στο
+            // Android: το site έχει άδεια, αλλά ο ΙΔΙΟΣ ο Chrome δεν έχει.
+            'Αν πάλι δεν γίνεται: Ρυθμίσεις τηλεφώνου → Εφαρμογές → Chrome → Άδειες → Κάμερα και Μικρόφωνο.',
             'Γύρνα εδώ και πάτα «Ξαναδοκίμασε».',
           ],
         };
@@ -246,6 +336,8 @@ export interface CallAttempt {
   blocked?: BlockedDevice;
   /** Η ωμή ονομασία σφάλματος του browser, για διάγνωση χωρίς μαντεψιές. */
   reason?: string;
+  /** Τι λέει ο browser για τις άδειες του site. */
+  perms?: PermSnapshot;
 }
 
 export interface CallEngineEvents {
@@ -456,6 +548,7 @@ export class CallEngine {
         mediaFailure: media0.failure || 'other',
         blocked: media0.blocked,
         reason: media0.reason,
+        perms: media0.perms,
         message: mediaFailureMessage(media0.failure || 'other'),
       };
     }
@@ -514,6 +607,7 @@ export class CallEngine {
         mediaFailure: media0.failure || 'other',
         blocked: media0.blocked,
         reason: media0.reason,
+        perms: media0.perms,
         message: mediaFailureMessage(media0.failure || 'other'),
       };
     }

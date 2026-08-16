@@ -6,6 +6,7 @@ import {
   mediaFailureSteps,
   type BlockedDevice,
   type MediaFailure,
+  type PermSnapshot,
 } from '@/lib/call-engine';
 
 /**
@@ -32,6 +33,8 @@ interface PermissionGuideProps {
   blocked?: BlockedDevice;
   /** Η ωμή ονομασία σφάλματος του browser. Φαίνεται μικρή, κάτω-κάτω. */
   reason?: string;
+  /** Τι λέει ο browser για τις άδειες του site — καθορίζει ΠΟΙΑ βήματα δείχνουμε. */
+  perms?: PermSnapshot;
   /** Καλείται όταν η άδεια δόθηκε τελικά. */
   onGranted: () => void;
   onClose: () => void;
@@ -41,16 +44,18 @@ export function PermissionGuide({
   failure,
   blocked,
   reason,
+  perms,
   onGranted,
   onClose,
 }: PermissionGuideProps) {
   const [current, setCurrent] = useState<MediaFailure>(failure);
   const [currentBlocked, setCurrentBlocked] = useState<BlockedDevice | undefined>(blocked);
   const [currentReason, setCurrentReason] = useState<string | undefined>(reason);
+  const [currentPerms, setCurrentPerms] = useState<PermSnapshot | undefined>(perms);
   const [checking, setChecking] = useState(false);
   const [stillBlocked, setStillBlocked] = useState(false);
 
-  const { title, steps } = mediaFailureSteps(current, currentBlocked);
+  const { title, steps } = mediaFailureSteps(current, currentBlocked, currentPerms);
 
   const retry = async () => {
     setChecking(true);
@@ -64,6 +69,7 @@ export function PermissionGuide({
     setCurrent(res.failure || 'other');
     setCurrentBlocked(res.blocked);
     setCurrentReason(res.reason);
+    setCurrentPerms(res.perms);
     setStillBlocked(true);
   };
 
@@ -97,6 +103,8 @@ export function PermissionGuide({
         {currentReason && (
           <p className="mt-3 text-center text-[11px] text-gray-400">
             Ο browser απαντά: {currentReason}
+            {currentPerms &&
+              ` · κάμερα: ${currentPerms.camera} · μικρόφωνο: ${currentPerms.microphone}`}
           </p>
         )}
 
