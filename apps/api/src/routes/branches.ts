@@ -80,8 +80,8 @@ branches.patch('/:id', requireAuth, requireRole('business'), async (c) => {
   const branch = await db.prepare('SELECT * FROM business_branches WHERE id = ? AND user_id = ?').bind(branchId, user.id).first<any>();
   if (!branch) return error(c, 'Η επιχείρηση δεν βρέθηκε', 404);
 
-  const fields = ['name', 'business_type', 'description', 'region', 'city', 'address', 'phone', 'website', 'logo_url', 'cover_photo_url', 'staff_housing', 'meals_provided', 'transportation_assistance', 'bonus_provided', 'insurance_provided', 'no_benefits', 'google_business_url', 'operating_hours', 'legal_form', 'tax_id', 'postal_code', 'area'];
-  const boolFields = ['staff_housing', 'meals_provided', 'transportation_assistance', 'bonus_provided', 'insurance_provided', 'no_benefits'];
+  const fields = ['name', 'business_type', 'description', 'region', 'city', 'address', 'phone', 'website', 'logo_url', 'cover_photo_url', 'staff_housing', 'meals_provided', 'transportation_assistance', 'bonus_provided', 'insurance_provided', 'no_benefits', 'google_business_url', 'operating_hours', 'legal_form', 'tax_id', 'postal_code', 'area', 'show_on_homepage'];
+  const boolFields = ['staff_housing', 'meals_provided', 'transportation_assistance', 'bonus_provided', 'insurance_provided', 'no_benefits', 'show_on_homepage'];
   const updates: string[] = [];
   const values: any[] = [];
 

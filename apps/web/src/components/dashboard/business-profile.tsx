@@ -437,6 +437,28 @@ export function BusinessProfile({ user, profile, refreshUser }: { user: any; pro
             </label>
             <div><p className="text-sm font-medium text-gray-700">Λογότυπο</p><p className="text-xs text-gray-400">JPG, PNG, WebP</p></div>
           </div>
+
+          {/* Άδεια προβολής.
+              Το λογότυπο ανέβηκε για την αγγελία της επιχείρησης. Το να μπει το
+              ίδιο λογότυπο και στη διαφήμιση της πλατφόρμας είναι ΑΛΛΗ χρήση,
+              οπότε τη ρωτάμε ξεχωριστά. Ξεκινάει τσεκαρισμένο. */}
+          <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 hover:border-blue-300">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 flex-shrink-0 rounded border-gray-300 text-blue-600"
+              checked={(editingBranch as any).show_on_homepage !== 0}
+              onChange={(e) => bc('show_on_homepage' as any, e.target.checked ? 1 : 0)}
+            />
+            <span>
+              <span className="block text-sm font-medium text-gray-700">
+                Να προβάλλεται το λογότυπό μου στην αρχική σελίδα
+              </span>
+              <span className="mt-0.5 block text-xs text-gray-500">
+                Δείχνουμε ότι η επιχείρησή σου βρίσκει προσωπικό μέσω StaffNow.
+                Μπορείς να το κλείσεις όποτε θέλεις.
+              </span>
+            </span>
+          </label>
         </CardContent></Card>
 
         {/* Details */}
