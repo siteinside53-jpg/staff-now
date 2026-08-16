@@ -64,6 +64,14 @@ export interface Env {
   TWILIO_AUTH_TOKEN?: string;
   /** Όνομα αποστολέα, π.χ. "StaffNow". Στην Ελλάδα δεν χρειάζεται δήλωση. */
   TWILIO_SMS_FROM?: string;
+  /**
+   * Ο αναμεταδότης (TURN) των βιντεοκλήσεων, μέσω Cloudflare. Προαιρετικά:
+   * όσο λείπουν, οι κλήσεις δουλεύουν με απευθείας σύνδεση — απλώς όσες
+   * χρειάζονται αναμεταδότη (κυρίως σε κινητό internet) δεν θα συνδέονται.
+   * Το TURN_KEY_SECRET μπαίνει ΜΟΝΟ με `wrangler secret put`.
+   */
+  TURN_KEY_ID?: string;
+  TURN_KEY_SECRET?: string;
 }
 
 export interface AuthUser {

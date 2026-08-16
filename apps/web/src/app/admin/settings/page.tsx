@@ -18,7 +18,7 @@ import { toast } from 'sonner';
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://staffnow-api-production.siteinside53.workers.dev';
 
 const FEATURE_FLAGS_DEFAULT = [
-  { key: 'video_call', label: 'Video calls στα μηνύματα', description: 'Ενεργοποίηση Jitsi video call button', enabled: true },
+  { key: 'video_call', label: 'Βιντεοκλήσεις στα μηνύματα', description: 'Κουμπί βιντεοκλήσης μέσα στη συνομιλία', enabled: true },
   { key: 'quick_replies', label: 'Quick reply templates', description: '1-click templates για business → worker', enabled: true },
   { key: 'ai_matching', label: 'AI-powered matching', description: 'Embedding-based match scoring στο Discover feed', enabled: false },
   { key: 'profile_boost', label: 'Premium profile boost', description: 'Paid feature για προώθηση προφίλ', enabled: true },

@@ -10,6 +10,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
 import { CreditsProvider } from '@/components/credits/credits-context';
+import { CallCenter } from '@/components/video/call-center';
 
 // ΠΡΟΣΟΧΗ στη σειρά: η κάτω μπάρα του κινητού δείχνει τα ΠΡΩΤΑ ΠΕΝΤΕ
 // (`navItems.slice(0, 5)` πιο κάτω). Οι «Προσλήψεις» και οι «Αξιολογήσεις»
@@ -184,6 +185,9 @@ export default function DashboardLayout({
 
   return (
     <CreditsProvider>
+    {/* Οι βιντεοκλήσεις ζουν ΕΞΩ από τις σελίδες: έτσι χτυπάει το τηλέφωνο
+        όπου κι αν βρίσκεται ο χρήστης, όχι μόνο μέσα στη συνομιλία. */}
+    <CallCenter enabled={!!user}>
     <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-gray-200 bg-white lg:flex">
@@ -530,6 +534,7 @@ export default function DashboardLayout({
         </div>
       </main>
     </div>
+    </CallCenter>
     </CreditsProvider>
   );
 }
