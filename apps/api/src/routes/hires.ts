@@ -27,6 +27,7 @@ import {
   PROMPT_AFTER_DAYS,
   SNOOZE_DAYS,
   pendingPromptsFor,
+  markPromptsShown,
   snoozePrompt,
 } from '../lib/hire-prompts';
 
@@ -496,6 +497,15 @@ hires.get('/prompts', requireAuth, async (c) => {
 
   const rows = await pendingPromptsFor(c.env.DB, user.id, user.role);
   const isWorker = user.role === 'worker';
+
+  // Κλειδώνουμε την ερώτηση ως «ανοιχτή». Από δω και πέρα μένει μέχρι να
+  // απαντηθεί — δεν εξαφανίζεται επειδή ξαναμίλησαν στο μεταξύ. Best-effort:
+  // αν αποτύχει, το χειρότερο είναι να ξαναϋπολογιστεί την επόμενη φορά.
+  if (rows.length) {
+    c.executionCtx.waitUntil(
+      markPromptsShown(c.env.DB, rows.map((r) => r.conversation_id)).catch(() => {}),
+    );
+  }
 
   return success(c, {
     prompts: rows.map((r) => ({

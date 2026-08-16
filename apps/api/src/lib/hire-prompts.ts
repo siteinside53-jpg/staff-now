@@ -33,6 +33,18 @@ export const WORKER_EMAIL_AFTER_DAYS = 3;
 /** Το πρόθεμα των μηνυμάτων-καρτών πρόσληψης μέσα στη συνομιλία. */
 export const HIRE_MSG_PREFIX = '🤝 Πρόσληψη:';
 
+/**
+ * Τα σημειώματα των βιντεοκλήσεων («Η βιντεοκλήση ολοκληρώθηκε», «Αναπάντητη
+ * βιντεοκλήση»). ΔΕΝ μετράνε ως συνομιλία.
+ *
+ * Γιατί: γράφονται σαν κανονικά μηνύματα, άρα μηδένιζαν το ρολόι της σιωπής και
+ * η ερώτηση «έγινε πρόσληψη;» μετατίθετο δύο μέρες. Μια ΑΝΑΠΑΝΤΗΤΗ κλήση
+ * καθυστερούσε την ερώτηση χωρίς να έχει μιλήσει κανείς — καθαρή ζημιά.
+ *
+ * Το `📹` είναι από την παλιά εποχή του Jitsi· μένει για τα ιστορικά μηνύματα.
+ */
+export const CALL_MSG_PREFIXES = ['📞%', '📹%'];
+
 export interface PromptRow {
   conversation_id: string;
   worker_id: string;
@@ -76,8 +88,28 @@ const BASE_SQL = `
  WHERE c.last_message_at IS NOT NULL
    AND c.status = 'active'
    AND m.status = 'active'
-   -- 2+ μέρες σιωπής. julianday() γιατί οι ώρες είναι σε δύο μορφές.
-   AND julianday('now') - julianday(c.last_message_at) >= ?
+   -- ΔΥΟ δρόμοι για να ρωτήσουμε:
+   --
+   --   (α) 2+ μέρες σιωπής, μετρημένες στο τελευταίο ΠΡΑΓΜΑΤΙΚΟ μήνυμα. Τα
+   --       σημειώματα κλήσεων και οι κάρτες πρόσληψης δεν είναι κουβέντα, οπότε
+   --       δεν μηδενίζουν το ρολόι.
+   --   (β) ΤΗΝ ΕΧΟΥΜΕ ΗΔΗ ΡΩΤΗΣΕΙ και δεν απάντησε ακόμη. Τότε η ερώτηση μένει
+   --       ανοιχτή ό,τι κι αν γίνει στη συνομιλία — φεύγει μόνο όταν δηλωθεί
+   --       πρόσληψη ή πατηθεί «Όχι ακόμη». Αλλιώς μια απάντηση «ναι, τα λέμε»
+   --       εξαφάνιζε την ερώτηση και δεν ξαναρχόταν ποτέ.
+   AND (
+        hp.first_shown_at IS NOT NULL
+     OR julianday('now') - julianday(
+          COALESCE(
+            (SELECT MAX(x.created_at) FROM messages x
+              WHERE x.conversation_id = c.id
+                AND x.content NOT LIKE ?
+                AND x.content NOT LIKE ?
+                AND x.content NOT LIKE ?),
+            c.last_message_at
+          )
+        ) >= ?
+   )
    -- Μίλησαν και οι δύο. Τα μηνύματα-κάρτες πρόσληψης δεν μετράνε ως συνομιλία.
    AND EXISTS (SELECT 1 FROM messages x WHERE x.conversation_id = c.id
                  AND x.sender_id = c.worker_id AND x.content NOT LIKE ?)
@@ -109,6 +141,21 @@ const SELECT_COLS = `
 `;
 
 /**
+ * Οι παράμετροι του BASE_SQL, με τη σειρά που εμφανίζονται τα «?».
+ * Σε ένα σημείο, ώστε μια αλλαγή στο SQL να μη σπάει σιωπηλά τα δύο ερωτήματα.
+ */
+function baseParams(): (string | number)[] {
+  return [
+    `${HIRE_MSG_PREFIX}%`,      // εξαίρεση από το «τελευταίο πραγματικό μήνυμα»
+    CALL_MSG_PREFIXES[0]!,
+    CALL_MSG_PREFIXES[1]!,
+    PROMPT_AFTER_DAYS,
+    `${HIRE_MSG_PREFIX}%`,      // «μίλησε ο εργαζόμενος»
+    `${HIRE_MSG_PREFIX}%`,      // «μίλησε η επιχείρηση»
+  ];
+}
+
+/**
  * Οι συνομιλίες ΕΝΟΣ χρήστη που περιμένουν απάντηση — αυτό δείχνει η οθόνη.
  *
  * Το `hidden_by` είναι JSON λίστα με ids, οπότε δεν φιλτράρεται καθαρά σε SQL·
@@ -134,7 +181,7 @@ export async function pendingPromptsFor(
        ORDER BY c.last_message_at DESC
        LIMIT 20`,
     )
-    .bind(PROMPT_AFTER_DAYS, `${HIRE_MSG_PREFIX}%`, `${HIRE_MSG_PREFIX}%`, userId, MAX_SNOOZES)
+    .bind(...baseParams(), userId, MAX_SNOOZES)
     .all<PromptRow & { hidden_by: string | null }>();
 
   return (rows.results || []).filter((r) => !hiddenFor(r.hidden_by, userId));
@@ -186,10 +233,32 @@ export async function promptsDueForEmail(
        ORDER BY c.last_message_at ASC
        LIMIT ${limit}`,
     )
-    .bind(PROMPT_AFTER_DAYS, `${HIRE_MSG_PREFIX}%`, `${HIRE_MSG_PREFIX}%`, MAX_SNOOZES)
+    .bind(...baseParams(), MAX_SNOOZES)
     .all<PromptRow>();
 
   return rows.results || [];
+}
+
+/**
+ * Σημειώνει ότι η ερώτηση «έγινε πρόσληψη;» ΑΝΟΙΞΕ για αυτές τις συνομιλίες.
+ *
+ * Από τη στιγμή που θα γραφτεί η ώρα, η ερώτηση μένει ανοιχτή μέχρι να
+ * απαντηθεί — δεν εξαφανίζεται επειδή ξαναμίλησαν στο μεταξύ. Γράφεται μία φορά
+ * (COALESCE), ώστε να μη «φρεσκάρεται» σε κάθε φόρτωση.
+ */
+export async function markPromptsShown(
+  db: D1Database,
+  conversationIds: string[],
+): Promise<void> {
+  if (!conversationIds.length) return;
+  const now = new Date().toISOString();
+  const stmt = db.prepare(
+    `INSERT INTO hire_prompts (conversation_id, first_shown_at)
+     VALUES (?, ?)
+     ON CONFLICT(conversation_id) DO UPDATE
+       SET first_shown_at = COALESCE(hire_prompts.first_shown_at, excluded.first_shown_at)`,
+  );
+  await db.batch(conversationIds.map((id) => stmt.bind(id, now)));
 }
 
 /** Δημιουργεί τη γραμμή αν λείπει, ώστε τα UPDATE από κάτω να έχουν τι να πιάσουν. */
