@@ -376,11 +376,16 @@ function MessagesInner() {
     const sorted: any[] = Array.isArray(msgs) ? [...msgs].reverse() : [];
     const newestId = sorted.filter((m: any) => !m.id?.startsWith('temp_')).pop()?.id || null;
     if (newestId && newestId !== lastKnownMsgId.current) {
+      const hadPrevious = lastKnownMsgId.current !== null;
       lastKnownMsgId.current = newestId;
       setMessages(sorted);
+      // Ήρθε κάτι νέο: ενημέρωσε ΤΩΡΑ καμπανάκι και σημαδάκια, χωρίς να
+      // περιμένουμε τον δικό τους κύκλο. Μόνο όταν όντως άλλαξε κάτι — δεν
+      // φορτώνουμε τον server σε κάθε γύρο.
+      if (hadPrevious) window.dispatchEvent(new Event('staffnow:badges-refresh'));
     }
   }, [selectedConv]);
-  usePoll(pollMessages, 5_000, !!selectedConv);
+  usePoll(pollMessages, 3_000, !!selectedConv);
 
   // Λίστα συνομιλιών: 20 δευτ. αντί για 8. Είναι μόνο η στήλη αριστερά — τα
   // μηνύματα της ανοιχτής συνομιλίας ανανεώνονται πιο πάνω κάθε 5 δευτ.
@@ -388,7 +393,7 @@ function MessagesInner() {
     const res = await api.conversations.list() as any;
     setConversations(res?.data || []);
   }, []);
-  usePoll(pollConversations, 20_000);
+  usePoll(pollConversations, 10_000);
 
   const sendMessage = async () => {
     if (!newMsg.trim() || !selectedConv) return;

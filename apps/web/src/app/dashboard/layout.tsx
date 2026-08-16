@@ -123,10 +123,13 @@ export default function DashboardLayout({
     setNotifUnread(notifRes?.unreadCount || 0);
   }, []);
 
-  // 45 δευτ. αντί για 15: είναι μόνο τα κόκκινα σημαδάκια, όχι το ίδιο το
-  // μήνυμα. Ανανεώνονται ούτως ή άλλως άμεσα με κάθε ενέργεια (event πιο κάτω)
-  // και μόλις επιστρέψεις στην καρτέλα.
-  usePoll(fetchBadges, 45_000, !!user);
+  // 20 δευτ. Ήταν 45, που σήμαινε ότι μια ειδοποίηση μπορούσε να αργήσει έως
+  // και ένα λεπτό — ο χρήστης νόμιζε ότι θέλει ανανέωση σελίδας. Δεν πάμε πιο
+  // κάτω επειδή κάθε γύρος είναι ΤΡΙΑ αιτήματα και ο server κόβει στα 120 το
+  // λεπτό ανά σύνδεση· με δύο ανοιχτές καρτέλες το όριο πλησιάζει επικίνδυνα.
+  // Την πραγματική αμεσότητα τη δίνει το event από κάτω: μόλις φτάσει μήνυμα,
+  // ανανεώνονται ΤΗΝ ΙΔΙΑ ΣΤΙΓΜΗ.
+  usePoll(fetchBadges, 20_000, !!user);
 
   useEffect(() => {
     if (!user) return;
@@ -271,16 +274,33 @@ export default function DashboardLayout({
                         const bgColors: Record<string, string> = { new_match: 'bg-emerald-100', new_message: 'bg-blue-100', match: 'bg-emerald-100', interest: 'bg-pink-100', new_like: 'bg-pink-100', system: 'bg-amber-100', reminder: 'bg-amber-100', boost: 'bg-purple-100' };
                         const icon = icons[n.type] || '🔔';
                         const bgColor = bgColors[n.type] || 'bg-gray-100';
-                        // Οι νέες ειδοποιήσεις (π.χ. πρόσληψη) κουβαλάνε τον
-                        // προορισμό τους μέσα στο data. Αν δεν έχουν, ισχύει
-                        // ό,τι ίσχυε πάντα.
-                        const dataUrl = (() => {
-                          try {
-                            const d = typeof n.data === 'string' ? JSON.parse(n.data) : n.data;
-                            return typeof d?.url === 'string' && d.url.startsWith('/') ? d.url : null;
-                          } catch { return null; }
+                        /*
+                          ΠΑΕΙ ΣΤΗΝ ΠΗΓΗ, ΟΧΙ ΣΤΗ ΓΕΝΙΚΗ ΣΕΛΙΔΑ.
+
+                          Πριν, ένα «νέο μήνυμα» σε πήγαινε στη λίστα όλων των
+                          συνομιλιών και έπρεπε να βρεις μόνος σου ποια εννοούσε.
+                          Κάθε ειδοποίηση όμως κουβαλάει ήδη μέσα της ΠΟΙΟ είναι
+                          το θέμα της (conversationId, businessId, matchId) —
+                          απλώς δεν το χρησιμοποιούσαμε.
+                        */
+                        const d = (() => {
+                          try { return typeof n.data === 'string' ? JSON.parse(n.data) : (n.data || {}); }
+                          catch { return {}; }
                         })();
-                        const link = dataUrl || (n.type === 'new_message' ? '/dashboard/messages' : n.type === 'new_match' || n.type === 'match' ? '/dashboard/matches' : n.type === 'interest' || n.type === 'new_like' ? '/dashboard/interests' : '/dashboard');
+                        const dataUrl = typeof d?.url === 'string' && d.url.startsWith('/') ? d.url : null;
+                        const link =
+                          dataUrl ||
+                          // Μήνυμα → ΑΥΤΗ η συνομιλία, ανοιχτή.
+                          (d?.conversationId ? `/dashboard/messages?c=${d.conversationId}` : null) ||
+                          // Ενδιαφέρον από επιχείρηση → η σελίδα με το αίτημά της.
+                          (d?.businessId ? `/dashboard/interests?b=${d.businessId}` : null) ||
+                          (n.type === 'new_message'
+                            ? '/dashboard/messages'
+                            : n.type === 'new_match' || n.type === 'match'
+                              ? '/dashboard/matches'
+                              : n.type === 'interest' || n.type === 'new_like'
+                                ? '/dashboard/interests'
+                                : '/dashboard');
                         const timeAgo = (() => {
                           if (!n.created_at) return '';
                           const mins = Math.floor((Date.now() - new Date(n.created_at).getTime()) / 60000);

@@ -217,8 +217,12 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
   // πραγματική περίπτωση.
   //
   // Σε δεύτερο πλάνο απλώς αραιώνουμε: 3 δευτ. μπροστά, 8 πίσω.
+  // Ορατή καρτέλα: γρήγορα, για να χτυπήσει αμέσως.
+  // Κρυφή: πολύ πιο αραιά. Ο κόσμος έχει 2-3 καρτέλες ανοιχτές· αν όλες
+  // ρωτούσαν κάθε 8 δευτ., μόνο αυτό θα έτρωγε το μισό όριο του server. Την
+  // κρυφή καρτέλα την καλύπτει ούτως ή άλλως η ειδοποίηση push.
   const POLL_VISIBLE_MS = 3000;
-  const POLL_HIDDEN_MS = 8000;
+  const POLL_HIDDEN_MS = 20000;
 
   const checkPending = useCallback(async () => {
     if (engineRef.current) return;

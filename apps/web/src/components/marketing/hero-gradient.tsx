@@ -1,6 +1,7 @@
 'use client';
 
 import { type ReactNode } from 'react';
+import { HeroPeople } from './hero-people';
 
 /**
  * HeroGradient — premium animated dark background.
@@ -39,6 +40,11 @@ export function HeroGradient({ children }: { children: ReactNode }) {
           backgroundSize: '60px 60px',
         }}
       />
+
+      {/* Το πλήθος που αχνοφαίνεται. Μπαίνει ΠΡΙΝ το σκούρο πέπλο από κάτω,
+          ώστε το πέπλο να περνάει από πάνω του και το κείμενο να μη χάνει
+          ποτέ αντίθεση. */}
+      <HeroPeople />
 
       {/* Top fade for text contrast */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/30" />

@@ -74,11 +74,22 @@ export function CallWindow({
     <div className="fixed inset-0 z-[60] flex flex-col bg-gray-950">
       {/* Η εικόνα του άλλου γεμίζει την οθόνη */}
       <div className="relative flex-1 overflow-hidden">
+        {/*
+          object-CONTAIN, όχι cover.
+
+          Με «cover» η εικόνα μεγεθύνεται μέχρι να γεμίσει την οθόνη και ό,τι
+          περισσεύει κόβεται. Όταν ο άλλος καλεί από κινητό (όρθιο κάδρο) και
+          εμείς βλέπουμε σε υπολογιστή (φαρδιά οθόνη), κοβόταν σχεδόν όλο: έμενε
+          ένα ζουμαρισμένο κομμάτι προσώπου.
+
+          Με «contain» φαίνεται ΟΛΟ το κάδρο του κινητού, με μαύρο δεξιά κι
+          αριστερά — όπως κάνει κάθε εφαρμογή βιντεοκλήσης.
+        */}
         <video
           ref={remoteRef}
           autoPlay
           playsInline
-          className={`h-full w-full object-cover ${waiting ? 'opacity-0' : 'opacity-100'}`}
+          className={`h-full w-full object-contain ${waiting ? 'opacity-0' : 'opacity-100'}`}
         />
 
         {/* Όσο δεν έχει έρθει εικόνα, δείχνουμε ποιον καλούμε και τι γίνεται */}

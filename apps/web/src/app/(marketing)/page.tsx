@@ -91,7 +91,14 @@ export default function HomePage() {
                 </Link>
               </div>
 
-              <div className="mt-10">
+              {/* ΚΙΝΗΤΟ: η ζωντανή ροή με ΠΡΑΓΜΑΤΙΚΕΣ αγγελίες. Μέχρι τώρα η κάρτα
+                  ήταν μόνο για υπολογιστή, οπότε στο κινητό — από όπου έρχονται
+                  τα περισσότερα μάτια — η πρώτη οθόνη δεν έδειχνε τίποτα ζωντανό. */}
+              <div className="mt-8 lg:hidden">
+                <LiveWorkersHeroCard compact />
+              </div>
+
+              <div className="mt-8 lg:mt-10">
                 <LiveCounters />
               </div>
             </div>

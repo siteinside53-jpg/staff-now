@@ -127,7 +127,15 @@ const DEV_DEMO_JOBS: Job[] =
 
 /* ── Component ─────────────────────────────────── */
 
-export function LiveWorkersHeroCard() {
+/**
+ * `compact`: η ίδια κάρτα, μικρότερη, για το ΚΙΝΗΤΟ.
+ *
+ * Μέχρι τώρα η κάρτα ήταν `hidden lg:block` — δηλαδή στο κινητό δεν υπήρχε
+ * ΤΙΠΟΤΑ ζωντανό στην πρώτη οθόνη, μόνο τίτλος και δύο κουμπιά. Κι όμως τα
+ * περισσότερα μάτια έρχονται από κινητό. Εδώ δείχνουμε λιγότερες γραμμές, ώστε
+ * να μη σπρώχνει κάτω τα κουμπιά.
+ */
+export function LiveWorkersHeroCard({ compact = false }: { compact?: boolean } = {}) {
   const [tab, setTab] = useState<'workers' | 'jobs'>('workers');
   // Production: ξεκινά άδειο, γεμίζει μόνο με πραγματικά δεδομένα.
   // Dev: ξεκινά με demo ώστε το localhost να δείχνει το live card όπως το staffnow.gr.
@@ -243,7 +251,11 @@ export function LiveWorkersHeroCard() {
   }, [tab, allWorkers, allJobs]);
 
   return (
-    <div className="rounded-2xl border border-gray-800 bg-gray-900/80 backdrop-blur p-6 shadow-2xl">
+    <div
+      className={`rounded-2xl border border-gray-800 bg-gray-900/80 backdrop-blur shadow-2xl ${
+        compact ? 'p-4' : 'p-6'
+      }`}
+    >
       {/* Tabs */}
       <div className="flex items-center gap-1 rounded-xl bg-gray-800/50 p-1 mb-4">
         <button
@@ -278,7 +290,7 @@ export function LiveWorkersHeroCard() {
       {/* Workers list */}
       {tab === 'workers' && (
         <div className="space-y-2.5">
-          {displayedWorkers.map((w) => {
+          {(compact ? displayedWorkers.slice(0, 3) : displayedWorkers).map((w) => {
             const isNew = newWorkerIds.has(w.id);
             return (
               <div
@@ -327,7 +339,7 @@ export function LiveWorkersHeroCard() {
       {/* Jobs list */}
       {tab === 'jobs' && (
         <div className="space-y-2.5">
-          {displayedJobs.map((j) => {
+          {(compact ? displayedJobs.slice(0, 3) : displayedJobs).map((j) => {
             const isNew = newJobIds.has(j.id);
             return (
               <div
