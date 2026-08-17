@@ -185,7 +185,7 @@ export default function MatchesPage() {
         <div className="flex min-w-0 flex-1 rounded-full bg-gray-100 p-1">
           {[
             { key: 'active' as const, icon: '✨', label: 'Matches', count: activeCount },
-            { key: 'requests' as const, icon: '📩', label: 'Αιτήματα', count: pendingRequests.length },
+            { key: 'requests' as const, icon: '👋', label: 'Αιτήματα', count: pendingRequests.length },
             ...(tab === 'archived' ? [{ key: 'archived' as const, icon: '📦', label: 'Αρχείο', count: archivedCount }] : []),
             ...(tab === 'blocked' ? [{ key: 'blocked' as const, icon: '🚫', label: 'Blocked', count: blockedCount }] : []),
           ].map((t) => (

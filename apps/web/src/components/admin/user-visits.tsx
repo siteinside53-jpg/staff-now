@@ -299,7 +299,7 @@ const ICONS: Record<string, string> = {
   login: '🔓',
   logout: '🚪',
   register: '🆕',
-  swipe_like: '📩',
+  swipe_like: '👋',
   swipe_skip: '➡️',
   match: '🎯',
   message_send: '💬',

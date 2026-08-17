@@ -284,7 +284,7 @@ export default function DashboardLayout({
                         )}
                         {badges.interests > 0 && (
                           <Link href="/dashboard/interests" onClick={() => setNotifOpen(false)} className="flex items-center gap-1.5 rounded-full bg-pink-100 px-3 py-1 text-xs font-medium text-pink-700 hover:bg-pink-200">
-                            📩 {badges.interests} ενδιαφέρον
+                            👋 {badges.interests} ενδιαφέρον
                           </Link>
                         )}
                       </div>
@@ -309,7 +309,7 @@ export default function DashboardLayout({
                       )
                     ) : (
                       notifications.filter((n: any) => !n.read_at).map((n: any) => {
-                        const icons: Record<string, string> = { new_match: '🎉', new_message: '💬', match: '🤝', interest: '📩', new_like: '📩', system: '⚡', reminder: '🔔', boost: '🚀' };
+                        const icons: Record<string, string> = { new_match: '🎉', new_message: '💬', match: '🤝', interest: '👋', new_like: '👋', system: '⚡', reminder: '🔔', boost: '🚀' };
                         const bgColors: Record<string, string> = { new_match: 'bg-emerald-100', new_message: 'bg-blue-100', match: 'bg-emerald-100', interest: 'bg-pink-100', new_like: 'bg-pink-100', system: 'bg-amber-100', reminder: 'bg-amber-100', boost: 'bg-purple-100' };
                         const icon = icons[n.type] || '🔔';
                         const bgColor = bgColors[n.type] || 'bg-gray-100';
@@ -476,7 +476,7 @@ export default function DashboardLayout({
                         )}
                         {badges.interests > 0 && (
                           <Link href="/dashboard/interests" onClick={() => setNotifOpen(false)} className="flex items-center gap-1.5 rounded-full bg-pink-100 px-3 py-1 text-xs font-medium text-pink-700 hover:bg-pink-200">
-                            📩 {badges.interests} ενδιαφέρον
+                            👋 {badges.interests} ενδιαφέρον
                           </Link>
                         )}
                       </div>
@@ -490,7 +490,7 @@ export default function DashboardLayout({
                       </div>
                     ) : (
                       notifications.filter((n: any) => !n.read_at).map((n: any) => {
-                        const icons: Record<string, string> = { new_match: '🎉', new_message: '💬', match: '🤝', interest: '📩', new_like: '📩', system: '⚡', reminder: '🔔', boost: '🚀' };
+                        const icons: Record<string, string> = { new_match: '🎉', new_message: '💬', match: '🤝', interest: '👋', new_like: '👋', system: '⚡', reminder: '🔔', boost: '🚀' };
                         const bgColors: Record<string, string> = { new_match: 'bg-emerald-100', new_message: 'bg-blue-100', match: 'bg-emerald-100', interest: 'bg-pink-100', new_like: 'bg-pink-100', system: 'bg-amber-100', reminder: 'bg-amber-100', boost: 'bg-purple-100' };
                         const icon = icons[n.type] || '🔔';
                         const bgColor = bgColors[n.type] || 'bg-gray-100';
@@ -566,7 +566,7 @@ export default function DashboardLayout({
           const shortLabels: Record<string, string> = {
             'Αρχική': 'Αρχική',
             'Ανακάλυψη': 'Εύρεση',
-            'Ενδιαφέρον': '📩',
+            'Ενδιαφέρον': '👋',
             'Matches': 'Match',
             'Μηνύματα': 'Chat',
             'Αγγελίες': 'Αγγελ.',
@@ -670,16 +670,19 @@ function SettingsIcon({ className }: { className?: string }) {
 }
 
 /**
- * «Ενδιαφέρον» — φάκελος εισερχομένων, ΟΧΙ καρδιά.
+ * «Ενδιαφέρον» — σηκωμένο χέρι, ΟΧΙ καρδιά και ΟΧΙ φάκελος.
  *
- * Το StaffNow είναι επαγγελματική πλατφόρμα. Η καρδιά διαβάζεται σαν
- * ερωτικό ενδιαφέρον και μπερδεύει τον κόσμο για το τι κάνει η εφαρμογή.
- * Το όνομα της συνάρτησης μένει HeartIcon για να μη σπάσει ό,τι τη χρησιμοποιεί.
+ * Η καρδιά διαβαζόταν σαν ερωτικό ενδιαφέρον — λάθος για επαγγελματική
+ * πλατφόρμα. Ο φάκελος που δοκιμάσαμε μετά θύμιζε αλληλογραφία, που την έχουν
+ * ήδη τα μηνύματα. Το χέρι λέει «κάποιος έκανε την κίνηση», που είναι ακριβώς
+ * τι είναι ένα αίτημα.
+ *
+ * Το όνομα HeartIcon μένει για να μη σπάσει ό,τι τη χρησιμοποιεί.
  */
 function HeartIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10.05 4.575a1.575 1.575 0 1 0-3.15 0v3m3.15-3v-1.5a1.575 1.575 0 0 1 3.15 0v1.5m-3.15 0 .075 5.925m3.075.75V4.575m0 0a1.575 1.575 0 0 1 3.15 0V15M6.9 7.575a1.575 1.575 0 1 0-3.15 0v8.175a6.75 6.75 0 0 0 6.75 6.75h2.018a5.25 5.25 0 0 0 3.712-1.538l1.732-1.732a5.25 5.25 0 0 0 1.538-3.712l.003-2.024a.668.668 0 0 1 .198-.471 1.575 1.575 0 1 0-2.228-2.228 3.818 3.818 0 0 0-1.12 2.687M6.9 7.575V12m6.27 4.318A4.49 4.49 0 0 1 16.35 15m.002 0h-.002" />
     </svg>
   );
 }

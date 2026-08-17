@@ -1086,7 +1086,7 @@ jobs.post('/:id/like', requireAuth, requireRole('worker'), async (c) => {
   // διαλέξει άτομο μέσα σε ώρες.
   const notifTitle = isShift
     ? `🚨 ${workerName} δήλωσε διαθεσιμότητα για τη βάρδια σου`
-    : `📩 ${workerName} ενδιαφέρθηκε για την αγγελία σου`;
+    : `👋 ${workerName} ενδιαφέρθηκε για την αγγελία σου`;
   const notifBody = isShift
     ? `${job.title} · ${job.shift_date} ${job.shift_start_time}–${job.shift_end_time} — διάλεξε ποιον θα πάρεις.`
     : `${job.title} — δες το προφίλ και κάνε like πίσω για να ξεκινήσετε συνομιλία.`;

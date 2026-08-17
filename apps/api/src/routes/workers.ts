@@ -854,14 +854,14 @@ workers.post('/:id/like', requireAuth, requireRole('business'), async (c) => {
   await db.prepare(
     `INSERT INTO notifications (id, user_id, type, title, body, data, created_at)
      VALUES (?, ?, 'system', ?, ?, ?, ?)`
-  ).bind(generateId(), targetId, `📩 Η ${bizNameForNotif} ενδιαφέρθηκε για το προφίλ σου`, 'Πάτησε για να δεις την επιχείρηση', JSON.stringify({ businessId: user.id }), now).run();
+  ).bind(generateId(), targetId, `👋 Η ${bizNameForNotif} ενδιαφέρθηκε για το προφίλ σου`, 'Πάτησε για να δεις την επιχείρηση', JSON.stringify({ businessId: user.id }), now).run();
 
   // Off-site alert (push + throttled email) so the worker hears about the
   // interest even when StaffNow is closed.
   c.executionCtx.waitUntil(
     notifyUser(c.env, {
       userId: targetId,
-      title: `📩 Η ${bizNameForNotif} ενδιαφέρθηκε για το προφίλ σου`,
+      title: `👋 Η ${bizNameForNotif} ενδιαφέρθηκε για το προφίλ σου`,
       body: 'Δες την επιχείρηση και κάνε like πίσω για να ξεκινήσετε συνομιλία.',
       url: '/dashboard/interests',
       ctaText: 'Δες τα ενδιαφέροντα',

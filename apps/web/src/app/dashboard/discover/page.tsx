@@ -626,7 +626,7 @@ export default function DiscoverPage() {
   const TABS = [
     { key: 'discover' as const, icon: '🔍', label: 'Εύρεση' },
     { key: 'saved' as const, icon: '🔖', label: 'Αποθηκευμένα' },
-    { key: 'interest' as const, icon: '📩', label: 'Αιτήματα' },
+    { key: 'interest' as const, icon: '👋', label: 'Αιτήματα' },
     { key: 'matched' as const, icon: '✨', label: 'Matched' },
   ];
   /*
