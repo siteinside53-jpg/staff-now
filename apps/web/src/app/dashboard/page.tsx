@@ -132,7 +132,7 @@ export default function DashboardPage() {
       color: 'bg-amber-500',
       icon: (
         <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.05 4.575a1.575 1.575 0 1 0-3.15 0v3m3.15-3v-1.5a1.575 1.575 0 0 1 3.15 0v1.5m-3.15 0 .075 5.925m3.075.75V4.575m0 0a1.575 1.575 0 0 1 3.15 0V15M6.9 7.575a1.575 1.575 0 1 0-3.15 0v8.175a6.75 6.75 0 0 0 6.75 6.75h2.018a5.25 5.25 0 0 0 3.712-1.538l1.732-1.732a5.25 5.25 0 0 0 1.538-3.712l.003-2.024a.668.668 0 0 1 .198-.471 1.575 1.575 0 1 0-2.228-2.228 3.818 3.818 0 0 0-1.12 2.687M6.9 7.575V12m6.27 4.318A4.49 4.49 0 0 1 16.35 15m.002 0h-.002" />
         </svg>
       ),
     },
@@ -192,8 +192,19 @@ export default function DashboardPage() {
   const hasMatches = (stats?.totalMatches || 0) > 0;
   const hasSentMessage = hasMatches;
 
+  // Τι ακριβώς λείπει από το προφίλ — αλλιώς ο χρήστης που έχει συμπληρώσει τα
+  // μισά δεν καταλαβαίνει γιατί το βήμα μένει ατίκαρο.
+  const missingBits = [
+    !hasFullName && 'ονοματεπώνυμο',
+    !hasLocation && 'πόλη',
+    !hasAtLeastOneRole && 'ειδικότητα',
+  ].filter(Boolean) as string[];
+  const workerProfileDesc = hasProfile
+    ? 'Συμπλήρωσε το προφίλ σου με εμπειρία, δεξιότητες και τοποθεσία'
+    : `Λείπει: ${missingBits.join(', ')}`;
+
   const workerSteps = [
-    { label: 'Δημιουργία Προφίλ', desc: 'Συμπλήρωσε το προφίλ σου με εμπειρία, δεξιότητες και τοποθεσία', done: hasProfile, href: '/dashboard/profile', icon: '👤' },
+    { label: 'Δημιουργία Προφίλ', desc: workerProfileDesc, done: hasProfile, href: '/dashboard/profile', icon: '👤' },
     { label: 'Βρες Εργασία', desc: 'Κάνε swipe σε θέσεις εργασίας που σε ενδιαφέρουν', done: hasSwiped, href: '/dashboard/discover', icon: '🔍' },
     { label: 'Αναμονή για Match', desc: 'Όταν και η επιχείρηση δείξει ενδιαφέρον, γίνεται match!', done: hasMatches, href: '/dashboard/matches', icon: '🎯' },
     { label: 'Στείλε Μήνυμα', desc: 'Ξεκίνα συνομιλία με την επιχείρηση και κλείσε τη θέση', done: hasSentMessage, href: '/dashboard/messages', icon: '💬' },
@@ -209,7 +220,19 @@ export default function DashboardPage() {
 
   const steps = isWorker ? workerSteps : businessSteps;
   const completedCount = steps.filter((s) => s.done).length;
-  const nextStep = steps.find((s) => !s.done);
+  /**
+   * Ποιο βήμα δείχνουμε στον τίτλο.
+   *
+   * ΠΡΙΝ έγραφε «Βήμα {όσα ολοκληρώθηκαν + 1}» — που μετράει ΟΛΑ τα
+   * ολοκληρωμένα, όχι τα συνεχόμενα. Ένας εργαζόμενος που είχε κάνει swipe,
+   * match και μήνυμα αλλά όχι το προφίλ, έβλεπε «Βήμα 4 από 4 — Δημιουργία
+   * Προφίλ»: του έλεγε ότι είναι στο τέταρτο και ταυτόχρονα του ζητούσε το
+   * πρώτο. Δικαίως νόμιζε ότι δεν τικάρεται τίποτα.
+   *
+   * Τώρα δείχνουμε τη ΘΕΣΗ του βήματος που εκκρεμεί.
+   */
+  const nextIndex = steps.findIndex((s) => !s.done);
+  const nextStep = nextIndex >= 0 ? steps[nextIndex] : undefined;
   const pendingSteps = steps.filter((s) => !s.done);
   const allDone = pendingSteps.length === 0;
 
@@ -223,7 +246,7 @@ export default function DashboardPage() {
         <p className="mt-1 text-gray-600">
           {completedCount === steps.length
             ? 'Έχεις ολοκληρώσει όλα τα βήματα! Συνέχισε να ανακαλύπτεις ευκαιρίες.'
-            : `Βήμα ${completedCount + 1} από ${steps.length} — ${nextStep?.label || ''}`}
+            : `Βήμα ${nextIndex + 1} από ${steps.length} — ${nextStep?.label || ''}`}
         </p>
       </div>
 

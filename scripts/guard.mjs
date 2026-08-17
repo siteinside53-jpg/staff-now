@@ -265,7 +265,12 @@ function checkNotificationBell() {
       const src = stripComments(read(file));
       for (const line of src.split('\n')) {
         // Η μία επιτρεπτή χρήση: η μετάφραση παλιών ειδοποιήσεων στο νέο εικονίδιο.
-        if (/[\u2665\u2764]/.test(line) && !line.includes("=== '\u2764\ufe0f'")) {
+        // Και οι ΣΧΕΔΙΑΣΜΕΝΕΣ καρδιές, όχι μόνο τα emoji: η καρδιά του
+        // εικονιδίου έμενε αόρατη στον έλεγχο και επέζησε στα «Αιτήματα».
+        // Εξαίρεση: η ασφάλεια υγείας στις θέσεις εργασίας μας — εκεί η καρδιά
+        // σημαίνει υγεία, όχι ενδιαφέρον.
+        const drawnHeart = line.includes('M21 8.25c0-2.485') && !file.includes('careers');
+        if ((/[\u2665\u2764]/.test(line) || drawnHeart) && !line.includes("=== '\u2764\ufe0f'")) {
           hearts.push(`${file}: ${line.trim().slice(0, 70)}`);
         }
       }
