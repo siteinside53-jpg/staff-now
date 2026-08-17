@@ -60,6 +60,41 @@ function addSeenInterestIds(ids: string[]) {
   } catch {}
 }
 
+/**
+ * Πού σε πάει μια ειδοποίηση όταν την πατήσεις.
+ *
+ * ΜΙΑ φορά γραμμένο, επίτηδες. Το καμπανάκι υπάρχει δύο φορές στη σελίδα
+ * (υπολογιστής και κινητό) και ΤΡΕΙΣ φορές διορθώσαμε μόνο το ένα αντίγραφο:
+ * το κινητό συνέχιζε να πηγαίνει στα «γενικά μηνύματα» αντί για τη
+ * συγκεκριμένη συνομιλία. Ό,τι αλλάζει εδώ, αλλάζει και στα δύο.
+ *
+ * Κάθε ειδοποίηση κουβαλάει ήδη μέσα της ΠΟΙΟ είναι το θέμα της
+ * (conversationId, businessId, matchId) — απλώς δεν το χρησιμοποιούσαμε.
+ */
+export function notificationLink(n: any): string {
+  const d = (() => {
+    try { return typeof n?.data === 'string' ? JSON.parse(n.data) : (n?.data || {}); }
+    catch { return {}; }
+  })();
+
+  // Ρητός προορισμός μέσα στην ειδοποίηση (π.χ. πρόσληψη) — έχει προτεραιότητα.
+  if (typeof d?.url === 'string' && d.url.startsWith('/')) return d.url;
+  // Μήνυμα → ΑΥΤΗ η συνομιλία, ανοιχτή.
+  if (d?.conversationId) return `/dashboard/messages?c=${d.conversationId}`;
+  // Ενδιαφέρον από επιχείρηση → η σελίδα με το αίτημά της.
+  if (d?.businessId) return `/dashboard/interests?b=${d.businessId}`;
+  if (d?.matchId) return `/dashboard/matches?m=${d.matchId}`;
+
+  switch (n?.type) {
+    case 'new_message': return '/dashboard/messages';
+    case 'new_match':
+    case 'match': return '/dashboard/matches';
+    case 'interest':
+    case 'new_like': return '/dashboard/interests';
+    default: return '/dashboard';
+  }
+}
+
 export default function DashboardLayout({
   children,
 }: {
@@ -287,24 +322,7 @@ export default function DashboardLayout({
                           το θέμα της (conversationId, businessId, matchId) —
                           απλώς δεν το χρησιμοποιούσαμε.
                         */
-                        const d = (() => {
-                          try { return typeof n.data === 'string' ? JSON.parse(n.data) : (n.data || {}); }
-                          catch { return {}; }
-                        })();
-                        const dataUrl = typeof d?.url === 'string' && d.url.startsWith('/') ? d.url : null;
-                        const link =
-                          dataUrl ||
-                          // Μήνυμα → ΑΥΤΗ η συνομιλία, ανοιχτή.
-                          (d?.conversationId ? `/dashboard/messages?c=${d.conversationId}` : null) ||
-                          // Ενδιαφέρον από επιχείρηση → η σελίδα με το αίτημά της.
-                          (d?.businessId ? `/dashboard/interests?b=${d.businessId}` : null) ||
-                          (n.type === 'new_message'
-                            ? '/dashboard/messages'
-                            : n.type === 'new_match' || n.type === 'match'
-                              ? '/dashboard/matches'
-                              : n.type === 'interest' || n.type === 'new_like'
-                                ? '/dashboard/interests'
-                                : '/dashboard');
+                        const link = notificationLink(n);
                         const timeAgo = (() => {
                           if (!n.created_at) return '';
                           const mins = Math.floor((Date.now() - new Date(n.created_at).getTime()) / 60000);
@@ -479,13 +497,7 @@ export default function DashboardLayout({
                         // Οι νέες ειδοποιήσεις (π.χ. πρόσληψη) κουβαλάνε τον
                         // προορισμό τους μέσα στο data. Αν δεν έχουν, ισχύει
                         // ό,τι ίσχυε πάντα.
-                        const dataUrl = (() => {
-                          try {
-                            const d = typeof n.data === 'string' ? JSON.parse(n.data) : n.data;
-                            return typeof d?.url === 'string' && d.url.startsWith('/') ? d.url : null;
-                          } catch { return null; }
-                        })();
-                        const link = dataUrl || (n.type === 'new_message' ? '/dashboard/messages' : n.type === 'new_match' || n.type === 'match' ? '/dashboard/matches' : n.type === 'interest' || n.type === 'new_like' ? '/dashboard/interests' : '/dashboard');
+                        const link = notificationLink(n);
                         const timeAgo = (() => {
                           if (!n.created_at) return '';
                           const mins = Math.floor((Date.now() - new Date(n.created_at).getTime()) / 60000);
