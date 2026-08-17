@@ -159,3 +159,40 @@ export function workerDisplayName(fullName?: string): string {
   const last = parts[parts.length - 1] ?? '';
   return `${first} ${last.charAt(0).toUpperCase()}.`;
 }
+
+export type BlogPost = {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt?: string | null;
+  content: string;
+  category?: string | null;
+  cover_image_url?: string | null;
+  author?: string | null;
+  read_time?: string | null;
+  published_at?: string | null;
+  updated_at?: string | null;
+};
+
+/**
+ * Τα δημοσιευμένα άρθρα, στο χτίσιμο.
+ *
+ * ΠΡΟΣΟΧΗ — ΤΟ ΣΗΜΑΝΤΙΚΟΤΕΡΟ ΓΙΑ ΤΟ BLOG: το site είναι στατικό. Κάθε άρθρο
+ * αποκτά δική του σελίδα ΤΗ ΣΤΙΓΜΗ ΠΟΥ ΧΤΙΖΕΤΑΙ το site, όχι τη στιγμή που το
+ * γράφεις στον πίνακα διαχειριστή. Δηλαδή: γράφεις άρθρο → ξαναχτίζουμε →
+ * τότε υπάρχει η σελίδα και μπορεί να τη δει η Google.
+ *
+ * Χωρίς ξαναχτίσιμο, το άρθρο φαίνεται μόνο μέσα στη λίστα /blog και η Google
+ * δεν έχει διεύθυνση να δείξει.
+ */
+export async function fetchAllBlogPosts(): Promise<BlogPost[]> {
+  try {
+    const res = await fetch(`${API_URL}/blog/posts?limit=500`, { cache: 'force-cache' });
+    if (!res.ok) return [];
+    const d = (await res.json()) as { data?: { items?: BlogPost[] } | BlogPost[] };
+    const raw = Array.isArray(d?.data) ? d.data : d?.data?.items;
+    return (Array.isArray(raw) ? raw : []).filter((p) => p?.slug && p?.title);
+  } catch {
+    return [];
+  }
+}

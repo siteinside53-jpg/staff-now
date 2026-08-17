@@ -9,3 +9,7 @@ Disallow: /app2/
 
 Sitemap: https://staffnow.gr/sitemap.xml
 Host: https://staffnow.gr
+
+# Ξεχωριστό sitemap ειδήσεων: το διαβάζει η Google πολύ πιο συχνά,
+# ώστε τα φρέσκα άρθρα να βρίσκονται μέσα σε λεπτά αντί για μέρες.
+Sitemap: https://staffnow.gr/news-sitemap.xml

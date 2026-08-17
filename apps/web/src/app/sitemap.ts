@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next';
-import { fetchAllJobs, fetchAllWorkers } from '@/lib/seo-data';
+import { fetchAllJobs, fetchAllWorkers, fetchAllBlogPosts } from '@/lib/seo-data';
 
 const BASE = 'https://staffnow.gr';
 
@@ -36,7 +36,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: p.priority,
   }));
 
-  const [jobs, workers] = await Promise.all([fetchAllJobs(), fetchAllWorkers()]);
+  const [jobs, workers, posts] = await Promise.all([
+    fetchAllJobs(),
+    fetchAllWorkers(),
+    fetchAllBlogPosts(),
+  ]);
+
+  // Κάθε άρθρο με τη δική του διεύθυνση. Χωρίς αυτό η Google δεν ξέρει καν ότι
+  // υπάρχουν — τα έβλεπε μόνο όποιος άνοιγε τη λίστα.
+  const blogEntries: MetadataRoute.Sitemap = posts.map((post) => ({
+    url: `${BASE}/blog/${post.slug}`,
+    lastModified: post.updated_at || post.published_at || now,
+    changeFrequency: 'monthly' as const,
+    priority: 0.75,
+  }));
 
   const jobEntries: MetadataRoute.Sitemap = jobs.map((j) => ({
     url: `${BASE}/jobs/${j.id}`,
@@ -52,5 +65,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  return [...staticEntries, ...jobEntries, ...workerEntries];
+  return [...staticEntries, ...blogEntries, ...jobEntries, ...workerEntries];
 }

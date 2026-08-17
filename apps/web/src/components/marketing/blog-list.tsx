@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -108,10 +109,17 @@ export function BlogList() {
             {/* Posts Grid */}
             <div className="grid gap-8 md:grid-cols-2">
               {filtered.map((post) => (
-                <article
+                /*
+                  ΣΥΝΔΕΣΜΟΣ, όχι onClick.
+                  Πριν το άρθρο άνοιγε σε παράθυρο και δεν είχε διεύθυνση: ούτε
+                  μοιραζόταν, ούτε το έβλεπε η Google. Τώρα κάθε κάρτα οδηγεί σε
+                  πραγματική σελίδα — που σημαίνει ότι μπορεί να ευρετηριαστεί,
+                  να σταλεί σε φίλο και να μπει στις ειδήσεις.
+                */
+                <Link
                   key={post.id}
-                  onClick={() => setSelected(post)}
-                  className="cursor-pointer rounded-2xl border border-gray-100 overflow-hidden transition-shadow hover:shadow-lg"
+                  href={`/blog/${post.slug}`}
+                  className="block cursor-pointer rounded-2xl border border-gray-100 overflow-hidden transition-shadow hover:shadow-lg"
                 >
                   {post.coverImageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -150,7 +158,7 @@ export function BlogList() {
                       </div>
                     )}
                   </div>
-                </article>
+                </Link>
               ))}
             </div>
           </>
