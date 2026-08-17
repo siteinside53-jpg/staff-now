@@ -453,8 +453,15 @@ hires.get('/', requireAuth, async (c) => {
     .prepare(
       `SELECT h.*,
               j.title as job_title, j.status as job_status,
-              wp.full_name as worker_name, wp.photo_url as worker_avatar,
-              bp.company_name as business_name, bp.logo_url as business_logo,
+              -- ΟΧΙ σκέτο bp.company_name: ο λογαριασμός «ThessMontarisma» έχει
+              -- το όνομά του στο υποκατάστημα και κενό company_name, οπότε ο
+              -- εργαζόμενος έβλεπε «Η επιχείρηση δηλώνει ότι σε προσέλαβε» χωρίς
+              -- να μαθαίνει ποια. Ίδια σειρά με το lib/display-name.ts, ώστε το
+              -- όνομα να είναι ΤΟ ΙΔΙΟ παντού.
+              COALESCE(NULLIF(wp.full_name, ''), NULLIF(wu.display_name, '')) as worker_name,
+              COALESCE(wp.photo_url, wu.avatar_url) as worker_avatar,
+              COALESCE(NULLIF(br.name, ''), NULLIF(bp.company_name, ''), NULLIF(bu.display_name, '')) as business_name,
+              COALESCE(br.logo_url, bp.logo_url, bu.avatar_url) as business_logo,
               -- Βήμα 3: πόσες θέσεις ζητούσε η αγγελία και πόσες καλύφθηκαν ήδη.
               MAX(1, COALESCE(CASE WHEN j.listing_kind = 'shift' THEN j.shift_positions ELSE j.positions END, 1)) as job_target,
               (SELECT COUNT(*) FROM hires h2 WHERE h2.job_id = h.job_id AND h2.status = 'confirmed') as job_confirmed,
@@ -468,6 +475,9 @@ hires.get('/', requireAuth, async (c) => {
          LEFT JOIN job_listings j ON j.id = h.job_id
          LEFT JOIN worker_profiles wp ON wp.user_id = h.worker_id
          LEFT JOIN business_profiles bp ON bp.user_id = h.business_id
+         LEFT JOIN business_branches br ON br.user_id = h.business_id
+         LEFT JOIN users wu ON wu.id = h.worker_id
+         LEFT JOIN users bu ON bu.id = h.business_id
         WHERE ${mineCol} = ?
           AND (? IS NULL OR h.conversation_id = ?)
         ORDER BY h.declared_at DESC

@@ -47,6 +47,11 @@ function classify(h: Hire): Kind {
   return 'waiting-them';
 }
 
+/** Κεφαλαίο το πρώτο γράμμα — το όνομα ξεκινάει πρόταση. */
+function capitalize(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
 export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
   const [hires, setHires] = useState<Hire[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
@@ -87,8 +92,23 @@ export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
 
   if (rows.length === 0) return null;
 
-  const other = (h: Hire) =>
-    (isWorker ? h.business_name : h.worker_name) || (isWorker ? 'η επιχείρηση' : 'ο/η εργαζόμενος/η');
+  /**
+   * Το όνομα της άλλης πλευράς σε ΔΥΟ μορφές, γιατί τα ελληνικά έχουν πτώσεις.
+   *
+   * Πριν υπήρχε μία μόνο («η επιχείρηση») και έμπαινε παντού, με αποτέλεσμα
+   * προτάσεις σαν «Αξιολόγησε την η επιχείρηση» και «σε προσέλαβε η η
+   * επιχείρηση». Όταν υπάρχει πραγματικό όνομα δεν αλλάζει τίποτα· η διαφορά
+   * φαίνεται μόνο όταν λείπει και πέφτουμε στη γενική διατύπωση.
+   */
+  const nameOf = (h: Hire) => (isWorker ? h.business_name : h.worker_name) || '';
+  /** Υποκείμενο: «Η επιχείρηση δηλώνει…» */
+  const subject = (h: Hire) =>
+    capitalize(nameOf(h) || (isWorker ? 'η επιχείρηση' : 'ο/η εργαζόμενος/η'));
+  /** Αντικείμενο: «…για την επιχείρηση» */
+  const object = (h: Hire) =>
+    nameOf(h) || (isWorker ? 'την επιχείρηση' : 'τον/την εργαζόμενο/η');
+  /** Για το παράθυρο αξιολόγησης, που θέλει σκέτο όνομα. */
+  const other = (h: Hire) => subject(h);
 
   return (
     <>
@@ -107,15 +127,16 @@ export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
                 {kind === 'confirm' && (
                   <>
                     {/*
-                      Το όνομα σε δική του γραμμή, χωρίς άρθρο: τη δήλωση μπορεί
-                      πλέον να την κάνει και ο εργαζόμενος, οπότε το «Η …» θα
-                      έβγαινε λάθος στη μισή περίπτωση.
+                      ΜΙΑ πρόταση, όχι δύο κομμένες γραμμές.
+                      Πριν έβγαινε «η επιχείρηση» σε μια γραμμή και «δηλώνει ότι
+                      σε προσέλαβε.» από κάτω — διαβαζόταν σαν σπασμένο κείμενο,
+                      και όταν έλειπε το όνομα ξεκινούσε με μικρό γράμμα.
+                      Τώρα το όνομα μπαίνει μέσα στην πρόταση, με κεφαλαίο αρχικό
+                      όταν χρειάζεται.
                     */}
-                    <p className="text-sm font-bold text-gray-900">
-                      {other(h)}
-                      {job}
-                    </p>
                     <p className="text-sm font-semibold text-gray-900">
+                      <span className="font-bold">{subject(h)}</span>
+                      {job}{' '}
                       {isWorker ? 'δηλώνει ότι σε προσέλαβε.' : 'δηλώνει ότι τον/την προσέλαβες.'}
                     </p>
                     <p className="mt-0.5 text-xs text-gray-500">
@@ -142,12 +163,9 @@ export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
 
                 {kind === 'awaiting' && (
                   <>
-                    <p className="text-sm font-bold text-gray-900">
-                      {other(h)}
-                      {job}
-                    </p>
                     <p className="text-sm font-semibold text-gray-900">
-                      {isWorker ? 'Δήλωσες ότι σε προσέλαβαν.' : 'Δήλωσες ότι τον/την προσέλαβες.'}
+                      Δήλωσες πρόσληψη με <span className="font-bold">{object(h)}</span>
+                      {job}.
                     </p>
                     <p className="mt-0.5 text-xs text-gray-500">
                       Περιμένουμε την επιβεβαίωσή του/της. Μέχρι τότε δεν μετράει στις θέσεις.
@@ -158,7 +176,7 @@ export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
                 {kind === 'rate' && (
                   <>
                     <p className="text-sm font-semibold text-gray-900">
-                      Αξιολόγησε {isWorker ? 'την' : 'τον/την'} {other(h)}{job}.
+                      Γράψε αξιολόγηση για {object(h)}{job}.
                     </p>
                     <p className="mt-0.5 text-xs text-gray-500">
                       Θα δεις τι σου έγραψε μόλις γράψεις τη δική σου.
@@ -175,7 +193,7 @@ export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
                 {kind === 'view' && (
                   <>
                     <p className="text-sm font-semibold text-gray-900">
-                      Ήρθε η αξιολόγηση από {other(h)}{job}.
+                      Ήρθε η αξιολόγηση από {object(h)}{job}.
                     </p>
                     <button
                       onClick={() => setRating({ id: h.id, name: other(h) })}
@@ -189,7 +207,7 @@ export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
                 {kind === 'waiting-them' && (
                   <>
                     <p className="text-sm font-semibold text-gray-900">
-                      Έγραψες την αξιολόγησή σου για {other(h)}{job}.
+                      Έγραψες την αξιολόγησή σου για {object(h)}{job}.
                     </p>
                     <p className="mt-0.5 text-xs text-gray-500">
                       Θα εμφανιστεί η δική του/της μόλις τη γράψει.

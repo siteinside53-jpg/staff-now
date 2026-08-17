@@ -230,6 +230,31 @@ function checkNotificationBell() {
     }
   }
 
+  // Κουμπιά που κλειδώνουν για πάντα επειδή «τίποτα === τίποτα».
+  //
+  // Το «Ναι, ξεκίνησα» ήταν μόνιμα ξεθωριασμένο: ο έλεγχος ήταν
+  // `busy === hire.job_id`, και όταν δεν έτρεχε τίποτα (busy = null) και η
+  // πρόσληψη δεν είχε αγγελία (job_id = null), το null === null έβγαινε αληθές.
+  // Ο εργαζόμενος δεν μπορούσε να επιβεβαιώσει ποτέ.
+  const risky = [];
+  for (const dir of ['apps/web/src']) {
+    for (const file of walk(dir)) {
+      for (const line of stripComments(read(file)).split('\n')) {
+        if (/\bbusy\s*===\s*[a-zA-Z]+\.(job_id|jobId|conversation_id|match_id)/.test(line) && !/busy\s*!==\s*null/.test(line)) {
+          risky.push(`${file}: ${line.trim().slice(0, 80)}`);
+        }
+      }
+    }
+  }
+  if (risky.length) {
+    fail(
+      'Κουμπί που μπορεί να κλειδώσει για πάντα',
+      `σύγκριση «τι τρέχει» με πεδίο που μπορεί να είναι κενό — βάλε πρώτα έλεγχο ότι όντως τρέχει κάτι.\n      ${risky.join('\n      ')}`
+    );
+  } else {
+    ok('Κανένα κουμπί δεν κλειδώνει από σύγκριση με κενή τιμή');
+  }
+
   const hardcoded = [];
   for (const dir of ['apps/web/src', 'apps/mobile/src']) {
     for (const file of walk(dir)) {
