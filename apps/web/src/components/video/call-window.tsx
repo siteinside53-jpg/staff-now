@@ -126,16 +126,16 @@ export function CallWindow({
       </div>
 
       {/* Χειριστήρια */}
-      <div className="flex items-center justify-center gap-4 bg-gray-950 px-4 py-6">
+      <div className="flex items-center justify-center gap-5 bg-gray-950 px-4 py-6">
         <button
           type="button"
           onClick={() => setMicOn(engine.toggleMic())}
           aria-label={micOn ? 'Κλείσε το μικρόφωνο' : 'Άνοιξε το μικρόφωνο'}
-          className={`flex h-14 w-14 items-center justify-center rounded-full text-2xl transition-colors ${
+          className={`flex h-14 w-14 items-center justify-center rounded-full transition-colors ${
             micOn ? 'bg-white/15 text-white hover:bg-white/25' : 'bg-white text-gray-900'
           }`}
         >
-          {micOn ? '🎤' : '🔇'}
+          <MicIcon on={micOn} />
         </button>
 
         {hasVideo && (
@@ -143,23 +143,65 @@ export function CallWindow({
             type="button"
             onClick={() => setCamOn(engine.toggleCamera())}
             aria-label={camOn ? 'Κλείσε την κάμερα' : 'Άνοιξε την κάμερα'}
-            className={`flex h-14 w-14 items-center justify-center rounded-full text-2xl transition-colors ${
+            className={`flex h-14 w-14 items-center justify-center rounded-full transition-colors ${
               camOn ? 'bg-white/15 text-white hover:bg-white/25' : 'bg-white text-gray-900'
             }`}
           >
-            {camOn ? '📹' : '🚫'}
+            <CamIcon on={camOn} />
           </button>
         )}
 
         <button
           type="button"
           onClick={onHangup}
-          className="flex h-16 w-16 items-center justify-center rounded-full bg-red-600 text-2xl text-white shadow-lg transition-colors hover:bg-red-700"
+          className="flex h-16 w-16 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition-colors hover:bg-red-700"
           aria-label="Τέλος κλήσης"
         >
-          📞
+          <HangupIcon />
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Τα εικονίδια της κλήσης.
+ *
+ * Πριν ήταν emoji (🎤 📹 📞). Το κάθε λειτουργικό τα ζωγραφίζει αλλιώς — άλλο
+ * σχήμα σε iPhone, άλλο σε Android, άλλο σε Windows — και δίπλα-δίπλα έβγαιναν
+ * ανομοιόμορφα και παιδικά. Εδώ είναι σχέδια δικά μας: ίδια παντού, καθαρά,
+ * όπως τα ξέρει ο κόσμος από WhatsApp και Viber.
+ *
+ * Η διαγώνια γραμμή στο «κλειστό» είναι μέρος του ίδιου σχεδίου, ώστε να
+ * φαίνεται με μια ματιά τι είναι σβηστό.
+ */
+function MicIcon({ on }: { on: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="9" y="2.5" width="6" height="11" rx="3" />
+      <path d="M5.5 11a6.5 6.5 0 0 0 13 0" />
+      <path d="M12 17.5V21" />
+      <path d="M8.5 21h7" />
+      {!on && <path d="M4 3.5 20 20.5" strokeWidth={2.2} />}
+    </svg>
+  );
+}
+
+function CamIcon({ on }: { on: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2.5" y="6" width="13" height="12" rx="3" />
+      <path d="M15.5 10.5 21.5 7.5v9l-6-3z" />
+      {!on && <path d="M4 3.5 20 20.5" strokeWidth={2.2} />}
+    </svg>
+  );
+}
+
+/** Ακουστικό γερμένο προς τα κάτω — το διεθνές «κλείσε». */
+function HangupIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-7 w-7" fill="currentColor" aria-hidden="true">
+      <path d="M12 9.5c-2.02 0-3.96.32-5.78.9v3.02c0 .38-.22.73-.55.9-.99.5-1.9 1.13-2.71 1.87-.18.17-.43.27-.69.27-.28 0-.53-.11-.71-.29L.29 13.6a.99.99 0 0 1-.29-.7c0-.28.11-.53.29-.71C3.34 9.78 7.5 8.5 12 8.5s8.66 1.28 11.71 3.69c.18.18.29.43.29.71 0 .27-.11.52-.29.7l-1.27 2.57c-.18.18-.43.29-.71.29-.26 0-.51-.1-.69-.27a13.5 13.5 0 0 0-2.71-1.87.998.998 0 0 1-.55-.9v-3.02A19.9 19.9 0 0 0 12 9.5z" transform="rotate(133 12 12)" />
+    </svg>
   );
 }
