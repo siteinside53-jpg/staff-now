@@ -174,7 +174,7 @@ async function inAppNotify(
 hires.post('/', requireAuth, async (c) => {
   const user = c.get('user');
   const db = c.env.DB;
-  const body = await c.req.json<{ conversationId?: string }>().catch(() => ({}) as any);
+  const body = await c.req.json<{ conversationId?: string; jobId?: string }>().catch(() => ({}) as any);
   const conversationId = body.conversationId;
   if (!conversationId) return error(c, 'BAD_REQUEST', 'Λείπει η συνομιλία', 400);
 
@@ -196,7 +196,61 @@ hires.post('/', requireAuth, async (c) => {
 
   const workerId = conv.worker_id;
   const businessId = conv.business_id;
-  const jobId = conv.job_id;
+
+  /**
+   * ΣΕ ΠΟΙΑ ΑΓΓΕΛΙΑ ΑΝΗΚΕΙ Η ΠΡΟΣΛΗΨΗ;
+   *
+   * Χωρίς αυτό δεν μειώνεται καμία θέση και καμία αγγελία δεν κλείνει ποτέ.
+   * Το είχαμε και δεν δούλευε: η σύνδεση ερχόταν μόνο από το match, και match
+   * με αγγελία δημιουργείται μόνο όταν ο εργαζόμενος κάνει αίτηση σε
+   * συγκεκριμένη αγγελία. Στην πράξη και οι 10 συνομιλίες της παραγωγής είχαν
+   * έρθει από swipe ή ενδιαφέρον, οπότε ΚΑΜΙΑ πρόσληψη δεν ήξερε θέση.
+   *
+   * Σειρά προτεραιότητας:
+   *   1. Ό,τι διάλεξε ρητά ο χρήστης στην οθόνη.
+   *   2. Ό,τι κουβαλάει ήδη το match (αίτηση σε αγγελία).
+   *   3. Αν η επιχείρηση έχει ΜΙΑ μόνο ανοιχτή αγγελία — αυτή, χωρίς ερώτηση.
+   *   4. Αν έχει πολλές — ρωτάμε. Δεν μαντεύουμε.
+   *   5. Αν δεν έχει καμία — προχωράμε χωρίς αγγελία, όπως πριν.
+   */
+  let jobId: string | null = conv.job_id;
+
+  if (!jobId && body.jobId) {
+    // Δεν εμπιστευόμαστε το id όπως ήρθε: πρέπει να είναι αγγελία ΑΥΤΗΣ της επιχείρησης.
+    const owned = await db
+      .prepare(
+        // ΠΡΟΣΟΧΗ: job_listings.business_id δείχνει στο business_profiles.id
+        // (bp_…), ΟΧΙ στο υποκατάστημα. Με λάθος πίνακα δεν ταιριάζει ποτέ
+        // τίποτα και η σύνδεση με τη θέση δεν γίνεται σιωπηλά.
+        `SELECT j.id FROM job_listings j
+           JOIN business_profiles bp ON bp.id = j.business_id
+          WHERE j.id = ? AND bp.user_id = ?`,
+      )
+      .bind(body.jobId, businessId)
+      .first<{ id: string }>();
+    if (!owned) return error(c, 'BAD_REQUEST', 'Η αγγελία δεν ανήκει σε αυτή την επιχείρηση', 400);
+    jobId = owned.id;
+  }
+
+  if (!jobId) {
+    const open = await db
+      .prepare(
+        `SELECT j.id, j.title FROM job_listings j
+           JOIN business_profiles bp ON bp.id = j.business_id
+          WHERE bp.user_id = ? AND j.status IN ('published','paused')
+          ORDER BY j.created_at DESC
+          LIMIT 25`,
+      )
+      .bind(businessId)
+      .all<{ id: string; title: string }>();
+    const jobs = open.results || [];
+    if (jobs.length === 1) {
+      jobId = jobs[0].id;
+    } else if (jobs.length > 1) {
+      // Δεν είναι σφάλμα — είναι ερώτηση. Η οθόνη δείχνει λίστα να διαλέξει.
+      return success(c, { needsJob: true, jobs });
+    }
+  }
   // Ο παραλήπτης της ειδοποίησης είναι πάντα «ο άλλος».
   const otherId = user.id === workerId ? businessId : workerId;
 

@@ -254,6 +254,8 @@ function MessagesInner() {
   // μέσα στο chat για να ξέρει σε ποιο από τα 4 βήματα βρισκόμαστε.
   const [hires, setHires] = useState<Record<string, any>>({});
   const [hireBusy, setHireBusy] = useState<string | null>(null);
+  /** Οι ανοιχτές αγγελίες όταν ο server ζητάει να διαλέξει ο χρήστης. */
+  const [pickJob, setPickJob] = useState<{ id: string; title: string }[] | null>(null);
   /*
     Ποιες συνομιλίες «περιμένουν απάντηση» στο «έγινε πρόσληψη;». Ο κανόνας
     (2+ μέρες σιωπή, μίλησαν και οι δύο, καμία δηλωμένη πρόσληψη) ζει ΜΟΝΟ στον
@@ -607,12 +609,26 @@ function MessagesInner() {
 
   // ── Πρόσληψη σε 4 βήματα ────────────────────────────────────────────────
   // Βήμα 1: η επιχείρηση δηλώνει. Στέλνει και το μήνυμα-κάρτα στη συνομιλία.
-  const declareHire = async () => {
+  /**
+   * Δήλωση πρόσληψης.
+   *
+   * Το `jobId` μπαίνει μόνο όταν ο χρήστης διάλεξε αγγελία στο παράθυρο. Στις
+   * περισσότερες περιπτώσεις δεν χρειάζεται: αν η επιχείρηση έχει μία μόνο
+   * ανοιχτή αγγελία, τη συνδέει μόνος του ο server. Ρωτάει μόνο όταν έχει
+   * πολλές — αλλιώς η πρόσληψη δεν θα ήξερε ποια θέση να μειώσει.
+   */
+  const declareHire = async (jobId?: string) => {
     if (!selectedConv || hireBusy) return;
     setHireBusy('new');
     try {
-      const res = (await api.hires.create({ conversationId: selectedConv })) as any;
+      const res = (await api.hires.create({ conversationId: selectedConv, ...(jobId ? { jobId } : {}) })) as any;
+      if (res?.data?.needsJob) {
+        setPickJob(res.data.jobs || []);
+        setHireBusy(null);
+        return;
+      }
       if (res?.data?.hire) {
+        setPickJob(null);
         toast.success('Δηλώθηκε. Περιμένουμε την επιβεβαίωσή του/της.');
         await refreshHires();
         const r = (await api.conversations.getMessages(selectedConv)) as any;
@@ -912,7 +928,7 @@ function MessagesInner() {
                     </div>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={declareHire}
+                        onClick={() => declareHire()}
                         disabled={hireBusy !== null}
                         className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50"
                       >
@@ -1224,6 +1240,41 @@ function MessagesInner() {
       {viewBusinessProfile && (
         <BusinessProfilePanel businessUserId={viewBusinessProfile} onClose={() => setViewBusinessProfile(null)} />
       )}
+      {/*
+        «Για ποια θέση;» — εμφανίζεται ΜΟΝΟ όταν η επιχείρηση έχει πολλές
+        ανοιχτές αγγελίες. Χωρίς αυτό η πρόσληψη δεν ήξερε ποια θέση να μειώσει
+        και καμία αγγελία δεν έκλεινε ποτέ μόνη της.
+      */}
+      {pickJob && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+          <div className="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl">
+            <h3 className="text-base font-bold text-gray-900">Για ποια θέση;</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Έχεις {pickJob.length} ανοιχτές αγγελίες. Διάλεξε σε ποια αφορά η πρόσληψη,
+              ώστε να μετρήσει στις θέσεις της.
+            </p>
+            <div className="mt-4 space-y-2">
+              {pickJob.map((j) => (
+                <button
+                  key={j.id}
+                  onClick={() => declareHire(j.id)}
+                  disabled={hireBusy !== null}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900 hover:border-emerald-400 hover:bg-emerald-50 disabled:opacity-50"
+                >
+                  {j.title}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setPickJob(null)}
+              className="mt-4 w-full rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Άκυρο
+            </button>
+          </div>
+        </div>
+      )}
+
       {ratingHire && (
         <RatingModal
           hireId={ratingHire.id}

@@ -112,6 +112,11 @@ export class StaffNowApi {
    */
   hires = {
     list: (params?: Params) => this.client.get<any>('/hires', params),
+    /**
+     * Δήλωση πρόσληψης. Αν η επιχείρηση έχει πολλές ανοιχτές αγγελίες και δεν
+     * έχει δοθεί `jobId`, ο server απαντάει `{ needsJob: true, jobs: [...] }`
+     * αντί να δημιουργήσει — η οθόνη ρωτάει και ξαναστέλνει με το `jobId`.
+     */
     create: (body: { conversationId: string; jobId?: string }) =>
       this.client.post<any>('/hires', body),
     confirm: (id: string) => this.client.post<any>(`/hires/${id}/confirm`),
