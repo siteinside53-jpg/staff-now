@@ -9,6 +9,10 @@ import { HeroPeople } from './hero-people';
  * No switcher — single polished look.
  */
 export function HeroGradient({ children, photos = [] }: { children: ReactNode; photos?: string[] }) {
+  // Το πέπλο μπαίνει ΜΟΝΟ όταν υπάρχουν φωτογραφίες από πίσω. Χωρίς αυτές, τα
+  // σχέδια είναι ήδη ελάχιστα ορατά — ένα πέπλο θα σκούραινε το φόντο χωρίς
+  // κανένα κέρδος στην αναγνωσιμότητα.
+  const hasPhotos = photos.length > 0;
   return (
     <section className="relative overflow-hidden text-white">
       {/* Base: deep dark blue */}
@@ -48,6 +52,42 @@ export function HeroGradient({ children, photos = [] }: { children: ReactNode; p
 
       {/* Top fade for text contrast */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/30" />
+
+      {/*
+        ΤΟ ΣΚΟΥΡΟ ΠΕΠΛΟ ΠΙΣΩ ΑΠΟ ΤΑ ΓΡΑΜΜΑΤΑ
+
+        Σκουραίνει μόνο τη ζώνη όπου κάθεται το κείμενο, όχι όλη την εικόνα.
+        Έτσι το φόντο μένει ζωντανό στα άκρα και ο τίτλος διαβάζεται καθαρά —
+        αλλιώς, με φωτογραφίες από πίσω, τα γράμματα «χάνονται» μέσα στην υφή.
+
+        Δύο εκδοχές, γιατί το κείμενο κάθεται αλλού:
+        • Κινητό: το κείμενο πιάνει όλο το πλάτος → πέπλο από πάνω προς τα κάτω.
+        • Υπολογιστής: το κείμενο είναι αριστερά → πέπλο από αριστερά, που
+          σβήνει πριν φτάσει στην κάρτα με τις αγγελίες.
+
+        Μένει κάτω από το `children`, οπότε δεν σκουραίνει ποτέ τα ίδια τα
+        κουμπιά ή την κάρτα — μόνο ό,τι είναι από πίσω τους.
+      */}
+      {hasPhotos && (
+      <div
+        className="pointer-events-none absolute inset-0 lg:hidden"
+        style={{
+          background:
+            'linear-gradient(to bottom, rgba(6,11,31,0.82) 0%, rgba(6,11,31,0.62) 55%, rgba(6,11,31,0.15) 100%)',
+        }}
+        aria-hidden="true"
+      />
+      )}
+      {hasPhotos && (
+      <div
+        className="pointer-events-none absolute inset-0 hidden lg:block"
+        style={{
+          background:
+            'linear-gradient(to right, rgba(6,11,31,0.86) 0%, rgba(6,11,31,0.72) 32%, rgba(6,11,31,0.25) 52%, rgba(6,11,31,0) 68%)',
+        }}
+        aria-hidden="true"
+      />
+      )}
 
       {/* CSS animations — injected inline to avoid needing tailwind config */}
       <style dangerouslySetInnerHTML={{ __html: `
