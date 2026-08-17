@@ -20,7 +20,7 @@ import {
   type PermSnapshot,
 } from '@/lib/call-engine';
 import { PermissionGuide } from './permission-guide';
-import { Ringtone } from '@/lib/ringtone';
+import { Ringtone, primeRingtone } from '@/lib/ringtone';
 import { CallWindow } from './call-window';
 
 /**
@@ -95,6 +95,11 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
   const lastIntentRef = useRef<{ conversationId: string; peerName: string; peerAvatar: string | null } | null>(null);
 
   const inCall = status !== 'idle' && status !== 'ended';
+
+  // Ξυπνάει τη μηχανή ήχου με το πρώτο άγγιγμα του χρήστη, ώστε όταν έρθει
+  // κλήση να χτυπήσει αμέσως αντί να μείνει βουβή (τα κινητά μπλοκάρουν ήχο
+  // από σελίδα που δεν έχει αγγιχτεί).
+  useEffect(() => primeRingtone(), []);
 
   const stopRinging = useCallback(() => {
     ringtoneRef.current?.stop();

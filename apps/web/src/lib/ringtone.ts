@@ -12,6 +12,54 @@ const TONE_A = 480;
 const TONE_B = 620;
 const CYCLE_MS = 3000;
 
+/**
+ * ΓΙΑΤΙ ΔΕΝ ΑΚΟΥΓΟΤΑΝ ΤΙΠΟΤΑ ΣΤΟ ΚΙΝΗΤΟ.
+ *
+ * Τα κινητά απαγορεύουν σε μια σελίδα να βγάλει ήχο αν ο χρήστης δεν την έχει
+ * αγγίξει. Εμείς φτιάχναμε τη «μηχανή ήχου» τη στιγμή που χτυπούσε η κλήση —
+ * δηλαδή ακριβώς τότε που ΔΕΝ υπάρχει άγγιγμα. Ο browser τη γεννούσε
+ * «κοιμισμένη» και το `resume()` απορριπτόταν σιωπηλά.
+ *
+ * Τώρα τη φτιάχνουμε με το ΠΡΩΤΟ άγγιγμα οπουδήποτε στην εφαρμογή και τη
+ * κρατάμε ζωντανή. Όταν έρθει η κλήση, είναι ήδη ξύπνια και παίζει αμέσως.
+ *
+ * ΤΙ ΔΕΝ ΛΥΝΕΙ ΑΥΤΟ: αν η οθόνη είναι κλειστή ή ο browser σε δεύτερο πλάνο,
+ * καμία ιστοσελίδα δεν μπορεί να χτυπήσει. Εκεί δουλεύει μόνο η ειδοποίηση
+ * push, που τη χτυπάει το ίδιο το λειτουργικό.
+ */
+let shared: AudioContext | null = null;
+
+function makeContext(): AudioContext | null {
+  try {
+    const Ctor =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    return Ctor ? new Ctor() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Καλείται μία φορά, από το κέντρο κλήσεων, μόλις φορτώσει η εφαρμογή. */
+export function primeRingtone(): () => void {
+  if (typeof window === 'undefined') return () => {};
+  const wake = () => {
+    if (!shared) shared = makeContext();
+    void shared?.resume().catch(() => {});
+  };
+  // `once` όχι: το iPhone ξανακοιμίζει τη μηχανή όταν φεύγεις από την καρτέλα,
+  // οπότε κάθε άγγιγμα την ξαναξυπνάει.
+  const opts = { passive: true } as AddEventListenerOptions;
+  window.addEventListener('pointerdown', wake, opts);
+  window.addEventListener('keydown', wake, opts);
+  window.addEventListener('touchstart', wake, opts);
+  return () => {
+    window.removeEventListener('pointerdown', wake);
+    window.removeEventListener('keydown', wake);
+    window.removeEventListener('touchstart', wake);
+  };
+}
+
 export class Ringtone {
   private ctx: AudioContext | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -25,14 +73,12 @@ export class Ringtone {
   start() {
     if (!this.stopped) return;
     this.stopped = false;
-    try {
-      const Ctor =
-        window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      this.ctx = new Ctor();
-      void this.ctx.resume().catch(() => {});
-    } catch {
-      this.ctx = null;
-    }
+    // Χρησιμοποιούμε τη ΜΟΙΡΑΖΟΜΕΝΗ μηχανή που ξύπνησε με το πρώτο άγγιγμα.
+    // Αν για κάποιο λόγο δεν υπάρχει, φτιάχνουμε τώρα — μπορεί να μην ακουστεί,
+    // αλλά η δόνηση και η οθόνη που χτυπάει παραμένουν.
+    if (!shared) shared = makeContext();
+    this.ctx = shared;
+    void this.ctx?.resume().catch(() => {});
 
     this.buzz();
     this.ring();
@@ -42,10 +88,14 @@ export class Ringtone {
     }, CYCLE_MS);
   }
 
-  /** Δόνηση στο κινητό — εκεί μετράει περισσότερο από τον ήχο. */
+  /**
+   * Δόνηση στο κινητό — εκεί μετράει περισσότερο από τον ήχο.
+   * Android: δουλεύει. iPhone: η Apple δεν το υποστηρίζει καθόλου σε ιστοσελίδα,
+   * εκεί μένει ο ήχος και η οθόνη που χτυπάει.
+   */
   private buzz() {
     try {
-      navigator.vibrate?.([400, 200, 400]);
+      navigator.vibrate?.([500, 250, 500, 250, 500]);
     } catch {
       /* δεν το υποστηρίζουν όλες οι συσκευές */
     }
@@ -90,11 +140,8 @@ export class Ringtone {
     } catch {
       /* ignore */
     }
-    try {
-      void this.ctx?.close();
-    } catch {
-      /* ignore */
-    }
+    // ΔΕΝ κλείνουμε τη μηχανή: είναι κοινή και ξύπνησε με άγγιγμα του χρήστη.
+    // Αν την κλείναμε, η επόμενη κλήση θα ήταν πάλι βουβή.
     this.ctx = null;
   }
 }

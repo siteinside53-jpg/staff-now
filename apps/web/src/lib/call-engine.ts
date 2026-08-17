@@ -368,6 +368,8 @@ export class CallEngine {
   private cursor = 0;
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Να μη στέλνουν δύο ριπές ταυτόχρονα την ίδια ουρά. */
+  private flushing = false;
   private outbox: string[] = [];
   /** Δρόμοι που ήρθαν πριν προλάβουμε να στήσουμε την άλλη πλευρά. */
   private earlyCandidates: RTCIceCandidateInit[] = [];
@@ -452,13 +454,37 @@ export class CallEngine {
     }, CANDIDATE_FLUSH_MS);
   }
 
+  /**
+   * Στέλνει τις διευθύνσεις που μάζεψε ο browser στην άλλη πλευρά.
+   *
+   * ΤΡΙΑ ΛΑΘΗ ΕΔΩ ΜΕΣΑ ΕΚΑΝΑΝ ΤΙΣ ΚΛΗΣΕΙΣ ΝΑ ΜΗ ΣΥΝΔΕΟΝΤΑΙ ΠΟΤΕ.
+   * Στη βάση υπήρχαν 21 κλήσεις και ΜΗΔΕΝ αποθηκευμένες διευθύνσεις — χωρίς
+   * αυτές οι δύο browsers ανταλλάσσουν προτάσεις αλλά δεν βρίσκουν ποτέ ο ένας
+   * τον άλλον: η οθόνη έμενε στο «σύνδεση».
+   *
+   *   1. Το `splice` έβγαζε τις διευθύνσεις από την ουρά ΠΡΙΝ σταλούν. Αν το
+   *      αίτημα αποτύγχανε, χάνονταν οριστικά — δεν ξαναδοκίμαζε ποτέ.
+   *   2. Το `catch` τις έτρωγε σιωπηλά. Ακόμη και αν έλειπε ολόκληρη η
+   *      λειτουργία, κανείς δεν το μάθαινε.
+   *   3. Έστελνε μόνο 30 και σταματούσε, χωρίς να συνεχίσει με τις υπόλοιπες.
+   */
   private async flushCandidates() {
-    if (!this.callId || !this.outbox.length) return;
-    const batch = this.outbox.splice(0, 30);
+    if (!this.callId || !this.outbox.length || this.flushing) return;
+    this.flushing = true;
     try {
-      await this.api.addCandidates(this.callId, { candidates: batch });
-    } catch {
-      // Χάθηκε μια ριπή: η σύνδεση απλώς αργεί λίγο περισσότερο.
+      while (this.outbox.length && !this.closed) {
+        const batch = this.outbox.slice(0, 30);
+        try {
+          await this.api.addCandidates(this.callId, { candidates: batch });
+        } catch {
+          // Δεν τις πετάμε: μένουν στην ουρά και ξαναδοκιμάζουμε σε λίγο.
+          this.scheduleFlush();
+          return;
+        }
+        this.outbox.splice(0, batch.length);
+      }
+    } finally {
+      this.flushing = false;
     }
   }
 
@@ -503,7 +529,13 @@ export class CallEngine {
     try {
       const res = await this.api.poll(this.callId, this.cursor);
       const d = res?.data;
-      if (!d) return;
+      // ΠΡΟΣΟΧΗ: εδώ ΔΕΝ κάνουμε σκέτο return. Πριν το κάναμε, και μία άδεια
+      // απάντηση σταματούσε τον βρόχο ΟΡΙΣΤΙΚΑ — η κλήση έμενε για πάντα στο
+      // «σύνδεση» χωρίς να ξαναρωτήσει ποτέ.
+      if (!d) {
+        this.scheduleNextPoll();
+        return;
+      }
 
       if (typeof d.cursor === 'number') this.cursor = d.cursor;
 
