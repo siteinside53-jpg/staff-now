@@ -80,9 +80,35 @@ function Tile({ index, size, cols }: { index: number; size: number; cols: number
  * Το ίδιο πλέγμα, αλλά με εικόνες — μπαίνει μόνο αν υπάρχουν αρχεία στο
  * `public/hero/`. Οι κανόνες για το ΤΙ επιτρέπεται είναι στο lib/hero-photos.ts.
  */
+/**
+ * Μοιράζει τις εικόνες στα πλακάκια ώστε να μη σχηματίζονται μοτίβα.
+ *
+ * ΓΙΑΤΙ ΔΕΝ ΚΑΝΕΙ ΑΠΛΑ «η επόμενη, η επόμενη...»: αν ο αριθμός των εικόνων
+ * ταιριάζει με τον αριθμό των στηλών (π.χ. 10 εικόνες σε 10 στήλες), κάθε
+ * στήλη γεμίζει με ΤΗΝ ΙΔΙΑ εικόνα από πάνω μέχρι κάτω — δέκα κάθετες
+ * λωρίδες. Το ίδιο συμβαίνει και με 5 εικόνες, και με 2.
+ *
+ * Εδώ ανακατεύονται με σταθερή σειρά: το αποτέλεσμα βγαίνει ίδιο κάθε φορά
+ * (αλλιώς ο server και ο browser θα ζωγράφιζαν διαφορετικά πράγματα), αλλά
+ * χωρίς καμία κανονικότητα στο μάτι. Έτσι δουλεύει με ΟΠΟΙΟΝΔΗΠΟΤΕ αριθμό
+ * εικόνων — δεν χρειάζεται να μετράς.
+ */
+function scatter(photoCount: number, tileCount: number): number[] {
+  const arr = Array.from({ length: tileCount }, (_, i) => i % photoCount);
+  let seed = 987654321;
+  const next = () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    return seed / 2147483648;
+  };
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(next() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 function PhotoWall({ photos, cols, rows }: { photos: string[]; cols: number; rows: number }) {
-  // Όσα πλακάκια χρειάζονται για να γεμίσει, επαναλαμβάνοντας τις εικόνες.
-  const tiles = Array.from({ length: cols * rows }, (_, i) => photos[i % photos.length]);
+  const tiles = scatter(photos.length, cols * rows).map((n) => photos[n]);
   return (
     <div
       className="grid gap-3 p-3"
