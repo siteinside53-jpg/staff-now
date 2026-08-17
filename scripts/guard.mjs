@@ -255,6 +255,31 @@ function checkNotificationBell() {
     ok('Κανένα κουμπί δεν κλειδώνει από σύγκριση με κενή τιμή');
   }
 
+  // Καμία καρδιά. Το StaffNow είναι επαγγελματική πλατφόρμα, όχι γνωριμιών —
+  // η καρδιά διαβάζεται σαν ερωτικό ενδιαφέρον και μπερδεύει τον κόσμο για το
+  // τι κάνει η εφαρμογή. Ισχύει και για τα email.
+  const hearts = [];
+  for (const dir of ['apps/web/src', 'apps/api/src', 'apps/mobile/src']) {
+    for (const file of walk(dir)) {
+      if (file.includes('email-previews.generated')) continue;
+      const src = stripComments(read(file));
+      for (const line of src.split('\n')) {
+        // Η μία επιτρεπτή χρήση: η μετάφραση παλιών ειδοποιήσεων στο νέο εικονίδιο.
+        if (/[\u2665\u2764]/.test(line) && !line.includes("=== '\u2764\ufe0f'")) {
+          hearts.push(`${file}: ${line.trim().slice(0, 70)}`);
+        }
+      }
+    }
+  }
+  if (hearts.length) {
+    fail(
+      `${hearts.length} καρδιές έχουν ξαναμπεί στην εφαρμογή`,
+      `Επαγγελματική πλατφόρμα — χρησιμοποίησε \u2713 για «ενδιαφέρομαι» και \ud83d\udce9 για τα εισερχόμενα.\n      ${hearts.join('\n      ')}`
+    );
+  } else {
+    ok('Καμία καρδιά — το ενδιαφέρον διαβάζεται ως επαγγελματικό');
+  }
+
   const hardcoded = [];
   for (const dir of ['apps/web/src', 'apps/mobile/src']) {
     for (const file of walk(dir)) {

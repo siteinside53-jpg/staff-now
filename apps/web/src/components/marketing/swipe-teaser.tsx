@@ -508,7 +508,7 @@ export function SwipeTeaser() {
                         aria-label="Μ'αρέσει"
                         className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-2xl text-white shadow-lg shadow-emerald-500/30 transition hover:scale-105 hover:bg-emerald-600"
                       >
-                        ♥
+                        ✓
                       </button>
                     </div>
                   </div>

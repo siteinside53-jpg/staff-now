@@ -502,7 +502,7 @@ businesses.post('/:id/like', requireAuth, requireRole('worker'), checkSwipeLimit
     .bind(
       generateId('nt'),
       targetId,
-      `❤️ ${workerNameForNotif} ενδιαφέρθηκε για την επιχείρησή σου`,
+      `📩 ${workerNameForNotif} ενδιαφέρθηκε για την επιχείρησή σου`,
       'Πάτησε για να δεις το προφίλ του',
       JSON.stringify({ workerId: user.id }),
       now
@@ -512,7 +512,7 @@ businesses.post('/:id/like', requireAuth, requireRole('worker'), checkSwipeLimit
   c.executionCtx.waitUntil(
     notifyUser(c.env, {
       userId: targetId,
-      title: `❤️ ${workerNameForNotif} ενδιαφέρθηκε για την επιχείρησή σου`,
+      title: `📩 ${workerNameForNotif} ενδιαφέρθηκε για την επιχείρησή σου`,
       body: 'Δες το προφίλ του και κάνε like πίσω για να ξεκινήσετε συνομιλία.',
       url: '/dashboard/interests',
       ctaText: 'Δες τα ενδιαφέροντα',

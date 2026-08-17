@@ -431,7 +431,7 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
                       ? '✓ Δηλώθηκε'
                       : j.listing_kind === 'shift'
                         ? '🚨 Δήλωσε διαθεσιμότητα'
-                        : '♥ Ενδιαφέρομαι'}
+                        : '✓ Ενδιαφέρομαι'}
                   </button>
                 </div>
               ) : (

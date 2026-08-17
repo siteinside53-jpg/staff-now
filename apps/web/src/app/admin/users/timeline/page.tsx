@@ -195,7 +195,7 @@ function UserTimeline() {
         <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-gray-500">Στατιστικά</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatBox icon="🎯" label="Ταιριάσματα" value={c.matches} />
-          <StatBox icon="❤️" label="Likes received" value={c.likesReceived} />
+          <StatBox icon="📩" label="Likes received" value={c.likesReceived} />
           <StatBox icon="💬" label="Συνομιλίες" value={c.conversations} />
           <StatBox icon="📨" label="Μηνύματα" value={c.messagesSent} />
           {isWorker ? (
@@ -729,7 +729,7 @@ function JobDetailContent({ data, onClose }: { data: any; onClose: () => void })
       <div className="p-5 space-y-5">
         {/* Stats */}
         <div className="grid grid-cols-3 gap-2">
-          <Mini icon="❤️" label="Likes" value={counts.likes} />
+          <Mini icon="📩" label="Likes" value={counts.likes} />
           <Mini icon="🎯" label="Matches" value={counts.matches} />
           <Mini icon="➡️" label="Skips" value={counts.skips} />
         </div>

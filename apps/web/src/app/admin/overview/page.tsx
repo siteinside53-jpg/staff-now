@@ -490,7 +490,7 @@ const ICON_MAP: Record<string, string> = {
   logout: '🔒',
   register: '🆕',
   page_view: '👁️',
-  swipe_like: '❤️',
+  swipe_like: '📩',
   swipe_skip: '➡️',
   match: '🎯',
   message_send: '💬',

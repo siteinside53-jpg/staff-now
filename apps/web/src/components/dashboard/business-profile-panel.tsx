@@ -347,7 +347,7 @@ export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip, 
                   </button>
                   <button onClick={() => { onLike?.(); onClose(); }}
                     className="flex flex-[1.5] items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-600/20">
-                    ♥ Ενδιαφέρομαι
+                    ✓ Ενδιαφέρομαι
                   </button>
                 </div>
               </div>

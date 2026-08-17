@@ -519,7 +519,7 @@ export default function DiscoverPage() {
         toast.success(
           res?.data?.matched
             ? '🎉 Match! Μπορείτε τώρα να ξεκινήσετε συνομιλία!'
-            : '❤️ Ενδιαφέρον καταχωρήθηκε!',
+            : '✓ Ενδιαφέρον καταχωρήθηκε!',
         );
       }
       drop();
@@ -560,7 +560,7 @@ export default function DiscoverPage() {
         toast.success(
           res?.data?.matched
             ? '🎉 Match! Μπορείτε τώρα να ξεκινήσετε συνομιλία!'
-            : '❤️ Ενδιαφέρον καταχωρήθηκε!',
+            : '✓ Ενδιαφέρον καταχωρήθηκε!',
         );
       }
     } catch (err: any) {
@@ -588,14 +588,14 @@ export default function DiscoverPage() {
           if (res?.data?.matched) {
             toast.success('🎉 Match! Μπορείτε τώρα να ξεκινήσετε συνομιλία!');
           } else {
-            toast.success('❤️ Ενδιαφέρον καταχωρήθηκε!');
+            toast.success('✓ Ενδιαφέρον καταχωρήθηκε!');
           }
         } else {
           const res = await api.workers.like(currentCandidate.id) as any;
           if (res?.data?.matched) {
             toast.success('🎉 Match! Μπορείτε τώρα να ξεκινήσετε συνομιλία!');
           } else {
-            toast.success('❤️ Ενδιαφέρον καταχωρήθηκε!');
+            toast.success('✓ Ενδιαφέρον καταχωρήθηκε!');
           }
         }
       }
@@ -626,7 +626,7 @@ export default function DiscoverPage() {
   const TABS = [
     { key: 'discover' as const, icon: '🔍', label: 'Εύρεση' },
     { key: 'saved' as const, icon: '🔖', label: 'Αποθηκευμένα' },
-    { key: 'interest' as const, icon: '💙', label: 'Αιτήματα' },
+    { key: 'interest' as const, icon: '📩', label: 'Αιτήματα' },
     { key: 'matched' as const, icon: '✨', label: 'Matched' },
   ];
   /*
@@ -730,7 +730,7 @@ export default function DiscoverPage() {
                       try {
                         if (isJob) await api.jobs.like(itemId);
                         else await api.workers.like(j.user_id);
-                        toast.success('❤️ Ενδιαφέρον!');
+                        toast.success('✓ Ενδιαφέρον καταχωρήθηκε!');
                       } catch { toast.error('Ήδη δηλώθηκε ή σφάλμα'); }
                     }} title="Ενδιαφέρον" className="rounded-lg border border-gray-200 p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50">
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
@@ -771,7 +771,7 @@ export default function DiscoverPage() {
                       <img src={avatar} alt="" className="h-10 w-10 rounded-full object-cover" />
                     ) : (
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-sm font-bold text-amber-600">
-                        {name[0]?.toUpperCase() || '❤️'}
+                        {name[0]?.toUpperCase() || '👤'}
                       </div>
                     )}
                     <div className="flex-1">
@@ -1101,7 +1101,7 @@ export default function DiscoverPage() {
                       disabled={actionLoading || c.swipeStatus === 'like'}
                       className="flex-1 rounded-full bg-emerald-600 py-2.5 text-sm font-bold text-white transition-transform active:scale-95 disabled:bg-gray-300"
                     >
-                      {c.swipeStatus === 'like' ? '✓ Δηλώθηκε' : '❤️ Ενδιαφέρον'}
+                      {c.swipeStatus === 'like' ? '✓ Δηλώθηκε' : '✓ Ενδιαφέρον'}
                     </button>
                   </div>
                   </div>
@@ -1490,7 +1490,7 @@ export default function DiscoverPage() {
                       ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                       : 'bg-gray-100 text-gray-500 border border-gray-200'
                 }`}>
-                  {currentCandidate.isMatched ? '🤝 Match — Μπορείτε να συνομιλήσετε' : currentCandidate.swipeStatus === 'like' ? '❤️ Δήλωσα Ενδιαφέρον' : '👁️ Προβλήθηκε'}
+                  {currentCandidate.isMatched ? '🤝 Match — Μπορείτε να συνομιλήσετε' : currentCandidate.swipeStatus === 'like' ? '✓ Δήλωσα ενδιαφέρον' : '👁️ Προβλήθηκε'}
                 </span>
               </div>
             )}
@@ -1509,7 +1509,7 @@ export default function DiscoverPage() {
         </Card>
         </div>
 
-        {/* Bottom action bar — ❌ Πέρασε | 📁 Αποθήκευση | ❤️ Like */}
+        {/* Bottom action bar — ❌ Πέρασε | 📁 Αποθήκευση | ✓ Ενδιαφέρομαι */}
         {!currentCandidate.isMatched && (
           <div className="mt-3 flex items-center justify-center gap-6" data-no-drag>
             {/* Skip */}

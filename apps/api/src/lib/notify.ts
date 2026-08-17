@@ -72,7 +72,7 @@ function heroFor(category: string, title: string): { icon: string; tint: string 
     case 'msg':
       return { icon: '💬', tint: '#dbeafe' }; // message — blue
     case 'interest':
-      return { icon: '❤️', tint: '#ffe4e6' }; // interest — rose
+      return { icon: '📩', tint: '#e0e7ff' }; // ενδιαφέρον — ΟΧΙ καρδιά: επαγγελματική πλατφόρμα
     case 'match':
       return { icon: '🎉', tint: '#dcfce7' }; // match — green
     case 'new_worker':
@@ -85,7 +85,9 @@ function heroFor(category: string, title: string): { icon: string; tint: string 
   // Fallback: read the emoji the title already carries.
   const lead = title.trim().match(/^\p{Extended_Pictographic}(?:\uFE0F)?/u)?.[0];
   if (lead === '💬') return { icon: '💬', tint: '#dbeafe' };
-  if (lead === '❤️' || lead === '❤') return { icon: '❤️', tint: '#ffe4e6' };
+  if (lead === '📩') return { icon: '📩', tint: '#e0e7ff' };
+  // Παλιές ειδοποιήσεις που γράφτηκαν με καρδιά, πριν την αλλαγή.
+  if (lead === '❤️' || lead === '❤') return { icon: '📩', tint: '#e0e7ff' };
   if (lead === '🎉') return { icon: '🎉', tint: '#dcfce7' };
   if (lead) return { icon: lead, tint: '#dbeafe' };
   return { icon: '🔔', tint: '#dbeafe' };

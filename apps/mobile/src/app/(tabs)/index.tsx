@@ -207,7 +207,7 @@ export default function DiscoverScreen() {
           disabled={swiping}
           activeOpacity={0.7}
         >
-          <Text style={styles.likeButtonIcon}>♥</Text>
+          <Text style={styles.likeButtonIcon}>✓</Text>
           <Text style={styles.likeButtonLabel}>Ενδιαφέρομαι</Text>
         </TouchableOpacity>
       </View>

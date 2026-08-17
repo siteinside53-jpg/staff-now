@@ -284,7 +284,7 @@ export default function DashboardLayout({
                         )}
                         {badges.interests > 0 && (
                           <Link href="/dashboard/interests" onClick={() => setNotifOpen(false)} className="flex items-center gap-1.5 rounded-full bg-pink-100 px-3 py-1 text-xs font-medium text-pink-700 hover:bg-pink-200">
-                            ❤️ {badges.interests} ενδιαφέρον
+                            📩 {badges.interests} ενδιαφέρον
                           </Link>
                         )}
                       </div>
@@ -309,7 +309,7 @@ export default function DashboardLayout({
                       )
                     ) : (
                       notifications.filter((n: any) => !n.read_at).map((n: any) => {
-                        const icons: Record<string, string> = { new_match: '🎉', new_message: '💬', match: '🤝', interest: '❤️', new_like: '❤️', system: '⚡', reminder: '🔔', boost: '🚀' };
+                        const icons: Record<string, string> = { new_match: '🎉', new_message: '💬', match: '🤝', interest: '📩', new_like: '📩', system: '⚡', reminder: '🔔', boost: '🚀' };
                         const bgColors: Record<string, string> = { new_match: 'bg-emerald-100', new_message: 'bg-blue-100', match: 'bg-emerald-100', interest: 'bg-pink-100', new_like: 'bg-pink-100', system: 'bg-amber-100', reminder: 'bg-amber-100', boost: 'bg-purple-100' };
                         const icon = icons[n.type] || '🔔';
                         const bgColor = bgColors[n.type] || 'bg-gray-100';
@@ -476,7 +476,7 @@ export default function DashboardLayout({
                         )}
                         {badges.interests > 0 && (
                           <Link href="/dashboard/interests" onClick={() => setNotifOpen(false)} className="flex items-center gap-1.5 rounded-full bg-pink-100 px-3 py-1 text-xs font-medium text-pink-700 hover:bg-pink-200">
-                            ❤️ {badges.interests} ενδιαφέρον
+                            📩 {badges.interests} ενδιαφέρον
                           </Link>
                         )}
                       </div>
@@ -490,7 +490,7 @@ export default function DashboardLayout({
                       </div>
                     ) : (
                       notifications.filter((n: any) => !n.read_at).map((n: any) => {
-                        const icons: Record<string, string> = { new_match: '🎉', new_message: '💬', match: '🤝', interest: '❤️', new_like: '❤️', system: '⚡', reminder: '🔔', boost: '🚀' };
+                        const icons: Record<string, string> = { new_match: '🎉', new_message: '💬', match: '🤝', interest: '📩', new_like: '📩', system: '⚡', reminder: '🔔', boost: '🚀' };
                         const bgColors: Record<string, string> = { new_match: 'bg-emerald-100', new_message: 'bg-blue-100', match: 'bg-emerald-100', interest: 'bg-pink-100', new_like: 'bg-pink-100', system: 'bg-amber-100', reminder: 'bg-amber-100', boost: 'bg-purple-100' };
                         const icon = icons[n.type] || '🔔';
                         const bgColor = bgColors[n.type] || 'bg-gray-100';
@@ -566,7 +566,7 @@ export default function DashboardLayout({
           const shortLabels: Record<string, string> = {
             'Αρχική': 'Αρχική',
             'Ανακάλυψη': 'Εύρεση',
-            'Ενδιαφέρον': '❤️',
+            'Ενδιαφέρον': '📩',
             'Matches': 'Match',
             'Μηνύματα': 'Chat',
             'Αγγελίες': 'Αγγελ.',
@@ -669,10 +669,17 @@ function SettingsIcon({ className }: { className?: string }) {
   );
 }
 
+/**
+ * «Ενδιαφέρον» — φάκελος εισερχομένων, ΟΧΙ καρδιά.
+ *
+ * Το StaffNow είναι επαγγελματική πλατφόρμα. Η καρδιά διαβάζεται σαν
+ * ερωτικό ενδιαφέρον και μπερδεύει τον κόσμο για το τι κάνει η εφαρμογή.
+ * Το όνομα της συνάρτησης μένει HeartIcon για να μη σπάσει ό,τι τη χρησιμοποιεί.
+ */
 function HeartIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
     </svg>
   );
 }

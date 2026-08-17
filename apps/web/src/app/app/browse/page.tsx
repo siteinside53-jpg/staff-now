@@ -689,7 +689,7 @@ function BrowseContent() {
                   }}
                   className="flex flex-1 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 py-4 text-sm font-bold text-white shadow-lg shadow-emerald-500/30 active:scale-[0.96]"
                 >
-                  ❤️ Ενδιαφέρομαι
+                  ✓ Ενδιαφέρομαι
                 </button>
               </div>
             </div>

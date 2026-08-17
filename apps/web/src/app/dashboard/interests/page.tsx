@@ -84,7 +84,7 @@ export default function InterestsPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">❤️ Ποιος Ενδιαφέρθηκε</h1>
+        <h1 className="text-2xl font-bold text-gray-900">📩 Ποιος Ενδιαφέρθηκε</h1>
         <p className="mt-1 text-gray-600">
           {isWorker
             ? 'Επιχειρήσεις που σε έκαναν like. Πάτα "Ενδιαφέρομαι" για match!'
@@ -144,7 +144,7 @@ export default function InterestsPage() {
                         ) : (
                           <button onClick={() => handleLikeBack(item)} disabled={liking === item.swiper_id}
                             className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-                            {liking === item.swiper_id ? '...' : '❤️'}
+                            {liking === item.swiper_id ? '…' : '✓'}
                           </button>
                         )}
                       </div>
@@ -188,7 +188,7 @@ export default function InterestsPage() {
                         ) : (
                           <button onClick={() => handleLikeBack(item)} disabled={liking === item.swiper_id}
                             className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-                            {liking === item.swiper_id ? '...' : '❤️'}
+                            {liking === item.swiper_id ? '…' : '✓'}
                           </button>
                         )}
                       </div>

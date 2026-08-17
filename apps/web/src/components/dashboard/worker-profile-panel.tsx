@@ -529,7 +529,7 @@ export function WorkerProfilePanel({ workerId, onClose, onLike, onSkip, totalCar
                     onClick={() => { onLike?.(workerId!); onClose(); }}
                     className="flex flex-1 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 py-4 text-base font-bold text-white shadow-lg shadow-emerald-500/30 hover:from-emerald-600 hover:to-emerald-700 transition-all active:scale-95"
                   >
-                    <span className="text-xl">❤️</span>
+                    <span className="text-xl">📩</span>
                     <span>Ενδιαφέρομαι</span>
                   </button>
                 </div>

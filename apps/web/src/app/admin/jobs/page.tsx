@@ -133,7 +133,7 @@ export default function JobsPage() {
       header: 'Engagement',
       cell: (j) => (
         <div className="flex items-center gap-3 text-xs text-gray-600">
-          <span title="Ενδιαφέρον">❤️ {j.interested_count || 0}</span>
+          <span title="Ενδιαφέρον">📩 {j.interested_count || 0}</span>
           <span title="Matches">🎯 {j.matches_count || 0}</span>
         </div>
       ),
