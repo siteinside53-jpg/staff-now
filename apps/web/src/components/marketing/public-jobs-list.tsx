@@ -68,6 +68,25 @@ function salaryStr(j: Job): string {
 
 // Χρώμα μισθού ανά κλιμάκιο (μόνο για μηνιαίες αγγελίες, ώστε να μη
 // συγκρίνουμε €/ώρα με €/μήνα).
+/**
+ * Πόσο καιρό μετράει μια αγγελία ως «νέα».
+ *
+ * Η λίστα ήταν ήδη ταξινομημένη με τις νεότερες πρώτες — απλώς δεν φαινόταν.
+ * Η ετικέτα το κάνει ορατό: ο επισκέπτης που ξαναμπαίνει βλέπει αμέσως τι
+ * άλλαξε από την τελευταία φορά.
+ *
+ * ΓΙΑΤΙ ΟΧΙ «Ο ΚΑΛΥΤΕΡΟΣ ΜΙΣΘΟΣ» για την κορυφή: οι αγγελίες έχουν ανάμεικτους
+ * τύπους αμοιβής (μηνιαίο, ημερήσιο, ωρομίσθιο). Για να τις συγκρίνουμε θα
+ * έπρεπε να μαντέψουμε πόσες μέρες και ώρες δουλεύει κανείς — και μια λάθος
+ * μαντεψιά θα έβαζε στην κορυφή μέτρια θέση με ταμπέλα «καλύτερα αμειβόμενη».
+ * Το «νέο» δεν μαντεύει τίποτα και ανανεώνεται μόνο του.
+ */
+const NEW_FOR_MS = 48 * 60 * 60 * 1000;
+
+function isNew(j: Job): boolean {
+  return j.createdAtMs > 0 && Date.now() - j.createdAtMs < NEW_FOR_MS;
+}
+
 function salaryColor(j: Job): string {
   if (j.salaryType !== 'monthly') return 'text-gray-900';
   const v = j.salaryMax ?? j.salaryMin ?? 0;
@@ -370,7 +389,11 @@ export function PublicJobsList() {
                 <button
                   type="button"
                   onClick={() => setSelected(j)}
-                  className="w-full rounded-2xl bg-white p-4 shadow-sm border border-gray-100 text-left transition hover:border-emerald-300 hover:shadow-md active:scale-[0.99]"
+                  className={`w-full rounded-2xl bg-white p-4 text-left transition hover:border-emerald-300 hover:shadow-md active:scale-[0.99] ${
+                    isNew(j)
+                      ? 'border-2 border-emerald-500/60 shadow-md'
+                      : 'border border-gray-100 shadow-sm'
+                  }`}
                   aria-label={`Δες αγγελία ${j.title} στην εταιρεία ${j.company}`}
                 >
                   <div className="flex gap-3">
@@ -391,7 +414,14 @@ export function PublicJobsList() {
                     )}
 
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-bold text-gray-900">{j.title}</p>
+                      <div className="flex items-start gap-2">
+                        <p className="min-w-0 flex-1 truncate font-bold text-gray-900">{j.title}</p>
+                        {isNew(j) && (
+                          <span className="mt-0.5 flex-shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                            Νέο
+                          </span>
+                        )}
+                      </div>
                       <p className="truncate text-xs text-gray-500">{j.company}</p>
 
                       <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-gray-500">
