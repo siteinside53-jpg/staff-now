@@ -4,6 +4,7 @@ import { LiveCounters } from '@/components/marketing/live-counters';
 import { ActivityMarquee } from '@/components/marketing/activity-marquee';
 import { LiveWorkersHeroCard, LiveWorkersPanel, LiveJobsPanel } from '@/components/marketing/live-workers';
 import { HeroGradient } from '@/components/marketing/hero-gradient';
+import { AllJobsIndex } from '@/components/marketing/all-jobs-index';
 import { heroPhotos } from '@/lib/hero-photos';
 import { HowItWorksTabs } from '@/components/marketing/how-it-works-tabs';
 import { TrustBar } from '@/components/marketing/trust-bar';
@@ -424,6 +425,9 @@ export default function HomePage() {
           </p>
         </div>
       </section>
-    </>
+          {/* Δρόμος της Google προς κάθε αγγελία, από την πιο σημαντική σελίδα
+          του site. Γράφεται στο χτίσιμο — δες all-jobs-index.tsx. */}
+      <AllJobsIndex />
+</>
   );
 }

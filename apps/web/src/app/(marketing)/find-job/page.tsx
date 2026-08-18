@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { PublicJobsList } from '@/components/marketing/public-jobs-list';
 import { BrowseHero } from '@/components/marketing/browse-hero';
 import { RedirectIfAuthed } from '@/components/marketing/redirect-if-authed';
+import { AllJobsIndex } from '@/components/marketing/all-jobs-index';
 
 export const metadata = {
   title: 'Διαθέσιμες Θέσεις Εργασίας',
@@ -61,6 +62,9 @@ export default function FindJobPage() {
           </div>
         </div>
       </section>
-    </main>
+          {/* Λίστα με συνδέσμους, γραμμένη στο χτίσιμο: ο μόνος δρόμος της
+          Google προς τις αγγελίες. Δες all-jobs-index.tsx για τον λόγο. */}
+      <AllJobsIndex />
+</main>
   );
 }
