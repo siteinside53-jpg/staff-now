@@ -58,12 +58,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.85,
   }));
 
-  const workerEntries: MetadataRoute.Sitemap = workers.map((w) => ({
-    url: `${BASE}/workers/${w.user_id}`,
-    lastModified: now,
-    changeFrequency: 'daily',
-    priority: 0.6,
-  }));
+  /*
+    ΟΙ ΕΡΓΑΖΟΜΕΝΟΙ ΔΕΝ ΜΠΑΙΝΟΥΝ ΣΤΟ SITEMAP — ΕΠΙΤΗΔΕΣ.
 
-  return [...staticEntries, ...blogEntries, ...jobEntries, ...workerEntries];
+    Ήταν 105 από τις 136 διευθύνσεις, δηλαδή το 78% του site. Το Search Console
+    έδειχνε 20 καταχωρισμένες και 101 «Εντοπίστηκε — μη ευρετηριασμένη»: η
+    Google τις βρήκε, είδε ότι είναι σχεδόν πανομοιότυπες και σχεδόν κενές, και
+    σταμάτησε να τις διαβάζει. Ζητώντας της να ασχοληθεί με 105 κενές σελίδες,
+    της παίρναμε την προσοχή από τις ΑΓΓΕΛΙΕΣ.
+
+    Το `noindex` μπαίνει στην ίδια τη σελίδα (workers/[id]/page.tsx) — εκεί
+    εξηγείται και ο δεύτερος λόγος, η ιδιωτικότητα.
+
+    Το `workers` μένει στο Promise.all σκόπιμα: το χρειάζονται οι σελίδες ανά
+    ειδικότητα και πόλη, όπου ο αριθμός διαθέσιμων είναι πραγματικό περιεχόμενο.
+  */
+  void workers;
+
+  return [...staticEntries, ...blogEntries, ...jobEntries];
 }
