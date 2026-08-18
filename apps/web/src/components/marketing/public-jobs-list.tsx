@@ -362,49 +362,70 @@ export function PublicJobsList() {
           <ul className="space-y-3">
             {filtered.map((j) => (
               <li key={j.id}>
+                {/*
+                  ΟΨΗ ΚΑΡΤΑΣ — από τη μακέτα app2/version4/browse/jobs.
+                  Άλλαξε ΜΟΝΟ η εμφάνιση. Το άνοιγμα της αγγελίας, τα φίλτρα,
+                  η αναζήτηση και τα δεδομένα μένουν ακριβώς όπως ήταν.
+                */}
                 <button
                   type="button"
                   onClick={() => setSelected(j)}
-                  className="w-full flex items-center gap-4 rounded-2xl bg-white p-4 sm:p-5 shadow-sm border border-gray-100 hover:border-emerald-300 hover:shadow-md transition text-left"
+                  className="w-full rounded-2xl bg-white p-4 shadow-sm border border-gray-100 text-left transition hover:border-emerald-300 hover:shadow-md active:scale-[0.99]"
                   aria-label={`Δες αγγελία ${j.title} στην εταιρεία ${j.company}`}
                 >
-                  {j.logo ? (
-                    <img
-                      src={j.logo}
-                      alt=""
-                      loading="lazy"
-                      className="h-14 w-14 sm:h-16 sm:w-16 flex-shrink-0 rounded-2xl object-cover ring-1 ring-gray-100"
-                    />
-                  ) : (
-                    <div
-                      className="flex h-14 w-14 sm:h-16 sm:w-16 flex-shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 font-bold text-[11px] sm:text-xs text-center px-1 leading-tight"
-                      aria-hidden="true"
-                    >
-                      {employmentLabel(j.employmentType)}
+                  <div className="flex gap-3">
+                    {j.logo ? (
+                      <img
+                        src={j.logo}
+                        alt=""
+                        loading="lazy"
+                        className="h-14 w-14 flex-shrink-0 rounded-xl object-cover ring-1 ring-gray-100"
+                      />
+                    ) : (
+                      <div
+                        className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-100 to-teal-100 text-lg font-bold text-emerald-700"
+                        aria-hidden="true"
+                      >
+                        {j.company?.[0]?.toUpperCase() || '💼'}
+                      </div>
+                    )}
+
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-bold text-gray-900">{j.title}</p>
+                      <p className="truncate text-xs text-gray-500">{j.company}</p>
+
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                        {j.city && <span>📍 {j.city}</span>}
+                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold">
+                          {employmentLabel(j.employmentType)}
+                        </span>
+                        <span className="text-gray-400">{j.postedAgo}</span>
+                      </div>
+
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <span className={`text-base font-extrabold ${salaryColor(j)}`}>
+                          💰 {salaryStr(j)}
+                        </span>
+                        <span className="flex-shrink-0 rounded-full bg-emerald-600 px-4 py-1.5 text-xs font-bold text-white">
+                          Δες αγγελία
+                        </span>
+                      </div>
+
+                      {(j.housingProvided || j.mealsProvided) && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {j.housingProvided && (
+                            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                              🏠 Στέγη
+                            </span>
+                          )}
+                          {j.mealsProvided && (
+                            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                              🍽️ Φαγητό
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  )}
-
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-gray-900 truncate">{j.title}</p>
-                    <p className="text-sm text-gray-700 truncate">
-                      {j.company}
-                      {j.city && <> · {j.city}</>}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-0.5 truncate">
-                      {j.postedAgo}
-                      {j.housingProvided ? ' · 🏠 Στέγη' : ''}
-                      {j.mealsProvided ? ' · 🍽️ Φαγητό' : ''}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                    <span className={`font-bold text-sm sm:text-base whitespace-nowrap ${salaryColor(j)}`}>
-                      {salaryStr(j)}
-                    </span>
-                    <span className="hidden sm:inline-flex items-center rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white">
-                      Δες αγγελία →
-                    </span>
-                    <span className="sm:hidden text-gray-400 text-2xl leading-none">›</span>
                   </div>
                 </button>
               </li>
