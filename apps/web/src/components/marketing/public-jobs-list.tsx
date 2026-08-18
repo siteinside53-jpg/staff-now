@@ -383,7 +383,7 @@ export function PublicJobsList() {
                       />
                     ) : (
                       <div
-                        className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-100 to-teal-100 text-lg font-bold text-emerald-700"
+                        className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-100 to-purple-100 text-xl font-bold text-blue-700"
                         aria-hidden="true"
                       >
                         {j.company?.[0]?.toUpperCase() || '💼'}
