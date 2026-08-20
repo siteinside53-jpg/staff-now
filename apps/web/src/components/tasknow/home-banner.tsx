@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMockTasks } from './mock-store';
+import { isOpen, useMockTasks } from './mock-store';
 import { CATEGORY_BY_KEY } from './data';
 
 /**
@@ -15,9 +15,10 @@ import { CATEGORY_BY_KEY } from './data';
  */
 export function TaskNowBanner({ variant = 'full' }: { variant?: 'full' | 'strip' }) {
   const { tasks } = useMockTasks();
-  // ΠΡΟΣΟΧΗ: οι κρυμμένες (σημαδεμένες από το διαχειριστικό) ΔΕΝ μετράνε.
-  // Αλλιώς μια αγγελία που κόπηκε θα φούσκωνε δημόσιο μετρητή.
-  const open = tasks.filter((t) => !t.hidden && t.status === 'open');
+  // ΠΡΟΣΟΧΗ: κρυμμένες, ακυρωμένες και σε διαφωνία ΔΕΝ μετράνε — το `isOpen`
+  // τα κόβει όλα μαζί. Αλλιώς μια αγγελία που κόπηκε για ερωτικό περιεχόμενο
+  // θα φούσκωνε δημόσιο μετρητή και το άθροισμα αμοιβών.
+  const open = tasks.filter(isOpen);
   const preview = open.slice(0, 3);
   const total = open.reduce((sum, t) => sum + t.budget, 0);
 

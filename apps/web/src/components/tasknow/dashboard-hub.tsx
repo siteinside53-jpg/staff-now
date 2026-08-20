@@ -5,9 +5,25 @@ import Link from 'next/link';
 import { PostTaskModal } from './post-task-modal';
 import { TaskDetailModal } from './task-detail-modal';
 import { TaskNowTermsGate, hasAcceptedTaskNowTerms, forgetTaskNowTerms } from './terms';
-import { DEFAULT_CENTER, isLicensedCategory, levelFor, nextLevel } from './data';
+import {
+  AREA_COORDS,
+  CATEGORIES,
+  CATEGORY_BY_KEY,
+  DEFAULT_CENTER,
+  isLicensedCategory,
+  levelFor,
+  nextLevel,
+} from './data';
 import { TaskNowLogo } from './logo';
-import { myOffers, myTasks, resetMock, useMockTasks, type MockTask } from './mock-store';
+import {
+  matchingTasks,
+  myOffers,
+  myTasks,
+  resetMock,
+  setNotifyPrefs,
+  useMockTasks,
+  type MockTask,
+} from './mock-store';
 
 /**
  * ΜΑΚΕΤΑ — η ενότητα TaskNow μέσα στον πίνακα ελέγχου του χρήστη.
@@ -26,12 +42,16 @@ const STATUS_LABEL: Record<MockTask['status'], string> = {
   open: 'Ανοιχτή',
   assigned: 'Ανατέθηκε',
   done: 'Ολοκληρώθηκε',
+  cancelled: 'Ακυρώθηκε',
+  disputed: 'Σε διαφωνία',
 };
 
 const STATUS_CLASS: Record<MockTask['status'], string> = {
   open: 'bg-amber-50 text-amber-700',
   assigned: 'bg-blue-50 text-blue-700',
   done: 'bg-emerald-50 text-emerald-700',
+  cancelled: 'bg-gray-100 text-gray-500',
+  disputed: 'bg-red-50 text-red-700',
 };
 
 function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
@@ -55,7 +75,7 @@ export function TaskNowDashboardHub() {
   const [detail, setDetail] = useState<MockTask | null>(null);
   const [tab, setTab] = useState<'tasks' | 'offers'>('tasks');
   const [goal, setGoal] = useState('300');
-  const [notify, setNotify] = useState(true);
+  const [showNotifySettings, setShowNotifySettings] = useState(false);
 
   // Το localStorage διαβάζεται μόνο στον browser — ποτέ κατά το χτίσιμο.
   useEffect(() => {
@@ -80,6 +100,8 @@ export function TaskNowDashboardHub() {
   const level = levelFor(completed, completed > 0 ? 4.8 : null);
   const next = nextLevel(level);
   const goalNumber = Number(goal) || 0;
+  const notify = state.notify;
+  const matches = matchingTasks(state);
 
   return (
     <div className="space-y-6">
@@ -208,18 +230,139 @@ export function TaskNowDashboardHub() {
           </span>
         </div>
 
-        <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl bg-amber-50 px-4 py-3">
-          <input
-            type="checkbox"
-            checked={notify}
-            onChange={(e) => setNotify(e.target.checked)}
-            className="mt-0.5 h-4 w-4 shrink-0 accent-amber-500"
-          />
-          <span className="text-xs leading-relaxed text-amber-900">
-            <strong>Ειδοποίησέ με</strong> όταν βγαίνει μικροδουλειά στην περιοχή και την
-            ειδικότητά μου. Δεν χρειάζεται να μπαίνεις να κοιτάς — σε ειδοποιούμε εμείς.
-          </span>
-        </label>
+        {/* Ειδοποιήσεις — ο πιο δυνατός λόγος να ξαναμπεί κάποιος, γι' αυτό
+            είναι πραγματική ρύθμιση και όχι διακοσμητικό κουμπάκι. */}
+        <div className="mt-4 rounded-xl bg-amber-50 p-4">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={notify.enabled}
+              onChange={(e) => setNotifyPrefs({ enabled: e.target.checked })}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-amber-500"
+            />
+            <span className="text-xs leading-relaxed text-amber-900">
+              <strong>Ειδοποίησέ με</strong> όταν βγαίνει μικροδουλειά στην περιοχή και
+              την ειδικότητά μου. Δεν χρειάζεται να μπαίνεις να κοιτάς — σε ειδοποιούμε
+              εμείς.
+            </span>
+          </label>
+
+          {notify.enabled && (
+            <>
+              <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-amber-900">
+                <label className="flex items-center gap-1.5">
+                  περιοχή:
+                  <select
+                    value={notify.area}
+                    onChange={(e) => setNotifyPrefs({ area: e.target.value })}
+                    className="rounded-lg border border-amber-300 bg-white px-2 py-1"
+                  >
+                    {Object.keys(AREA_COORDS).map((a) => (
+                      <option key={a} value={a}>
+                        {a}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex items-center gap-1.5">
+                  ακτίνα:
+                  <select
+                    value={notify.radiusKm}
+                    onChange={(e) => setNotifyPrefs({ radiusKm: Number(e.target.value) })}
+                    className="rounded-lg border border-amber-300 bg-white px-2 py-1"
+                  >
+                    {[2, 5, 10, 25].map((r) => (
+                      <option key={r} value={r}>
+                        {r} χλμ
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowNotifySettings((v) => !v)}
+                  className="underline"
+                >
+                  {showNotifySettings ? 'κλείσε τις ειδικότητες' : 'διάλεξε ειδικότητες'}
+                </button>
+              </div>
+
+              {showNotifySettings && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setNotifyPrefs({ categories: [] })}
+                    className={
+                      'rounded-full px-2.5 py-1 text-[11px] font-medium transition ' +
+                      (notify.categories.length === 0
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-white text-gray-600 ring-1 ring-amber-200')
+                    }
+                  >
+                    Όλες
+                  </button>
+                  {CATEGORIES.map((c) => {
+                    const on = notify.categories.includes(c.key);
+                    return (
+                      <button
+                        key={c.key}
+                        type="button"
+                        onClick={() =>
+                          setNotifyPrefs({
+                            categories: on
+                              ? notify.categories.filter((k) => k !== c.key)
+                              : [...notify.categories, c.key],
+                          })
+                        }
+                        className={
+                          'rounded-full px-2.5 py-1 text-[11px] font-medium transition ' +
+                          (on ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 ring-1 ring-amber-200')
+                        }
+                      >
+                        {c.icon} {c.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Η λίστα βγαίνει από τα ΠΡΑΓΜΑΤΙΚΑ δεδομένα κάθε φορά —
+                  δεν αποθηκεύουμε ψεύτικες «ειδοποιήσεις». */}
+              <div className="mt-3 border-t border-amber-200 pt-3">
+                {matches.length === 0 ? (
+                  <p className="text-xs text-amber-900">
+                    Αυτή τη στιγμή δεν υπάρχει κάτι που να ταιριάζει. Θα σου φτάσει μόλις
+                    βγει.
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-xs font-semibold text-amber-900">
+                      {matches.length} {matches.length === 1 ? 'δουλειά ταιριάζει' : 'δουλειές ταιριάζουν'} τώρα —
+                      αυτές θα σου έφταναν:
+                    </p>
+                    <div className="mt-2 space-y-1.5">
+                      {matches.slice(0, 3).map((t) => (
+                        <Link
+                          key={t.id}
+                          href="/tasknow"
+                          className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 transition hover:bg-amber-100"
+                        >
+                          <span className="min-w-0 truncate text-xs text-gray-800">
+                            {CATEGORY_BY_KEY[t.category]?.icon} {t.title}
+                            <span className="text-gray-400"> · {t.area}</span>
+                          </span>
+                          <span className="shrink-0 text-sm font-bold text-gray-900">
+                            {t.budget}€
+                          </span>
+                        </Link>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Λόγος να ξαναμπεί: τι έβγαλε, τι έχτισε */}

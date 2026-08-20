@@ -5,12 +5,15 @@ import { Modal, MockNote } from './modal';
 import {
   AREAS,
   CATEGORIES,
+  CATEGORY_BY_KEY,
   DEFAULT_AREA,
   DEFAULT_CATEGORY,
   REQUIRED_LICENCE,
+  URGENT_HOURS,
+  findBlockedWord,
   isLicensedCategory,
 } from './data';
-import { addTask, type MockTask } from './mock-store';
+import { addTask, useMockTasks, type MockTask } from './mock-store';
 
 /**
  * ΜΑΚΕΤΑ — η ροή «ανεβάζω μικροδουλειά».
@@ -35,15 +38,30 @@ export function PostTaskModal({
   const [area, setArea] = useState(DEFAULT_AREA);
   const [budget, setBudget] = useState('');
   const [when, setWhen] = useState('');
+  const [urgent, setUrgent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<MockTask | null>(null);
 
+  const { blockedWords } = useMockTasks();
   const licensed = isLicensedCategory(category);
+  const cat = CATEGORY_BY_KEY[category];
+  const budgetNumber = Number(budget.replace(',', '.'));
   const licenceLabel = REQUIRED_LICENCE[category] ?? 'Επαγγελματική άδεια';
 
   function submit() {
     if (title.trim().length < 10) {
       setError('Γράψε λίγο πιο αναλυτικά τι θέλεις να γίνει (τουλάχιστον 10 χαρακτήρες).');
+      return;
+    }
+    // Ο έλεγχος γίνεται ΕΔΩ, πριν ανέβει τίποτα. Μια αγγελία που μένει ορατή
+    // δύο ώρες μέχρι να τη δει διαχειριστής έχει ήδη κάνει τη ζημιά.
+    const blocked = findBlockedWord(title, blockedWords);
+    if (blocked) {
+      setError(
+        `Δεν μπορούμε να ανεβάσουμε αυτή την αγγελία (βρέθηκε «${blocked}»). Το TaskNow ` +
+          'είναι μόνο για υπηρεσίες — όχι για ερωτικό ή συνοδευτικό περιεχόμενο, ' +
+          'οικονομικές συναλλαγές ή παράνομα. Αν είναι λάθος, άλλαξε τη διατύπωση.',
+      );
       return;
     }
     const value = Number(budget.replace(',', '.'));
@@ -67,6 +85,7 @@ export function PostTaskModal({
         area,
         budget: value,
         when: when.trim(),
+        urgent,
       }),
     );
   }
@@ -199,6 +218,48 @@ export function PostTaskModal({
                 className={inputClass + ' mt-1.5'}
               />
             </label>
+          </div>
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+            <input
+              type="checkbox"
+              checked={urgent}
+              onChange={(e) => setUrgent(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-orange-500"
+            />
+            <span className="text-xs leading-relaxed text-gray-700">
+              <strong>Το θέλω επείγον.</strong> Η αγγελία μένει στην κορυφή της ροής για{' '}
+              {URGENT_HOURS} ώρες. Χρησιμοποίησέ το μόνο όταν πραγματικά βιάζεσαι — αν
+              το βάζουν όλοι, δεν σημαίνει τίποτα.
+            </span>
+          </label>
+
+          {/* Ζωντανή προεπισκόπηση: βλέπεις ό,τι θα δει ο κόσμος, όσο γράφεις.
+              Είναι το φθηνότερο πράγμα που ανεβάζει την ποιότητα των αγγελιών. */}
+          <div>
+            <p className="text-xs font-medium text-gray-500">Έτσι θα το δει ο κόσμος:</p>
+            <div className="mt-1.5 rounded-2xl border border-gray-200 bg-white p-4">
+              <div className="flex items-start justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-700">
+                  <span aria-hidden="true">{cat?.icon}</span>
+                  {cat?.label}
+                </span>
+                {urgent && (
+                  <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-semibold text-orange-600">
+                    Επείγον
+                  </span>
+                )}
+              </div>
+              <p className="mt-2 text-sm font-semibold leading-snug text-gray-900">
+                {title.trim() || 'Ο τίτλος σου θα φανεί εδώ'}
+              </p>
+              <p className="mt-1.5 text-xs text-gray-500">
+                📍 {area} · 🕒 {when.trim() || 'πότε;'}
+              </p>
+              <p className="mt-2 text-xl font-bold text-gray-900">
+                {Number.isFinite(budgetNumber) && budgetNumber > 0 ? `${budgetNumber}€` : '—'}
+              </p>
+            </div>
           </div>
 
           {licensed && (

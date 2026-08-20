@@ -423,7 +423,9 @@ function checkTaskNow() {
     } catch {
       continue;
     }
-    if (!/!\w+\.hidden/.test(src)) leaks.push(label);
+    // Δεκτό είτε ρητό «!x.hidden», είτε το κοινό φίλτρο isPublic/isOpen που
+    // κόβει μαζί κρυμμένες, ακυρωμένες και σε διαφωνία.
+    if (!/!\w+\.hidden|\bisPublic\b|\bisOpen\b/.test(src)) leaks.push(label);
   }
   if (leaks.length) {
     fail(

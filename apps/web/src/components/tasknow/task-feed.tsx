@@ -14,7 +14,7 @@ import {
   formatKm,
   isLicensedCategory,
 } from './data';
-import { useMockTasks, resetMock, type MockTask } from './mock-store';
+import { useMockTasks, resetMock, isOpen, isPublic, type MockTask } from './mock-store';
 
 /**
  * ΜΑΚΕΤΑ TaskNow — η ροή με τις μικροδουλειές.
@@ -75,7 +75,11 @@ function TaskCard({
           )}
           {task.mine && (
             <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
-              δική σου
+              {task.status === 'assigned'
+                ? 'δική σου · ανατέθηκε'
+                : task.status === 'done'
+                  ? 'δική σου · ολοκληρώθηκε'
+                  : 'δική σου'}
             </span>
           )}
         </div>
@@ -170,6 +174,7 @@ export function TaskFeed() {
   const { tasks } = useMockTasks();
 
   const [active, setActive] = useState<string | null>(null);
+  const [allCategories, setAllCategories] = useState(false);
   const [sort, setSort] = useState<'new' | 'budget' | 'near'>('near');
   const [view, setView] = useState<'list' | 'map'>('list');
   const [radius, setRadius] = useState<number | null>(5);
@@ -217,11 +222,18 @@ export function TaskFeed() {
   }
 
   const withDistance = useMemo(() => {
-    // Ό,τι έχει κρυφτεί από το διαχειριστικό δεν φαίνεται πουθενά δημόσια.
-    return tasks.filter((t) => !t.hidden).map((task) => {
-      const coords = AREA_COORDS[task.area];
-      return { task, km: coords ? distanceKm(center, coords) : null };
-    });
+    // Στη ροή μπαίνει μόνο ό,τι δέχεται ακόμη προσφορές: κρυμμένες,
+    // ακυρωμένες, σε διαφωνία, ανατεθειμένες και ολοκληρωμένες μένουν έξω.
+    //
+    // ΕΞΑΙΡΕΣΗ: οι δικές σου δουλειές μένουν ορατές σε κάθε κατάσταση, για να
+    // τις παρακολουθείς. Βρέθηκε στη δοκιμή: μια δουλειά που είχε ήδη
+    // ολοκληρωθεί εμφανιζόταν σε όλους σαν διαθέσιμη.
+    return tasks
+      .filter((t) => isOpen(t) || (t.mine && isPublic(t) && !t.hidden))
+      .map((task) => {
+        const coords = AREA_COORDS[task.area];
+        return { task, km: coords ? distanceKm(center, coords) : null };
+      });
   }, [tasks, center]);
 
   const visible = useMemo(() => {
@@ -235,20 +247,45 @@ export function TaskFeed() {
     const sorted = [...list];
     if (sort === 'budget') sorted.sort((a, b) => b.task.budget - a.task.budget);
     if (sort === 'near') sorted.sort((a, b) => (a.km ?? 1e9) - (b.km ?? 1e9));
+    // Το «Επείγον» σημαίνει κάτι: κρατάει την αγγελία στην κορυφή, μέσα σε
+    // όποια ταξινόμηση κι αν διάλεξε ο χρήστης.
+    sorted.sort((a, b) => Number(b.task.urgent === true) - Number(a.task.urgent === true));
     return sorted;
   }, [withDistance, active, radius, sort]);
+
+  // Πόσες ανοιχτές δουλειές έχει κάθε κατηγορία αυτή τη στιγμή.
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const { task } of withDistance) {
+      counts.set(task.category, (counts.get(task.category) ?? 0) + 1);
+    }
+    return counts;
+  }, [withDistance]);
+
+  const nonEmptyCategories = CATEGORIES.filter((c) => (categoryCounts.get(c.key) ?? 0) > 0);
+  // Η επιλεγμένη κατηγορία μένει πάντα ορατή, ακόμη κι αν αδειάσει —
+  // αλλιώς εξαφανίζεται το κουμπί που μόλις πάτησε ο χρήστης.
+  const shownCategories = allCategories
+    ? CATEGORIES
+    : CATEGORIES.filter((c) => (categoryCounts.get(c.key) ?? 0) > 0 || c.key === active);
+  const hiddenCategoryCount = CATEGORIES.length - nonEmptyCategories.length;
+
+  const openCount = visible.filter((x) => isOpen(x.task)).length;
 
   const mapTasks = useMemo(() => visible.map((x) => x.task).filter((t) => AREA_COORDS[t.area]), [visible]);
 
   return (
     <div>
-      {/* Κατηγορίες */}
+      {/* Κατηγορίες.
+          ΔΕΝ δείχνουμε άδειες κατηγορίες: μια ροή με 13 κουμπιά όπου τα μισά
+          δίνουν «τίποτα εδώ» δείχνει νεκρή. Όσες γεμίσουν, εμφανίζονται μόνες
+          τους — και όποιος θέλει, ανοίγει όλη τη λίστα. */}
       <div className="-mx-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
         <div className="flex w-max items-center gap-2 sm:w-auto sm:flex-wrap">
           <Chip active={active === null} onClick={() => setActive(null)}>
             Όλα
           </Chip>
-          {CATEGORIES.map((c) => (
+          {shownCategories.map((c) => (
             <Chip key={c.key} active={active === c.key} onClick={() => setActive(c.key)}>
               <span aria-hidden="true" className="mr-1.5">
                 {c.icon}
@@ -257,6 +294,15 @@ export function TaskFeed() {
               {c.licensed && <span className="ml-1.5 text-[10px] opacity-70">άδεια</span>}
             </Chip>
           ))}
+          {hiddenCategoryCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setAllCategories((v) => !v)}
+              className="shrink-0 rounded-full border border-dashed border-gray-300 px-4 py-2 text-sm font-medium text-gray-500 transition hover:border-gray-400 hover:text-gray-700"
+            >
+              {allCategories ? 'λιγότερες' : `+${hiddenCategoryCount} ακόμη`}
+            </button>
+          )}
         </div>
       </div>
 
@@ -353,8 +399,10 @@ export function TaskFeed() {
       {/* Μετρητής και ταξινόμηση */}
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-gray-500" aria-live="polite">
-          <span className="font-semibold text-gray-900">{visible.length}</span>{' '}
-          {visible.length === 1 ? 'μικροδουλειά' : 'μικροδουλειές'}{' '}
+          {/* Μετράμε μόνο όσες δέχονται ακόμη προσφορές. Οι δικές σου
+              ανατεθειμένες φαίνονται στη λίστα, αλλά δεν είναι «διαθέσιμες». */}
+          <span className="font-semibold text-gray-900">{openCount}</span>{' '}
+          {openCount === 1 ? 'μικροδουλειά' : 'μικροδουλειές'}{' '}
           {radius === null ? 'σε όλη την πόλη' : `σε ακτίνα ${radius} χλμ`} από{' '}
           {centerLabel.toLowerCase()}
         </p>

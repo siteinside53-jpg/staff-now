@@ -10,7 +10,10 @@ import { CATEGORIES, CATEGORY_BY_KEY, isLicensedCategory, levelFor } from './dat
 import {
   allLicences,
   deleteTask,
+  isOpen,
   resetMock,
+  resolveDispute,
+  setBlockedWords,
   setLicenceVerified,
   setTaskHidden,
   useMockTasks,
@@ -31,13 +34,22 @@ import {
  * Καμία κλήση στο API· τίποτα δεν αγγίζει πραγματικά δεδομένα.
  */
 
-type Tab = 'overview' | 'tasks' | 'offers' | 'licences' | 'reports' | 'consents' | 'settings';
+type Tab =
+  | 'overview'
+  | 'tasks'
+  | 'offers'
+  | 'licences'
+  | 'disputes'
+  | 'reports'
+  | 'consents'
+  | 'settings';
 
 const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'overview', label: 'Επισκόπηση', icon: '📊' },
   { key: 'tasks', label: 'Μικροδουλειές', icon: '🧾' },
   { key: 'offers', label: 'Προσφορές', icon: '🙋' },
   { key: 'licences', label: 'Άδειες', icon: '📄' },
+  { key: 'disputes', label: 'Διαφωνίες', icon: '⚖️' },
   { key: 'reports', label: 'Αναφορές', icon: '🚨' },
   { key: 'consents', label: 'Δηλώσεις & όροι', icon: '🔏' },
   { key: 'settings', label: 'Ρυθμίσεις', icon: '⚙️' },
@@ -68,6 +80,8 @@ function Pill({ children, className = '' }: { children: React.ReactNode; classNa
 
 function statusPill(t: MockTask) {
   if (t.hidden) return <Pill className="bg-gray-200 text-gray-700">Κρυμμένη</Pill>;
+  if (t.status === 'disputed') return <Pill className="bg-red-50 text-red-700">Σε διαφωνία</Pill>;
+  if (t.status === 'cancelled') return <Pill className="bg-gray-100 text-gray-500">Ακυρώθηκε</Pill>;
   if (t.status === 'assigned') return <Pill className="bg-blue-50 text-blue-700">Ανατέθηκε</Pill>;
   if (t.status === 'done') return <Pill className="bg-emerald-50 text-emerald-700">Ολοκληρώθηκε</Pill>;
   return <Pill className="bg-amber-50 text-amber-700">Ανοιχτή</Pill>;
@@ -87,12 +101,14 @@ export function TaskNowAdminConsole() {
   const [city, setCity] = useState('Θεσσαλονίκη');
   const [idThreshold, setIdThreshold] = useState('200');
   const [defaultRadius, setDefaultRadius] = useState('5');
-  const [blockedWords, setBlockedWords] = useState('συνοδεία, escort, δάνειο, μετρητά έναντι');
+
   const [openCategories, setOpenCategories] = useState<string[]>(CATEGORIES.map((c) => c.key));
+  const [wordsDraft, setWordsDraft] = useState(state.blockedWords.join(', '));
 
   const licences = useMemo(() => allLicences(state), [state]);
   const pendingLicences = licences.filter((l) => !l.offer.licence?.verified);
   const openReports = reports.filter((r) => r.open);
+  const disputes = state.tasks.filter((t) => t.status === 'disputed');
   const flagged = state.tasks.filter((t) => t.flagReason || t.hidden);
 
   const allOffers = useMemo(
@@ -145,7 +161,9 @@ export function TaskNowAdminConsole() {
                 ? pendingLicences.length
                 : t.key === 'reports'
                   ? openReports.length
-                  : 0;
+                  : t.key === 'disputes'
+                    ? disputes.length
+                    : 0;
             return (
               <button
                 key={t.key}
@@ -176,7 +194,7 @@ export function TaskNowAdminConsole() {
       {tab === 'overview' && (
         <div className="space-y-5">
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <Kpi label="Ανοιχτές μικροδουλειές" value={String(state.tasks.filter((t) => !t.hidden && t.status === 'open').length)} />
+            <Kpi label="Ανοιχτές μικροδουλειές" value={String(state.tasks.filter(isOpen).length)} />
             <Kpi label="Προσφορές συνολικά" value={String(allOffers.length)} />
             <Kpi label="Ολοκληρωμένες" value={String(state.tasks.filter((t) => t.status === 'done').length)} tone="good" />
             <Kpi label="Αξία ολοκληρωμένων" value={`${gmv}€`} />
@@ -185,10 +203,26 @@ export function TaskNowAdminConsole() {
           <Card className="p-5">
             <h3 className="text-sm font-bold text-gray-900">Θέλουν την προσοχή σου</h3>
             <div className="mt-3 space-y-2">
-              {pendingLicences.length === 0 && openReports.length === 0 && flagged.length === 0 && (
-                <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                  ✓ Τίποτα σε εκκρεμότητα.
-                </p>
+              {pendingLicences.length === 0 &&
+                openReports.length === 0 &&
+                disputes.length === 0 &&
+                flagged.length === 0 && (
+                  <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                    ✓ Τίποτα σε εκκρεμότητα.
+                  </p>
+                )}
+
+              {disputes.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setTab('disputes')}
+                  className="flex w-full items-center justify-between rounded-xl bg-red-50 px-4 py-3 text-left transition hover:bg-red-100"
+                >
+                  <span className="text-sm text-red-900">
+                    <strong>{disputes.length}</strong> δουλειές σε διαφωνία
+                  </span>
+                  <span className="text-sm font-semibold text-red-700">Δες τες →</span>
+                </button>
               )}
 
               {pendingLicences.length > 0 && (
@@ -239,11 +273,11 @@ export function TaskNowAdminConsole() {
             <h3 className="text-sm font-bold text-gray-900">Ανά κατηγορία</h3>
             <div className="mt-3 space-y-2">
               {CATEGORIES.map((c) => {
-                const count = state.tasks.filter((t) => t.category === c.key && !t.hidden).length;
+                const count = state.tasks.filter((t) => t.category === c.key && isOpen(t)).length;
                 const max = Math.max(
                   1,
                   ...CATEGORIES.map(
-                    (x) => state.tasks.filter((t) => t.category === x.key && !t.hidden).length,
+                    (x) => state.tasks.filter((t) => t.category === x.key && isOpen(t)).length,
                   ),
                 );
                 return (
@@ -545,6 +579,88 @@ export function TaskNowAdminConsole() {
         </Card>
       )}
 
+      {/* ── Διαφωνίες ── */}
+      {tab === 'disputes' && (
+        <Card>
+          <div className="border-b border-gray-100 p-4">
+            <h3 className="text-sm font-bold text-gray-900">Διαφωνίες</h3>
+            <p className="mt-1 text-xs leading-relaxed text-gray-600">
+              Δεν κρίνουμε ποιος έχει δίκιο και δεν αποζημιώνουμε — δεν είμαστε
+              συμβαλλόμενο μέρος. Κοιτάμε αν παραβιάστηκαν οι όροι, μιλάμε στις δύο
+              πλευρές και, αν χρειαστεί, παίρνουμε μέτρα στον λογαριασμό.
+            </p>
+          </div>
+
+          {disputes.length === 0 ? (
+            <p className="px-5 py-12 text-center text-sm text-gray-500">
+              Καμία διαφωνία. Καλό σημάδι.
+            </p>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {disputes.map((t) => {
+                const chosen = t.offersList.find((o) => o.id === t.chosenOfferId);
+                return (
+                  <div key={t.id} className="p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-[11px] text-gray-400">{t.id}</span>
+                          <Pill className="bg-red-50 text-red-700">Σε διαφωνία</Pill>
+                        </div>
+                        <p className="mt-1.5 text-sm font-semibold text-gray-900">{t.title}</p>
+                        <p className="mt-0.5 text-xs text-gray-500">
+                          {t.area} · {t.budget}€ · εκτελεστής: {chosen?.name ?? '—'}
+                        </p>
+                        <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-800">
+                          <strong>
+                            {t.disputeBy === 'owner' ? 'Ο πελάτης' : 'Ο εκτελεστής'} δήλωσε:
+                          </strong>{' '}
+                          {t.disputeReason}
+                        </p>
+                        {t.messages.length > 0 && (
+                          <details className="mt-2">
+                            <summary className="cursor-pointer text-xs font-medium text-gray-600">
+                              Η συνομιλία τους ({t.messages.length} μηνύματα)
+                            </summary>
+                            <div className="mt-2 space-y-1 rounded-lg bg-gray-50 p-3">
+                              {t.messages.map((m) => (
+                                <p key={m.id} className="text-xs text-gray-700">
+                                  <strong>
+                                    {m.from === 'owner' ? 'πελάτης' : 'εκτελεστής'}:
+                                  </strong>{' '}
+                                  {m.text}
+                                </p>
+                              ))}
+                            </div>
+                          </details>
+                        )}
+                      </div>
+
+                      <div className="flex shrink-0 flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => resolveDispute(t.id)}
+                          className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-gray-800"
+                        >
+                          Λύθηκε — κλείσ' τη
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTaskHidden(t.id, true)}
+                          className="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800 transition hover:bg-amber-200"
+                        >
+                          Κρύψε τη δουλειά
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+      )}
+
       {/* ── Αναφορές ── */}
       {tab === 'reports' && (
         <Card>
@@ -719,11 +835,31 @@ export function TaskNowAdminConsole() {
               οικονομικές συναλλαγές που δεν είναι υπηρεσίες.
             </p>
             <textarea
-              rows={2}
-              value={blockedWords}
-              onChange={(e) => setBlockedWords(e.target.value)}
+              rows={3}
+              value={wordsDraft}
+              onChange={(e) => setWordsDraft(e.target.value)}
               className="mt-2 w-full resize-none rounded-xl border border-gray-300 px-3 py-2 text-sm"
             />
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setBlockedWords(
+                    wordsDraft
+                      .split(',')
+                      .map((w) => w.trim())
+                      .filter(Boolean),
+                  )
+                }
+                className="rounded-lg bg-gray-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-gray-800"
+              >
+                Αποθήκευσε τη λίστα
+              </button>
+              <span className="text-xs text-gray-500">
+                Ενεργές τώρα: {state.blockedWords.length} λέξεις — κόβουν το ανέβασμα τη
+                στιγμή που πατιέται το κουμπί.
+              </span>
+            </div>
           </Card>
 
           <Card className="p-5">
