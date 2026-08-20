@@ -40,7 +40,14 @@ export function ShareTask({
   const [copied, setCopied] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
-  const url = `${SITE_URL}/tasknow?task=${taskId}`;
+  /**
+   * Οι δουλειές των δειγμάτων έχουν δική τους σελίδα, με δικό τους τίτλο,
+   * περιγραφή και εικόνα — αυτή δίνει το «post» στο Facebook. Όσες ανεβάζει ο
+   * επισκέπτης μέσα στη μακέτα ζουν μόνο στον browser του, οπότε δεν υπάρχει
+   * σελίδα να δείξουμε: γι' αυτές μοιραζόμαστε τον σύνδεσμο της ροής.
+   */
+  const hasOwnPage = !taskId.startsWith('my-');
+  const url = hasOwnPage ? `${SITE_URL}/tasknow/${taskId}` : `${SITE_URL}/tasknow?task=${taskId}`;
   const text = MOCK
     ? `[ΜΑΚΕΤΑ — παράδειγμα, όχι αληθινή αγγελία] ${title} · ${budget}€ · ${area} — TaskNow`
     : `${title} · ${budget}€ · ${area} — δες τη μικροδουλειά στο TaskNow`;
