@@ -6,6 +6,7 @@ import { PostTaskModal } from './post-task-modal';
 import { TaskDetailModal } from './task-detail-modal';
 import { TaskNowTermsGate, hasAcceptedTaskNowTerms, forgetTaskNowTerms } from './terms';
 import { DEFAULT_CENTER, isLicensedCategory, levelFor, nextLevel } from './data';
+import { TaskNowLogo } from './logo';
 import { myOffers, myTasks, resetMock, useMockTasks, type MockTask } from './mock-store';
 
 /**
@@ -84,16 +85,7 @@ export function TaskNowDashboardHub() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <span className="inline-flex items-center gap-2 text-xl font-extrabold tracking-tight">
-            <svg viewBox="0 0 32 32" className="block h-6 w-6" aria-hidden="true">
-              <circle cx="16" cy="16" r="16" fill="#f59e0b" />
-              <path d="M17.5 6l-8 11h5.5l-1.5 9 8-11h-5.5z" fill="white" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
-            </svg>
-            <span>
-              <span className="text-gray-900">Task</span>
-              <span className="text-amber-500">Now</span>
-            </span>
-          </span>
+          <TaskNowLogo className="text-xl" markClassName="h-6 w-6" />
           <p className="mt-1 text-sm text-gray-500">
             Μικροδουλειές: ανέβασε μία ή ανάλαβε μία.
           </p>

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useLoginModal } from '@/components/auth/login-modal';
+import { TaskNowMark } from '@/components/tasknow/logo';
 
 const NAV_LINKS: { href: string; label: string; accent?: boolean }[] = [
   { href: '/how-it-works', label: 'Πώς λειτουργεί' },
@@ -53,12 +54,21 @@ function Header() {
               href={link.href}
               className={
                 link.accent
-                  ? 'inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-100'
+                  ? 'inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-sm font-extrabold tracking-tight ring-1 ring-amber-200/70 transition-colors hover:bg-amber-100'
                   : 'rounded-md px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900'
               }
             >
-              {link.accent && <span aria-hidden="true">⚡</span>}
-              {link.label}
+              {link.accent ? (
+                <>
+                  <TaskNowMark className="h-[18px] w-[18px]" />
+                  <span>
+                    <span className="text-gray-800">Task</span>
+                    <span className="text-amber-500">Now</span>
+                  </span>
+                </>
+              ) : (
+                link.label
+              )}
             </Link>
           ))}
         </nav>
@@ -125,13 +135,22 @@ function Header() {
                 href={link.href}
                 className={
                   'accent' in link && link.accent
-                    ? 'inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-700 hover:bg-amber-100'
+                    ? 'inline-flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2.5 text-sm font-extrabold tracking-tight ring-1 ring-amber-200/70 hover:bg-amber-100'
                     : 'rounded-md px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50'
                 }
                 onClick={() => setMobileMenuOpen(false)}
               >
-                {'accent' in link && link.accent && <span aria-hidden="true">⚡</span>}
-                {link.label}
+                {'accent' in link && link.accent ? (
+                  <>
+                    <TaskNowMark className="h-5 w-5" />
+                    <span>
+                      <span className="text-gray-800">Task</span>
+                      <span className="text-amber-500">Now</span>
+                    </span>
+                  </>
+                ) : (
+                  link.label
+                )}
               </Link>
             ))}
           </nav>

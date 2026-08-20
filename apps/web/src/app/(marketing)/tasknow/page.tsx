@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { TaskFeed } from '@/components/tasknow/task-feed';
 import { HeroCtas } from '@/components/tasknow/hero-ctas';
 import { LEVELS } from '@/components/tasknow/data';
+import { TaskNowLogo } from '@/components/tasknow/logo';
 
 /**
  * ΜΑΚΕΤΑ — TaskNow (μικροδουλειές).
@@ -18,27 +19,6 @@ export const metadata = {
     'Μικρές δουλειές που θέλουν χέρια σήμερα: βόλτα με τον σκύλο, μεταφορά, καθαρισμός, θελήματα. Ανέβασε δουλειά ή κάνε προσφορά.',
   robots: { index: false, follow: false },
 };
-
-function TaskNowLogo() {
-  return (
-    <span className="inline-flex items-center gap-2 text-2xl font-extrabold tracking-tight">
-      <svg viewBox="0 0 32 32" className="block h-7 w-7" aria-hidden="true">
-        <circle cx="16" cy="16" r="16" fill="#f59e0b" />
-        <path
-          d="M17.5 6l-8 11h5.5l-1.5 9 8-11h-5.5z"
-          fill="white"
-          stroke="white"
-          strokeWidth="1.5"
-          strokeLinejoin="round"
-        />
-      </svg>
-      <span>
-        <span className="text-gray-900">Task</span>
-        <span className="text-amber-500">Now</span>
-      </span>
-    </span>
-  );
-}
 
 export default function TaskNowPage() {
   return (
