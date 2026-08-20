@@ -301,6 +301,7 @@ function patch(taskId: string, fn: (t: MockTask) => MockTask): void {
 
 export function addTask(input: {
   title: string;
+  description?: string;
   category: string;
   area: string;
   budget: number;
@@ -310,6 +311,7 @@ export function addTask(input: {
   const task: MockTask = {
     id: newId('my'),
     title: input.title,
+    description: input.description?.trim() || undefined,
     category: input.category,
     area: input.area,
     budget: input.budget,

@@ -39,10 +39,14 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
   const cat = CATEGORY_BY_KEY[task.category]?.label ?? 'Μικροδουλειά';
   const title = `${task.title} — ${task.budget}€ · ${task.area}`;
-  const description =
+  // Αν ο χρήστης έγραψε περιγραφή, αυτή μπαίνει πρώτη: είναι δικά του λόγια
+  // για τη δουλειά του, όχι δική μας σύνθεση από πεδία.
+  const facts =
     `${cat} στην περιοχή ${task.area}. Αμοιβή ${task.budget}€ ` +
-    `${task.budgetNote ?? 'για όλη τη δουλειά'}. Πότε: ${task.when}. ` +
-    'Κάνε προσφορά με δικό σου ποσό στο TaskNow.';
+    `${task.budgetNote ?? 'για όλη τη δουλειά'}. Πότε: ${task.when}.`;
+  const description = task.description
+    ? `${task.description.slice(0, 180)}${task.description.length > 180 ? '…' : ''} ${facts}`
+    : `${facts} Κάνε προσφορά με δικό σου ποσό στο TaskNow.`;
 
   return {
     title,
@@ -100,6 +104,12 @@ export default async function TaskPage({ params }: Params) {
           <h1 className="mt-3 text-2xl font-bold leading-tight tracking-tight text-gray-900 sm:text-3xl">
             {task.title}
           </h1>
+
+          {task.description && (
+            <p className="mt-4 whitespace-pre-line text-[15px] leading-relaxed text-gray-700">
+              {task.description}
+            </p>
+          )}
 
           <div className="mt-4 flex flex-wrap items-end justify-between gap-4 border-y border-gray-100 py-4">
             <div className="text-sm text-gray-600">

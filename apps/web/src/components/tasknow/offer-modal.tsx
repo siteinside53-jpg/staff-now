@@ -133,6 +133,13 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
         <div className="mt-1 text-xs text-gray-500">
           Προϋπολογισμός {task.budget}€ · {task.when}
         </div>
+        {/* Η περιγραφή φαίνεται ΚΑΙ εδώ: χωρίς αυτήν η προσφορά γίνεται στα
+            τυφλά και αλλάζει μετά — που είναι η βασική αιτία διαφωνίας. */}
+        {task.description && (
+          <p className="mt-2 line-clamp-4 whitespace-pre-line text-xs leading-relaxed text-gray-600">
+            {task.description}
+          </p>
+        )}
       </div>
 
       {/* Βήμα 1 — κινητό */}

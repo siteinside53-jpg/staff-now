@@ -37,6 +37,7 @@ export function PostTaskModal({
   const [category, setCategory] = useState(DEFAULT_CATEGORY);
   const [area, setArea] = useState(DEFAULT_AREA);
   const [budget, setBudget] = useState('');
+  const [description, setDescription] = useState('');
   const [when, setWhen] = useState('');
   const [urgent, setUrgent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +56,9 @@ export function PostTaskModal({
     }
     // Ο έλεγχος γίνεται ΕΔΩ, πριν ανέβει τίποτα. Μια αγγελία που μένει ορατή
     // δύο ώρες μέχρι να τη δει διαχειριστής έχει ήδη κάνει τη ζημιά.
-    const blocked = findBlockedWord(title, blockedWords);
+    // Ο έλεγχος περνάει ΚΑΙ από την περιγραφή: αλλιώς αρκεί ένας αθώος
+    // τίτλος και το απαγορευμένο περιεχόμενο μπαίνει από κάτω.
+    const blocked = findBlockedWord(`${title} ${description}`, blockedWords);
     if (blocked) {
       setError(
         `Δεν μπορούμε να ανεβάσουμε αυτή την αγγελία (βρέθηκε «${blocked}»). Το TaskNow ` +
@@ -81,6 +84,7 @@ export function PostTaskModal({
     setCreated(
       addTask({
         title: title.trim(),
+        description: description.trim(),
         category,
         area,
         budget: value,
@@ -154,6 +158,23 @@ export function PostTaskModal({
               onChange={(e) => setTitle(e.target.value)}
               placeholder="π.χ. Να βγάλει κάποιος βόλτα τον σκύλο μου κάθε απόγευμα"
               className={inputClass + ' mt-1.5'}
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-sm font-medium text-gray-900">
+              Περιγραφή <span className="font-normal text-gray-400">(προαιρετική)</span>
+            </span>
+            <span className="mt-0.5 block text-xs text-gray-500">
+              Λεπτομέρειες που αλλάζουν την προσφορά: όροφος και ασανσέρ, τετραγωνικά,
+              αν χρειάζεται όχημα ή εργαλεία, ποιος δίνει τα υλικά.
+            </span>
+            <textarea
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="π.χ. Τριθέσιος καναπές, από 2ο όροφο με ασανσέρ σε ισόγειο. Χρειάζονται δύο άτομα και όχημα."
+              className={inputClass + ' mt-1.5 resize-none'}
             />
           </label>
 
@@ -253,6 +274,11 @@ export function PostTaskModal({
               <p className="mt-2 text-sm font-semibold leading-snug text-gray-900">
                 {title.trim() || 'Ο τίτλος σου θα φανεί εδώ'}
               </p>
+              {description.trim() && (
+                <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-gray-600">
+                  {description.trim()}
+                </p>
+              )}
               <p className="mt-1.5 text-xs text-gray-500">
                 📍 {area} · 🕒 {when.trim() || 'πότε;'}
               </p>

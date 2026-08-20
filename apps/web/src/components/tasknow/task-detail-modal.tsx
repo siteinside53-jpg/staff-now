@@ -393,6 +393,12 @@ export function TaskDetailModal({
           <span>{task.postedAgo}</span>
         </div>
 
+        {task.description && (
+          <p className="mt-3 whitespace-pre-line border-t border-gray-200 pt-3 text-sm leading-relaxed text-gray-700">
+            {task.description}
+          </p>
+        )}
+
         {/* Κοινοποίηση: όσο περισσότεροι τη δουν, τόσο πιο γρήγορα γίνεται. */}
         <div className="mt-3">
           <ShareTask
