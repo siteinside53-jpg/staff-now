@@ -6,9 +6,10 @@ import {
   AREA_COORDS,
   CATEGORY_BY_KEY,
   REQUIRED_LICENCE,
+  type CenterSource,
   type Coords,
   distanceKm,
-  formatKm,
+  distanceLabel,
   isLicensedCategory,
   levelFor,
 } from './data';
@@ -335,11 +336,15 @@ function ReasonBox({
 export function TaskDetailModal({
   task,
   center,
+  centerSource = 'default',
+  centerLabel = 'το κέντρο',
   onClose,
   onMakeOffer,
 }: {
   task: MockTask;
   center: Coords | null;
+  centerSource?: CenterSource;
+  centerLabel?: string;
   onClose: () => void;
   onMakeOffer: (task: MockTask) => void;
 }) {
@@ -364,7 +369,9 @@ export function TaskDetailModal({
         <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-gray-600">
           <span aria-hidden="true">{cat?.icon}</span>
           {cat?.label} · {task.area}
-          {km !== null && <span className="text-gray-400">· {formatKm(km)} από σένα</span>}
+          {km !== null && (
+            <span className="text-gray-400">· {distanceLabel(km, centerSource, centerLabel)}</span>
+          )}
           {task.urgent && (
             <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-700">
               Επείγον

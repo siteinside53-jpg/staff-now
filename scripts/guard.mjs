@@ -425,7 +425,8 @@ function checkTaskNow() {
     }
     // Δεκτό είτε ρητό «!x.hidden», είτε το κοινό φίλτρο isPublic/isOpen που
     // κόβει μαζί κρυμμένες, ακυρωμένες και σε διαφωνία.
-    if (!/!\w+\.hidden|\bisPublic\b|\bisOpen\b/.test(src)) leaks.push(label);
+    if (!/!\w+\.hidden|\bisPublic\b|\bisOpen\b|\bpublicOpenTasks\b|\bpreviewTasks\b/.test(src))
+      leaks.push(label);
   }
   if (leaks.length) {
     fail(

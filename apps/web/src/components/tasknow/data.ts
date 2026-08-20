@@ -4,6 +4,18 @@
  * ΠΡΟΣΟΧΗ: όλα όσα ακολουθούν είναι ΠΑΡΑΔΕΙΓΜΑΤΑ, γραμμένα στο χέρι για να
  * φανεί η ιδέα. Δεν έρχονται από το API και δεν είναι αληθινές αγγελίες.
  * Η ετικέτα «ΜΑΚΕΤΑ» στην κορυφή της σελίδας δεν αφαιρείται όσο ισχύει αυτό.
+ *
+ * ── ΣΥΜΒΟΛΑΙΟ ΑΡΙΘΜΩΝ ──────────────────────────────────────────────────────
+ * ΕΠΙΤΡΕΠΟΝΤΑΙ (όλα υπολογισμένα από τις ανοιχτές, δημόσιες δουλειές):
+ *   πλήθος · άθροισμα · μικρότερη/μεγαλύτερη αμοιβή · πλήθος και μέγιστο ανά
+ *   γειτονιά ή κατηγορία · πλήθος προσφορών · αποστάσεις · πόσο παλιά ανέβηκε.
+ * ΑΠΑΓΟΡΕΥΟΝΤΑΙ ΡΗΤΑ:
+ *   μέσος χρόνος απάντησης · «Χ άτομα εγγράφηκαν» · ποσοστά ολοκλήρωσης ·
+ *   συγκεντρωτικές βαθμολογίες · «συνήθως απαντούν σε…» · πιθανότητα επιτυχίας.
+ * ΚΑΝΟΝΑΣ ΕΠΙΛΟΓΗΣ: κάθε προεπισκόπηση παίρνει τις ΠΙΟ ΠΡΟΣΦΑΤΕΣ, ποτέ τις
+ *   ακριβότερες. Το να διαλέγεις τα μεγάλα ποσά είναι σιωπηλό ψέμα.
+ * ΚΑΝΟΝΑΣ ΚΛΙΜΑΚΑΣ: ποτέ «έως {max}€» ως τίτλος έξω από το TaskNow — μόνο
+ *   εύρος «{min}€–{max}€ ανά δουλειά», και το «ανά δουλειά» δεν κόβεται.
  */
 
 export type Task = {
@@ -15,6 +27,12 @@ export type Task = {
   budgetNote?: string;
   when: string;
   postedAgo: string;
+  /**
+   * Πόσα λεπτά πριν ανέβηκε. Γραμμένο στο χέρι ώστε να συμφωνεί με το
+   * `postedAgo` — χωρίς αυτό το «Πιο πρόσφατα» δεν έχει τι να ταξινομήσει
+   * και η ετικέτα «Νέο» δεν μπορεί να υπολογιστεί.
+   */
+  postedMinutesAgo: number;
   offers: number;
   urgent?: boolean;
   remote?: boolean;
@@ -104,6 +122,7 @@ export const SAMPLE_TASKS: Task[] = [
     budgetNote: 'ανά βόλτα',
     when: 'Καθημερινά 18:00',
     postedAgo: 'πριν 12 λεπτά',
+    postedMinutesAgo: 12,
     offers: 3,
   },
   {
@@ -114,6 +133,7 @@ export const SAMPLE_TASKS: Task[] = [
     budget: 60,
     when: 'Σάββατο πρωί',
     postedAgo: 'πριν 40 λεπτά',
+    postedMinutesAgo: 40,
     offers: 5,
     urgent: true,
   },
@@ -125,6 +145,7 @@ export const SAMPLE_TASKS: Task[] = [
     budget: 80,
     when: 'Μέχρι την Παρασκευή',
     postedAgo: 'πριν 2 ώρες',
+    postedMinutesAgo: 120,
     offers: 7,
   },
   {
@@ -135,6 +156,7 @@ export const SAMPLE_TASKS: Task[] = [
     budget: 15,
     when: 'Δευτέρα & Πέμπτη',
     postedAgo: 'πριν 3 ώρες',
+    postedMinutesAgo: 180,
     offers: 2,
   },
   {
@@ -145,6 +167,7 @@ export const SAMPLE_TASKS: Task[] = [
     budget: 50,
     when: 'Όποτε βολεύει',
     postedAgo: 'πριν 5 ώρες',
+    postedMinutesAgo: 300,
     offers: 4,
   },
   {
@@ -155,6 +178,7 @@ export const SAMPLE_TASKS: Task[] = [
     budget: 40,
     when: 'Αυτή τη βδομάδα',
     postedAgo: 'πριν 8 ώρες',
+    postedMinutesAgo: 480,
     offers: 1,
   },
   {
@@ -165,6 +189,7 @@ export const SAMPLE_TASKS: Task[] = [
     budget: 30,
     when: 'Απόψε αν γίνεται',
     postedAgo: 'πριν 9 ώρες',
+    postedMinutesAgo: 540,
     offers: 6,
     urgent: true,
   },
@@ -176,6 +201,7 @@ export const SAMPLE_TASKS: Task[] = [
     budget: 60,
     when: 'Κυριακή 12:00',
     postedAgo: 'χθες',
+    postedMinutesAgo: 1440,
     offers: 9,
   },
   {
@@ -186,6 +212,7 @@ export const SAMPLE_TASKS: Task[] = [
     budget: 120,
     when: 'Μέσα στον μήνα',
     postedAgo: 'χθες',
+    postedMinutesAgo: 1440,
     offers: 3,
   },
   {
@@ -196,6 +223,7 @@ export const SAMPLE_TASKS: Task[] = [
     budget: 70,
     when: 'Μέσα σε 5 μέρες',
     postedAgo: 'πριν 2 μέρες',
+    postedMinutesAgo: 2880,
     offers: 11,
     remote: true,
   },
@@ -207,6 +235,7 @@ export const SAMPLE_TASKS: Task[] = [
     budget: 45,
     when: '3–7 Σεπτεμβρίου',
     postedAgo: 'πριν 2 μέρες',
+    postedMinutesAgo: 2880,
     offers: 8,
   },
   {
@@ -217,6 +246,7 @@ export const SAMPLE_TASKS: Task[] = [
     budget: 150,
     when: 'Σαββατόβραδο',
     postedAgo: 'χθες',
+    postedMinutesAgo: 1440,
     offers: 0,
     hidden: true,
     flagReason: 'Ύποπτο για συνοδευτικό περιεχόμενο — απαγορεύεται ρητά',
@@ -229,6 +259,7 @@ export const SAMPLE_TASKS: Task[] = [
     budget: 500,
     when: 'Άμεσα',
     postedAgo: 'πριν 5 ώρες',
+    postedMinutesAgo: 300,
     offers: 0,
     hidden: true,
     flagReason: 'Δεν είναι υπηρεσία — οικονομική συναλλαγή',
@@ -241,6 +272,7 @@ export const SAMPLE_TASKS: Task[] = [
     budget: 200,
     when: 'Μέσα στη βδομάδα',
     postedAgo: 'πριν 1 ώρα',
+    postedMinutesAgo: 60,
     offers: 2,
   },
   {
@@ -251,6 +283,7 @@ export const SAMPLE_TASKS: Task[] = [
     budget: 90,
     when: 'Το συντομότερο',
     postedAgo: 'πριν 4 ώρες',
+    postedMinutesAgo: 240,
     offers: 3,
     urgent: true,
   },
@@ -262,6 +295,7 @@ export const SAMPLE_TASKS: Task[] = [
     budget: 150,
     when: 'Επόμενη βδομάδα',
     postedAgo: 'πριν 3 μέρες',
+    postedMinutesAgo: 4320,
     offers: 5,
   },
 ];
@@ -350,6 +384,29 @@ export function distanceKm(a: Coords, b: Coords): number {
   const h =
     Math.sin(dLat / 2) ** 2 + Math.sin(dLon / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
   return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+/** Από πού μετριέται η απόσταση που δείχνουμε. */
+export type CenterSource = 'default' | 'area' | 'geo';
+
+/**
+ * Πώς γράφεται μια απόσταση — ΠΑΝΤΑ με το σημείο αναφοράς δίπλα της.
+ *
+ * Βρέθηκε στη δοκιμή: η καρτέλα έγραφε «6,0 χλμ από σένα» ενώ κανείς δεν
+ * είχε δώσει τοποθεσία — μετρούσε από το κέντρο Θεσσαλονίκης. Απόσταση χωρίς
+ * σημείο αναφοράς είναι απλώς λάθος νούμερο.
+ */
+export function distanceLabel(
+  km: number | null,
+  source: CenterSource,
+  centerLabel: string,
+): string {
+  if (km === null) return 'Εξ αποστάσεως';
+  const from =
+    source === 'geo' ? 'από σένα' : source === 'area' ? `από ${centerLabel}` : 'από το κέντρο';
+  // Κάτω από 150 μέτρα δεν τυπώνουμε αριθμό: το «0 μ.» δεν λέει τίποτα.
+  if (km < 0.15) return `εδώ κοντά ${from}`;
+  return `${formatKm(km)} ${from}`;
 }
 
 export function formatKm(km: number): string {
@@ -470,3 +527,18 @@ export function findBlockedWord(text: string, words: string[]): string | null {
 // λίγες ώρες. Αν κρατούσε για πάντα, σε μία βδομάδα θα ήταν όλες επείγουσες
 // και δεν θα σήμαινε τίποτα.
 export const URGENT_HOURS = 6;
+
+
+// ── Πόσο παλιά είναι μια αγγελία ────────────────────────────────────────────
+
+/** Πόσο καιρό μετράει μια αγγελία ως «Νέο» — ίδια σύμβαση με τις αγγελίες. */
+export const NEW_MINUTES = 48 * 60;
+
+export function formatPostedAgo(minutes: number): string {
+  if (minutes < 1) return 'μόλις τώρα';
+  if (minutes < 60) return `πριν ${Math.round(minutes)} λεπτά`;
+  if (minutes < 120) return 'πριν 1 ώρα';
+  if (minutes < 1440) return `πριν ${Math.round(minutes / 60)} ώρες`;
+  if (minutes < 2880) return 'χθες';
+  return `πριν ${Math.round(minutes / 1440)} μέρες`;
+}

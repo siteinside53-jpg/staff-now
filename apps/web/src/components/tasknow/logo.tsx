@@ -28,17 +28,20 @@ export function TaskNowLogo({
   className = 'text-2xl',
   markClassName = 'h-7 w-7',
   darkClassName = 'text-gray-900',
+  accentClassName = 'text-amber-500',
 }: {
   className?: string;
   markClassName?: string;
   darkClassName?: string;
+  /** Πάνω σε πορτοκαλί φόντο το amber-500 εξαφανίζεται — δώσε ανοιχτότερο. */
+  accentClassName?: string;
 }) {
   return (
     <span className={'inline-flex items-center gap-1.5 font-extrabold tracking-tight ' + className}>
       <TaskNowMark className={markClassName} />
       <span>
         <span className={darkClassName}>Task</span>
-        <span className="text-amber-500">Now</span>
+        <span className={accentClassName}>Now</span>
       </span>
     </span>
   );

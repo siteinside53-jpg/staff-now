@@ -11,6 +11,11 @@ import {
   type Task,
 } from './data';
 
+/** Τα λεπτά κάθε δείγματος, για συμπλήρωση παλιότερης αποθήκευσης. */
+const SAMPLE_MINUTES: Record<string, number> = Object.fromEntries(
+  SAMPLE_TASKS.map((t) => [t.id, t.postedMinutesAgo]),
+);
+
 /**
  * ΜΑΚΕΤΑ — η μνήμη της επίδειξης.
  *
@@ -241,6 +246,8 @@ function hydrate() {
         tasks: parsed.tasks.map((t) => ({
           ...t,
           messages: t.messages ?? [],
+          // Χωρίς αυτό, όποιος ξαναμπαίνει βλέπει νεκρή ταξινόμηση «πιο πρόσφατα».
+          postedMinutesAgo: t.postedMinutesAgo ?? SAMPLE_MINUTES[t.id ?? ''] ?? 0,
           paidByOwner: t.paidByOwner ?? false,
           paidByWorker: t.paidByWorker ?? false,
         })) as MockTask[],
@@ -308,6 +315,7 @@ export function addTask(input: {
     budget: input.budget,
     when: input.when,
     postedAgo: 'μόλις τώρα',
+    postedMinutesAgo: 0,
     offers: 0,
     urgent: input.urgent === true,
     remote: input.area === 'Εξ αποστάσεως',
@@ -529,4 +537,61 @@ export function matchingTasks(s: MockState): MockTask[] {
     if (!coords || !center) return true; // εξ αποστάσεως — δεν το κόβει η ακτίνα
     return distanceKm(center, coords) <= prefs.radiusKm;
   });
+}
+
+// ── Κοινοί επιλογείς ────────────────────────────────────────────────────────
+// ΜΙΑ πηγή αλήθειας για κάθε δημόσιο νούμερο. Το λάθος που έγινε μία φορά
+// (το μπάνερ της αρχικής μετρούσε αλλιώς από τη ροή, οπότε τα δύο νούμερα
+// διαφωνούσαν μπροστά στον χρήστη) δεν επαναλαμβάνεται αν όλοι περνούν από εδώ.
+
+/** Οι δουλειές που δέχονται ακόμη προσφορές και φαίνονται δημόσια. */
+export function publicOpenTasks(s: MockState): MockTask[] {
+  return s.tasks.filter(isOpen);
+}
+
+export type BoardStats = {
+  count: number;
+  sum: number;
+  min: number | null;
+  max: number | null;
+};
+
+export function boardStats(list: MockTask[]): BoardStats {
+  if (list.length === 0) return { count: 0, sum: 0, min: null, max: null };
+  let sum = 0;
+  let min = Infinity;
+  let max = -Infinity;
+  for (const t of list) {
+    sum += t.budget;
+    if (t.budget < min) min = t.budget;
+    if (t.budget > max) max = t.budget;
+  }
+  return { count: list.length, sum, min, max };
+}
+
+/**
+ * Οι εγγραφές που δείχνουμε ως δείγμα έξω από το TaskNow.
+ *
+ * ΠΑΝΤΑ οι πιο πρόσφατες, ποτέ οι ακριβότερες — το να διαλέγεις τα μεγάλα
+ * ποσά για προεπισκόπηση είναι σιωπηλό ψέμα. Και ποτέ οι δικές σου: το
+ * `addTask` τις βάζει πρώτες, οπότε η δοκιμαστική σου αγγελία θα κατέληγε
+ * στην αρχική σελίδα.
+ */
+export function previewTasks(s: MockState, n: number): MockTask[] {
+  return publicOpenTasks(s)
+    .filter((t) => !t.mine)
+    .sort((a, b) => a.postedMinutesAgo - b.postedMinutesAgo)
+    .slice(0, n);
+}
+
+/** Πόσες δουλειές και τι ανώτατη αμοιβή έχει κάθε γειτονιά αυτή τη στιγμή. */
+export function areaStats(list: MockTask[]): { area: string; count: number; max: number }[] {
+  const map = new Map<string, { count: number; max: number }>();
+  for (const t of list) {
+    const cur = map.get(t.area) ?? { count: 0, max: 0 };
+    map.set(t.area, { count: cur.count + 1, max: Math.max(cur.max, t.budget) });
+  }
+  return [...map.entries()]
+    .map(([area, v]) => ({ area, ...v }))
+    .sort((a, b) => b.count - a.count || b.max - a.max);
 }
