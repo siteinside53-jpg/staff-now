@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Modal, MockNote } from './modal';
+import { ShareTask } from './share-task';
 import {
   AREA_COORDS,
   CATEGORY_BY_KEY,
@@ -390,6 +391,17 @@ export function TaskDetailModal({
             {task.budget}€ {task.budgetNote ? `(${task.budgetNote})` : ''}
           </span>
           <span>{task.postedAgo}</span>
+        </div>
+
+        {/* Κοινοποίηση: όσο περισσότεροι τη δουν, τόσο πιο γρήγορα γίνεται. */}
+        <div className="mt-3">
+          <ShareTask
+            taskId={task.id}
+            title={task.title}
+            budget={task.budget}
+            area={task.area}
+            compact
+          />
         </div>
       </div>
 
