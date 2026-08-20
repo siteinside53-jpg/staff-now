@@ -23,6 +23,7 @@ const workerNavItems = [
   { href: '/dashboard/messages', label: 'Μηνύματα', icon: MessageIcon },
   { href: '/dashboard/profile', label: 'Προφίλ', icon: ProfileIcon },
   { href: '/dashboard/hires', label: 'Προσλήψεις', icon: HireIcon },
+  { href: '/dashboard/tasknow', label: 'TaskNow', icon: TaskNowIcon },
   { href: '/dashboard/ratings', label: 'Αξιολογήσεις', icon: StarIcon },
   { href: '/dashboard/interests', label: 'Ενδιαφέρον', icon: HeartIcon },
   { href: '/dashboard/billing', label: 'Premium', icon: BillingIcon },
@@ -36,6 +37,7 @@ const businessNavItems = [
   { href: '/dashboard/matches', label: 'Matches', icon: MatchIcon },
   { href: '/dashboard/messages', label: 'Μηνύματα', icon: MessageIcon },
   { href: '/dashboard/hires', label: 'Προσλήψεις', icon: HireIcon },
+  { href: '/dashboard/tasknow', label: 'TaskNow', icon: TaskNowIcon },
   { href: '/dashboard/ratings', label: 'Αξιολογήσεις', icon: StarIcon },
   { href: '/dashboard/interests', label: 'Ενδιαφέρον', icon: HeartIcon },
   { href: '/dashboard/profile', label: 'Προφίλ', icon: ProfileIcon },
@@ -683,6 +685,14 @@ function HeartIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M10.05 4.575a1.575 1.575 0 1 0-3.15 0v3m3.15-3v-1.5a1.575 1.575 0 0 1 3.15 0v1.5m-3.15 0 .075 5.925m3.075.75V4.575m0 0a1.575 1.575 0 0 1 3.15 0V15M6.9 7.575a1.575 1.575 0 1 0-3.15 0v8.175a6.75 6.75 0 0 0 6.75 6.75h2.018a5.25 5.25 0 0 0 3.712-1.538l1.732-1.732a5.25 5.25 0 0 0 1.538-3.712l.003-2.024a.668.668 0 0 1 .198-.471 1.575 1.575 0 1 0-2.228-2.228 3.818 3.818 0 0 0-1.12 2.687M6.9 7.575V12m6.27 4.318A4.49 4.49 0 0 1 16.35 15m.002 0h-.002" />
+    </svg>
+  );
+}
+
+function TaskNowIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
     </svg>
   );
 }

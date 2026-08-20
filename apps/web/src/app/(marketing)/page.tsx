@@ -10,6 +10,7 @@ import { HowItWorksTabs } from '@/components/marketing/how-it-works-tabs';
 import { TrustBar } from '@/components/marketing/trust-bar';
 import { SwipeTeaser } from '@/components/marketing/swipe-teaser';
 import { UrgentShifts } from '@/components/marketing/urgent-shifts';
+import { TaskNowBanner } from '@/components/tasknow/home-banner';
 
 export const metadata = {
   title: { absolute: 'StaffNow – Βρες Προσωπικό & Δουλειά σε Κάθε Κλάδο | Match σε 24 Ώρες' },
@@ -121,6 +122,9 @@ export default function HomePage() {
 
       {/* ====== ΕΚΤΑΚΤΗ ΒΑΡΔΙΑ (εμφανίζεται μόνο αν υπάρχουν ανοιχτές) ====== */}
       <UrgentShifts />
+
+      {/* Μικροδουλειές — ορατές εκεί όπου ήδη περνάει κόσμος */}
+      <TaskNowBanner />
 
       {/* ====== FOR BUSINESSES ====== */}
       <section className="bg-white py-20 sm:py-28">

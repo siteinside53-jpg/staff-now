@@ -388,6 +388,89 @@ function checkHeroPhotos() {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
+// TaskNow (μικροδουλειές) — τρεις κανόνες που ΔΕΝ επιτρέπεται να χαλάσουν
+//
+// 1. Ό,τι κρύβει ο διαχειριστής δεν φαίνεται και δεν μετριέται δημόσια.
+//    Βρέθηκε στη μακέτα: το μπάνερ της αρχικής μετρούσε και τις κρυμμένες,
+//    οπότε μια αγγελία που κόπηκε για ερωτικό περιεχόμενο φούσκωνε δημόσιο
+//    μετρητή και το άθροισμα αμοιβών.
+// 2. Μια άδεια γίνεται «ελεγμένη» ΜΟΝΟ από το διαχειριστικό. Αν κάποιο άλλο
+//    αρχείο βάλει `verified: true`, χάνεται η διαφορά «δηλωμένο»/«ελεγμένο»
+//    — που είναι ακριβώς η γραμμή ανάμεσα στο «σου δίνουμε πληροφορία» και
+//    στο «σου εγγυόμαστε».
+// 3. Όσο η ενότητα είναι μακέτα, δεν μιλάει στον πραγματικό server.
+// ───────────────────────────────────────────────────────────────────────────
+function checkTaskNow() {
+  const dir = 'apps/web/src/components/tasknow';
+  let files;
+  try {
+    files = walk(dir);
+  } catch {
+    return;
+  }
+  if (!files.length) return; // η ενότητα δεν υπάρχει (ακόμη) — δεν ελέγχουμε
+
+  // 1. Οι δημόσιες λίστες φιλτράρουν τις κρυμμένες
+  const publicLists = [
+    [join(dir, 'task-feed.tsx'), 'η δημόσια ροή'],
+    [join(dir, 'home-banner.tsx'), 'το μπάνερ της αρχικής'],
+  ];
+  const leaks = [];
+  for (const [file, label] of publicLists) {
+    let src;
+    try {
+      src = stripComments(read(file));
+    } catch {
+      continue;
+    }
+    if (!/!\w+\.hidden/.test(src)) leaks.push(label);
+  }
+  if (leaks.length) {
+    fail(
+      'Κρυμμένες μικροδουλειές φαίνονται δημόσια',
+      `Λείπει το φίλτρο «όχι οι κρυμμένες» από: ${leaks.join(', ')}. ` +
+        'Ό,τι κόβει ο διαχειριστής πρέπει να εξαφανίζεται και από τις λίστες και από τα νούμερα.'
+    );
+  } else {
+    ok('TaskNow: ό,τι κρύβει ο διαχειριστής δεν φαίνεται και δεν μετριέται');
+  }
+
+  // 2. «Ελεγμένη» άδεια μόνο από το διαχειριστικό
+  const allowed = new Set([join(dir, 'mock-store.ts')]);
+  const badVerified = [];
+  for (const f of files) {
+    if (allowed.has(f)) continue;
+    const src = stripComments(read(f));
+    if (/verified:\s*true/.test(src)) badVerified.push(f);
+  }
+  if (badVerified.length) {
+    fail(
+      'Άδεια δηλώνεται «ελεγμένη» έξω από τον έλεγχο ανθρώπου',
+      `Βρέθηκε «verified: true» σε: ${badVerified.join(', ')}. ` +
+        'Μόνο ο διαχειριστής εγκρίνει άδεια — αλλιώς δείχνουμε ως ελεγμένο κάτι που δεν είδε κανείς.'
+    );
+  } else {
+    ok('TaskNow: άδεια γίνεται «ελεγμένη» μόνο από το διαχειριστικό');
+  }
+
+  // 3. Καμία κλήση στον πραγματικό server όσο είναι μακέτα
+  const talks = [];
+  for (const f of files) {
+    const src = stripComments(read(f));
+    if (/\bAPI_URL\b|\bfetch\s*\(/.test(src)) talks.push(f);
+  }
+  if (talks.length) {
+    fail(
+      'Η μακέτα του TaskNow μιλάει στον πραγματικό server',
+      `Βρέθηκε κλήση σε: ${talks.join(', ')}. Όσο η ενότητα είναι μακέτα δεν ` +
+        'πρέπει να αγγίζει πραγματικά δεδομένα.'
+    );
+  } else {
+    ok('TaskNow: η μακέτα δεν αγγίζει πραγματικά δεδομένα');
+  }
+}
+
+// ───────────────────────────────────────────────────────────────────────────
 // 5. Το πραγματικό site (μόνο με --live)
 // ───────────────────────────────────────────────────────────────────────────
 async function checkLive() {
@@ -428,6 +511,7 @@ checkPermissionsPolicy();
 checkApiRoutes();
 checkNotificationBell();
 checkHeroPhotos();
+checkTaskNow();
 if (LIVE) await checkLive();
 
 console.log('');

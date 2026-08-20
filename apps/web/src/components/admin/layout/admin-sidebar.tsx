@@ -23,6 +23,7 @@ const NAV: NavItem[] = [
   { href: '/admin/messages', label: 'Μηνύματα', icon: '💬', section: 'Marketplace' },
   { href: '/admin/hires', label: 'Προσλήψεις', icon: '🤝', section: 'Marketplace' },
   { href: '/admin/ratings', label: 'Αξιολογήσεις', icon: '⭐', section: 'Marketplace' },
+  { href: '/admin/tasknow', label: 'TaskNow', icon: '⚡', section: 'Marketplace' },
 
   { href: '/admin/reports', label: 'Αναφορές', icon: '🚨', section: 'Trust & Safety' },
   { href: '/admin/verifications', label: 'Επαληθεύσεις', icon: '✅', section: 'Trust & Safety' },

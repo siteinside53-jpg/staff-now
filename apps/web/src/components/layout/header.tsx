@@ -5,9 +5,12 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useLoginModal } from '@/components/auth/login-modal';
 
-const NAV_LINKS = [
+const NAV_LINKS: { href: string; label: string; accent?: boolean }[] = [
   { href: '/how-it-works', label: 'Πώς λειτουργεί' },
   { href: '/for-businesses', label: 'Για επιχειρήσεις' },
+  // Οι μικροδουλειές κάθονται ανάμεσα στις δύο πλευρές της αγοράς:
+  // και οι επιχειρήσεις και οι εργαζόμενοι ανεβάζουν και αναλαμβάνουν.
+  { href: '/tasknow', label: 'TaskNow', accent: true },
   { href: '/for-workers', label: 'Για εργαζόμενους' },
   { href: '/#download-app', label: 'Κατέβασε το App' },
 ];
@@ -48,8 +51,13 @@ function Header() {
             <Link
               key={link.href}
               href={link.href}
-              className="rounded-md px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
+              className={
+                link.accent
+                  ? 'inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-100'
+                  : 'rounded-md px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900'
+              }
             >
+              {link.accent && <span aria-hidden="true">⚡</span>}
               {link.label}
             </Link>
           ))}
@@ -112,7 +120,17 @@ function Header() {
         <div className="border-t bg-white px-4 pb-4 pt-2 lg:hidden">
           <nav className="flex flex-col gap-1">
             {[...NAV_LINKS, ...MOBILE_EXTRA_LINKS].map((link) => (
-              <Link key={link.href} href={link.href} className="rounded-md px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50" onClick={() => setMobileMenuOpen(false)}>
+              <Link
+                key={link.href}
+                href={link.href}
+                className={
+                  'accent' in link && link.accent
+                    ? 'inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-3 py-2.5 text-sm font-semibold text-amber-700 hover:bg-amber-100'
+                    : 'rounded-md px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50'
+                }
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {'accent' in link && link.accent && <span aria-hidden="true">⚡</span>}
                 {link.label}
               </Link>
             ))}

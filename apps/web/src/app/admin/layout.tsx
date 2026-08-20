@@ -21,6 +21,7 @@ const PAGE_META: Record<string, { title: string; subtitle?: string }> = {
   '/admin/messages': { title: 'Μηνύματα', subtitle: 'Trust & Safety moderation' },
   '/admin/hires': { title: 'Προσλήψεις', subtitle: 'Κάθε δήλωση πρόσληψης — ποιος τη δήλωσε, ποιος την επιβεβαίωσε' },
   '/admin/ratings': { title: 'Αξιολογήσεις', subtitle: 'Όλες οι αμοιβαίες αξιολογήσεις μετά από πρόσληψη' },
+  '/admin/tasknow': { title: 'TaskNow', subtitle: 'Μικροδουλειές — ροή, προσφορές, άδειες, αναφορές και όρια' },
   '/admin/reports': { title: 'Αναφορές', subtitle: 'Κέντρο Trust & Safety' },
   '/admin/verifications': { title: 'Επαληθεύσεις', subtitle: 'Αιτήματα πιστοποίησης — έγκριση ή απόρριψη' },
   '/admin/subscriptions': { title: 'Συνδρομές', subtitle: 'Plans, churn, conversion' },
