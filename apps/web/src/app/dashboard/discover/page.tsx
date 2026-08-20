@@ -16,6 +16,7 @@ import { FilteredListLayout, type FilterGroup, type FilterCategory } from '@/com
 import { normText, splitLocation, buildCityCategories } from '@/lib/location';
 import { WORKER_JOB_ROLE_LABELS_EL, WORKER_JOB_ROLE_GROUPS } from '@staffnow/config';
 import { durationLabel, expiresLabel, netOf, whenLabel } from '@/lib/shift-display';
+import { AllListings } from '@/components/dashboard/all-listings';
 
 // Ελληνικό label ειδικότητας (fallback στο raw id αν λείπει)
 function roleLabel(r: string): string {
@@ -664,6 +665,17 @@ export default function DiscoverPage() {
       <div className={`mb-3 lg:mb-4 items-center justify-between ${mobileSwipeFocus ? 'hidden lg:flex' : 'flex'}`}>
         <h1 className="text-2xl font-bold text-gray-900">Εύρεση</h1>
         {discoverTab === 'discover' && !noCandidates && <span className="text-sm text-gray-500">{currentIndex + 1} / {candidates.length}</span>}
+      </div>
+
+      {/* Όλες οι αγγελίες μαζί: εργασίας, μικροδουλειές και έκτακτες βάρδιες,
+          καθεμιά στο χρώμα της. Μπαίνει εδώ γιατί η «Εύρεση» είναι το σημείο
+          όπου ο χρήστης ψάχνει δουλειά — δεν τον νοιάζει σε ποια ενότητα
+          ανήκει αυτό που θα βρει.
+
+          Κρύβεται όσο το κινητό είναι στη λειτουργία swipe, ώστε να μη
+          σπρώχνει κάτω τις κάρτες που είναι το κύριο εργαλείο εκεί. */}
+      <div className={mobileSwipeFocus ? 'hidden' : 'mb-5'}>
+        <AllListings limit={6} heading={false} />
       </div>
 
       {/* Tabs — σε desktop πάνε αριστερά (sidebar). Εδώ μένουν μόνο για mobile. */}

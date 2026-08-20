@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { AIHiringChat } from '@/components/dashboard/ai-hiring-chat';
 import { HireActionsCard } from '@/components/dashboard/hire-actions-card';
+import { AllListings } from '@/components/dashboard/all-listings';
 import { HirePromptCard } from '@/components/dashboard/hire-prompt-card';
 
 interface DashboardStats {
@@ -303,6 +304,13 @@ export default function DashboardPage() {
           ))}
         </div>
       )}
+
+      {/* Όλες οι αγγελίες μαζί — αγγελίες εργασίας, μικροδουλειές και έκτακτες
+          βάρδιες, καθεμιά στο χρώμα της. Μπαίνει ψηλά επειδή είναι το μόνο
+          σημείο της αρχικής που δείχνει τι υπάρχει ΤΩΡΑ. */}
+      <div className="mb-8">
+        <AllListings limit={6} heading={false} />
+      </div>
 
       {/* Onboarding Checklist — όλα τα βήματα ορατά συνέχεια (✓ τα ολοκληρωμένα).
           Η κάρτα φεύγει ΜΟΝΟ όταν τελειώσουν όλα. Στη θέση της εμφανίζεται
