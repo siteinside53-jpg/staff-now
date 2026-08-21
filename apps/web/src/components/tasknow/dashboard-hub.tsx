@@ -11,7 +11,6 @@ import {
   CATEGORIES,
   CATEGORY_BY_KEY,
   DEFAULT_CENTER,
-  isLicensedCategory,
   levelFor,
   nextLevel,
 } from './data';
@@ -43,22 +42,6 @@ type PendingAction = 'post' | 'browse';
 
 /** Θυμόμαστε ότι ολοκληρώθηκε το δεύτερο βήμα, ώστε ο οδηγός να μην ξαναβγεί. */
 const SAW_OFFERS_KEY = 'tasknow_onboarding_saw_offers';
-
-const STATUS_LABEL: Record<MockTask['status'], string> = {
-  open: 'Ανοιχτή',
-  assigned: 'Ανατέθηκε',
-  done: 'Ολοκληρώθηκε',
-  cancelled: 'Ακυρώθηκε',
-  disputed: 'Σε διαφωνία',
-};
-
-const STATUS_CLASS: Record<MockTask['status'], string> = {
-  open: 'bg-amber-50 text-amber-700',
-  assigned: 'bg-blue-50 text-blue-700',
-  done: 'bg-emerald-50 text-emerald-700',
-  cancelled: 'bg-gray-100 text-gray-500',
-  disputed: 'bg-red-50 text-red-700',
-};
 
 function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
@@ -598,6 +581,9 @@ export function TaskNowDashboardHub() {
         </div>
 
         <div className="divide-y divide-gray-100">
+          {/* ΙΔΙΑ γραμμή με παντού αλλού — μαζί με το πρόσωπό σου. Πριν, οι
+              δικές σου δουλειές είχαν δική τους εμφάνιση χωρίς εικόνα, και
+              γι' αυτό δεν φαινόταν η φωτογραφία σου εκεί που την έψαχνες. */}
           {tab === 'tasks' &&
             (mine.length === 0 ? (
               <p className="px-5 py-10 text-center text-sm text-gray-500">
@@ -605,32 +591,12 @@ export function TaskNowDashboardHub() {
               </p>
             ) : (
               mine.map((t) => (
-                <button
+                <TaskRow
                   key={t.id}
-                  type="button"
-                  onClick={() => openMine(t)}
-                  className="flex w-full flex-wrap items-center justify-between gap-3 px-5 py-4 text-left transition hover:bg-gray-50"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-gray-900">
-                      {t.title}
-                      {isLicensedCategory(t.category) && (
-                        <span className="ml-2 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">
-                          θέλει άδεια
-                        </span>
-                      )}
-                    </p>
-                    <p className="mt-0.5 text-xs text-gray-500">
-                      {t.offersList.length} προσφορές · {t.area} · {t.postedAgo}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-bold text-gray-900">{t.budget}€</span>
-                    <span className={'rounded-full px-2.5 py-1 text-xs font-medium ' + STATUS_CLASS[t.status]}>
-                      {STATUS_LABEL[t.status]}
-                    </span>
-                  </div>
-                </button>
+                  task={t}
+                  onOpen={() => openMine(t)}
+                  onOffer={() => openMine(t)}
+                />
               ))
             ))}
 
@@ -647,9 +613,24 @@ export function TaskNowDashboardHub() {
                   onClick={() => setDetail(task)}
                   className="flex w-full flex-wrap items-center justify-between gap-3 px-5 py-4 text-left transition hover:bg-gray-50"
                 >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-gray-900">{task.title}</p>
-                    <p className="mt-0.5 text-xs text-gray-500">Στάλθηκε {offer.createdAgo}</p>
+                  <div className="flex min-w-0 items-center gap-3">
+                    {task.postedByName && (
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-amber-100 to-orange-100 text-xs font-bold text-amber-700">
+                        {task.postedByPhoto ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={task.postedByPhoto} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          task.postedByName.trim().charAt(0).toUpperCase()
+                        )}
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-gray-900">{task.title}</p>
+                      <p className="mt-0.5 truncate text-xs text-gray-500">
+                        {task.postedByName ? `${task.postedByName} · ` : ''}
+                        στάλθηκε {offer.createdAgo}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-bold text-gray-900">{offer.amount}€</span>
