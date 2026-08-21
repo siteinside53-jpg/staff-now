@@ -36,7 +36,15 @@ const KIND_ORDER: Kind[] = ['job', 'task', 'shift'];
 
 const KIND: Record<
   Kind,
-  { label: string; plural: string; chip: string; bar: string; dot: string; href: string }
+  {
+    label: string;
+    plural: string;
+    chip: string;
+    bar: string;
+    dot: string;
+    action: string;
+    href: string;
+  }
 > = {
   job: {
     label: 'Αγγελία εργασίας',
@@ -44,6 +52,7 @@ const KIND: Record<
     chip: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
     bar: 'bg-emerald-500',
     dot: 'bg-emerald-500',
+    action: 'bg-emerald-600 hover:bg-emerald-700',
     href: '/dashboard/discover',
   },
   shift: {
@@ -52,6 +61,7 @@ const KIND: Record<
     chip: 'bg-rose-50 text-rose-700 ring-rose-200',
     bar: 'bg-rose-500',
     dot: 'bg-rose-500',
+    action: 'bg-rose-600 hover:bg-rose-700',
     href: '/dashboard/discover',
   },
   task: {
@@ -60,6 +70,7 @@ const KIND: Record<
     chip: 'bg-amber-50 text-amber-800 ring-amber-200',
     bar: 'bg-amber-500',
     dot: 'bg-amber-500',
+    action: 'bg-gray-900 hover:bg-amber-500',
     href: '/dashboard/tasknow',
   },
 };
@@ -79,6 +90,13 @@ type Item = {
   /** Ετικέτες που πρέπει να φαίνονται πάντα (π.χ. «θέλει άδεια»). */
   flags?: { text: string; className: string }[];
   mock?: boolean;
+  /** Λογότυπο επιχείρησης· χωρίς αυτό δείχνουμε το αρχικό γράμμα. */
+  logo?: string | null;
+  /** Τύπος απασχόλησης, πόσο καιρό πριν — ό,τι δείχνει και η κανονική λίστα. */
+  badges?: string[];
+  /** Παροχές: στέγη, φαγητό. */
+  perks?: string[];
+  actionLabel: string;
 };
 
 interface PublicJob {
@@ -93,6 +111,10 @@ interface PublicJob {
   salary_max?: number | null;
   salary_type?: string | null;
   employment_type?: string | null;
+  company_logo?: string | null;
+  created_at?: string | null;
+  housing_provided?: boolean | null;
+  meals_provided?: boolean | null;
 }
 
 interface PublicShift {
@@ -125,6 +147,29 @@ function salaryText(j: PublicJob): string {
   return 'Κατόπιν συνεννόησης';
 }
 
+function employmentGreek(t?: string | null): string {
+  const map: Record<string, string> = {
+    full_time: 'Full-time',
+    part_time: 'Part-time',
+    seasonal: 'Σεζόν',
+    freelance: 'Freelance',
+  };
+  return t ? (map[t] ?? '') : '';
+}
+
+/** «πριν 3 ημέρες» — ίδια διατύπωση με την κανονική λίστα αγγελιών. */
+function agoLabel(iso?: string | null): string {
+  if (!iso) return '';
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return '';
+  const days = Math.floor((Date.now() - t) / 86_400_000);
+  if (days <= 0) return 'σήμερα';
+  if (days === 1) return 'χθες';
+  if (days < 30) return `πριν ${days} ημέρες`;
+  const months = Math.floor(days / 30);
+  return months === 1 ? 'πριν 1 μήνα' : `πριν ${months} μήνες`;
+}
+
 function Row({ item }: { item: Item }) {
   const k = KIND[item.kind];
   return (
@@ -132,7 +177,20 @@ function Row({ item }: { item: Item }) {
       {/* Η χρωματιστή λωρίδα είναι το γρήγορο σήμα «τι είδους είναι αυτό» */}
       <span className={'absolute left-0 top-0 h-full w-1 ' + k.bar} aria-hidden="true" />
 
-      <div className="min-w-0 pl-2">
+      <div className="flex min-w-0 gap-3 pl-2">
+        {/* Λογότυπο ή αρχικό γράμμα — ίδιο μοτίβο με την κανονική λίστα. */}
+        {item.kind !== 'task' && (
+          <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gray-100 text-sm font-bold text-gray-500">
+            {item.logo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={item.logo} alt="" className="h-full w-full object-cover" />
+            ) : (
+              (item.extra || item.title).trim().charAt(0).toUpperCase()
+            )}
+          </span>
+        )}
+
+        <div className="min-w-0">
         <Link
           href={item.href}
           className="text-left text-[15px] font-semibold leading-snug text-gray-900 after:absolute after:inset-0 hover:underline"
@@ -167,18 +225,46 @@ function Row({ item }: { item: Item }) {
               ΜΑΚΕΤΑ
             </span>
           )}
+          {item.badges?.filter(Boolean).map((b) => (
+            <span
+              key={b}
+              className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600"
+            >
+              {b}
+            </span>
+          ))}
+          {item.perks?.map((p) => (
+            <span
+              key={p}
+              className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700"
+            >
+              {p}
+            </span>
+          ))}
           {item.flags?.map((f) => (
             <span key={f.text} className={'rounded-full px-2 py-0.5 text-[11px] font-semibold ' + f.className}>
               {f.text}
             </span>
           ))}
         </div>
+        </div>
       </div>
 
       {/* Ίδια τυπογραφία ποσού με τη ροή του TaskNow: όλα τα ευρώ της σελίδας
           πέφτουν στην ίδια κατακόρυφη γραμμή, ό,τι είδος κι αν είναι. */}
-      <div className="w-[5.5rem] shrink-0">
-        <AmountText value={item.money} note={item.moneyNote} size="band" />
+      <div className="flex shrink-0 flex-col items-end justify-between gap-2">
+        <div className="w-[5.5rem]">
+          <AmountText value={item.money} note={item.moneyNote} size="band" />
+        </div>
+        <Link
+          href={item.href}
+          className={
+            'relative z-10 h-8 shrink-0 rounded-lg px-3 text-xs font-semibold leading-8 text-white transition ' +
+            k.action
+          }
+        >
+          {item.actionLabel}
+        </Link>
       </div>
     </div>
   );
@@ -265,6 +351,13 @@ export function AllListings({
         money: salaryText(j),
         extra: j.display_company_name || j.company_name || undefined,
         href: `/jobs/${j.id}`,
+        logo: j.company_logo,
+        badges: [employmentGreek(j.employment_type), agoLabel(j.created_at)].filter(Boolean),
+        perks: [
+          j.housing_provided ? '🏠 Στέγη' : '',
+          j.meals_provided ? '🍽️ Φαγητό' : '',
+        ].filter(Boolean),
+        actionLabel: 'Δες αγγελία',
       });
     }
 
@@ -283,6 +376,7 @@ export function AllListings({
           undefined,
         href: '/dashboard/discover',
         flags: expires ? [{ text: expires, className: 'bg-rose-50 text-rose-700' }] : undefined,
+        actionLabel: 'Δες τη βάρδια',
       });
     }
 
@@ -299,6 +393,7 @@ export function AllListings({
         extra: `${cat?.icon ?? ''} ${cat?.label ?? ''} · ${t.offersList.length} προσφορές`,
         href: `/tasknow?task=${t.id}`,
         mock: true,
+        actionLabel: 'Δες τη δουλειά',
         flags: [
           ...(isLicensedCategory(t.category)
             ? [{ text: 'θέλει άδεια', className: 'bg-red-50 text-red-700' }]
