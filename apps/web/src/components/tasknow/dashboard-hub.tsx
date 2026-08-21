@@ -16,6 +16,7 @@ import {
 } from './data';
 import { TaskNowLogo } from './logo';
 import {
+  isOpen,
   matchingTasks,
   myOffers,
   myTasks,
@@ -37,6 +38,9 @@ import {
  */
 
 type PendingAction = 'post' | 'browse';
+
+/** Θυμόμαστε ότι ολοκληρώθηκε το δεύτερο βήμα, ώστε ο οδηγός να μην ξαναβγεί. */
+const SAW_OFFERS_KEY = 'tasknow_onboarding_saw_offers';
 
 const STATUS_LABEL: Record<MockTask['status'], string> = {
   open: 'Ανοιχτή',
@@ -71,16 +75,47 @@ export function TaskNowDashboardHub() {
 
   const [accepted, setAccepted] = useState(false);
   const [pending, setPending] = useState<PendingAction | null>(null);
+  /** Η πύλη ανοίγει μόνη της την πρώτη φορά που μπαίνει στην ενότητα. */
+  const [gateOpen, setGateOpen] = useState(false);
+  const [checked, setChecked] = useState(false);
+  const [sawOffers, setSawOffers] = useState(false);
   const [posting, setPosting] = useState(false);
   const [detail, setDetail] = useState<MockTask | null>(null);
   const [tab, setTab] = useState<'tasks' | 'offers'>('tasks');
   const [goal, setGoal] = useState('300');
   const [showNotifySettings, setShowNotifySettings] = useState(false);
 
-  // Το localStorage διαβάζεται μόνο στον browser — ποτέ κατά το χτίσιμο.
+  /**
+   * Το localStorage διαβάζεται μόνο στον browser — ποτέ κατά το χτίσιμο.
+   *
+   * ΓΙΑΤΙ ΣΤΟ ΑΝΟΙΓΜΑ: μέσα στον λογαριασμό ο χρήστης μπαίνει επίτηδες στην
+   * ενότητα, οπότε εδώ είναι η σωστή στιγμή να δει τι αναλαμβάνει.
+   *
+   * ΓΙΑΤΙ ΔΕΝ ΚΛΕΙΔΩΝΕΙ: αν πει «όχι τώρα», η σελίδα μένει ορατή αλλά χωρίς
+   * ενέργειες, με γραμμή που εξηγεί τι λείπει. Τοίχος που κρύβει τα πάντα
+   * διώχνει κόσμο — και συναίνεση για κάτι που δεν έχεις δει καθόλου είναι
+   * φτωχή συναίνεση.
+   */
   useEffect(() => {
-    setAccepted(hasAcceptedTaskNowTerms());
+    const ok = hasAcceptedTaskNowTerms();
+    setAccepted(ok);
+    setChecked(true);
+    if (!ok) setGateOpen(true);
+    try {
+      setSawOffers(localStorage.getItem(SAW_OFFERS_KEY) === '1');
+    } catch {}
   }, []);
+
+  /** Ο χρήστης άνοιξε τη δική του δουλειά — άρα είδε τις προσφορές της. */
+  function openMine(task: MockTask) {
+    setDetail(task);
+    if (task.mine && task.offersList.length > 0 && !sawOffers) {
+      setSawOffers(true);
+      try {
+        localStorage.setItem(SAW_OFFERS_KEY, '1');
+      } catch {}
+    }
+  }
 
   function run(action: PendingAction) {
     if (action === 'post') setPosting(true);
@@ -101,6 +136,14 @@ export function TaskNowDashboardHub() {
   const next = nextLevel(level);
   const goalNumber = Number(goal) || 0;
   const notify = state.notify;
+  const liveTasks = state.tasks.filter((t) => isOpen(t) && !t.mine);
+  const firstMine = mine[0] ?? null;
+  const postedOne = mine.length > 0;
+  // «Είδε προσφορές» σημαίνει ΑΚΡΙΒΩΣ αυτό: άνοιξε την καρτέλα μιας δικής του
+  // δουλειάς που είχε προσφορές. Δεν το ταυτίζουμε με «διάλεξε κάποιον» — το
+  // βήμα λέει «δες», και ένας οδηγός που δεν σβήνει όταν κάνεις αυτό που
+  // ζητάει είναι χειρότερος από καθόλου οδηγός.
+  const onboardingDone = postedOne && sawOffers;
   const matches = matchingTasks(state);
 
   return (
@@ -131,6 +174,155 @@ export function TaskNowDashboardHub() {
           </div>
         )}
       </div>
+
+      {/* Δεν έχει αποδεχτεί: η σελίδα φαίνεται, οι ενέργειες όχι. */}
+      {checked && !accepted && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4">
+          <p className="text-sm leading-relaxed text-amber-900">
+            <strong className="font-bold">Πριν ξεκινήσεις.</strong> Για να ανεβάσεις
+            μικροδουλειά ή να κάνεις προσφορά, χρειάζεται να δεις μία φορά τι αναλαμβάνει
+            και τι δεν αναλαμβάνει το StaffNow.
+          </p>
+          <button
+            type="button"
+            onClick={() => setGateOpen(true)}
+            className="shrink-0 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600"
+          >
+            Δες τους όρους
+          </button>
+        </div>
+      )}
+
+      {/* Πρώτα βήματα — σβήνει μόνο του όταν γίνουν */}
+      {accepted && !onboardingDone && (
+        <div className="rounded-2xl border border-gray-200 bg-white p-5">
+          <h3 className="text-sm font-bold text-gray-900">Δοκίμασέ το σε δύο βήματα</h3>
+          <p className="mt-1 text-xs text-gray-500">
+            Ο πιο γρήγορος τρόπος να καταλάβεις πώς δουλεύει είναι να το κάνεις.
+          </p>
+
+          <ol className="mt-4 space-y-3">
+            <li className="flex items-start gap-3">
+              <span
+                className={
+                  'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold ' +
+                  (postedOne ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white')
+                }
+              >
+                {postedOne ? '✓' : '1'}
+              </span>
+              <div className="min-w-0">
+                <p
+                  className={
+                    'text-sm font-semibold ' +
+                    (postedOne ? 'text-gray-400 line-through' : 'text-gray-900')
+                  }
+                >
+                  Ανέβασε μια μικροδουλειά
+                </p>
+                <p className="mt-0.5 text-xs leading-relaxed text-gray-600">
+                  Ό,τι θέλεις να γίνει: μια μεταφορά, ένα καθάρισμα, ένα θέλημα. Δύο λεπτά.
+                </p>
+                {!postedOne && (
+                  <button
+                    type="button"
+                    onClick={() => start('post')}
+                    className="mt-2 rounded-lg bg-amber-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-amber-600"
+                  >
+                    Ανέβασέ την τώρα
+                  </button>
+                )}
+              </div>
+            </li>
+
+            <li className="flex items-start gap-3">
+              <span
+                className={
+                  'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold ' +
+                  (sawOffers
+                    ? 'bg-emerald-500 text-white'
+                    : postedOne
+                      ? 'bg-amber-500 text-white'
+                      : 'bg-gray-200 text-gray-500')
+                }
+              >
+                {sawOffers ? '✓' : '2'}
+              </span>
+              <div className="min-w-0">
+                <p
+                  className={
+                    'text-sm font-semibold ' +
+                    (sawOffers ? 'text-gray-400 line-through' : 'text-gray-900')
+                  }
+                >
+                  Δες τις προσφορές που έρχονται
+                </p>
+                <p className="mt-0.5 text-xs leading-relaxed text-gray-600">
+                  Θα δεις βαθμολογία, επίπεδο, τι έχει επαληθευτεί και τι άδειες έχει ο
+                  καθένας — και διαλέγεις εσύ.
+                </p>
+                {postedOne && !sawOffers && firstMine && (
+                  <button
+                    type="button"
+                    onClick={() => openMine(firstMine)}
+                    className="mt-2 rounded-lg bg-gray-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-gray-800"
+                  >
+                    Δες τις προσφορές
+                  </button>
+                )}
+              </div>
+            </li>
+          </ol>
+        </div>
+      )}
+
+      {/* Τι τρέχει τώρα — ζωντανή λίστα, πάνω από τα δικά σου */}
+      {liveTasks.length > 0 && (
+        <div className="rounded-2xl border border-gray-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-5 py-3">
+            <h3 className="text-sm font-bold text-gray-900">
+              Τρέχουν τώρα{' '}
+              <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-amber-800">
+                {liveTasks.length}
+              </span>
+            </h3>
+            <Link
+              href="/tasknow"
+              className="text-sm font-semibold text-amber-700 hover:text-amber-800"
+            >
+              Δες τη ροή →
+            </Link>
+          </div>
+
+          <div className="divide-y divide-gray-100">
+            {liveTasks.slice(0, 5).map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setDetail(t)}
+                className="flex w-full items-center justify-between gap-3 px-5 py-3 text-left transition hover:bg-amber-50/50"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold text-gray-900">
+                    {CATEGORY_BY_KEY[t.category]?.icon} {t.title}
+                    {isLicensedCategory(t.category) && (
+                      <span className="ml-2 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">
+                        θέλει άδεια
+                      </span>
+                    )}
+                  </span>
+                  <span className="mt-0.5 block truncate text-xs text-gray-500">
+                    {t.area} · {t.when} · {t.offersList.length} προσφορές
+                  </span>
+                </span>
+                <span className="shrink-0 text-base font-bold tabular-nums text-gray-900">
+                  {t.budget}€
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Τα δύο κουμπιά που ζητήθηκαν */}
       <div className="grid gap-4 sm:grid-cols-2">
@@ -415,7 +607,7 @@ export function TaskNowDashboardHub() {
                 <button
                   key={t.id}
                   type="button"
-                  onClick={() => setDetail(t)}
+                  onClick={() => openMine(t)}
                   className="flex w-full flex-wrap items-center justify-between gap-3 px-5 py-4 text-left transition hover:bg-gray-50"
                 >
                   <div className="min-w-0">
@@ -494,15 +686,19 @@ export function TaskNowDashboardHub() {
         </button>
       </p>
 
-      {pending && (
+      {(pending || gateOpen) && (
         <TaskNowTermsGate
           onAccept={() => {
             setAccepted(true);
+            setGateOpen(false);
             const action = pending;
             setPending(null);
-            run(action);
+            if (action) run(action);
           }}
-          onClose={() => setPending(null)}
+          onClose={() => {
+            setPending(null);
+            setGateOpen(false);
+          }}
         />
       )}
 
@@ -511,7 +707,7 @@ export function TaskNowDashboardHub() {
           onClose={() => setPosting(false)}
           onOpenTask={(t) => {
             setPosting(false);
-            setDetail(t);
+            openMine(t);
           }}
         />
       )}
