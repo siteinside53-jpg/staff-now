@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Amount } from './amount';
 import { TaskNowLogo, TaskNowMark } from './logo';
 import { isLicensedCategory } from './data';
+import { SHOW_TASKNOW_ON_MARKETING } from './flags';
 import { boardStats, previewTasks, publicOpenTasks, useMockTasks } from './mock-store';
 
 /**
@@ -40,12 +41,18 @@ function MockChip({ className = '' }: { className?: string }) {
 
 export function TaskNowBanner({ variant = 'full' }: { variant?: 'full' | 'strip' }) {
   const state = useMockTasks();
+
+  // Όσο οι μικροδουλειές είναι παραδείγματα, δεν στέκονται δίπλα σε αληθινές
+  // αγγελίες στις δύο σελίδες που φέρνουν πελάτες. Δες ./flags.ts.
+  const show = SHOW_TASKNOW_ON_MARKETING;
   const open = publicOpenTasks(state);
   const stats = boardStats(open);
   const preview = previewTasks(state, 3);
 
   const range =
     stats.min !== null && stats.max !== null ? `${stats.min}€–${stats.max}€ ανά δουλειά` : null;
+
+  if (!show) return null;
 
   // ── Λωρίδα στη σελίδα με τις αγγελίες ────────────────────────────────────
   // Η σελίδα αυτή είναι ορατή στη Google και δίπλα κάθονται αληθινές
