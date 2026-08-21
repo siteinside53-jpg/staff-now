@@ -60,3 +60,39 @@ export function Amount({
     </div>
   );
 }
+
+/**
+ * Το ίδιο ακριβώς στιλ, για ποσά που έρχονται ήδη γραμμένα.
+ *
+ * Οι αγγελίες εργασίας δίνουν «800-1000 €/μήνα» — δεν είναι αριθμός, αλλά
+ * πρέπει να κάθεται στην ίδια κατακόρυφη γραμμή με τα ευρώ των μικροδουλειών.
+ * Γι' αυτό μοιράζεται την ΙΔΙΑ κλίμακα μεγεθών από πάνω: αν αλλάξει εκεί,
+ * αλλάζει και εδώ.
+ */
+export function AmountText({
+  value,
+  note,
+  size = 'row',
+  direction = false,
+}: {
+  value: string;
+  note?: string;
+  size?: keyof typeof SIZES;
+  direction?: boolean;
+}) {
+  const s = SIZES[size];
+  return (
+    <div className="text-right">
+      {direction && <div className={s.note + ' leading-none text-gray-400'}>δίνει</div>}
+      <div
+        className={
+          'mt-0.5 font-extrabold leading-none tracking-tight tabular-nums text-gray-900 ' +
+          (value.length > 8 ? 'text-base' : s.value)
+        }
+      >
+        {value}
+      </div>
+      {note && <div className={'mt-1 leading-tight text-gray-500 ' + s.note}>{note}</div>}
+    </div>
+  );
+}

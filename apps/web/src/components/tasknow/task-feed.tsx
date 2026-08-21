@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Amount } from './amount';
 import { OfferModal } from './offer-modal';
 import { PostTaskButton } from './post-trigger';
 import { TaskDetailModal } from './task-detail-modal';
 import { TaskMap } from './task-map';
 import { TaskNowLogo } from './logo';
+import { TaskRow } from './task-row';
 import { TASKNOW_DEMO } from './flags';
 import {
   FilteredListLayout,
@@ -17,13 +17,9 @@ import {
   CATEGORIES,
   CATEGORY_BY_KEY,
   DEFAULT_CENTER,
-  NEW_MINUTES,
   type CenterSource,
   type Coords,
   distanceKm,
-  distanceLabel,
-  formatPostedAgo,
-  isLicensedCategory,
 } from './data';
 import {
   areaStats,
@@ -69,121 +65,6 @@ const SORT_LABEL: Record<Sort, string> = {
   near: 'Πιο κοντά',
   budget: 'Μεγαλύτερη αμοιβή',
 };
-
-function Row({
-  task,
-  km,
-  source,
-  centerLabel,
-  onOpen,
-  onOffer,
-}: {
-  task: MockTask;
-  km: number | null;
-  source: CenterSource;
-  centerLabel: string;
-  onOpen: () => void;
-  onOffer: () => void;
-}) {
-  const cat = CATEGORY_BY_KEY[task.category];
-  const licensed = isLicensedCategory(task.category);
-  const mineOffer = task.offersList.some((o) => o.mine);
-  const isNew = task.postedMinutesAgo < NEW_MINUTES;
-
-  return (
-    <article
-      className={
-        'relative grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-4 py-3.5 transition hover:bg-amber-50/40 ' +
-        (licensed ? 'border-l-2 border-red-300' : '')
-      }
-    >
-      <div className="min-w-0">
-        {/* Ο τίτλος απλώνεται πάνω σε όλη τη γραμμή· το κουμπί δράσης μένει
-            από πάνω του. Έτσι αποφεύγουμε κουμπί μέσα σε κουμπί. */}
-        <button
-          type="button"
-          onClick={onOpen}
-          className="text-left text-[15px] font-semibold leading-snug text-gray-900 after:absolute after:inset-0 hover:underline"
-        >
-          {task.title}
-        </button>
-
-        <p className="mt-1 text-[12.5px] text-gray-500">
-          <span aria-hidden="true">📍</span> {task.area} ·{' '}
-          {distanceLabel(km, source, centerLabel)} · {task.when}
-        </p>
-        <p className="mt-0.5 text-[12px] text-gray-500">
-          {formatPostedAgo(task.postedMinutesAgo)} · {task.offersList.length}{' '}
-          {task.offersList.length === 1 ? 'προσφορά' : 'προσφορές'}
-        </p>
-
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
-            {cat?.icon} {cat?.label}
-          </span>
-          {/* Ο περιορισμός της άδειας δεν κρύβεται ποτέ. */}
-          {licensed && (
-            <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">
-              θέλει άδεια
-            </span>
-          )}
-          {task.urgent && (
-            <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-semibold text-orange-600">
-              Επείγον
-            </span>
-          )}
-          {task.remote && (
-            <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700">
-              Εξ αποστάσεως
-            </span>
-          )}
-          {isNew && !task.mine && (
-            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
-              Νέο
-            </span>
-          )}
-          {task.mine && (
-            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
-              {task.status === 'assigned'
-                ? 'δική σου · ανατέθηκε'
-                : task.status === 'done'
-                  ? 'δική σου · ολοκληρώθηκε'
-                  : 'δική σου'}
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div className="flex shrink-0 flex-col items-end justify-between gap-2">
-        <div className="w-[4.75rem]">
-          <Amount value={task.budget} note={task.budgetNote} direction muted={mineOffer} />
-        </div>
-
-        {task.mine ? (
-          <button
-            type="button"
-            onClick={onOpen}
-            className="relative z-10 h-8 shrink-0 rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white transition hover:bg-blue-700"
-          >
-            Δες τις προσφορές
-          </button>
-        ) : mineOffer ? (
-          <span className="relative z-10 h-8 shrink-0 rounded-lg bg-emerald-50 px-3 text-xs font-semibold leading-8 text-emerald-700">
-            ✓ Έστειλες προσφορά
-          </span>
-        ) : (
-          <button
-            type="button"
-            onClick={onOffer}
-            className="relative z-10 h-8 shrink-0 rounded-lg bg-gray-900 px-3 text-xs font-semibold text-white transition hover:bg-amber-500"
-          >
-            Κάνε προσφορά
-          </button>
-        )}
-      </div>
-    </article>
-  );
-}
 
 export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
   const state = useMockTasks();
@@ -572,7 +453,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
         ) : (
           <div className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white">
             {visible.slice(0, 6).map(({ task, km }) => (
-              <Row
+              <TaskRow
                 key={task.id}
                 task={task}
                 km={km}
@@ -596,7 +477,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
             </div>
 
             {visible.slice(6).map(({ task, km }) => (
-              <Row
+              <TaskRow
                 key={task.id}
                 task={task}
                 km={km}

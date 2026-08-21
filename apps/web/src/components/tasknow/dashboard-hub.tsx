@@ -15,6 +15,7 @@ import {
   nextLevel,
 } from './data';
 import { TaskNowLogo } from './logo';
+import { TaskRow } from './task-row';
 import {
   isOpen,
   matchingTasks,
@@ -294,31 +295,15 @@ export function TaskNowDashboardHub() {
             </Link>
           </div>
 
+          {/* ΙΔΙΑ γραμμή με τη δημόσια ροή — ένα component, μία εμφάνιση. */}
           <div className="divide-y divide-gray-100">
             {liveTasks.slice(0, 5).map((t) => (
-              <button
+              <TaskRow
                 key={t.id}
-                type="button"
-                onClick={() => setDetail(t)}
-                className="flex w-full items-center justify-between gap-3 px-5 py-3 text-left transition hover:bg-amber-50/50"
-              >
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-semibold text-gray-900">
-                    {CATEGORY_BY_KEY[t.category]?.icon} {t.title}
-                    {isLicensedCategory(t.category) && (
-                      <span className="ml-2 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">
-                        θέλει άδεια
-                      </span>
-                    )}
-                  </span>
-                  <span className="mt-0.5 block truncate text-xs text-gray-500">
-                    {t.area} · {t.when} · {t.offersList.length} προσφορές
-                  </span>
-                </span>
-                <span className="shrink-0 text-base font-bold tabular-nums text-gray-900">
-                  {t.budget}€
-                </span>
-              </button>
+                task={t}
+                onOpen={() => setDetail(t)}
+                onOffer={() => setDetail(t)}
+              />
             ))}
           </div>
         </div>

@@ -25,6 +25,7 @@ import { API_URL } from '@/lib/config';
 import { Spinner } from '@/components/ui/spinner';
 import { durationLabel, expiresLabel, netOf, whenLabel } from '@/lib/shift-display';
 import { TaskNowMark } from '@/components/tasknow/logo';
+import { AmountText } from '@/components/tasknow/amount';
 import { CATEGORY_BY_KEY, isLicensedCategory } from '@/components/tasknow/data';
 import { isOpen, useMockTasks } from '@/components/tasknow/mock-store';
 
@@ -71,6 +72,8 @@ type Item = {
   when: string;
   /** Το ποσό όπως γράφεται (π.χ. «60€», «800-1000 €/μήνα»). */
   money: string;
+  /** Η μονάδα, όταν δεν περιέχεται ήδη στο ποσό (π.χ. «για όλη τη δουλειά»). */
+  moneyNote?: string;
   extra?: string;
   href: string;
   /** Ετικέτες που πρέπει να φαίνονται πάντα (π.χ. «θέλει άδεια»). */
@@ -172,10 +175,10 @@ function Row({ item }: { item: Item }) {
         </div>
       </div>
 
-      <div className="shrink-0 text-right">
-        <div className="text-[17px] font-bold tracking-tight tabular-nums text-gray-900">
-          {item.money}
-        </div>
+      {/* Ίδια τυπογραφία ποσού με τη ροή του TaskNow: όλα τα ευρώ της σελίδας
+          πέφτουν στην ίδια κατακόρυφη γραμμή, ό,τι είδος κι αν είναι. */}
+      <div className="w-[5.5rem] shrink-0">
+        <AmountText value={item.money} note={item.moneyNote} size="band" />
       </div>
     </div>
   );
@@ -292,6 +295,7 @@ export function AllListings({
         where: t.area,
         when: t.when,
         money: `${t.budget}€`,
+        moneyNote: t.budgetNote ?? 'για όλη τη δουλειά',
         extra: `${cat?.icon ?? ''} ${cat?.label ?? ''} · ${t.offersList.length} προσφορές`,
         href: `/tasknow?task=${t.id}`,
         mock: true,
