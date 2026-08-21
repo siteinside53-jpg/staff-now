@@ -309,43 +309,39 @@ export function TaskNowDashboardHub() {
         </div>
       )}
 
-      {/* Τα δύο κουμπιά που ζητήθηκαν */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      {/* Τα δύο κουμπιά, στο ΙΔΙΟ στιλ με «Νέα Αγγελία» και «Boost» της
+          αρχικής του πίνακα ελέγχου: φαρδιά, με βαθμωτό χρώμα, εικονίδιο
+          αριστερά, τίτλος και μία γραμμή εξήγησης. */}
+      <div className="grid gap-3 sm:grid-cols-2">
         <button
           type="button"
           onClick={() => start('post')}
-          className="group rounded-2xl border border-amber-200 bg-amber-50 p-6 text-left transition hover:border-amber-400 hover:bg-amber-100"
+          className="flex items-center gap-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-5 text-left text-white shadow-lg shadow-amber-500/20 transition hover:brightness-105 active:scale-[0.99]"
         >
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500 text-xl text-white">
-            +
+          <span className="text-3xl leading-none" aria-hidden="true">
+            ＋
           </span>
-          <h3 className="mt-4 text-base font-bold text-gray-900">Ανέβασε μικροδουλειά</h3>
-          <p className="mt-1 text-sm leading-relaxed text-gray-600">
-            Γράψε τι θέλεις να γίνει, πόσα δίνεις και πότε. Δέχεσαι προσφορές και
-            διαλέγεις εσύ.
-          </p>
-          <span className="mt-3 inline-block text-sm font-semibold text-amber-700 group-hover:underline">
-            Ξεκίνα →
+          <span className="min-w-0">
+            <span className="block text-lg font-bold">Ανέβασε μικροδουλειά</span>
+            <span className="block text-sm text-white/90">
+              Γράψε τι θέλεις να γίνει και δέξου προσφορές
+            </span>
           </span>
         </button>
 
         <button
           type="button"
           onClick={() => start('browse')}
-          className="group rounded-2xl border border-gray-200 bg-white p-6 text-left transition hover:border-gray-400 hover:bg-gray-50"
+          className="flex items-center gap-4 rounded-2xl bg-gradient-to-r from-gray-900 to-gray-700 px-6 py-5 text-left text-white shadow-lg shadow-gray-900/20 transition hover:brightness-110 active:scale-[0.99]"
         >
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gray-900 text-white">
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35M17 10.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z" />
-            </svg>
+          <span className="text-2xl leading-none" aria-hidden="true">
+            🔎
           </span>
-          <h3 className="mt-4 text-base font-bold text-gray-900">Βρες μικροδουλειά</h3>
-          <p className="mt-1 text-sm leading-relaxed text-gray-600">
-            Δες τι υπάρχει κοντά σου στον χάρτη και κάνε προσφορά. Η πρώτη φορά θέλει
-            επαλήθευση κινητού.
-          </p>
-          <span className="mt-3 inline-block text-sm font-semibold text-gray-900 group-hover:underline">
-            Δες τη ροή →
+          <span className="min-w-0">
+            <span className="block text-lg font-bold">Βρες μικροδουλειά</span>
+            <span className="block text-sm text-white/80">
+              Δες τι υπάρχει κοντά σου και κάνε προσφορά
+            </span>
           </span>
         </button>
       </div>

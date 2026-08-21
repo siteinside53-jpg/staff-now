@@ -25,8 +25,12 @@ import { API_URL } from '@/lib/config';
 import { Spinner } from '@/components/ui/spinner';
 import { durationLabel, expiresLabel, netOf, whenLabel } from '@/lib/shift-display';
 import { TaskNowMark } from '@/components/tasknow/logo';
-import { AmountText } from '@/components/tasknow/amount';
-import { CATEGORY_BY_KEY, isLicensedCategory } from '@/components/tasknow/data';
+import {
+  CATEGORY_BY_KEY,
+  NEW_MINUTES,
+  isLicensedCategory,
+  posterLabel,
+} from '@/components/tasknow/data';
 import { isOpen, useMockTasks } from '@/components/tasknow/mock-store';
 
 type Kind = 'job' | 'shift' | 'task';
@@ -43,6 +47,14 @@ const KIND: Record<
     bar: string;
     dot: string;
     action: string;
+    /** Περίγραμμα όταν είναι νέο — ίδιο μοτίβο με τη λίστα αγγελιών. */
+    newBorder: string;
+    /** Φόντο του αρχικού γράμματος όταν λείπει λογότυπο. */
+    avatar: string;
+    /** Γεμάτο χρώμα: κουμπί και σήμα «Νέο». */
+    solid: string;
+    /** Χρώμα του ποσού — σύμβαση που έχει ήδη το site. */
+    money: string;
     href: string;
   }
 > = {
@@ -53,6 +65,10 @@ const KIND: Record<
     bar: 'bg-emerald-500',
     dot: 'bg-emerald-500',
     action: 'bg-emerald-600 hover:bg-emerald-700',
+    newBorder: 'border-2 border-emerald-500/60 shadow-md',
+    avatar: 'bg-gradient-to-br from-blue-100 to-purple-100 text-blue-700',
+    solid: 'bg-emerald-600',
+    money: 'text-emerald-600',
     href: '/dashboard/discover',
   },
   shift: {
@@ -62,6 +78,10 @@ const KIND: Record<
     bar: 'bg-rose-500',
     dot: 'bg-rose-500',
     action: 'bg-rose-600 hover:bg-rose-700',
+    newBorder: 'border-2 border-rose-500/60 shadow-md',
+    avatar: 'bg-gradient-to-br from-rose-100 to-orange-100 text-rose-700',
+    solid: 'bg-rose-600',
+    money: 'text-rose-600',
     href: '/dashboard/discover',
   },
   task: {
@@ -71,6 +91,10 @@ const KIND: Record<
     bar: 'bg-amber-500',
     dot: 'bg-amber-500',
     action: 'bg-gray-900 hover:bg-amber-500',
+    newBorder: 'border-2 border-amber-500/60 shadow-md',
+    avatar: 'bg-gradient-to-br from-amber-100 to-orange-100 text-amber-700',
+    solid: 'bg-amber-500',
+    money: 'text-amber-600',
     href: '/dashboard/tasknow',
   },
 };
@@ -97,6 +121,8 @@ type Item = {
   /** Παροχές: στέγη, φαγητό. */
   perks?: string[];
   actionLabel: string;
+  /** Ανέβηκε τις τελευταίες 48 ώρες — ίδια σύμβαση με τη λίστα αγγελιών. */
+  isNew?: boolean;
 };
 
 interface PublicJob {
@@ -158,6 +184,12 @@ function employmentGreek(t?: string | null): string {
 }
 
 /** «πριν 3 ημέρες» — ίδια διατύπωση με την κανονική λίστα αγγελιών. */
+function isRecent(iso?: string | null): boolean {
+  if (!iso) return false;
+  const t = Date.parse(iso);
+  return !Number.isNaN(t) && Date.now() - t < 48 * 3600 * 1000;
+}
+
 function agoLabel(iso?: string | null): string {
   if (!iso) return '';
   const t = Date.parse(iso);
@@ -173,100 +205,117 @@ function agoLabel(iso?: string | null): string {
 function Row({ item }: { item: Item }) {
   const k = KIND[item.kind];
   return (
-    <div className="relative grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-4 py-3.5 transition hover:bg-gray-50">
-      {/* Η χρωματιστή λωρίδα είναι το γρήγορο σήμα «τι είδους είναι αυτό» */}
-      <span className={'absolute left-0 top-0 h-full w-1 ' + k.bar} aria-hidden="true" />
-
-      <div className="flex min-w-0 gap-3 pl-2">
-        {/* Λογότυπο ή αρχικό γράμμα — ίδιο μοτίβο με την κανονική λίστα. */}
-        {item.kind !== 'task' && (
-          <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gray-100 text-sm font-bold text-gray-500">
-            {item.logo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={item.logo} alt="" className="h-full w-full object-cover" />
-            ) : (
-              (item.extra || item.title).trim().charAt(0).toUpperCase()
-            )}
-          </span>
-        )}
-
-        <div className="min-w-0">
-        <Link
-          href={item.href}
-          className="text-left text-[15px] font-semibold leading-snug text-gray-900 after:absolute after:inset-0 hover:underline"
-        >
-          {item.title}
-        </Link>
-
-        {(item.where || item.when) && (
-          <p className="mt-1 text-[12.5px] text-gray-500">
-            {item.where && (
-              <>
-                <span aria-hidden="true">📍</span> {item.where}
-              </>
-            )}
-            {item.where && item.when ? ' · ' : ''}
-            {item.when}
-          </p>
-        )}
-        {item.extra && <p className="mt-0.5 text-[12px] text-gray-500">{item.extra}</p>}
-
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          <span
-            className={'rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ' + k.chip}
-          >
-            {item.kind === 'task' && (
-              <TaskNowMark className="mr-1 inline-block h-3 w-3 align-[-2px]" />
-            )}
-            {k.label}
-          </span>
-          {item.mock && (
-            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
-              ΜΑΚΕΤΑ
-            </span>
+    <li>
+      {/* ΟΨΗ ΚΑΡΤΑΣ: ίδια ακριβώς με τη λίστα αγγελιών (public-jobs-list).
+          Αντιγράφηκε η δομή, όχι το αρχείο — αλλάζει μόνο το χρώμα ανά είδος,
+          ώστε αγγελία, μικροδουλειά και βάρδια να ξεχωρίζουν με μια ματιά. */}
+      <Link
+        href={item.href}
+        aria-label={`${k.label}: ${item.title}`}
+        className={
+          'block w-full rounded-2xl bg-white p-4 text-left transition hover:shadow-md active:scale-[0.99] ' +
+          (item.isNew ? k.newBorder : 'border border-gray-100 shadow-sm')
+        }
+      >
+        <div className="flex gap-3">
+          {item.logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={item.logo}
+              alt=""
+              loading="lazy"
+              className="h-14 w-14 flex-shrink-0 rounded-xl object-cover ring-1 ring-gray-100"
+            />
+          ) : (
+            <div
+              className={
+                'flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl text-xl font-bold ' +
+                k.avatar
+              }
+              aria-hidden="true"
+            >
+              {(item.extra || item.title).trim().charAt(0).toUpperCase() || '💼'}
+            </div>
           )}
-          {item.badges?.filter(Boolean).map((b) => (
-            <span
-              key={b}
-              className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600"
-            >
-              {b}
-            </span>
-          ))}
-          {item.perks?.map((p) => (
-            <span
-              key={p}
-              className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700"
-            >
-              {p}
-            </span>
-          ))}
-          {item.flags?.map((f) => (
-            <span key={f.text} className={'rounded-full px-2 py-0.5 text-[11px] font-semibold ' + f.className}>
-              {f.text}
-            </span>
-          ))}
-        </div>
-        </div>
-      </div>
 
-      {/* Ίδια τυπογραφία ποσού με τη ροή του TaskNow: όλα τα ευρώ της σελίδας
-          πέφτουν στην ίδια κατακόρυφη γραμμή, ό,τι είδος κι αν είναι. */}
-      <div className="flex shrink-0 flex-col items-end justify-between gap-2">
-        <div className="w-[5.5rem]">
-          <AmountText value={item.money} note={item.moneyNote} size="band" />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start gap-2">
+              <p className="min-w-0 flex-1 truncate font-bold text-gray-900">{item.title}</p>
+              {item.isNew && (
+                <span
+                  className={
+                    'mt-0.5 flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white ' +
+                    k.solid
+                  }
+                >
+                  Νέο
+                </span>
+              )}
+            </div>
+            {item.extra && <p className="truncate text-xs text-gray-500">{item.extra}</p>}
+
+            <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+              {/* Το είδος γράφεται πάντα: είναι όλος ο λόγος που τα βλέπεις μαζί. */}
+              <span className={'rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ' + k.chip}>
+                {item.kind === 'task' && <TaskNowMark className="mr-1 inline-block h-3 w-3 align-[-2px]" />}
+                {k.label}
+              </span>
+              {item.where && <span>📍 {item.where}</span>}
+              {item.badges?.filter(Boolean).map((b) => (
+                <span key={b} className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold">
+                  {b}
+                </span>
+              ))}
+              {item.when && <span className="text-gray-400">{item.when}</span>}
+            </div>
+
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <span className={'text-base font-extrabold tabular-nums ' + k.money}>
+                💰 {item.money}
+                {item.moneyNote && (
+                  <span className="ml-1 text-[11px] font-medium text-gray-400">
+                    {item.moneyNote}
+                  </span>
+                )}
+              </span>
+              <span
+                className={
+                  'flex-shrink-0 rounded-full px-4 py-1.5 text-xs font-bold text-white ' + k.solid
+                }
+              >
+                {item.actionLabel}
+              </span>
+            </div>
+
+            {(item.perks?.length || item.flags?.length || item.mock) && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {item.mock && (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                    ΜΑΚΕΤΑ
+                  </span>
+                )}
+                {item.perks?.map((p) => (
+                  <span
+                    key={p}
+                    className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"
+                  >
+                    {p}
+                  </span>
+                ))}
+                {item.flags?.map((f) => (
+                  <span
+                    key={f.text}
+                    className={'rounded-full px-2 py-0.5 text-[10px] font-semibold ' + f.className}
+                  >
+                    {f.text}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-        <Link
-          href={item.href}
-          className={
-            'relative z-10 h-8 shrink-0 rounded-lg px-3 text-xs font-semibold leading-8 text-white transition ' +
-            k.action
-          }
-        >
-          {item.actionLabel}
-        </Link>
-      </div>
-    </div>
+      </Link>
+    </li>
   );
 }
 
@@ -358,6 +407,7 @@ export function AllListings({
           j.meals_provided ? '🍽️ Φαγητό' : '',
         ].filter(Boolean),
         actionLabel: 'Δες αγγελία',
+        isNew: isRecent(j.created_at),
       });
     }
 
@@ -390,10 +440,14 @@ export function AllListings({
         when: t.when,
         money: `${t.budget}€`,
         moneyNote: t.budgetNote ?? 'για όλη τη δουλειά',
-        extra: `${cat?.icon ?? ''} ${cat?.label ?? ''} · ${t.offersList.length} προσφορές`,
+        // Ποιος την ανέβασε — στη θέση που έχει η επιχείρηση στις αγγελίες.
+        extra: posterLabel(t.postedByName, t.postedByRole),
+        logo: t.postedByPhoto ?? null,
+        badges: [cat?.label ?? '', `${t.offersList.length} προσφορές`].filter(Boolean),
         href: `/tasknow?task=${t.id}`,
         mock: true,
         actionLabel: 'Δες τη δουλειά',
+        isNew: t.postedMinutesAgo < NEW_MINUTES,
         flags: [
           ...(isLicensedCategory(t.category)
             ? [{ text: 'θέλει άδεια', className: 'bg-red-50 text-red-700' }]
@@ -493,11 +547,11 @@ export function AllListings({
               Δεν υπάρχει τίποτα εδώ αυτή τη στιγμή.
             </p>
           ) : (
-            <div className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white">
+            <ul className="space-y-3">
               {visible.map((item) => (
                 <Row key={item.id} item={item} />
               ))}
-            </div>
+            </ul>
           )}
 
           {hidden > 0 && (

@@ -61,6 +61,23 @@ export type Task = {
   flagReason?: string;
   /** Κρυμμένη από τη δημόσια ροή μέχρι να κριθεί. */
   hidden?: boolean;
+  /**
+   * Ποιος την ανέβασε — όνομα και, αν υπάρχει, φωτογραφία.
+   *
+   * Φαίνεται δίπλα στην αγγελία όπως ακριβώς φαίνεται το λογότυπο της
+   * επιχείρησης στις αγγελίες εργασίας. Χωρίς πρόσωπο, μια μικροδουλειά
+   * είναι απλώς ένα ποσό — και η επιλογή γίνεται με βάση τον άνθρωπο.
+   */
+  postedByName?: string;
+  postedByPhoto?: string;
+  /**
+   * Εργαζόμενος ή επιχείρηση.
+   *
+   * Και οι δύο ανεβάζουν μικροδουλειές — στον κώδικα δεν ξεχωρίζουν. Στην
+   * οθόνη όμως έχει σημασία: άλλο να σου ζητά χέρι ένας γείτονας και άλλο
+   * μια επιχείρηση.
+   */
+  postedByRole?: 'worker' | 'business';
 };
 
 export type Category = {
@@ -152,6 +169,8 @@ const SAMPLE_TASKS_RAW: Task[] = [
     when: 'Καθημερινά 18:00',
     postedAgo: 'πριν 12 λεπτά',
     postedMinutesAgo: 12,
+    postedByName: 'Μαρία Κ.',
+    postedByRole: 'worker',
     offers: 3,
   },
   {
@@ -165,6 +184,8 @@ const SAMPLE_TASKS_RAW: Task[] = [
     when: 'Σάββατο πρωί',
     postedAgo: 'πριν 40 λεπτά',
     postedMinutesAgo: 40,
+    postedByName: 'Γιώργος Π.',
+    postedByRole: 'worker',
     offers: 5,
     urgent: true,
   },
@@ -179,6 +200,8 @@ const SAMPLE_TASKS_RAW: Task[] = [
     when: 'Μέχρι την Παρασκευή',
     postedAgo: 'πριν 2 ώρες',
     postedMinutesAgo: 120,
+    postedByName: 'Ελένη Σ.',
+    postedByRole: 'worker',
     offers: 7,
   },
   {
@@ -190,6 +213,8 @@ const SAMPLE_TASKS_RAW: Task[] = [
     when: 'Δευτέρα & Πέμπτη',
     postedAgo: 'πριν 3 ώρες',
     postedMinutesAgo: 180,
+    postedByName: 'Δέσποινα Μ.',
+    postedByRole: 'worker',
     offers: 2,
   },
   {
@@ -201,6 +226,8 @@ const SAMPLE_TASKS_RAW: Task[] = [
     when: 'Όποτε βολεύει',
     postedAgo: 'πριν 5 ώρες',
     postedMinutesAgo: 300,
+    postedByName: 'Δημήτρης Λ.',
+    postedByRole: 'worker',
     offers: 4,
   },
   {
@@ -212,6 +239,8 @@ const SAMPLE_TASKS_RAW: Task[] = [
     when: 'Αυτή τη βδομάδα',
     postedAgo: 'πριν 8 ώρες',
     postedMinutesAgo: 480,
+    postedByName: 'Νίκος Β.',
+    postedByRole: 'worker',
     offers: 1,
   },
   {
@@ -223,6 +252,8 @@ const SAMPLE_TASKS_RAW: Task[] = [
     when: 'Απόψε αν γίνεται',
     postedAgo: 'πριν 9 ώρες',
     postedMinutesAgo: 540,
+    postedByName: 'Χρήστος Τ.',
+    postedByRole: 'worker',
     offers: 6,
     urgent: true,
   },
@@ -235,6 +266,8 @@ const SAMPLE_TASKS_RAW: Task[] = [
     when: 'Κυριακή 12:00',
     postedAgo: 'χθες',
     postedMinutesAgo: 1440,
+    postedByName: 'Αλέξης Δ.',
+    postedByRole: 'worker',
     offers: 9,
   },
   {
@@ -246,6 +279,8 @@ const SAMPLE_TASKS_RAW: Task[] = [
     when: 'Μέσα στον μήνα',
     postedAgo: 'χθες',
     postedMinutesAgo: 1440,
+    postedByName: 'Ανθή Β.',
+    postedByRole: 'business',
     offers: 3,
   },
   {
@@ -257,6 +292,8 @@ const SAMPLE_TASKS_RAW: Task[] = [
     when: 'Μέσα σε 5 μέρες',
     postedAgo: 'πριν 2 μέρες',
     postedMinutesAgo: 2880,
+    postedByName: 'Στέλιος Μ.',
+    postedByRole: 'business',
     offers: 11,
     remote: true,
   },
@@ -269,6 +306,8 @@ const SAMPLE_TASKS_RAW: Task[] = [
     when: '3–7 Σεπτεμβρίου',
     postedAgo: 'πριν 2 μέρες',
     postedMinutesAgo: 2880,
+    postedByName: 'Ιωάννα Ρ.',
+    postedByRole: 'worker',
     offers: 8,
   },
   {
@@ -280,6 +319,8 @@ const SAMPLE_TASKS_RAW: Task[] = [
     when: 'Σαββατόβραδο',
     postedAgo: 'χθες',
     postedMinutesAgo: 1440,
+    postedByName: 'Άγνωστος χρήστης',
+    postedByRole: 'worker',
     offers: 0,
     hidden: true,
     flagReason: 'Ύποπτο για συνοδευτικό περιεχόμενο — απαγορεύεται ρητά',
@@ -293,6 +334,8 @@ const SAMPLE_TASKS_RAW: Task[] = [
     when: 'Άμεσα',
     postedAgo: 'πριν 5 ώρες',
     postedMinutesAgo: 300,
+    postedByName: 'Άγνωστος χρήστης',
+    postedByRole: 'worker',
     offers: 0,
     hidden: true,
     flagReason: 'Δεν είναι υπηρεσία — οικονομική συναλλαγή',
@@ -308,6 +351,8 @@ const SAMPLE_TASKS_RAW: Task[] = [
     when: 'Μέσα στη βδομάδα',
     postedAgo: 'πριν 1 ώρα',
     postedMinutesAgo: 60,
+    postedByName: 'Νίκος Α.',
+    postedByRole: 'worker',
     offers: 2,
   },
   {
@@ -321,6 +366,8 @@ const SAMPLE_TASKS_RAW: Task[] = [
     when: 'Το συντομότερο',
     postedAgo: 'πριν 4 ώρες',
     postedMinutesAgo: 240,
+    postedByName: 'Κατερίνα Ζ.',
+    postedByRole: 'worker',
     offers: 3,
     urgent: true,
   },
@@ -333,6 +380,8 @@ const SAMPLE_TASKS_RAW: Task[] = [
     when: 'Επόμενη βδομάδα',
     postedAgo: 'πριν 3 μέρες',
     postedMinutesAgo: 4320,
+    postedByName: 'Παύλος Ν.',
+    postedByRole: 'worker',
     offers: 5,
   },
 ];
@@ -586,4 +635,11 @@ export function formatPostedAgo(minutes: number): string {
   if (minutes < 1440) return `πριν ${Math.round(minutes / 60)} ώρες`;
   if (minutes < 2880) return 'χθες';
   return `πριν ${Math.round(minutes / 1440)} μέρες`;
+}
+
+/** Πώς γράφεται ποιος ανέβασε τη δουλειά. */
+export function posterLabel(name?: string, role?: 'worker' | 'business'): string {
+  if (!name) return '';
+  if (!role) return name;
+  return `${name} · ${role === 'business' ? 'επιχείρηση' : 'εργαζόμενος'}`;
 }

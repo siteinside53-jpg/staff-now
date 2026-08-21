@@ -318,6 +318,7 @@ export function addTask(input: {
     when: input.when,
     postedAgo: 'μόλις τώρα',
     postedMinutesAgo: 0,
+    postedByName: 'Εσύ',
     offers: 0,
     urgent: input.urgent === true,
     remote: input.area === 'Εξ αποστάσεως',
