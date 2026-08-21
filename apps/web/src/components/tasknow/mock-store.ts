@@ -307,6 +307,10 @@ export function addTask(input: {
   budget: number;
   when: string;
   urgent?: boolean;
+  /** Ποιος την ανεβάζει — όνομα, φωτογραφία και ρόλος του συνδεδεμένου. */
+  postedByName?: string;
+  postedByPhoto?: string;
+  postedByRole?: 'worker' | 'business';
 }): MockTask {
   const task: MockTask = {
     id: newId('my'),
@@ -318,7 +322,12 @@ export function addTask(input: {
     when: input.when,
     postedAgo: 'μόλις τώρα',
     postedMinutesAgo: 0,
-    postedByName: 'Εσύ',
+    // Μέσα στον λογαριασμό ξέρουμε ποιος είναι: όνομα και φωτογραφία μπαίνουν
+    // κανονικά, όπως ακριβώς σε κάθε άλλη αγγελία. Εκτός λογαριασμού μένει
+    // το «Εσύ», γιατί δεν έχουμε τι άλλο να γράψουμε τίμια.
+    postedByName: input.postedByName?.trim() || 'Εσύ',
+    postedByPhoto: input.postedByPhoto,
+    postedByRole: input.postedByRole,
     offers: 0,
     urgent: input.urgent === true,
     remote: input.area === 'Εξ αποστάσεως',

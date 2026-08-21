@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/lib/auth-context';
 import Link from 'next/link';
 import { PostTaskModal } from './post-task-modal';
 import { TaskDetailModal } from './task-detail-modal';
@@ -71,6 +72,25 @@ function Stat({ label, value, note }: { label: string; value: string; note?: str
 
 export function TaskNowDashboardHub() {
   const state = useMockTasks();
+
+  /**
+   * Ποιος ανεβάζει: μέσα στον λογαριασμό το ξέρουμε, οπότε η μικροδουλειά
+   * παίρνει το κανονικό όνομα και τη φωτογραφία σου — όπως κάθε άλλη αγγελία.
+   * Τα πεδία διαβάζονται ακριβώς όπως και στο πλαϊνό μενού του πίνακα, ώστε
+   * να μη διαφωνήσουν ποτέ μεταξύ τους.
+   */
+  const { user, profile } = useAuth();
+  const u = user as any;
+  const pr = profile as any;
+  const poster = {
+    name:
+      (u?.display_name || '').trim() ||
+      (pr?.full_name || '').trim() ||
+      (pr?.company_name || '').trim() ||
+      undefined,
+    photo: u?.avatar_url || pr?.photo_url || pr?.logo_url || undefined,
+    role: user?.role === 'business' ? ('business' as const) : ('worker' as const),
+  };
   const mine = myTasks(state);
   const offers = myOffers(state);
 
@@ -685,6 +705,7 @@ export function TaskNowDashboardHub() {
 
       {posting && (
         <PostTaskModal
+          poster={poster}
           onClose={() => setPosting(false)}
           onOpenTask={(t) => {
             setPosting(false);

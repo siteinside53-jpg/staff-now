@@ -49,6 +49,8 @@ const KIND: Record<
     action: string;
     /** Περίγραμμα όταν είναι νέο — ίδιο μοτίβο με τη λίστα αγγελιών. */
     newBorder: string;
+    /** Χρώμα περιγράμματος στο πέρασμα του ποντικιού. */
+    hover: string;
     /** Φόντο του αρχικού γράμματος όταν λείπει λογότυπο. */
     avatar: string;
     /** Γεμάτο χρώμα: κουμπί και σήμα «Νέο». */
@@ -66,6 +68,7 @@ const KIND: Record<
     dot: 'bg-emerald-500',
     action: 'bg-emerald-600 hover:bg-emerald-700',
     newBorder: 'border-2 border-emerald-500/60 shadow-md',
+    hover: 'hover:border-emerald-300',
     avatar: 'bg-gradient-to-br from-blue-100 to-purple-100 text-blue-700',
     solid: 'bg-emerald-600',
     money: 'text-emerald-600',
@@ -79,6 +82,7 @@ const KIND: Record<
     dot: 'bg-rose-500',
     action: 'bg-rose-600 hover:bg-rose-700',
     newBorder: 'border-2 border-rose-500/60 shadow-md',
+    hover: 'hover:border-rose-300',
     avatar: 'bg-gradient-to-br from-rose-100 to-orange-100 text-rose-700',
     solid: 'bg-rose-600',
     money: 'text-rose-600',
@@ -92,6 +96,7 @@ const KIND: Record<
     dot: 'bg-amber-500',
     action: 'bg-gray-900 hover:bg-amber-500',
     newBorder: 'border-2 border-amber-500/60 shadow-md',
+    hover: 'hover:border-amber-400',
     avatar: 'bg-gradient-to-br from-amber-100 to-orange-100 text-amber-700',
     solid: 'bg-amber-500',
     money: 'text-amber-600',
@@ -214,7 +219,20 @@ function Row({ item }: { item: Item }) {
         aria-label={`${k.label}: ${item.title}`}
         className={
           'block w-full rounded-2xl bg-white p-4 text-left transition hover:shadow-md active:scale-[0.99] ' +
-          (item.isNew ? k.newBorder : 'border border-gray-100 shadow-sm')
+          k.hover +
+          ' ' +
+          /*
+           * ΤΟ ΕΝΤΟΝΟ ΠΛΑΙΣΙΟ ΜΟΝΟ ΓΙΑ ΤΙΣ ΑΓΓΕΛΙΕΣ ΕΡΓΑΣΙΑΣ.
+           *
+           * Οι μικροδουλειές είναι σχεδόν όλες πρόσφατες, οπότε το «νέο»
+           * πλαίσιο έμπαινε παντού και έπαυε να σημαίνει κάτι — έδειχνε απλώς
+           * σαν διακόσμηση. Η ένδειξη «ΝΕΟ» παραμένει, εκεί που ξεχωρίζει.
+           * Το χρώμα εμφανίζεται στο πέρασμα του ποντικιού, όπως και στις
+           * υπόλοιπες κάρτες του site.
+           */
+          (item.isNew && item.kind === 'job'
+            ? k.newBorder
+            : 'border border-gray-100 shadow-sm')
         }
       >
         <div className="flex gap-3">

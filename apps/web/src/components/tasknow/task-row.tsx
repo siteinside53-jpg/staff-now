@@ -8,6 +8,7 @@ import {
   distanceLabel,
   formatPostedAgo,
   isLicensedCategory,
+  posterLabel,
 } from './data';
 import type { MockTask } from './mock-store';
 
@@ -58,10 +59,23 @@ export function TaskRow({
   return (
     <article
       className={
-        'relative grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 px-4 py-3.5 transition hover:bg-amber-50/40 ' +
+        'relative flex gap-x-3 px-4 py-3.5 transition hover:bg-amber-50/40 ' +
         (licensed ? 'border-l-2 border-red-300' : '')
       }
     >
+      {/* Ποιος την ανέβασε — φωτογραφία αν έχει, αλλιώς το αρχικό του γράμμα.
+          Μια μικροδουλειά χωρίς πρόσωπο είναι απλώς ένα ποσό. */}
+      {task.postedByName && (
+        <span className="mt-0.5 mr-3 hidden h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-amber-100 to-orange-100 text-xs font-bold text-amber-700 sm:flex">
+          {task.postedByPhoto ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={task.postedByPhoto} alt="" className="h-full w-full object-cover" />
+          ) : (
+            task.postedByName.trim().charAt(0).toUpperCase()
+          )}
+        </span>
+      )}
+
       <div className="min-w-0">
         {/* Ο τίτλος απλώνεται πάνω σε όλη τη γραμμή· το κουμπί δράσης μένει
             από πάνω του. Έτσι αποφεύγουμε κουμπί μέσα σε κουμπί. */}
@@ -79,6 +93,9 @@ export function TaskRow({
           {task.when}
         </p>
         <p className="mt-0.5 text-[12px] text-gray-500">
+          {task.postedByName && (
+            <>{posterLabel(task.postedByName, task.postedByRole)} · </>
+          )}
           {formatPostedAgo(task.postedMinutesAgo)} · {task.offersList.length}{' '}
           {task.offersList.length === 1 ? 'προσφορά' : 'προσφορές'}
         </p>

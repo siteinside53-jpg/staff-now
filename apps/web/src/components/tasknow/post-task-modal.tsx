@@ -26,12 +26,21 @@ import { addTask, useMockTasks, type MockTask } from './mock-store';
 const inputClass =
   'w-full rounded-xl border border-gray-300 px-3.5 py-2.5 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-100';
 
+export type Poster = {
+  name?: string;
+  photo?: string;
+  role?: 'worker' | 'business';
+};
+
 export function PostTaskModal({
   onClose,
   onOpenTask,
+  poster,
 }: {
   onClose: () => void;
   onOpenTask?: (task: MockTask) => void;
+  /** Ποιος ανεβάζει — γεμάτο μέσα στον λογαριασμό, κενό απ' έξω. */
+  poster?: Poster;
 }) {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState(DEFAULT_CATEGORY);
@@ -90,6 +99,9 @@ export function PostTaskModal({
         budget: value,
         when: when.trim(),
         urgent,
+        postedByName: poster?.name,
+        postedByPhoto: poster?.photo,
+        postedByRole: poster?.role,
       }),
     );
   }

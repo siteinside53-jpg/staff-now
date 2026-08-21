@@ -388,8 +388,13 @@ export function TaskDetailModal({
         <h3 className="mt-1 text-base font-bold text-gray-900">{task.title}</h3>
         {task.postedByName && (
           <p className="mt-1 flex items-center gap-2 text-xs text-gray-500">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-amber-100 to-orange-100 text-[11px] font-bold text-amber-700">
-              {task.postedByName.trim().charAt(0).toUpperCase()}
+            <span className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-amber-100 to-orange-100 text-[11px] font-bold text-amber-700">
+              {task.postedByPhoto ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={task.postedByPhoto} alt="" className="h-full w-full object-cover" />
+              ) : (
+                task.postedByName.trim().charAt(0).toUpperCase()
+              )}
             </span>
             {posterLabel(task.postedByName, task.postedByRole)}
           </p>

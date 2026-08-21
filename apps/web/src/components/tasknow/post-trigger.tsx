@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { PostTaskModal } from './post-task-modal';
+import { PostTaskModal, type Poster } from './post-task-modal';
 import { TaskDetailModal } from './task-detail-modal';
 import { TaskNowTermsGate, hasAcceptedTaskNowTerms } from './terms';
 import { DEFAULT_CENTER } from './data';
@@ -18,10 +18,12 @@ export function PostTaskButton({
   className,
   children,
   ariaLabel,
+  poster,
 }: {
   className: string;
   children: React.ReactNode;
   ariaLabel?: string;
+  poster?: Poster;
 }) {
   const { tasks } = useMockTasks();
   const [accepted, setAccepted] = useState(false);
@@ -59,6 +61,7 @@ export function PostTaskButton({
 
       {posting && (
         <PostTaskModal
+          poster={poster}
           onClose={() => setPosting(false)}
           onOpenTask={(t) => {
             setPosting(false);
