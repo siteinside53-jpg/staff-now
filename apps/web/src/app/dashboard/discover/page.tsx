@@ -17,6 +17,7 @@ import { normText, splitLocation, buildCityCategories } from '@/lib/location';
 import { WORKER_JOB_ROLE_LABELS_EL, WORKER_JOB_ROLE_GROUPS } from '@staffnow/config';
 import { durationLabel, expiresLabel, netOf, whenLabel } from '@/lib/shift-display';
 import { AllListings } from '@/components/dashboard/all-listings';
+import { TaskNowStrip } from '@/components/dashboard/tasknow-strip';
 
 // Ελληνικό label ειδικότητας (fallback στο raw id αν λείπει)
 function roleLabel(r: string): string {
@@ -666,6 +667,11 @@ export default function DiscoverPage() {
         <h1 className="text-2xl font-bold text-gray-900">Εύρεση</h1>
         {discoverTab === 'discover' && !noCandidates && <span className="text-sm text-gray-500">{currentIndex + 1} / {candidates.length}</span>}
       </div>
+
+      {/* Στο swipe του κινητού κρύβονται όλα εκτός από τις κάρτες. Μένει μόνο
+          μία λεπτή γραμμή, ώστε να μη χάνεται τελείως η ενημέρωση ότι
+          υπάρχουν μικροδουλειές — εκεί είναι η περισσότερη κίνηση. */}
+      {mobileSwipeFocus && <TaskNowStrip />}
 
       {/* Όλες οι αγγελίες μαζί: εργασίας, μικροδουλειές και έκτακτες βάρδιες,
           καθεμιά στο χρώμα της. Μπαίνει εδώ γιατί η «Εύρεση» είναι το σημείο
