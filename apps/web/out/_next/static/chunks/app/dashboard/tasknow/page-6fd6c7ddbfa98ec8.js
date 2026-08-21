@@ -1,1 +1,0 @@
-(self.webpackChunk_N_E=self.webpackChunk_N_E||[]).push([[5049],{15742:(e,s,r)=>{"use strict";r.r(s),r.d(s,{default:()=>n});var u=r(36784),a=r(58051);function n(){return(0,u.jsx)(a.TaskNowDashboardHub,{})}},39557:(e,s,r)=>{Promise.resolve().then(r.bind(r,15742))}},e=>{e.O(0,[6836,3929,4755,8051,5575,3742,7358],()=>e(e.s=39557)),_N_E=e.O()}]);
