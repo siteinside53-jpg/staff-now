@@ -22,7 +22,7 @@ export type FilterGroup = {
   categorizedSelectAllLabel?: string;
 };
 
-type Accent = 'emerald' | 'blue';
+type Accent = 'emerald' | 'blue' | 'amber';
 
 type Props = {
   accent: Accent;
@@ -46,6 +46,8 @@ type Props = {
 const ACCENT = {
   emerald: { check: 'accent-emerald-600', btn: 'bg-emerald-600 hover:bg-emerald-700', text: 'text-emerald-700', ring: 'focus:ring-emerald-100 focus:border-emerald-400' },
   blue: { check: 'accent-blue-600', btn: 'bg-blue-600 hover:bg-blue-700', text: 'text-blue-700', ring: 'focus:ring-blue-100 focus:border-blue-400' },
+  // Το πορτοκαλί του TaskNow — ίδια διάταξη με τις αγγελίες, δικό του χρώμα.
+  amber: { check: 'accent-amber-500', btn: 'bg-amber-500 hover:bg-amber-600', text: 'text-amber-700', ring: 'focus:ring-amber-100 focus:border-amber-400' },
 };
 
 /** Ιεραρχικό φίλτρο κατηγορία → ειδικότητες (όπως το /categories του jobfind). */

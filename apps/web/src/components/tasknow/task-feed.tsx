@@ -7,6 +7,11 @@ import { PostTaskButton } from './post-trigger';
 import { TaskDetailModal } from './task-detail-modal';
 import { TaskMap } from './task-map';
 import { TaskNowLogo } from './logo';
+import { TASKNOW_DEMO } from './flags';
+import {
+  FilteredListLayout,
+  type FilterGroup,
+} from '@/components/marketing/filtered-list-layout';
 import {
   AREA_COORDS,
   CATEGORIES,
@@ -34,21 +39,24 @@ import {
 /**
  * ΜΑΚΕΤΑ TaskNow — το ταμπλό με τις μικροδουλειές.
  *
+ * ΔΙΑΤΑΞΗ: ίδια με τις αγγελίες εργασίας — αναζήτηση πάνω, φίλτρα αριστερά,
+ * αποτελέσματα δεξιά. Χρησιμοποιεί ΤΟ ΙΔΙΟ component (`FilteredListLayout`)
+ * που ήδη σερβίρει τη σελίδα αγγελιών: μαζί με τη διάταξη έρχονται δωρεάν το
+ * συρτάρι φίλτρων στο κινητό, ο μετρητής και ο «καθαρισμός». Δεύτερη υλοποίηση
+ * θα σήμαινε δεύτερο σημείο να χαλάσει.
+ *
  * ΑΡΧΗ ΣΧΕΔΙΑΣΗΣ (από τον ιδιοκτήτη): «ο κόσμος κοιτάει πρώτα τι του
- * προσφέρει κάτι». Άρα πάνω από τη ροή δεν μπαίνει τίποτα που να μιλάει για
- * εμάς — μπαίνουν αριθμοί. Το ποσό κάθε δουλειάς κάθεται σε δική του στήλη,
- * δεξιά στοιχισμένο, με στοιχισμένα ψηφία: όλα τα ευρώ της σελίδας πέφτουν
- * στην ίδια κατακόρυφη γραμμή και συγκρίνονται με μία ματιά.
+ * προσφέρει κάτι». Το ποσό κάθε δουλειάς κάθεται σε δική του στήλη, δεξιά
+ * στοιχισμένο, με στοιχισμένα ψηφία.
  *
  * ΤΟΠΟΘΕΣΙΑ: η αρχική ακτίνα είναι «όλη η πόλη». Ακτίνα γύρω από κέντρο που
- * ΔΕΝ διάλεξε ο χρήστης θα έκρυβε δουλειές και θα έκανε τους μετρητές της
- * αρχικής να διαφωνούν με τη λίστα. Μόλις διαλέξει γειτονιά ή δώσει
+ * ΔΕΝ διάλεξε ο χρήστης θα έκρυβε δουλειές. Μόλις διαλέξει γειτονιά ή δώσει
  * τοποθεσία, πέφτει στα 5 χλμ και η ταξινόμηση γίνεται «πιο κοντά».
  */
 
 type Sort = 'new' | 'near' | 'budget';
 
-const PREFS_KEY = 'tasknow_prefs_v1';
+const PREFS_KEY = 'tasknow_prefs_v2';
 
 const RADIUS_OPTIONS: { km: number | null; label: string }[] = [
   { km: 2, label: '2 χλμ' },
@@ -101,8 +109,8 @@ function Row({
         </button>
 
         <p className="mt-1 text-[12.5px] text-gray-500">
-          <span aria-hidden="true">📍</span> {task.area} · {distanceLabel(km, source, centerLabel)} ·{' '}
-          {task.when}
+          <span aria-hidden="true">📍</span> {task.area} ·{' '}
+          {distanceLabel(km, source, centerLabel)} · {task.when}
         </p>
         <p className="mt-0.5 text-[12px] text-gray-500">
           {formatPostedAgo(task.postedMinutesAgo)} · {task.offersList.length}{' '}
@@ -113,8 +121,7 @@ function Row({
           <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
             {cat?.icon} {cat?.label}
           </span>
-          {/* Ο περιορισμός της άδειας δεν κρύβεται ποτέ και δεν μπαίνει σε ουρά
-              προτεραιότητας: μπαίνει πρώτος, δίπλα στο ποσό. */}
+          {/* Ο περιορισμός της άδειας δεν κρύβεται ποτέ. */}
           {licensed && (
             <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">
               θέλει άδεια
@@ -178,44 +185,14 @@ function Row({
   );
 }
 
-function Pill({
-  active,
-  onClick,
-  children,
-  className = '',
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={
-        'h-9 shrink-0 rounded-full border px-3 text-[13px] font-medium transition ' +
-        (active
-          ? 'border-gray-900 bg-gray-900 text-white'
-          : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300') +
-        ' ' +
-        className
-      }
-    >
-      {children}
-    </button>
-  );
-}
-
 export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
   const state = useMockTasks();
   const { tasks } = state;
 
-  const [active, setActive] = useState<string | null>(null);
-  const [allCategories, setAllCategories] = useState(false);
+  const [search, setSearch] = useState('');
+  const [cats, setCats] = useState<string[]>([]);
   const [sort, setSort] = useState<Sort>('new');
-  const [view, setView] = useState<'list' | 'map'>('list');
+  const [showMap, setShowMap] = useState(false);
   const [radius, setRadius] = useState<number | null>(null);
 
   const [center, setCenter] = useState<Coords>(DEFAULT_CENTER);
@@ -237,12 +214,12 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
         area?: string;
         radius?: number | null;
         sort?: Sort;
-        category?: string | null;
-        view?: 'list' | 'map';
+        cats?: string[];
+        map?: boolean;
       };
       if (p.sort) setSort(p.sort);
-      if (p.view) setView(p.view);
-      if (p.category !== undefined) setActive(p.category);
+      if (typeof p.map === 'boolean') setShowMap(p.map);
+      if (Array.isArray(p.cats)) setCats(p.cats);
       if (p.area && AREA_COORDS[p.area]) {
         setCenter(AREA_COORDS[p.area]!);
         setCenterLabel(p.area);
@@ -262,12 +239,12 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
           area: centerSource === 'area' ? centerLabel : undefined,
           radius,
           sort,
-          category: active,
-          view,
+          cats,
+          map: showMap,
         }),
       );
     } catch {}
-  }, [centerSource, centerLabel, radius, sort, active, view]);
+  }, [centerSource, centerLabel, radius, sort, cats, showMap]);
 
   // Αν ο χρήστης έχει ΗΔΗ δώσει άδεια τοποθεσίας, τον τοποθετούμε χωρίς να
   // πεταχτεί παράθυρο. Αν την έχει αρνηθεί, το κουμπί δεν εμφανίζεται καν.
@@ -308,6 +285,14 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
   }
 
   function pickArea(area: string) {
+    if (!area) {
+      setCenter(DEFAULT_CENTER);
+      setCenterLabel('το κέντρο');
+      setCenterSource('default');
+      setRadius(null);
+      setSort('new');
+      return;
+    }
     const c = AREA_COORDS[area];
     if (!c) return;
     setCenter(c);
@@ -318,14 +303,6 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
     setLocError(null);
   }
 
-  function resetArea() {
-    setCenter(DEFAULT_CENTER);
-    setCenterLabel('το κέντρο');
-    setCenterSource('default');
-    setRadius(null);
-    setSort('new');
-  }
-
   // ── Δεδομένα ─────────────────────────────────────────────────────────────
   const openTasks = publicOpenTasks(state);
   const stats = boardStats(openTasks);
@@ -333,8 +310,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
 
   const listed = useMemo(() => {
     // Στη ροή μπαίνει ό,τι δέχεται ακόμη προσφορές. Οι δικές σου μένουν
-    // ορατές σε κάθε κατάσταση για να τις παρακολουθείς — αλλά δεν μετράνε
-    // σε κανέναν δημόσιο αριθμό.
+    // ορατές σε κάθε κατάσταση — αλλά δεν μετράνε σε δημόσιο αριθμό.
     return tasks
       .filter((t) => isOpen(t) || (t.mine && isPublic(t)))
       .map((task) => {
@@ -359,7 +335,28 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
   }, [withinRadius]);
 
   const visible = useMemo(() => {
-    const list = active ? withinRadius.filter((x) => x.task.category === active) : withinRadius;
+    const q = search.trim().toLowerCase();
+    let list = cats.length
+      ? withinRadius.filter((x) => cats.includes(x.task.category))
+      : withinRadius;
+
+    if (q) {
+      // Η αναζήτηση πιάνει τίτλο, περιγραφή, περιοχή και κατηγορία — ό,τι
+      // θα σκεφτόταν κάποιος να πληκτρολογήσει.
+      list = list.filter((x) => {
+        const t = x.task;
+        const hay = [
+          t.title,
+          t.description ?? '',
+          t.area,
+          CATEGORY_BY_KEY[t.category]?.label ?? '',
+        ]
+          .join(' ')
+          .toLowerCase();
+        return hay.includes(q);
+      });
+    }
+
     const sorted = [...list];
     if (sort === 'budget') sorted.sort((a, b) => b.task.budget - a.task.budget);
     else if (sort === 'near') sorted.sort((a, b) => (a.km ?? 1e9) - (b.km ?? 1e9));
@@ -367,20 +364,10 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
     // Το «Επείγον» κρατάει την κορυφή μέσα σε όποια ταξινόμηση.
     sorted.sort((a, b) => Number(b.task.urgent === true) - Number(a.task.urgent === true));
     return sorted;
-  }, [withinRadius, active, sort]);
+  }, [withinRadius, cats, sort, search]);
 
   const visibleOpen = visible.filter((x) => isOpen(x.task));
-  const visibleStats = boardStats(visibleOpen.map((x) => x.task));
   const cutByRadius = openTasks.length - withinRadius.filter((x) => isOpen(x.task)).length;
-
-  // Οι αδειοδοτούμενες κατηγορίες ΔΕΝ κρύβονται ποτέ αυτόματα: δεν επιτρέπεται
-  // αυτόματος κανόνας να εξαφανίζει τη νομικά ευαίσθητη ταξινομία.
-  const shownCategories = allCategories
-    ? CATEGORIES
-    : CATEGORIES.filter(
-        (c) => (categoryCounts.get(c.key) ?? 0) > 0 || c.licensed || c.key === active,
-      );
-  const hiddenCategoryCount = CATEGORIES.length - shownCategories.length;
 
   const mapTasks = useMemo(
     () => visible.map((x) => x.task).filter((t) => AREA_COORDS[t.area]),
@@ -397,13 +384,126 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
   const liveDetail = detail ? (tasks.find((t) => t.id === detail.id) ?? detail) : null;
   const liveOffer = offerFor ? (tasks.find((t) => t.id === offerFor.id) ?? offerFor) : null;
 
+  // ── Τα φίλτρα ────────────────────────────────────────────────────────────
+  // Οι αδειοδοτούμενες κατηγορίες ΔΕΝ κρύβονται ποτέ, ακόμη κι αν είναι άδειες:
+  // δεν επιτρέπεται αυτόματος κανόνας να εξαφανίζει τη νομικά ευαίσθητη
+  // ταξινομία.
+  const groups: FilterGroup[] = [
+    {
+      key: 'category',
+      title: 'Κατηγορία',
+      options: CATEGORIES.filter(
+        (c) => (categoryCounts.get(c.key) ?? 0) > 0 || c.licensed || cats.includes(c.key),
+      ).map((c) => ({
+        value: c.key,
+        label: `${c.icon} ${c.label}${c.licensed ? ' (άδεια)' : ''}`,
+        count: categoryCounts.get(c.key) ?? 0,
+      })),
+    },
+  ];
+
+  const sidebar = (
+    <div className="space-y-4">
+      {/* Τοποθεσία */}
+      <div>
+        <p className="mb-2 text-sm font-bold text-gray-900">Περιοχή</p>
+
+        {geoAllowed && (
+          <button
+            type="button"
+            onClick={locate}
+            disabled={locating}
+            className="mb-2 w-full rounded-lg bg-gray-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:opacity-60"
+          >
+            <span aria-hidden="true">📍</span> {locating ? 'Ψάχνω…' : 'Κοντά μου'}
+          </button>
+        )}
+
+        <select
+          value={centerSource === 'area' ? centerLabel : ''}
+          onChange={(e) => pickArea(e.target.value)}
+          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-100"
+        >
+          <option value="">Όλη η Θεσσαλονίκη</option>
+          {areas.map((a) => (
+            <option key={a.area} value={a.area}>
+              {a.area} ({a.count}) · έως {a.max}€
+            </option>
+          ))}
+        </select>
+
+        {centerSource !== 'default' && (
+          <div className="mt-2 flex gap-1.5">
+            {RADIUS_OPTIONS.map((r) => (
+              <button
+                key={r.label}
+                type="button"
+                onClick={() => setRadius(r.km)}
+                aria-pressed={radius === r.km}
+                className={
+                  'flex-1 rounded-lg px-2 py-1.5 text-xs font-medium transition ' +
+                  (radius === r.km
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
+                }
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {locError && <p className="mt-2 text-xs font-medium text-red-600">{locError}</p>}
+      </div>
+
+      {/* Σειρά */}
+      <div>
+        <p className="mb-2 text-sm font-bold text-gray-900">Σειρά</p>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as Sort)}
+          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-100"
+        >
+          {(Object.keys(SORT_LABEL) as Sort[]).map((k) => (
+            <option key={k} value={k}>
+              {SORT_LABEL[k]}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Χάρτης */}
+      <button
+        type="button"
+        onClick={() => setShowMap((v) => !v)}
+        aria-pressed={showMap}
+        className={
+          'w-full rounded-lg border px-3 py-2 text-sm font-semibold transition ' +
+          (showMap
+            ? 'border-amber-400 bg-amber-50 text-amber-800'
+            : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300')
+        }
+      >
+        🗺 {showMap ? 'Κλείσε τον χάρτη' : 'Άνοιξε τον χάρτη'}
+      </button>
+    </div>
+  );
+
   return (
     <div>
-      {/* ── Μπάρα ταμπλό: ποιοι είμαστε, ότι είναι μακέτα, και το ανέβασμα ── */}
-      <div className="sticky top-16 z-30 -mx-4 flex h-14 items-center gap-2 border-b border-gray-100 bg-white/95 px-4 backdrop-blur sm:mx-0 sm:rounded-t-2xl sm:px-5">
+      {/* Μπάρα ταμπλό: ποιοι είμαστε και το ανέβασμα */}
+      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
         <TaskNowLogo className="text-base" markClassName="h-5 w-5" />
-        <span className="rounded bg-gray-900 px-1.5 py-0.5 text-[11px] font-bold tracking-wide text-amber-300">
-          ΜΑΚΕΤΑ
+        {TASKNOW_DEMO && (
+          <span className="rounded bg-gray-900 px-1.5 py-0.5 text-[11px] font-bold tracking-wide text-amber-300">
+            ΜΑΚΕΤΑ
+          </span>
+        )}
+        <span className="hidden text-sm text-gray-500 sm:inline">
+          {stats.count} ανοιχτές
+          {stats.min !== null && stats.max !== null && (
+            <> · {stats.min}€–{stats.max}€ ανά δουλειά</>
+          )}
         </span>
         <PostTaskButton
           ariaLabel="Ανέβασε δουλειά"
@@ -414,231 +514,103 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
         </PostTaskButton>
       </div>
 
-      {/* ── Το άγκιστρο: αριθμοί, όχι λόγια ── */}
-      <div className="px-0 py-3">
-        <p className="text-[15px] font-semibold tabular-nums text-gray-900">
-          {stats.count} ανοιχτές μικροδουλειές
-          {stats.min !== null && stats.max !== null && (
-            <> · {stats.min}€–{stats.max}€ ανά δουλειά</>
-          )}
-        </p>
-        <p className="mt-0.5 text-xs text-gray-600">
-          Διάλεξε μια δουλειά και πρότεινε δικό σου ποσό. Τα ποσά τα ορίζει αυτός που
-          ανέβασε τη δουλειά.
-        </p>
-        <p className="mt-0.5 text-xs text-gray-600">
-          Η επιλογή και η συμφωνία γίνονται{' '}
-          <a href="#efthyni" className="font-semibold underline">
-            με δική σου ευθύνη
-          </a>
-          .
-        </p>
-      </div>
-
-      {/* ── Γειτονιές: περιεχόμενο ΚΑΙ χειριστήριο ── */}
-      <div className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
-        {geoAllowed && (
-          <button
-            type="button"
-            onClick={locate}
-            disabled={locating}
-            className={
-              'flex h-14 shrink-0 snap-start flex-col justify-center rounded-xl px-3.5 text-left transition disabled:opacity-60 ' +
-              (centerSource === 'geo'
-                ? 'bg-gray-900 text-white'
-                : 'bg-gray-900/90 text-white hover:bg-gray-900')
-            }
-          >
-            <span className="text-sm font-semibold">
-              <span aria-hidden="true">📍</span> {locating ? 'Ψάχνω…' : 'Κοντά μου'}
-            </span>
-            <span className="text-[11px] text-white/70">με την τοποθεσία σου</span>
-          </button>
-        )}
-
-        {centerSource !== 'default' && (
-          <button
-            type="button"
-            onClick={resetArea}
-            className="flex h-14 shrink-0 snap-start items-center rounded-xl border border-gray-200 bg-white px-3.5 text-sm font-medium text-gray-600 transition hover:border-gray-300"
-          >
-            ✕ Όλη η πόλη
-          </button>
-        )}
-
-        {areas.map((a) => (
-          <button
-            key={a.area}
-            type="button"
-            onClick={() => pickArea(a.area)}
-            aria-pressed={centerSource === 'area' && centerLabel === a.area}
-            className={
-              'flex h-14 shrink-0 snap-start flex-col justify-center rounded-xl border px-3.5 text-left transition ' +
-              (centerSource === 'area' && centerLabel === a.area
-                ? 'border-gray-900 bg-gray-900 text-white'
-                : 'border-gray-200 bg-white text-gray-900 hover:border-gray-300')
-            }
-          >
-            <span className="text-sm font-semibold">{a.area}</span>
-            <span
-              className={
-                'text-[11px] tabular-nums ' +
-                (centerSource === 'area' && centerLabel === a.area
-                  ? 'text-white/70'
-                  : 'text-gray-500')
-              }
-            >
-              {a.count} · έως {a.max}€
-            </span>
-          </button>
-        ))}
-      </div>
-
-      {locError && <p className="mt-2 text-xs font-medium text-red-600">{locError}</p>}
-
-      {/* ── Χειριστήρια σε μία γραμμή ── */}
-      <div className="-mx-4 mt-3 flex items-center gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
-        <label className="flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 text-[13px] font-medium text-gray-700">
-          <span className="text-gray-400">Σειρά:</span>
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as Sort)}
-            className="bg-transparent font-semibold outline-none"
-          >
-            {(Object.keys(SORT_LABEL) as Sort[]).map((k) => (
-              <option key={k} value={k}>
-                {SORT_LABEL[k]}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {RADIUS_OPTIONS.map((r) => (
-          <Pill key={r.label} active={radius === r.km} onClick={() => setRadius(r.km)}>
-            {r.label}
-          </Pill>
-        ))}
-
-        <span className="h-6 w-px shrink-0 bg-gray-200" aria-hidden="true" />
-
-        <Pill active={active === null} onClick={() => setActive(null)}>
-          Όλα {visibleOpen.length > 0 && <span className="tabular-nums">{openTasks.length}</span>}
-        </Pill>
-        {shownCategories.map((c) => {
-          const n = categoryCounts.get(c.key) ?? 0;
-          return (
-            <Pill key={c.key} active={active === c.key} onClick={() => setActive(c.key)}>
-              <span aria-hidden="true" className="mr-1">
-                {c.icon}
-              </span>
-              {c.label}
-              {c.licensed && <span className="ml-1 text-[10px] opacity-70">άδεια</span>}
-              <span className="ml-1 tabular-nums opacity-60">{n}</span>
-            </Pill>
-          );
-        })}
-        {hiddenCategoryCount > 0 && (
-          <button
-            type="button"
-            onClick={() => setAllCategories((v) => !v)}
-            className="h-9 shrink-0 rounded-full border border-dashed border-gray-300 px-3 text-[13px] font-medium text-gray-500 transition hover:border-gray-400"
-          >
-            {allCategories ? 'λιγότερες' : `+${hiddenCategoryCount} ακόμη`}
-          </button>
-        )}
-
-        <span className="h-6 w-px shrink-0 bg-gray-200" aria-hidden="true" />
-
-        <Pill active={view === 'map'} onClick={() => setView(view === 'map' ? 'list' : 'map')}>
-          🗺 Χάρτης
-        </Pill>
-      </div>
-
-      {/* ── Το ταμπλό ── */}
-      {view === 'map' ? (
-        <div className="mt-4">
-          <TaskMap
-            tasks={mapTasks}
-            center={center}
-            centerLabel={centerLabel}
-            radiusKm={radius}
-            selectedId={detail?.id ?? null}
-            onSelect={(t) => setDetail(t)}
-          />
-          <p className="mt-2 text-center text-xs text-gray-400">
-            Πάτησε πάνω σε ένα ποσό για να δεις τη μικροδουλειά.
-          </p>
-        </div>
-      ) : visible.length === 0 ? (
-        <div className="mt-4 rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center">
-          <p className="text-sm font-medium text-gray-900">Δεν υπάρχει τίποτα εδώ.</p>
-          <p className="mt-1 text-sm text-gray-500">
-            Δοκίμασε μεγαλύτερη ακτίνα ή άλλη κατηγορία.
-          </p>
-          <button
-            type="button"
-            onClick={() => setRadius(null)}
-            className="mt-3 text-sm font-semibold text-amber-600 hover:text-amber-700"
-          >
-            Δες όλη την πόλη
-          </button>
-        </div>
-      ) : (
-        <div className="-mx-4 mt-3 divide-y divide-gray-100 border-y border-gray-100 bg-white sm:mx-0 sm:rounded-b-2xl sm:border-x">
-          {visible.slice(0, 6).map(({ task, km }) => (
-            <Row
-              key={task.id}
-              task={task}
-              km={km}
-              source={centerSource}
+      <FilteredListLayout
+        accent="amber"
+        search={search}
+        onSearch={setSearch}
+        searchPlaceholder="Αναζήτηση: τι θέλεις να κάνεις, σε ποια περιοχή…"
+        groups={groups}
+        selected={{ category: cats }}
+        onToggle={(_g, value) =>
+          setCats((prev) =>
+            prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value],
+          )
+        }
+        onClear={() => {
+          setCats([]);
+          setSearch('');
+          pickArea('');
+        }}
+        resultCount={visibleOpen.length}
+        resultNoun={['μικροδουλειά', 'μικροδουλειές']}
+        sidebarHeader={sidebar}
+      >
+        {showMap && (
+          <div className="mb-4">
+            <TaskMap
+              tasks={mapTasks}
+              center={center}
               centerLabel={centerLabel}
-              onOpen={() => setDetail(task)}
-              onOffer={() => setOfferFor(task)}
+              radiusKm={radius}
+              selectedId={detail?.id ?? null}
+              onSelect={(t) => setDetail(t)}
             />
-          ))}
-
-          {/* Το «ανέβασε κι εσύ» μπαίνει ΜΕΣΑ στη λίστα, όχι από πάνω:
-              κάθε pixel πάνω από τη ροή είναι pixel που δεν δείχνει ποσό. */}
-          <div className="border-y border-amber-200 bg-amber-50 px-4 py-4 text-center">
-            <p className="text-sm font-bold text-gray-900">Χρειάζεσαι εσύ χέρια;</p>
-            <p className="mt-0.5 text-xs text-gray-600">
-              Ανέβασε δουλειά δωρεάν και δέξου προσφορές.
+            <p className="mt-2 text-center text-xs text-gray-400">
+              Πάτησε πάνω σε ένα ποσό για να δεις τη μικροδουλειά.
             </p>
-            <PostTaskButton className="mt-3 rounded-xl bg-amber-500 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600">
-              Ανέβασε δουλειά
-            </PostTaskButton>
           </div>
-
-          {visible.slice(6).map(({ task, km }) => (
-            <Row
-              key={task.id}
-              task={task}
-              km={km}
-              source={centerSource}
-              centerLabel={centerLabel}
-              onOpen={() => setDetail(task)}
-              onOffer={() => setOfferFor(task)}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* ── Πόσα βλέπεις, πόσα υπάρχουν ── */}
-      <p className="mt-3 text-center text-xs text-gray-400" aria-live="polite">
-        <span className="tabular-nums">{visibleOpen.length}</span> από{' '}
-        <span className="tabular-nums">{openTasks.length}</span> μικροδουλειές
-        {visibleStats.min !== null && visibleStats.max !== null && (
-          <>
-            {' · '}
-            <span className="tabular-nums">
-              {visibleStats.min}€–{visibleStats.max}€
-            </span>{' '}
-            ανά δουλειά
-          </>
         )}
+
+        {visible.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center">
+            <p className="text-sm font-medium text-gray-900">Δεν υπάρχει τίποτα εδώ.</p>
+            <p className="mt-1 text-sm text-gray-500">
+              Δοκίμασε άλλη αναζήτηση, μεγαλύτερη ακτίνα ή άλλη κατηγορία.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setCats([]);
+                setSearch('');
+                pickArea('');
+              }}
+              className="mt-3 text-sm font-semibold text-amber-600 hover:text-amber-700"
+            >
+              Καθάρισε τα φίλτρα
+            </button>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white">
+            {visible.slice(0, 6).map(({ task, km }) => (
+              <Row
+                key={task.id}
+                task={task}
+                km={km}
+                source={centerSource}
+                centerLabel={centerLabel}
+                onOpen={() => setDetail(task)}
+                onOffer={() => setOfferFor(task)}
+              />
+            ))}
+
+            {/* Το «ανέβασε κι εσύ» μπαίνει ΜΕΣΑ στη λίστα, όχι από πάνω:
+                κάθε pixel πάνω από τη ροή είναι pixel που δεν δείχνει ποσό. */}
+            <div className="border-y border-amber-200 bg-amber-50 px-4 py-4 text-center">
+              <p className="text-sm font-bold text-gray-900">Χρειάζεσαι εσύ χέρια;</p>
+              <p className="mt-0.5 text-xs text-gray-600">
+                Ανέβασε δουλειά δωρεάν και δέξου προσφορές.
+              </p>
+              <PostTaskButton className="mt-3 rounded-xl bg-amber-500 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600">
+                Ανέβασε δουλειά
+              </PostTaskButton>
+            </div>
+
+            {visible.slice(6).map(({ task, km }) => (
+              <Row
+                key={task.id}
+                task={task}
+                km={km}
+                source={centerSource}
+                centerLabel={centerLabel}
+                onOpen={() => setDetail(task)}
+                onOffer={() => setOfferFor(task)}
+              />
+            ))}
+          </div>
+        )}
+
         {cutByRadius > 0 && (
-          <>
-            {' · '}
+          <p className="mt-3 text-center text-xs text-gray-400">
             <button
               type="button"
               onClick={() => setRadius(null)}
@@ -646,19 +618,21 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
             >
               {cutByRadius} ακόμη πιο μακριά — άνοιξε την ακτίνα
             </button>
-          </>
+          </p>
         )}
-      </p>
 
-      <div className="mt-3 text-center">
-        <button
-          type="button"
-          onClick={resetMock}
-          className="text-[11px] font-medium text-gray-400 underline hover:text-gray-600"
-        >
-          Καθάρισε τη μακέτα και ξεκίνα από την αρχή
-        </button>
-      </div>
+        {TASKNOW_DEMO && (
+          <div className="mt-3 text-center">
+            <button
+              type="button"
+              onClick={resetMock}
+              className="text-[11px] font-medium text-gray-400 underline hover:text-gray-600"
+            >
+              Καθάρισε τη μακέτα και ξεκίνα από την αρχή
+            </button>
+          </div>
+        )}
+      </FilteredListLayout>
 
       {liveDetail && (
         <TaskDetailModal

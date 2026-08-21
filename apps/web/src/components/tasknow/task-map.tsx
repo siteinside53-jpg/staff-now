@@ -69,16 +69,26 @@ export function TaskMap({
     const seen = perArea.get(task.area) ?? 0;
     perArea.set(task.area, seen + 1);
     const km = distanceKm(center, c);
-    // Χρυσή γωνία: οι πινέζες της ίδιας γειτονιάς ανοίγουν σε σπείρα αντί να
-    // στοιβάζονται. Και όσες πέφτουν πάνω στο «εσύ» σπρώχνονται λίγο έξω,
-    // ώστε να μη σκεπάζουν το σημείο του χρήστη.
-    const ring = (km < 0.6 ? 0.7 : 0) + seen * 0.4;
-    const angle = seen * 2.399963;
     const { dx, dy } = toKmOffset(center, c);
+
+    /**
+     * Το άνοιγμα των πινέζων γίνεται σε ΜΟΝΑΔΕΣ ΤΟΥ ΣΧΕΔΙΟΥ, όχι σε
+     * χιλιόμετρα.
+     *
+     * ΓΙΑΤΙ ΕΧΕΙ ΣΗΜΑΣΙΑ: αν μετατοπίζαμε κατά χιλιόμετρα, μια πινέζα θα
+     * κουνιόταν έως και 1 χλμ από την πραγματική της θέση — κάτω από υπόμνημα
+     * που υπόσχεται αληθινές αποστάσεις. Σε μονάδες σχεδίου η μετατόπιση
+     * είναι απλώς οπτικό ξεχώρισμα, σταθερό όσο κι αν αλλάξει το ζουμ, και
+     * δεν μεταφράζεται ποτέ σε ψεύτικο νούμερο.
+     */
+    // Το βήμα είναι αρκετά μεγάλο ώστε δύο πινέζες της ίδιας γειτονιάς να μην
+    // ακουμπάνε, ακόμη και όταν ο χάρτης είναι στενός (πλάι στη λίστα).
+    const spread = (km < 0.6 ? 4 : 0) + seen * 5;
+    const angle = seen * 2.399963;
     placed.push({
       task,
-      x: VIEW / 2 + kmToUnits(dx + Math.cos(angle) * ring),
-      y: VIEW / 2 + kmToUnits(dy + Math.sin(angle) * ring),
+      x: VIEW / 2 + kmToUnits(dx) + Math.cos(angle) * spread,
+      y: VIEW / 2 + kmToUnits(dy) + Math.sin(angle) * spread,
       km,
     });
   }
@@ -89,7 +99,9 @@ export function TaskMap({
     <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-[#eef2f7]">
       <svg
         viewBox={`0 0 ${VIEW} ${VIEW}`}
-        className="block aspect-square w-full sm:aspect-[16/10]"
+        // Στο κινητό σταθερό ύψος: το τετράγωνο έπιανε ολόκληρη την οθόνη και
+        // έσπρωχνε τη λίστα εκτός. Ο χάρτης είναι βοηθητικός, όχι ο κύριος.
+        className="block h-64 w-full sm:aspect-[16/10] sm:h-auto"
         role="img"
         aria-label={`Χάρτης με ${placed.length} μικροδουλειές γύρω από ${centerLabel}`}
       >
@@ -146,6 +158,10 @@ export function TaskMap({
               }}
             >
               <title>{`${task.title} — ${task.budget}€ · ${task.area} · ${formatKm(km)}`}</title>
+              {/* Αόρατη περιοχή αφής: η πινέζα είναι 6 μονάδες ψηλή, πολύ
+                  μικρή για δάχτυλο. Αυτό το ορθογώνιο δεν φαίνεται αλλά
+                  πιάνεται. */}
+              <rect x={x - w / 2 - 2} y={y - 12} width={w + 4} height={16} fill="transparent" />
               <path
                 d={`M ${x} ${y} l -1.5 -2 h 3 z`}
                 fill={selected ? '#111827' : '#f59e0b'}
@@ -176,14 +192,16 @@ export function TaskMap({
       </svg>
 
       {/* Υπόμνημα */}
-      <div className="pointer-events-none absolute bottom-2 left-2 rounded-lg bg-white/90 px-2.5 py-1.5 text-[11px] font-medium text-gray-600 shadow-sm">
+      <div className="pointer-events-none absolute bottom-2 left-2 hidden rounded-lg bg-white/90 px-2.5 py-1.5 text-[11px] font-medium text-gray-600 shadow-sm sm:block">
         <span className="mr-1 inline-block h-2 w-2 rounded-full bg-blue-600 align-middle" /> εσύ
         <span className="mx-1.5 text-gray-300">|</span>
         <span className="mr-1 inline-block h-2 w-2 rounded-full bg-amber-500 align-middle" /> μικροδουλειά
       </div>
-      <div className="pointer-events-none absolute bottom-2 right-2 rounded-lg bg-white/90 px-2.5 py-1.5 text-[11px] text-gray-500 shadow-sm">
-        σχηματικός χάρτης · αληθινές αποστάσεις
-      </div>
+      {/* Το υπόμνημα ΚΑΤΩ από τον χάρτη, όχι πάνω του: όταν έπεφτε πάνω,
+          σκέπαζε πινέζες σε στενές οθόνες. */}
+      <p className="border-t border-gray-200 bg-white px-3 py-1.5 text-center text-[11px] text-gray-500">
+        αληθινές αποστάσεις · θέσεις κατά προσέγγιση ανά γειτονιά
+      </p>
     </div>
   );
 }

@@ -3,7 +3,6 @@ import { PublicJobsList } from '@/components/marketing/public-jobs-list';
 import { BrowseHero } from '@/components/marketing/browse-hero';
 import { RedirectIfAuthed } from '@/components/marketing/redirect-if-authed';
 import { AllJobsIndex } from '@/components/marketing/all-jobs-index';
-import { TaskNowBanner } from '@/components/tasknow/home-banner';
 
 export const metadata = {
   title: 'Διαθέσιμες Θέσεις Εργασίας',
@@ -37,9 +36,11 @@ export default function FindJobPage() {
 
           <h1 className="sr-only">Θέσεις εργασίας κοντά σου</h1>
 
-          <div className="mt-5">
-            <TaskNowBanner variant="strip" />
-          </div>
+          {/* ΛΩΡΙΔΑ ΜΙΚΡΟΔΟΥΛΕΙΩΝ: επιστρέφει με δύο γραμμές όταν υπάρχουν
+              αληθινές — `import { TaskNowBanner } from
+              '@/components/tasknow/home-banner';` και
+              `<TaskNowBanner variant="strip" />` εδώ. Δες και το σχόλιο στην
+              αρχική για το γιατί βγήκε εντελώς. */}
 
           <div className="mt-5">
             <PublicJobsList />

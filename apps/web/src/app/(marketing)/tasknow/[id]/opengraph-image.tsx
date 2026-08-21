@@ -28,8 +28,10 @@ export const alt = 'Μικροδουλειά στο TaskNow';
 
 const MOCK = true;
 
+/** Ίδιος λόγος με τη σελίδα: άδεια λίστα σταματάει το χτίσιμο. */
 export async function generateStaticParams() {
-  return SAMPLE_TASKS.filter((t) => !t.hidden).map((t) => ({ id: t.id }));
+  const ids = SAMPLE_TASKS.filter((t) => !t.hidden).map((t) => ({ id: t.id }));
+  return ids.length > 0 ? ids : [{ id: '_none' }];
 }
 
 /**

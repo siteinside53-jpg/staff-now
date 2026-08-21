@@ -28,8 +28,20 @@ export const dynamic = 'force-static';
 
 type Params = { params: Promise<{ id: string }> };
 
+/**
+ * ΤΟ ΤΕΧΝΑΣΜΑ ΤΟΥ `_none`:
+ *
+ * Όταν δεν τρέχει η μακέτα, δεν υπάρχει καμία μικροδουλειά — άρα καμία
+ * σελίδα να φτιαχτεί. Το Next όμως ΔΕΝ δέχεται άδεια λίστα σε δυναμική
+ * διαδρομή με στατικό χτίσιμο: σταματάει με σφάλμα.
+ *
+ * Γι' αυτό επιστρέφουμε μία ψεύτικη διεύθυνση που η ίδια η σελίδα γυρίζει σε
+ * «δεν βρέθηκε». Αποτέλεσμα: η διαδρομή υπάρχει τεχνικά, καμία σελίδα με
+ * περιεχόμενο δεν ανεβαίνει, και το χτίσιμο περνάει.
+ */
 export async function generateStaticParams() {
-  return SAMPLE_TASKS.filter((t) => !t.hidden).map((t) => ({ id: t.id }));
+  const ids = SAMPLE_TASKS.filter((t) => !t.hidden).map((t) => ({ id: t.id }));
+  return ids.length > 0 ? ids : [{ id: '_none' }];
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
