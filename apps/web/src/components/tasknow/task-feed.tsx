@@ -451,7 +451,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
             </button>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white">
+          <ul className="space-y-3">
             {visible.slice(0, 6).map(({ task, km }) => (
               <TaskRow
                 key={task.id}
@@ -466,7 +466,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
 
             {/* Το «ανέβασε κι εσύ» μπαίνει ΜΕΣΑ στη λίστα, όχι από πάνω:
                 κάθε pixel πάνω από τη ροή είναι pixel που δεν δείχνει ποσό. */}
-            <div className="border-y border-amber-200 bg-amber-50 px-4 py-4 text-center">
+            <li className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-center">
               <p className="text-sm font-bold text-gray-900">Χρειάζεσαι εσύ χέρια;</p>
               <p className="mt-0.5 text-xs text-gray-600">
                 Ανέβασε δουλειά δωρεάν και δέξου προσφορές.
@@ -474,7 +474,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
               <PostTaskButton className="mt-3 rounded-xl bg-amber-500 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600">
                 Ανέβασε δουλειά
               </PostTaskButton>
-            </div>
+            </li>
 
             {visible.slice(6).map(({ task, km }) => (
               <TaskRow
@@ -487,7 +487,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
                 onOffer={() => setOfferFor(task)}
               />
             ))}
-          </div>
+          </ul>
         )}
 
         {cutByRadius > 0 && (

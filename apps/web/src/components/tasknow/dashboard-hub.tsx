@@ -299,7 +299,7 @@ export function TaskNowDashboardHub() {
           </div>
 
           {/* ΙΔΙΑ γραμμή με τη δημόσια ροή — ένα component, μία εμφάνιση. */}
-          <div className="divide-y divide-gray-100">
+          <ul className="space-y-3 p-3">
             {liveTasks.slice(0, 5).map((t) => (
               <TaskRow
                 key={t.id}
@@ -308,7 +308,7 @@ export function TaskNowDashboardHub() {
                 onOffer={() => setDetail(t)}
               />
             ))}
-          </div>
+          </ul>
         </div>
       )}
 
@@ -590,14 +590,16 @@ export function TaskNowDashboardHub() {
                 Δεν έχεις ανεβάσει μικροδουλειά ακόμη.
               </p>
             ) : (
-              mine.map((t) => (
-                <TaskRow
-                  key={t.id}
-                  task={t}
-                  onOpen={() => openMine(t)}
-                  onOffer={() => openMine(t)}
-                />
-              ))
+              <ul className="space-y-3 p-3">
+                {mine.map((t) => (
+                  <TaskRow
+                    key={t.id}
+                    task={t}
+                    onOpen={() => openMine(t)}
+                    onOffer={() => openMine(t)}
+                  />
+                ))}
+              </ul>
             ))}
 
           {tab === 'offers' &&
