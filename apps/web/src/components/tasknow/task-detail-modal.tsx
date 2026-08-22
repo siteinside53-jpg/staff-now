@@ -18,6 +18,9 @@ import {
 import {
   cancelTask,
   chooseOffer,
+  deleteTask,
+  pauseTask,
+  resumeTask,
   completeTask,
   declarePaid,
   openDispute,
@@ -354,6 +357,7 @@ export function TaskDetailModal({
   const [licenceAck, setLicenceAck] = useState(false);
   const [ackError, setAckError] = useState(false);
   const [asking, setAsking] = useState<'cancel' | 'dispute' | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const cat = CATEGORY_BY_KEY[task.category];
   const coords = AREA_COORDS[task.area];
@@ -461,6 +465,11 @@ export function TaskDetailModal({
                 Ανατέθηκε
               </span>
             )}
+            {task.status === 'paused' && (
+              <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
+                Σε παύση
+              </span>
+            )}
             {task.status === 'done' && (
               <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
                 Ολοκληρώθηκε
@@ -560,10 +569,90 @@ export function TaskDetailModal({
             </div>
           )}
 
-          {/* Ανοιχτή: μπορείς να την ακυρώσεις */}
-          {task.status === 'open' && !confirming && (
-            <>
-              {asking === 'cancel' ? (
+          {/* Τι μπορείς να κάνεις με τη δική σου δουλειά.
+              ΤΡΙΑ ΔΙΑΦΟΡΕΤΙΚΑ ΠΡΑΓΜΑΤΑ, επίτηδες ξεχωριστά:
+               · Παύση    — προσωρινή, αναστρέψιμη, κρατάει τις προσφορές.
+               · Ακύρωση  — τελική, και το μαθαίνουν όσοι έκαναν προσφορά.
+               · Διαγραφή — φεύγει εντελώς, δεν γυρίζει πίσω. */}
+          {(task.status === 'open' || task.status === 'paused') && !confirming && (
+            <div className="mt-4 rounded-xl border border-gray-200 p-3">
+              {task.status === 'paused' && (
+                <p className="mb-2 rounded-lg bg-gray-100 px-3 py-2 text-xs text-gray-600">
+                  Σε παύση — δεν τη βλέπει κανείς αυτή τη στιγμή. Οι προσφορές που έχεις
+                  ήδη πάρει μένουν στη θέση τους.
+                </p>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                {task.status === 'open' ? (
+                  <button
+                    type="button"
+                    onClick={() => pauseTask(task.id)}
+                    className="rounded-lg bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-200"
+                  >
+                    ⏸ Παύση
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => resumeTask(task.id)}
+                    className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700"
+                  >
+                    ▶ Ενεργοποίησέ την ξανά
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setAsking(asking === 'cancel' ? null : 'cancel')}
+                  className="rounded-lg bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-200"
+                >
+                  Ακύρωση
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(true)}
+                  className="ml-auto rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                >
+                  Διαγραφή
+                </button>
+              </div>
+
+              {confirmDelete && (
+                <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3">
+                  <p className="text-xs leading-relaxed text-red-900">
+                    Οριστική διαγραφή. Φεύγει η δουλειά και{' '}
+                    <strong>
+                      {task.offersList.length}{' '}
+                      {task.offersList.length === 1 ? 'προσφορά' : 'προσφορές'}
+                    </strong>{' '}
+                    μαζί της, χωρίς επιστροφή. Αν απλώς δεν τη θέλεις τώρα, βάλ' την σε
+                    παύση.
+                  </p>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        deleteTask(task.id);
+                        onClose();
+                      }}
+                      className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+                    >
+                      Ναι, διάγραψέ την
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete(false)}
+                      className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 ring-1 ring-gray-300"
+                    >
+                      Άκυρο
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {asking === 'cancel' && (
                 <ReasonBox
                   title="Ακύρωση της μικροδουλειάς"
                   hint="Θα ενημερωθούν όσοι έκαναν προσφορά. Γράψε γιατί — το βλέπουν."
@@ -575,16 +664,8 @@ export function TaskDetailModal({
                   }}
                   onCancel={() => setAsking(null)}
                 />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setAsking('cancel')}
-                  className="mt-4 w-full text-xs font-medium text-gray-400 underline hover:text-gray-700"
-                >
-                  Δεν τη χρειάζομαι πια — ακύρωση
-                </button>
               )}
-            </>
+            </div>
           )}
 
           {/* Ανατέθηκε: συνομιλία, ολοκλήρωση ή διαφωνία */}

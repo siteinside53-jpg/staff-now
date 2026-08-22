@@ -82,6 +82,7 @@ function statusPill(t: MockTask) {
   if (t.hidden) return <Pill className="bg-gray-200 text-gray-700">Κρυμμένη</Pill>;
   if (t.status === 'disputed') return <Pill className="bg-red-50 text-red-700">Σε διαφωνία</Pill>;
   if (t.status === 'cancelled') return <Pill className="bg-gray-100 text-gray-500">Ακυρώθηκε</Pill>;
+  if (t.status === 'paused') return <Pill className="bg-gray-100 text-gray-600">Σε παύση</Pill>;
   if (t.status === 'assigned') return <Pill className="bg-blue-50 text-blue-700">Ανατέθηκε</Pill>;
   if (t.status === 'done') return <Pill className="bg-emerald-50 text-emerald-700">Ολοκληρώθηκε</Pill>;
   return <Pill className="bg-amber-50 text-amber-700">Ανοιχτή</Pill>;

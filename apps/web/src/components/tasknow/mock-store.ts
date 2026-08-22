@@ -68,6 +68,8 @@ export type MockMessage = {
 
 export type MockTaskStatus =
   | 'open'
+  /** Σε παύση: δεν φαίνεται δημόσια, αλλά κρατάει τις προσφορές της. */
+  | 'paused'
   | 'assigned'
   | 'done'
   | 'cancelled'
@@ -433,6 +435,15 @@ export function declarePaid(taskId: string, side: 'owner' | 'worker'): void {
   );
 }
 
+/** Παύση: σταματάει να φαίνεται, κρατάει τα πάντα, γυρίζει πίσω όποτε θες. */
+export function pauseTask(taskId: string): void {
+  patch(taskId, (t) => (t.status === 'open' ? { ...t, status: 'paused' } : t));
+}
+
+export function resumeTask(taskId: string): void {
+  patch(taskId, (t) => (t.status === 'paused' ? { ...t, status: 'open' } : t));
+}
+
 export function cancelTask(taskId: string, reason: string): void {
   patch(taskId, (t) => ({ ...t, status: 'cancelled', cancelReason: reason }));
 }
@@ -494,9 +505,19 @@ export function resetMock(): void {
 
 // ── Παράγωγα ────────────────────────────────────────────────────────────────
 
-/** Φαίνεται δημόσια; Κρυμμένες, ακυρωμένες και σε διαφωνία δεν φαίνονται. */
+/**
+ * Φαίνεται δημόσια; Κρυμμένες, σε παύση, ακυρωμένες και σε διαφωνία όχι.
+ *
+ * Η παύση είναι ΔΙΚΗ ΣΟΥ απόφαση και αναστρέψιμη· η ακύρωση είναι τελική και
+ * το ξέρουν όσοι έκαναν προσφορά. Γι' αυτό είναι δύο διαφορετικά πράγματα.
+ */
 export function isPublic(t: MockTask): boolean {
-  return !t.hidden && t.status !== 'cancelled' && t.status !== 'disputed';
+  return (
+    !t.hidden &&
+    t.status !== 'paused' &&
+    t.status !== 'cancelled' &&
+    t.status !== 'disputed'
+  );
 }
 
 /** Δέχεται ακόμη προσφορές; */

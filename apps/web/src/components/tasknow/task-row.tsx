@@ -167,7 +167,9 @@ export function TaskRow({
                       ? 'δική σου · ανατέθηκε'
                       : task.status === 'done'
                         ? 'δική σου · ολοκληρώθηκε'
-                        : 'δική σου'}
+                        : task.status === 'paused'
+                          ? 'δική σου · σε παύση'
+                          : 'δική σου'}
                   </span>
                 )}
               </div>
