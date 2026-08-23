@@ -5,6 +5,7 @@ import { OfferModal } from './offer-modal';
 import { PostTaskButton } from './post-trigger';
 import { TaskDetailModal } from './task-detail-modal';
 import { TaskMap } from './task-map';
+import { LocationGuide } from './location-guide';
 import { TaskNowLogo } from './logo';
 import { TaskRow } from './task-row';
 import {
@@ -88,6 +89,8 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
   const [centerLabel, setCenterLabel] = useState('το κέντρο');
   const [centerSource, setCenterSource] = useState<CenterSource>('default');
   const [locating, setLocating] = useState(false);
+  /** Ποιος οδηγός τοποθεσίας είναι ανοιχτός, αν είναι. */
+  const [guide, setGuide] = useState<'denied' | 'unavailable' | 'timeout' | null>(null);
   const [locError, setLocError] = useState<string | null>(null);
 
   const [detail, setDetail] = useState<MockTask | null>(null);
@@ -149,10 +152,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
             διορθώσει τις ρυθμίσεις. Τώρα φαίνεται, και το πάτημα εξηγεί τι
             ακριβώς πρέπει να αλλάξει.
           */
-          setLocError(
-            'Ο browser δεν μας δίνει την τοποθεσία σου. Στο Safari: Ρυθμίσεις → ' +
-              'Ιστότοποι → Τοποθεσία → staffnow.gr → «Να επιτρέπεται».',
-          );
+          setGuide('denied');
         }
       })
       .catch(() => {});
@@ -187,6 +187,8 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
           στις ρυθμίσεις του browser. Χωρίς να του το πούμε, δεν πρόκειται να
           το βρει.
         */
+        // Ο οδηγός με τα βήματα, αντί για κόκκινο κειμενάκι που δεν διαβάζεται.
+        setGuide(err?.code === 1 ? 'denied' : err?.code === 3 ? 'timeout' : 'unavailable');
         if (err?.code === 1) {
           setLocError(
             'Ο browser δεν μας δίνει την τοποθεσία σου. Στο Safari: Ρυθμίσεις → ' +
@@ -493,6 +495,14 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
         resultNoun={['μικροδουλειά', 'μικροδουλειές']}
         sidebarHeader={sidebar}
       >
+        {guide && (
+          <LocationGuide
+            reason={guide}
+            onRetry={() => locate()}
+            onClose={() => setGuide(null)}
+          />
+        )}
+
         {showMap && (
           <div className="mb-4">
             <TaskMap
