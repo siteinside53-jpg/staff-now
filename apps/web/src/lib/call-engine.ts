@@ -10,6 +10,8 @@
  * πλαίσιο, που έδειχνε τα δικά του μηνύματα και λογότυπα μέσα στη σελίδα μας.
  */
 
+import { API_URL } from '@/lib/config';
+
 export type CallStatus =
   | 'idle'
   | 'preparing' // ζητάμε κάμερα/μικρόφωνο
@@ -750,6 +752,35 @@ export class CallEngine {
     if (this.closed) return;
     const id = this.callId;
     this.finish('hangup', false);
-    if (id) void this.api.hangup(id).catch(() => {});
+    if (id) beaconHangup(id);
+  }
+}
+
+/**
+ * «Έκλεισα» που φεύγει ΑΚΟΜΗ ΚΑΙ ΟΤΑΝ ΚΛΕΙΝΕΙ Η ΣΕΛΙΔΑ.
+ *
+ * ΤΟ ΠΡΟΒΛΗΜΑ: το μήνυμα τερματισμού έφευγε με κανονικό αίτημα. Όταν όμως ο
+ * χρήστης κλείνει την καρτέλα ή κλειδώνει το κινητό, ο browser ΑΚΥΡΩΝΕΙ κάθε
+ * αίτημα που τρέχει. Δηλαδή ακριβώς στην περίπτωση που το χρειαζόμασταν
+ * περισσότερο, δεν έφτανε ποτέ — και η κλήση έμενε «ζωντανή» στον server για
+ * πάντα, μπλοκάροντας κάθε επόμενη κλήση ανάμεσα στους δύο.
+ *
+ * Το `keepalive` λέει στον browser «αυτό το αίτημα στείλ' το ακόμη κι αν
+ * πεθάνει η σελίδα». Είναι φτιαγμένο ακριβώς γι' αυτή τη δουλειά.
+ *
+ * Ο server καθαρίζει πλέον και μόνος του τις ξεχασμένες γραμμές, αλλά αυτό
+ * κάνει το κλείσιμο ΑΚΑΡΙΑΙΟ αντί να περιμένει το χρονικό όριο.
+ */
+function beaconHangup(callId: string): void {
+  try {
+    const token = localStorage.getItem('staffnow_token');
+    if (!token) return;
+    void fetch(`${API_URL}/calls/${encodeURIComponent(callId)}/hangup`, {
+      method: 'POST',
+      keepalive: true,
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {});
+  } catch {
+    /* Αν αποτύχει, το δίχτυ ασφαλείας του server το μαζεύει. */
   }
 }

@@ -33,7 +33,26 @@ const calls = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
  * πλευρές: ο καλών σταματάει μόνος του, αλλά αν κλείσει τον browser στη μέση,
  * αυτό εδώ εμποδίζει μια ξεχασμένη κλήση να χτυπάει στον άλλον για πάντα.
  */
-const RING_TIMEOUT_MS = 45_000;
+const RING_TIMEOUT_MS = 90_000;
+
+/**
+ * Πόσο μένει «ζωντανή» μια απαντημένη κλήση χωρίς σημάδι ζωής, πριν θεωρηθεί
+ * νεκρή.
+ *
+ * ΓΙΑΤΙ ΧΡΕΙΑΖΕΤΑΙ: μέχρι τώρα ΚΑΜΙΑ γραμμή «accepted» δεν έληγε ποτέ. Μια
+ * κλήση που απαντήθηκε και κόπηκε άσχημα (κλείδωμα κινητού, πτώση δικτύου,
+ * σκότωμα καρτέλας) άφηνε γραμμή που έμενε για πάντα — και μπλόκαρε ΚΑΘΕ
+ * μελλοντική κλήση ανάμεσα σε αυτούς τους δύο ανθρώπους με «είναι ήδη σε
+ * κλήση». Δεν φτιαχνόταν μόνο του ποτέ.
+ *
+ * Τα 3 λεπτά είναι ασφαλή ΜΟΝΟ επειδή η ζωντανή κλήση αφήνει πλέον σημάδι
+ * ζωής (δες GET /:id). Χωρίς εκείνο, αυτό εδώ θα έκοβε κάθε κανονική κλήση
+ * στα 3 λεπτά. Τα δύο πάνε πάντα μαζί.
+ */
+const LIVE_CALL_SILENCE_MS = 180_000;
+
+/** Πόσο συχνά το πολύ γράφουμε «είμαι ακόμη εδώ» — μία εγγραφή ανά 30 δευτ. */
+const HEARTBEAT_EVERY_MS = 30_000;
 
 /** Πάνω από αυτό δεν είναι πρόταση σύνδεσης, είναι κατάχρηση. */
 const MAX_SDP_BYTES = 60_000;
@@ -52,6 +71,8 @@ type CallRow = {
   created_at: string;
   answered_at: string | null;
   ended_at: string | null;
+  /** Το «σημάδι ζωής». Η στήλη υπήρχε πάντα — απλώς δεν τη διαβάζαμε. */
+  updated_at: string;
 };
 
 /** Η συνομιλία, μόνο αν ο χρήστης ανήκει πραγματικά σε αυτήν. */
@@ -90,8 +111,11 @@ async function callForUser(
  * κάποιος για κλήσεις — δεν χρειάζεται ξεχωριστό χρονόμετρο στον server.
  */
 async function expireStaleCalls(db: D1Database, userId: string): Promise<void> {
-  const cutoff = new Date(Date.now() - RING_TIMEOUT_MS).toISOString();
   const now = new Date().toISOString();
+  const ringCutoff = new Date(Date.now() - RING_TIMEOUT_MS).toISOString();
+  const liveCutoff = new Date(Date.now() - LIVE_CALL_SILENCE_MS).toISOString();
+
+  // Χτυπούσε πολλή ώρα και δεν απάντησε κανείς → αναπάντητη.
   await db
     .prepare(
       `UPDATE calls
@@ -99,7 +123,29 @@ async function expireStaleCalls(db: D1Database, userId: string): Promise<void> {
         WHERE status = 'ringing' AND created_at < ?
           AND (caller_id = ? OR callee_id = ?)`
     )
-    .bind(now, now, cutoff, userId, userId)
+    .bind(now, now, ringCutoff, userId, userId)
+    .run();
+
+  /*
+    ΤΟ ΚΟΜΜΑΤΙ ΠΟΥ ΕΛΕΙΠΕ ΕΝΤΕΛΩΣ.
+
+    Μια κλήση που ΑΠΑΝΤΗΘΗΚΕ και μετά κόπηκε άσχημα δεν έκλεινε ποτέ: το
+    «έκλεισα» δεν προλάβαινε να φύγει (κλείδωμα οθόνης, σκότωμα καρτέλας,
+    πτώση δικτύου) και τίποτα άλλο δεν άγγιζε τη γραμμή — ούτε χρονικό όριο,
+    ούτε προγραμματισμένο καθάρισμα. Η γραμμή έμενε «ζωντανή» για πάντα και
+    ο έλεγχος «είναι απασχολημένος;» την έβρισκε σε κάθε επόμενη κλήση.
+
+    Αποτέλεσμα: οι δύο άνθρωποι που μόλις μίλησαν, κλειδώνονταν μεταξύ τους
+    οριστικά. Αυτό είναι το «το φτιάχνουμε και μετά πάλι χαλάει».
+  */
+  await db
+    .prepare(
+      `UPDATE calls
+          SET status = 'ended', end_reason = 'failed', ended_at = ?, updated_at = ?
+        WHERE status = 'accepted' AND updated_at < ?
+          AND (caller_id = ? OR callee_id = ?)`
+    )
+    .bind(now, now, liveCutoff, userId, userId)
     .run();
 }
 
@@ -190,29 +236,68 @@ calls.post('/', requireAuth, async (c) => {
   if (blocked) return error(c, 'Δεν είναι δυνατή η κλήση', 403);
 
   await expireStaleCalls(db, user.id);
+  // ΚΑΙ ΓΙΑ ΤΟΝ ΠΑΡΑΛΗΠΤΗ. Ο έλεγχος από κάτω κοιτάει ΕΚΕΙΝΟΝ, οπότε αν δεν
+  // καθαρίσουμε και τις δικές του ξεχασμένες γραμμές, μια κλήση που του έκανε
+  // κάποιος τρίτος χθες και ξέχασε την καρτέλα ανοιχτή τον κάνει «μονίμως
+  // απασχολημένο» για όλους — μέχρι να μπει ο ίδιος στην εφαρμογή.
+  await expireStaleCalls(db, calleeId);
 
-  // Μία ζωντανή κλήση ανά χρήστη. Αν ο άλλος μιλάει ήδη, το λέμε καθαρά αντί
-  // να χτυπήσουμε δεύτερη φορά από πάνω.
-  const busy = await db
-    .prepare(
-      `SELECT id FROM calls
-        WHERE status IN ('ringing','accepted')
-          AND (caller_id = ? OR callee_id = ?)
-        LIMIT 1`
-    )
-    .bind(calleeId, calleeId)
-    .first();
-  if (busy) return error(c, 'Ο παραλήπτης είναι ήδη σε κλήση', 409);
+  /*
+    ΤΟ ΚΑΘΑΡΙΣΜΑ ΤΩΝ ΔΙΚΩΝ ΜΟΥ ΓΡΑΜΜΩΝ ΠΡΕΠΕΙ ΝΑ ΓΙΝΕΙ ΕΔΩ, ΠΡΙΝ ΤΟΝ ΕΛΕΓΧΟ.
 
-  // Δικές μου παλιές κλήσεις που ξέμειναν ανοιχτές: τις κλείνω πριν ανοίξω νέα.
+    Ήταν γραμμένο τρεις γραμμές ΠΙΟ ΚΑΤΩ, δηλαδή μετά το «return 409». Οπότε
+    υπήρχε, αλλά δεν το έφτανε ποτέ το αίτημα που το χρειαζόταν: ο καλών
+    μπλοκαριζόταν από τη ΔΙΚΗ ΤΟΥ ξεχασμένη γραμμή και το καθάρισμα που θα την
+    έσβηνε δεν εκτελούνταν ποτέ.
+
+    Παράξενο σύμπτωμα που εξηγείται τώρα: αν καλούσες κάποιον ΤΡΙΤΟ, ο έλεγχος
+    περνούσε, έτρεχε αυτό το καθάρισμα και «ξεκλείδωνε» και το προηγούμενο
+    ζευγάρι. Γι' αυτό «κάποιες φορές φτιαχνόταν μόνο του».
+
+    ΤΟ ΦΙΛΤΡΟ ΑΛΛΑΞΕ ΕΠΙΤΗΔΕΣ. Πριν έπιανε ΚΑΘΕ ανοιχτή γραμμή μου, άρα
+    έσβηνε σιωπηλά και την ΕΙΣΕΡΧΟΜΕΝΗ που χτυπούσε εκείνη ακριβώς τη στιγμή.
+    Τώρα: μόνο τη δική μου εξερχόμενη που χτυπάει, και κάθε ξεχασμένη
+    «ζωντανή» μου προς οποιαδήποτε κατεύθυνση.
+  */
   const now = new Date().toISOString();
   await db
     .prepare(
       `UPDATE calls SET status = 'ended', end_reason = 'hangup', ended_at = ?, updated_at = ?
-        WHERE status IN ('ringing','accepted') AND (caller_id = ? OR callee_id = ?)`
+        WHERE (status = 'ringing'  AND caller_id = ?)
+           OR (status = 'accepted' AND (caller_id = ? OR callee_id = ?))`
     )
-    .bind(now, now, user.id, user.id)
+    .bind(now, now, user.id, user.id, user.id)
     .run();
+
+  /*
+    Μία ζωντανή κλήση ανά χρήστη — ΜΕ ΗΜΕΡΟΜΗΝΙΑ ΛΗΞΗΣ.
+
+    Πριν, ο έλεγχος ήταν σκέτο «status IN (ringing, accepted)» χωρίς κανένα
+    χρονικό όριο. Αυτό είναι που έκανε το πρόβλημα ΜΟΝΙΜΟ: μια ξεχασμένη
+    γραμμή μπλόκαρε για πάντα.
+
+    Τώρα μετράει μόνο ό,τι είναι όντως ζωντανό: κουδούνισμα των τελευταίων 90
+    δευτ., ή απαντημένη κλήση που έδωσε σημάδι ζωής τα τελευταία 3 λεπτά.
+    Είναι δίχτυ ασφαλείας: ακόμη κι αν αύριο χαλάσει κάθε άλλο καθάρισμα,
+    κανείς δεν μπορεί να μείνει κλειδωμένος πάνω από 3 λεπτά. Ποτέ ξανά
+    χειροκίνητη επέμβαση στη βάση.
+  */
+  const busy = await db
+    .prepare(
+      `SELECT id FROM calls
+        WHERE (caller_id = ? OR callee_id = ?)
+          AND ( (status = 'ringing'  AND created_at > ?)
+             OR (status = 'accepted' AND updated_at > ?) )
+        LIMIT 1`
+    )
+    .bind(
+      calleeId,
+      calleeId,
+      new Date(Date.now() - RING_TIMEOUT_MS).toISOString(),
+      new Date(Date.now() - LIVE_CALL_SILENCE_MS).toISOString()
+    )
+    .first();
+  if (busy) return error(c, 'Ο παραλήπτης είναι ήδη σε κλήση', 409);
 
   const callId = generateId();
   await db
@@ -282,6 +367,45 @@ calls.get('/:id', requireAuth, async (c) => {
 
   const call = await callForUser(db, callId, user.id);
   if (!call) return error(c, 'Δεν βρέθηκε', 404);
+
+  /*
+    ΤΟ ΣΗΜΑΔΙ ΖΩΗΣ ΤΗΣ ΚΛΗΣΗΣ.
+
+    Αυτό το ρώτημα το κάνουν και οι δύο πλευρές κάθε δευτερόλεπτο όσο κρατάει
+    η κλήση. Μέχρι τώρα δεν άφηνε κανένα ίχνος, οπότε ο server δεν είχε τρόπο
+    να ξεχωρίσει μια ΖΩΝΤΑΝΗ κλήση από μια ΞΕΧΑΣΜΕΝΗ γραμμή. Γι' αυτό δεν
+    μπορούσε να λήξει καμία «απαντημένη» χωρίς να κόβει και τις πραγματικές.
+
+    Δύο πράγματα, χωρίς ούτε ένα επιπλέον διάβασμα (η γραμμή έχει ήδη διαβαστεί
+    από πάνω):
+
+      • Αν χτυπάει πολλή ώρα και δεν απάντησε κανείς, τη λήγει ΤΟ ΙΔΙΟ ΤΟ
+        ρώτημα του καλούντος. Πριν, ο καλών έβλεπε «Κλήση…» με ανοιχτή κάμερα
+        επ' άπειρον και δεν του έλεγε ποτέ «αναπάντητη».
+      • Όσο μιλάνε, γράφουμε «είμαι εδώ» — το πολύ μία εγγραφή ανά 30 δευτ.
+        ανά πλευρά.
+  */
+  const nowMs = Date.now();
+  if (call.status === 'ringing' && Date.parse(call.created_at) < nowMs - RING_TIMEOUT_MS) {
+    const iso = new Date(nowMs).toISOString();
+    await db
+      .prepare(
+        `UPDATE calls SET status = 'ended', end_reason = 'missed', ended_at = ?, updated_at = ?
+          WHERE id = ? AND status = 'ringing'`
+      )
+      .bind(iso, iso, callId)
+      .run();
+    call.status = 'ended';
+    call.end_reason = 'missed';
+  } else if (
+    call.status === 'accepted' &&
+    Date.parse(call.updated_at) < nowMs - HEARTBEAT_EVERY_MS
+  ) {
+    await db
+      .prepare(`UPDATE calls SET updated_at = ? WHERE id = ? AND status = 'accepted'`)
+      .bind(new Date(nowMs).toISOString(), callId)
+      .run();
+  }
 
   // Σελιδοδείκτης: στέλνουμε μόνο ό,τι δεν έχει ήδη δει αυτή η πλευρά.
   const since = parseInt(c.req.query('since') || '0', 10) || 0;

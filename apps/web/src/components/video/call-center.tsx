@@ -234,7 +234,23 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
     try {
       const res = (await api.calls.pending()) as any;
       const call = res?.data?.call;
-      if (!call || handledRef.current.has(call.id)) return;
+
+      /*
+        ΟΤΑΝ ΔΕΝ ΥΠΑΡΧΕΙ ΠΙΑ ΚΛΗΣΗ, Η ΟΘΟΝΗ ΠΡΕΠΕΙ ΝΑ ΦΥΓΕΙ.
+
+        Εδώ ήταν σκέτο «return»: η μπλε οθόνη «Εισερχόμενη κλήση» έμπαινε αλλά
+        δεν έβγαινε ΠΟΤΕ μόνη της. Αν ο άλλος το μετάνιωνε και έκλεινε, ή αν
+        περνούσε η ώρα και η κλήση λήγαινε, ο παραλήπτης συνέχιζε να βλέπει
+        οθόνη που χτυπάει για κάτι που δεν υπάρχει.
+
+        Χειρότερο με δύο ανοιχτές καρτέλες: η δεύτερη συνέχιζε να χτυπάει σε
+        φάντασμα, και το «Απόρριψη» εκεί σκότωνε τη ΖΩΝΤΑΝΗ κλήση της πρώτης.
+      */
+      if (!call) {
+        setIncoming(null);
+        return;
+      }
+      if (handledRef.current.has(call.id)) return;
       setIncoming((prev) =>
         prev?.id === call.id
           ? prev
@@ -246,7 +262,8 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
             }
       );
     } catch {
-      // Χαμένο ρώτημα — ξαναρωτάμε στον επόμενο κύκλο.
+      // Χαμένο ρώτημα — ξαναρωτάμε στον επόμενο κύκλο. Δεν σβήνουμε την οθόνη
+      // εδώ: μια στιγμιαία διακοπή δικτύου δεν σημαίνει ότι έκλεισε η κλήση.
     }
   }, []);
 
@@ -285,7 +302,20 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
     const tone = new Ringtone();
     ringtoneRef.current = tone;
     tone.start();
+
+    /*
+      Δικό της χρονόμετρο, ανεξάρτητο από τον server.
+
+      Ο server λήγει την κλήση στα 90 δευτ. και το ρώτημα «με καλεί κανείς;»
+      το μαθαίνει. Αν όμως πέσει το δίκτυο ακριβώς εκείνη τη στιγμή, το ρώτημα
+      αποτυγχάνει και η οθόνη θα κουδούνιζε επ' άπειρον σε κάτι ανύπαρκτο.
+      Εδώ σταματάει ό,τι κι αν κάνει το δίκτυο. Λίγο παραπάνω από τον server,
+      ώστε κανονικά να προλαβαίνει πάντα εκείνος.
+    */
+    const giveUp = setTimeout(() => setIncoming(null), 100_000);
+
     return () => {
+      clearTimeout(giveUp);
       tone.stop();
       if (ringtoneRef.current === tone) ringtoneRef.current = null;
     };

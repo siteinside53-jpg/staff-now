@@ -58,9 +58,32 @@ app.use('*', async (c, next) => {
 // «Εύρεση» ζητάει δεκάδες εικόνες μαζί, οπότε αν μετρούσαν στο όριο των 120
 // ανά λεπτό ο χρήστης θα μπλόκαρε πριν καν δει τη λίστα. Είναι απλή ανάγνωση
 // από τον αποθηκευτικό χώρο, με cache ενός έτους — δεν θέλει προστασία ρυθμού.
+/*
+  ΤΟ /calls ΒΓΑΙΝΕΙ ΑΠΟ ΤΟ ΦΡΕΝΟ ΑΝΑ IP — και αυτός είναι ένας από τους λόγους
+  που «άλλοτε χτυπάει και άλλοτε όχι».
+
+  Το όριο είναι 120 αιτήματα το λεπτό ΑΝΑ ΔΙΕΥΘΥΝΣΗ ΔΙΚΤΥΟΥ, όχι ανά χρήστη.
+  Την ώρα μιας κλήσης, μόνο ο καλών κάνει ~60 τον χρόνο (ρωτάει κάθε
+  δευτερόλεπτο αν συνδέθηκε), συν ~35 από τη σελίδα μηνυμάτων. Ο παραλήπτης
+  άλλα ~55. Δύο συσκευές στο ΙΔΙΟ WiFi έχουν ΜΙΑ διεύθυνση προς τα έξω, άρα
+  αθροίζονται: ~150 το λεπτό, πάνω από το όριο.
+
+  Μόλις το ξεπεράσουν, ο server αρχίζει να απορρίπτει — και η απόρριψη πέφτει
+  και πάνω στο «με καλεί κανείς;». Ο browser την κατάπινε αμίλητα: καμία
+  οθόνη, κανένα κουδούνισμα, κανένα μήνυμα λάθους. Το τηλέφωνο απλώς δεν
+  χτυπούσε. Το ίδιο παθαίνουν και δύο χρήστες στο ίδιο δίκτυο κινητής, που
+  μοιράζονται διεύθυνση χωρίς να το ξέρουν.
+
+  Όλα τα endpoints των κλήσεων είναι ήδη πίσω από σύνδεση, οπότε δεν
+  εκτίθεται τίποτα δημόσια.
+*/
 const globalRl = globalRateLimiter();
 app.use('*', async (c, next) => {
-  if (c.req.path.startsWith('/admin/') || c.req.path.startsWith('/uploads/f/')) {
+  if (
+    c.req.path.startsWith('/admin/') ||
+    c.req.path.startsWith('/uploads/f/') ||
+    c.req.path.startsWith('/calls')
+  ) {
     await next();
     return;
   }
@@ -738,6 +761,37 @@ async function scheduled(event: ScheduledEvent, env: Env, _ctx: ExecutionContext
     console.log('[cron] archived started shifts:', (res.meta as any)?.changes ?? 0);
   } catch (err) {
     console.error('[cron] shift archive failed', err);
+  }
+
+  /*
+    Ωριαίο δίχτυ ασφαλείας για τις κλήσεις.
+
+    Ο καθαρισμός γίνεται ήδη μέσα στα ίδια τα αιτήματα κλήσης, και εκεί είναι
+    που μετράει. Αυτό εδώ πιάνει την περίπτωση που κανείς δεν ξανακάλεσε ποτέ:
+    δύο άνθρωποι μίλησαν, η κλήση κόπηκε άσχημα, και δεν ξαναμπήκαν για μέρες.
+    Χωρίς αυτό, η νεκρή γραμμή κάθεται στη βάση και το μόνο που την έσβηνε
+    ήταν χειροκίνητη επέμβαση.
+
+    Τα όρια είναι ΠΙΟ ΧΑΛΑΡΑ από αυτά των αιτημάτων επίτηδες: εδώ δεν θέλουμε
+    να κόψουμε τίποτα ζωντανό, μόνο να μαζέψουμε τα σκουπίδια.
+  */
+  try {
+    const res = await env.DB.prepare(
+      `UPDATE calls
+          SET status = 'ended', end_reason = 'failed',
+              ended_at = datetime('now'), updated_at = datetime('now')
+        WHERE (status = 'ringing'  AND created_at < datetime('now', '-5 minutes'))
+           OR (status = 'accepted' AND updated_at < datetime('now', '-30 minutes'))`,
+    ).run();
+    const closed = (res.meta as any)?.changes ?? 0;
+    if (closed) console.log('[cron] closed stuck calls:', closed);
+    // Τα «χειραψίας» κείμενα τελειωμένων κλήσεων δεν χρειάζονται πια.
+    await env.DB.prepare(
+      `DELETE FROM call_candidates
+        WHERE call_id IN (SELECT id FROM calls WHERE status = 'ended')`,
+    ).run();
+  } catch (err) {
+    console.error('[cron] call cleanup failed', err);
   }
 
   // Τα υπόλοιπα (billing) τρέχουν μόνο μία φορά την ημέρα.
