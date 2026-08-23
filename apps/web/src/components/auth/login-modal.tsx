@@ -265,7 +265,7 @@ function AuthModal({ onClose, authMode, setAuthMode }: AuthModalProps) {
 
         {/* Logo above card */}
         <div className="mb-5 flex flex-col items-center">
-          <StaffNowMark className="h-16 w-16 drop-shadow-2xl" />
+          <StaffNowMark className="h-16 w-16 shadow-2xl" />
           <p className="mt-2 text-base font-extrabold text-white drop-shadow-lg">
             <span>Staff</span>
             <span className="text-blue-300">Now</span>
