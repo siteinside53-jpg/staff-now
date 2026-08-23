@@ -29,7 +29,7 @@ const TILE_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
 
 /** Πόσο μεγάλος είναι ο κύκλος «κάπου εδώ γύρω». Ίδιος με του server. */
-const APPROX_RADIUS_M = 300;
+const APPROX_RADIUS_M = 500;
 
 type TaskPoint = MockTask & { lat?: number; lon?: number; exactPoint?: boolean };
 
@@ -217,7 +217,7 @@ export function TaskMap({
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 px-3 py-2">
         <p className="text-[11px] leading-snug text-gray-500">
-          Οι θέσεις είναι κατά προσέγγιση — ο κύκλος δείχνει περιοχή, όχι διεύθυνση.
+          Οι θέσεις είναι κατά προσέγγιση — ο κύκλος δείχνει τετράγωνο ~500 μ., όχι διεύθυνση.
           {nearest !== null && Number.isFinite(nearest) && (
             <> Πιο κοντινή: {nearest < 1 ? `${Math.round(nearest * 1000)} μ.` : `${nearest.toFixed(1)} χλμ`}.</>
           )}
