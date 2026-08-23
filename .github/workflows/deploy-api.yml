@@ -41,7 +41,8 @@ jobs:
       - name: Apply new database migrations
         working-directory: apps/api
         run: |
-          for f in migrations/0056_interest_dismissals.sql; do
+          for f in migrations/0056_interest_dismissals.sql \
+                   migrations/0057_tasknow.sql; do
             echo "→ $f"
             npx wrangler d1 execute staffnow-db-prod \
               --remote --env production --config ./wrangler.toml --file="$f"

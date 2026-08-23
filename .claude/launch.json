@@ -4,13 +4,21 @@
     {
       "name": "web",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@staffnow/web", "dev"],
+      "runtimeArgs": [
+        "--filter",
+        "@staffnow/web",
+        "dev"
+      ],
       "port": 3002
     },
     {
       "name": "api",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@staffnow/api", "dev"],
+      "runtimeArgs": [
+        "--filter",
+        "@staffnow/api",
+        "dev"
+      ],
       "port": 8787
     },
     {
@@ -30,14 +38,39 @@
     {
       "name": "web-static",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dlx", "serve", "apps/web/out", "-l", "3005"],
+      "runtimeArgs": [
+        "dlx",
+        "serve",
+        "apps/web/out",
+        "-l",
+        "3005"
+      ],
       "port": 3005
     },
     {
       "name": "design-preview",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dlx", "serve", "design-preview", "-l", "4010"],
+      "runtimeArgs": [
+        "dlx",
+        "serve",
+        "design-preview",
+        "-l",
+        "4010"
+      ],
       "port": 4010
+    },
+    {
+      "name": "api-local",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "wrangler",
+        "dev",
+        "-c",
+        "apps/api/wrangler.toml",
+        "--port",
+        "8790"
+      ],
+      "port": 8790
     }
   ]
 }

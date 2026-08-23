@@ -25,6 +25,14 @@
 export interface DisplayInfo {
   name: string;
   avatar: string | null;
+  /**
+   * Εργαζόμενος ή επιχείρηση.
+   *
+   * Το ερώτημα από κάτω το διάβαζε ήδη — απλώς δεν το επέστρεφε. Το χρειάζεται
+   * το TaskNow: η ίδια κάρτα δείχνει «Μαρία Κ. · εργαζόμενος» ή «Καφέ Ρόδος ·
+   * επιχείρηση», και χωρίς αυτό θα έπρεπε δεύτερο ερώτημα για κάθε γραμμή.
+   */
+  role: 'worker' | 'business' | 'admin' | null;
 }
 
 const SQL = `
@@ -59,6 +67,7 @@ export async function displayInfoFor(db: D1Database, userId: string): Promise<Di
   return {
     name: row?.name || fallbackFor(row?.role),
     avatar: row?.avatar || null,
+    role: (row?.role as DisplayInfo['role']) ?? null,
   };
 }
 
