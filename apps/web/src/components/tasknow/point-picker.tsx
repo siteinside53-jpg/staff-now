@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
+import { api } from '@/lib/api';
 import { AREA_COORDS, type Coords } from './data';
 
 /**
@@ -33,8 +34,55 @@ export function PointPicker({
   const holder = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
+  const iconRef = useRef<any>(null);
   const changeRef = useRef(onChange);
   changeRef.current = onChange;
+
+  /*
+    ΓΡΑΨΕ ΤΗ ΔΙΕΥΘΥΝΣΗ — δεν είναι όλοι διατεθειμένοι να ψάξουν σε χάρτη.
+
+    Στο κινητό, το να βρεις τη σωστή γωνία δρόμου με το δάχτυλο είναι δουλειά.
+    Ο περισσότερος κόσμος ξέρει τη διεύθυνσή του και θέλει απλώς να τη γράψει.
+    Ο χάρτης μένει για διόρθωση: γράφεις «Τσιμισκή 50», πέφτει η πινέζα, και
+    μετά την κουνάς λίγο αν χρειάζεται.
+  */
+  const [q, setQ] = useState('');
+  const [hits, setHits] = useState<{ label: string; lat: number; lon: number }[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [noHits, setNoHits] = useState(false);
+
+  function place(p: Coords) {
+    const map = mapRef.current;
+    const icon = iconRef.current;
+    if (!map || !icon) return;
+    if (markerRef.current) markerRef.current.setLatLng([p.lat, p.lon]);
+    else {
+      void import('leaflet').then((mod) => {
+        if (!markerRef.current) {
+          markerRef.current = mod.default.marker([p.lat, p.lon], { icon }).addTo(map);
+        }
+      });
+    }
+    map.setView([p.lat, p.lon], 16, { animate: false });
+    changeRef.current(p);
+  }
+
+  async function search() {
+    const text = q.trim();
+    if (text.length < 3) return;
+    setSearching(true);
+    setNoHits(false);
+    try {
+      const res: any = await (api as any).tasknow.geocode(text);
+      const list = res?.data?.results ?? [];
+      setHits(list);
+      setNoHits(list.length === 0);
+    } catch {
+      setNoHits(true);
+    } finally {
+      setSearching(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -62,6 +110,7 @@ export function PointPicker({
         iconSize: [0, 0],
         iconAnchor: [0, 0],
       });
+      iconRef.current = icon;
 
       map.on('click', (e: any) => {
         const p = { lat: +e.latlng.lat.toFixed(6), lon: +e.latlng.lng.toFixed(6) };
@@ -97,6 +146,61 @@ export function PointPicker({
 
   return (
     <div>
+      {/* Πρώτα το κείμενο, μετά ο χάρτης: αυτή είναι η σειρά που σκέφτεται ο
+          κόσμος — ξέρει τη διεύθυνση, δεν ξέρει το σημείο. */}
+      <div className="mb-2 flex gap-2">
+        <input
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setNoHits(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              void search();
+            }
+          }}
+          placeholder="π.χ. Τσιμισκή 50, Θεσσαλονίκη"
+          className="min-w-0 flex-1 rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
+        />
+        <button
+          type="button"
+          onClick={() => void search()}
+          disabled={searching || q.trim().length < 3}
+          className="shrink-0 rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-700 disabled:opacity-40"
+        >
+          {searching ? '…' : 'Βρες το'}
+        </button>
+      </div>
+
+      {hits.length > 0 && (
+        <ul className="mb-2 divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">
+          {hits.map((h, i) => (
+            <li key={i}>
+              <button
+                type="button"
+                onClick={() => {
+                  place({ lat: h.lat, lon: h.lon });
+                  setHits([]);
+                  setQ(h.label.split(',').slice(0, 2).join(',').trim());
+                }}
+                className="block w-full px-3 py-2 text-left text-xs leading-snug text-gray-700 transition hover:bg-amber-50"
+              >
+                {h.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {noHits && (
+        <p className="mb-2 text-[11px] text-gray-500">
+          Δεν βρέθηκε. Δοκίμασε πιο απλά (π.χ. «Τσιμισκή, Θεσσαλονίκη») ή δείξε το στον
+          χάρτη.
+        </p>
+      )}
+
       <div className="overflow-hidden rounded-xl border border-gray-200">
         <div ref={holder} className="h-44 w-full" role="application" aria-label="Διάλεξε σημείο" />
       </div>

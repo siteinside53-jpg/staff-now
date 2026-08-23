@@ -337,6 +337,72 @@ async function loadChildren(db: D1Database, taskIds: string[]) {
   return { offers, messages };
 }
 
+/*
+  GET /geocode — «γράψε τη διεύθυνση» αντί για ψάξιμο στον χάρτη.
+
+  ΓΙΑΤΙ ΠΕΡΝΑΕΙ ΑΠΟ ΕΜΑΣ ΚΑΙ ΔΕΝ ΤΟ ΚΑΛΕΙ Ο BROWSER ΚΑΤΕΥΘΕΙΑΝ:
+
+    1. Η υπηρεσία του OpenStreetMap (Nominatim) είναι δωρεάν αλλά έχει όρους:
+       το πολύ ένα αίτημα το δευτερόλεπτο, και ΥΠΟΧΡΕΩΤΙΚΑ αναγνωρίσιμο όνομα
+       εφαρμογής. Χίλιοι browsers που πληκτρολογούν ταυτόχρονα θα μας έκοβαν.
+    2. Έτσι αποθηκεύουμε τις απαντήσεις. Η «Τσιμισκή 50, Θεσσαλονίκη» δεν
+       αλλάζει θέση — δεν υπάρχει λόγος να ξαναρωτηθεί ποτέ.
+    3. Ο browser του χρήστη δεν αποκαλύπτει τη διεύθυνσή του σε τρίτο.
+
+  ΔΕΝ αποθηκεύεται ποιος ρώτησε τι. Μόνο «αυτό το κείμενο → αυτό το σημείο».
+*/
+tasknow.get('/geocode', requireAuth, async (c) => {
+  const q = (c.req.query('q') || '').trim().slice(0, 160);
+  if (q.length < 3) return success(c, { results: [] });
+
+  const key = `geo:v1:${q.toLowerCase()}`;
+  try {
+    const hit = await c.env.KV.get(key, 'json');
+    if (hit) return success(c, { results: hit, cached: true });
+  } catch {
+    /* χωρίς αποθήκευση συνεχίζουμε κανονικά */
+  }
+
+  // Περιορισμός στην Ελλάδα: ο χρήστης γράφει «Τσιμισκή 50» και δεν θέλει
+  // αποτελέσματα από τη Γερμανία.
+  const url =
+    'https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=gr&limit=5' +
+    `&accept-language=el&q=${encodeURIComponent(q)}`;
+
+  let results: { label: string; lat: number; lon: number }[] = [];
+  try {
+    const res = await fetch(url, {
+      headers: {
+        // Απαιτείται από τους όρους χρήσης τους. Μη το βγάλεις.
+        'User-Agent': 'StaffNow/1.0 (https://staffnow.gr; info@staffnow.gr)',
+        Accept: 'application/json',
+      },
+    });
+    if (res.ok) {
+      const raw = (await res.json()) as any[];
+      results = (Array.isArray(raw) ? raw : [])
+        .map((r) => ({
+          label: String(r.display_name || '').slice(0, 200),
+          lat: Number(r.lat),
+          lon: Number(r.lon),
+        }))
+        .filter((r) => r.label && Number.isFinite(r.lat) && Number.isFinite(r.lon));
+    }
+  } catch {
+    /* Αν δεν απαντήσει, γυρνάμε άδειο — ο χάρτης δουλεύει ούτως ή άλλως. */
+  }
+
+  if (results.length) {
+    // 30 μέρες: οι διευθύνσεις δεν μετακομίζουν.
+    c.executionCtx.waitUntil(
+      c.env.KV.put(key, JSON.stringify(results), { expirationTtl: 60 * 60 * 24 * 30 }).catch(
+        () => {},
+      ),
+    );
+  }
+  return success(c, { results });
+});
+
 // ── GET /feed — η δημόσια ροή, χωρίς σύνδεση ──────────────────────────────
 //
 // Τη βλέπει οποιοσδήποτε, όπως ζητήθηκε: «δημόσια ροή που τη βλέπει ο καθένας,

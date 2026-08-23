@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { api } from '@/lib/api';
 import Link from 'next/link';
 import { PostTaskModal } from './post-task-modal';
 import { TaskDetailModal } from './task-detail-modal';
@@ -118,6 +119,49 @@ export function TaskNowDashboardHub() {
   const [tab, setTab] = useState<'tasks' | 'offers'>('tasks');
   const [goal, setGoal] = useState('300');
   const [showNotifySettings, setShowNotifySettings] = useState(false);
+
+  /*
+    Η ΕΠΑΛΗΘΕΥΣΗ — ΑΛΗΘΙΝΗ, ΟΧΙ ΓΡΑΜΜΕΝΗ ΣΤΟ ΧΕΡΙ.
+
+    Εδώ έγραφε σταθερά «Κινητό» και «ταυτότητα: όχι ακόμη» σε ΚΑΘΕ χρήστη, όποια
+    κι αν ήταν η πραγματική του κατάσταση. Δηλαδή έλεγε σε κάποιον που δεν είχε
+    επαληθεύσει τίποτα ότι έχει επαληθευμένο κινητό — και σε κάποιον που είχε
+    περάσει έλεγχο ταυτότητας ότι δεν τον έχει περάσει.
+
+    Τώρα διαβάζεται από τον server, και δίπλα υπάρχει κουμπί για να την κάνει.
+    Χωρίς κουμπί, το τετράγωνο έλεγε στον χρήστη τι του λείπει και τον άφηνε να
+    ψάχνει μόνος του πού διορθώνεται.
+  */
+  const [verif, setVerif] = useState<{
+    phone: boolean;
+    id: boolean;
+    pending: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    (async () => {
+      try {
+        const res: any =
+          user.role === 'business'
+            ? await (api as any).businesses.getVerification()
+            : await (api as any).workers.getVerification();
+        const d = res?.data;
+        if (!alive || !d) return;
+        setVerif({
+          phone: !!d.phoneConfirmed,
+          id: !!d.verified,
+          pending: d?.request?.status === 'pending',
+        });
+      } catch {
+        /* Αν δεν απαντήσει, δεν δείχνουμε τίποτα — ποτέ μαντεψιά. */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [user]);
 
   /**
    * Το localStorage διαβάζεται μόνο στον browser — ποτέ κατά το χτίσιμο.
@@ -672,7 +716,50 @@ export function TaskNowDashboardHub() {
         />
         <Stat icon="📤" label="Δουλειές που ανέβασες" value={String(mine.length)} />
         <Stat icon="📥" label="Προσφορές που έστειλες" value={String(offers.length)} />
-        <Stat icon="✅" label="Επαλήθευση" value="Κινητό" note="ταυτότητα: όχι ακόμη" />
+        {/* Τι έχει επαληθευτεί ΠΡΑΓΜΑΤΙΚΑ, και πώς να το προχωρήσει. */}
+        <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <span
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-50 text-base ring-1 ring-inset ring-gray-100"
+              aria-hidden="true"
+            >
+              ✅
+            </span>
+            <p className="min-w-0 text-[11px] font-semibold uppercase leading-tight tracking-wide text-gray-400">
+              Επαλήθευση
+            </p>
+          </div>
+
+          {verif === null ? (
+            <p className="mt-3 text-sm text-gray-400">Φορτώνει…</p>
+          ) : (
+            <>
+              <ul className="mt-3 space-y-1 text-sm">
+                <li className={verif.phone ? 'font-semibold text-emerald-700' : 'text-gray-500'}>
+                  {verif.phone ? '✓' : '○'} Κινητό
+                </li>
+                <li className={verif.id ? 'font-semibold text-emerald-700' : 'text-gray-500'}>
+                  {verif.id ? '✓' : verif.pending ? '⏳' : '○'} Ταυτότητα
+                  {verif.pending && !verif.id && (
+                    <span className="font-normal text-gray-400"> — σε έλεγχο</span>
+                  )}
+                </li>
+              </ul>
+
+              {(!verif.phone || (!verif.id && !verif.pending)) && (
+                <Link
+                  href="/dashboard/verification"
+                  className="mt-3 inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
+                >
+                  {verif.phone ? 'Επαλήθευσε ταυτότητα' : 'Επαλήθευσε το κινητό'} →
+                </Link>
+              )}
+              {verif.phone && verif.id && (
+                <p className="mt-2 text-xs text-gray-400">Όλα εντάξει — φαίνεσαι επαληθευμένος.</p>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Οι δουλειές μου / οι προσφορές μου */}
