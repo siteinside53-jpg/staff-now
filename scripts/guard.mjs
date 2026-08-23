@@ -524,6 +524,64 @@ function checkTaskNow() {
 // Δεν μπορεί να τρέξουν «όλα τα αρχεία»: έξι από τα παλιά περιέχουν εντολές
 // διαγραφής και θα ήταν καταστροφικό πάνω σε πραγματικά δεδομένα.
 // ───────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────
+// 4γ. Το εικονίδιο της καρτέλας και της Google υπάρχει, και είναι ΕΝΑ
+//
+// ΤΙ ΕΓΙΝΕ: το /favicon.ico δεν υπήρχε καθόλου στο site — γύριζε 404. Είναι
+// όμως το πρώτο πράγμα που ζητάει ο ανιχνευτής εικονιδίων της Google, οπότε
+// εκείνη κρατούσε ένα παλιό, διαφορετικό σήμα στα αποτελέσματα και δεν το
+// ανανέωνε ποτέ. Παράλληλα, ένα ορφανό αρχείο είχε μείνει με το παλιό σχέδιο
+// (τετράγωνο με λεπτό τικ) και περίμενε να το χρησιμοποιήσει κάποιος.
+// ───────────────────────────────────────────────────────────────────────────
+function checkFavicons() {
+  const need = [
+    'favicon.ico',
+    'favicon-16.png',
+    'favicon-32.png',
+    'icon-192.png',
+    'icon-512.png',
+    'apple-touch-icon.png',
+  ];
+  const missing = need.filter((f) => {
+    try {
+      readFileSync(join(ROOT, 'apps/web/public', f));
+      return false;
+    } catch {
+      return true;
+    }
+  });
+  if (missing.length) {
+    fail(
+      'Λείπουν εικονίδια του site',
+      `${missing.join(', ')}. Τρέξε: node apps/web/scripts/build-icons.mjs — τα βγάζει όλα ` +
+        'από το ΕΝΑ πραγματικό λογότυπο (public/staffnow-logo.png).'
+    );
+    return;
+  }
+
+  // Κανένα εικονίδιο δεν επιτρέπεται να είναι σχεδιασμένο στο χέρι: το παλιό
+  // σχέδιο ζούσε ακριβώς έτσι, ως γραμμή σε SVG.
+  const handDrawn = [];
+  for (const f of ['icon.svg', 'icon-maskable.svg']) {
+    let src;
+    try {
+      src = readFileSync(join(ROOT, 'apps/web/public', f), 'utf8');
+    } catch {
+      continue;
+    }
+    if (!src.includes('base64')) handDrawn.push(f);
+  }
+  if (handDrawn.length) {
+    fail(
+      'Εικονίδιο ζωγραφισμένο στο χέρι, άρα άλλο σήμα',
+      `${handDrawn.join(', ')}. Πρέπει να παράγονται από το build-icons.mjs, ` +
+        'ώστε να δείχνουν ΤΟ ΙΔΙΟ λογότυπο με το υπόλοιπο site.'
+    );
+  } else {
+    ok('Το εικονίδιο της καρτέλας και της Google υπάρχει και βγαίνει από το ένα λογότυπο');
+  }
+}
+
 function checkMigrationsWired() {
   let files;
   try {
@@ -598,6 +656,7 @@ checkNotificationBell();
 checkHeroPhotos();
 checkTaskNow();
 checkMigrationsWired();
+checkFavicons();
 if (LIVE) await checkLive();
 
 console.log('');

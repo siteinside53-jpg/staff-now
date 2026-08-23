@@ -75,7 +75,7 @@ export const metadata: Metadata = {
     telephone: false,
   },
   /*
-   * Το `?v=2` δεν είναι διακοσμητικό. Όσοι έχουν ήδη μπει στο staffnow.gr κρατάνε
+   * Το `?v=3` δεν είναι διακοσμητικό. Όσοι έχουν ήδη μπει στο staffnow.gr κρατάνε
    * το παλιό εικονίδιο στον υπολογιστή τους με εντολή «μην ξαναρωτήσεις για έναν
    * χρόνο» (βλ. public/_headers — το φτιάξαμε, αλλά μόνο για τους επόμενους).
    * Αλλάζοντας τη διεύθυνση, ο browser το βλέπει ως άλλο αρχείο και το κατεβάζει
@@ -83,13 +83,17 @@ export const metadata: Metadata = {
    */
   icons: {
     icon: [
-      { url: '/favicon-16.png?v=2', sizes: '16x16', type: 'image/png' },
-      { url: '/favicon-32.png?v=2', sizes: '32x32', type: 'image/png' },
-      { url: '/icon.svg?v=2', type: 'image/svg+xml' },
+      // Πρώτο και ρητά: το /favicon.ico είναι αυτό που ζητάει ο ανιχνευτής
+      // εικονιδίων της Google. Έλειπε εντελώς (404) και γι' αυτό η Google
+      // κρατούσε παλιό σήμα στα αποτελέσματα.
+      { url: '/favicon.ico?v=3', sizes: '48x48 32x32 16x16', type: 'image/x-icon' },
+      { url: '/favicon-16.png?v=3', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-32.png?v=3', sizes: '32x32', type: 'image/png' },
+      { url: '/icon.svg?v=3', type: 'image/svg+xml' },
     ],
-    shortcut: '/favicon-32.png?v=2',
+    shortcut: '/favicon-32.png?v=3',
     apple: [
-      { url: '/apple-touch-icon.png?v=2', sizes: '180x180', type: 'image/png' },
+      { url: '/apple-touch-icon.png?v=3', sizes: '180x180', type: 'image/png' },
     ],
   },
   openGraph: {
@@ -135,8 +139,8 @@ const organizationSchema = {
   name: 'StaffNow',
   alternateName: ['Staff Now', 'staffnow.gr'],
   url: 'https://staffnow.gr',
-  // Το λογότυπο που διαβάζει η Google. Το ?v=2 για τον ίδιο λόγο με πιο πάνω.
-  logo: 'https://staffnow.gr/icon-512.png?v=2',
+  // Το λογότυπο που διαβάζει η Google. Το ?v=3 για τον ίδιο λόγο με πιο πάνω.
+  logo: 'https://staffnow.gr/icon-512.png?v=3',
   description:
     'Η Νο.1 πλατφόρμα στην Ελλάδα για εύρεση προσωπικού και αναζήτηση εργασίας με AI swipe-based matching.',
   foundingDate: '2024',

@@ -131,6 +131,42 @@ async function filled(check, size, fill) {
 const master = await roundMaster();
 const check = await checkOnly(master);
 
+/**
+ * Το ΠΑΛΙΟ φορμά εικονιδίου (.ico) — και ο λόγος που η Google έδειχνε άλλο σήμα.
+ *
+ * Το /favicon.ico είναι το πρώτο πράγμα που ζητάει ο ανιχνευτής εικονιδίων της
+ * Google, και το ζητούν ακόμη και browsers που έχουν διαβάσει τα <link> της
+ * σελίδας. Στο staffnow.gr ΔΕΝ υπήρχε καθόλου: γύριζε 404. Οπότε η Google
+ * κρατούσε ό,τι είχε αποθηκευμένο από παλιά και δεν το ανανέωνε ποτέ.
+ *
+ * Ένα .ico είναι απλώς ένας φάκελος με εικόνες μέσα. Από τα Windows Vista και
+ * μετά δέχεται PNG αυτούσια, οπότε δεν χρειάζεται βιβλιοθήκη: γράφουμε την
+ * κεφαλίδα με το χέρι και κολλάμε τα PNG που ήδη φτιάξαμε.
+ */
+function icoFromPngs(pngs) {
+  const count = pngs.length;
+  const dir = Buffer.alloc(6 + 16 * count);
+  dir.writeUInt16LE(0, 0); // δεσμευμένο
+  dir.writeUInt16LE(1, 2); // 1 = εικονίδιο
+  dir.writeUInt16LE(count, 4);
+
+  let offset = dir.length;
+  for (let i = 0; i < count; i++) {
+    const { size, buf } = pngs[i];
+    const e = 6 + 16 * i;
+    dir.writeUInt8(size >= 256 ? 0 : size, e);      // 0 σημαίνει 256
+    dir.writeUInt8(size >= 256 ? 0 : size, e + 1);
+    dir.writeUInt8(0, e + 2);                        // χρώματα παλέτας
+    dir.writeUInt8(0, e + 3);                        // δεσμευμένο
+    dir.writeUInt16LE(1, e + 4);                     // επίπεδα
+    dir.writeUInt16LE(32, e + 6);                    // bit ανά pixel
+    dir.writeUInt32LE(buf.length, e + 8);
+    dir.writeUInt32LE(offset, e + 12);
+    offset += buf.length;
+  }
+  return Buffer.concat([dir, ...pngs.map((p) => p.buf)]);
+}
+
 const outputs = [
   ['favicon-16.png', () => round(master, 16)],
   ['favicon-32.png', () => round(master, 32)],
@@ -147,6 +183,19 @@ for (const [name, make] of outputs) {
   console.log(`${name.padEnd(24)} ${(buf.length / 1024).toFixed(1)} KB`);
 }
 
+// Το .ico θέλει PNG χωρίς παλέτα (κάποια εργαλεία δεν διαβάζουν παλέτα μέσα σε ico).
+const icoSizes = [16, 32, 48];
+const icoPngs = [];
+for (const size of icoSizes) {
+  icoPngs.push({
+    size,
+    buf: await sharp(master).resize(size, size).png({ compressionLevel: 9 }).toBuffer(),
+  });
+}
+const ico = icoFromPngs(icoPngs);
+writeFileSync(path.join(pub, 'favicon.ico'), ico);
+console.log(`favicon.ico              ${(ico.length / 1024).toFixed(1)} KB  (${icoSizes.join('/')})`);
+
 /**
  * Το icon.svg το ζητάει το layout.tsx, το manifest.webmanifest και το sw.js.
  * Το τικ του λογοτύπου έχει μεταβλητό πάχος (είναι σχεδιασμένο στο χέρι), οπότε
@@ -162,5 +211,21 @@ writeFileSync(
     `</svg>\n`
 );
 console.log(`icon.svg                 ${(embedded.length / 1024).toFixed(1)} KB`);
+
+/**
+ * Το icon-maskable.svg δεν το ζητάει κανείς σήμερα, αλλά ήταν γραμμένο στο χέρι
+ * με ΑΛΛΟ σχέδιο: τετράγωνο με λεπτό, γωνιακό τικ. Όποιος το έβρισκε και το
+ * χρησιμοποιούσε, θα ξανάφερνε πίσω το λάθος σήμα. Ξαναγράφεται κι αυτό από την
+ * ίδια πηγή, ώστε στον φάκελο να μην υπάρχει ούτε ένα αρχείο με άλλο λογότυπο.
+ */
+const maskableEmbedded = (await filled(check, 512, 0.8)).toString('base64');
+writeFileSync(
+  path.join(pub, 'icon-maskable.svg'),
+  `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">\n` +
+    `  <!-- Παράγεται από το scripts/build-icons.mjs. Μην το αλλάζεις με το χέρι. -->\n` +
+    `  <image href="data:image/png;base64,${maskableEmbedded}" width="512" height="512"/>\n` +
+    `</svg>\n`
+);
+console.log(`icon-maskable.svg        ${(maskableEmbedded.length / 1024).toFixed(1)} KB`);
 
 console.log('\nΈτοιμα — όλα από το staffnow-logo.png.');
