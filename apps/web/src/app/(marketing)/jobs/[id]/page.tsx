@@ -11,6 +11,7 @@ import {
   type PublicJob,
 } from '@/lib/seo-data';
 import { ShareJob } from '@/components/share-job';
+import { JobApplyCta } from '@/components/job-apply-cta';
 
 export const dynamic = 'force-static';
 
@@ -202,17 +203,12 @@ export default async function JobPage({ params }: Params) {
             <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{description}</p>
           </div>
 
+          {/* Το κουμπί της αίτησης ξέρει ποιος το βλέπει — επιχείρηση δεν κάνει
+              αίτηση σε αγγελία, οπότε δεν της εμφανίζεται καθόλου. */}
           <div className="mt-8">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <Link
-                href={`/auth/register?role=worker&next=${encodeURIComponent(`/dashboard/discover?focus=${job.id}`)}`}
-                className="inline-flex w-full sm:w-auto items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-700 px-8 py-3.5 text-sm font-semibold text-white shadow transition"
-              >
-                Κάνε αίτηση δωρεάν →
-              </Link>
+            <JobApplyCta jobId={String(job.id)}>
               <ShareJob jobId={String(job.id)} jobTitle={job.title} />
-            </div>
-            <p className="mt-2 text-xs text-gray-400">Δωρεάν εγγραφή σε 30'' · Χωρίς πιστωτική κάρτα</p>
+            </JobApplyCta>
           </div>
         </header>
 
