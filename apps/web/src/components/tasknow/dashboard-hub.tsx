@@ -43,12 +43,42 @@ type PendingAction = 'post' | 'browse';
 /** Θυμόμαστε ότι ολοκληρώθηκε το δεύτερο βήμα, ώστε ο οδηγός να μην ξαναβγεί. */
 const SAW_OFFERS_KEY = 'tasknow_onboarding_saw_offers';
 
-function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
+/**
+ * Το τετράγωνο με ένα νούμερο.
+ *
+ * Το εικονίδιο δεν είναι στολίδι: τα τέσσερα τετράγωνα λένε τέσσερα εντελώς
+ * διαφορετικά πράγματα (ευρώ, δουλειές, προσφορές, επαλήθευση) και χωρίς
+ * σημάδι διαβάζονταν σαν μία σειρά από ίδια κουτιά. Τα ψηφία είναι
+ * `tabular-nums` ώστε τα τέσσερα νούμερα να κάθονται στην ίδια γραμμή.
+ */
+function Stat({
+  label,
+  value,
+  note,
+  icon,
+}: {
+  label: string;
+  value: string;
+  note?: string;
+  icon: string;
+}) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4">
-      <p className="text-xs font-medium text-gray-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold tracking-tight text-gray-900">{value}</p>
-      {note && <p className="mt-0.5 text-xs text-gray-400">{note}</p>}
+    <div className="group rounded-3xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md">
+      <div className="flex items-center gap-2.5">
+        <span
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-50 text-base ring-1 ring-inset ring-gray-100"
+          aria-hidden="true"
+        >
+          {icon}
+        </span>
+        <p className="min-w-0 text-[11px] font-semibold uppercase leading-tight tracking-wide text-gray-400">
+          {label}
+        </p>
+      </div>
+      <p className="mt-3 text-3xl font-extrabold tabular-nums leading-none tracking-tight text-gray-900">
+        {value}
+      </p>
+      {note && <p className="mt-1.5 text-xs leading-tight text-gray-400">{note}</p>}
     </div>
   );
 }
@@ -314,19 +344,29 @@ export function TaskNowDashboardHub() {
 
       {/* Τα δύο κουμπιά, στο ΙΔΙΟ στιλ με «Νέα Αγγελία» και «Boost» της
           αρχικής του πίνακα ελέγχου: φαρδιά, με βαθμωτό χρώμα, εικονίδιο
-          αριστερά, τίτλος και μία γραμμή εξήγησης. */}
+          αριστερά, τίτλος και μία γραμμή εξήγησης.
+
+          ΤΟ ΔΕΥΤΕΡΟ ΕΙΝΑΙ ΜΠΛΕ, ΟΧΙ ΜΑΥΡΟ. Στην αρχική του πίνακα τα δύο
+          γρήγορα κουμπιά είναι μπλε + πορτοκαλί· το μαύρο εδώ ήταν το μόνο
+          μαύρο πλακίδιο σε όλο τον λογαριασμό και τραβούσε το μάτι σαν λάθος.
+          Το εικονίδιο μπαίνει σε τετράγωνο πλαίσιο ώστε τα δύο κουμπιά να
+          έχουν την ίδια οπτική αρχή — πριν, το «＋» και η μεγεθυντική είχαν
+          διαφορετικό μέγεθος και η δεύτερη σειρά δεν στοίχιζε. */}
       <div className="grid gap-3 sm:grid-cols-2">
         <button
           type="button"
           onClick={() => start('post')}
-          className="flex items-center gap-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-5 text-left text-white shadow-lg shadow-amber-500/20 transition hover:brightness-105 active:scale-[0.99]"
+          className="group flex items-center gap-4 rounded-3xl bg-gradient-to-br from-amber-500 to-orange-600 px-5 py-5 text-left text-white shadow-lg shadow-amber-500/25 transition hover:brightness-105 active:scale-[0.99]"
         >
-          <span className="text-3xl leading-none" aria-hidden="true">
-            ＋
+          <span
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-2xl font-bold leading-none"
+            aria-hidden="true"
+          >
+            +
           </span>
           <span className="min-w-0">
-            <span className="block text-lg font-bold">Ανέβασε μικροδουλειά</span>
-            <span className="block text-sm text-white/90">
+            <span className="block text-lg font-bold leading-tight">Ανέβασε μικροδουλειά</span>
+            <span className="mt-0.5 block text-sm leading-snug text-white/90">
               Γράψε τι θέλεις να γίνει και δέξου προσφορές
             </span>
           </span>
@@ -335,132 +375,210 @@ export function TaskNowDashboardHub() {
         <button
           type="button"
           onClick={() => start('browse')}
-          className="flex items-center gap-4 rounded-2xl bg-gradient-to-r from-gray-900 to-gray-700 px-6 py-5 text-left text-white shadow-lg shadow-gray-900/20 transition hover:brightness-110 active:scale-[0.99]"
+          className="group flex items-center gap-4 rounded-3xl bg-gradient-to-br from-blue-500 to-blue-600 px-5 py-5 text-left text-white shadow-lg shadow-blue-600/25 transition hover:brightness-105 active:scale-[0.99]"
         >
-          <span className="text-2xl leading-none" aria-hidden="true">
+          <span
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-xl leading-none"
+            aria-hidden="true"
+          >
             🔎
           </span>
           <span className="min-w-0">
-            <span className="block text-lg font-bold">Βρες μικροδουλειά</span>
-            <span className="block text-sm text-white/80">
+            <span className="block text-lg font-bold leading-tight">Βρες μικροδουλειά</span>
+            <span className="mt-0.5 block text-sm leading-snug text-white/90">
               Δες τι υπάρχει κοντά σου και κάνε προσφορά
             </span>
           </span>
         </button>
       </div>
 
-      {/* Πρόοδος: πού είσαι και τι λείπει για το επόμενο σκαλί */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className={'rounded-full px-3 py-1.5 text-sm font-bold ' + level.className}>
-              {level.icon} {level.label}
-            </span>
-            <div>
-              <p className="text-sm font-semibold text-gray-900">{completed} ολοκληρωμένες δουλειές</p>
-              <p className="text-xs text-gray-500">{level.perk}</p>
+      {/* Πρόοδος: πού είσαι και τι λείπει για το επόμενο σκαλί.
+
+          ΔΥΟ ΞΕΧΩΡΙΣΤΑ ΠΡΑΓΜΑΤΑ, ΔΥΟ ΞΕΧΩΡΙΣΤΕΣ ΣΕΙΡΕΣ. Πριν, το επίπεδο και
+          ο στόχος του μήνα ήταν δύο λεπτές μπάρες η μία κάτω από την άλλη
+          χωρίς τίτλο, οπότε δεν φαινόταν ποια μετράει δουλειές και ποια ευρώ.
+          Τώρα κάθε μπάρα έχει από πάνω της τι μετράει. */}
+      <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className="flex items-start gap-4">
+          {/* Το μετάλλιο, σε κύκλο. Πριν ήταν ένα μακρόστενο χαπάκι δίπλα στο
+              κείμενο και δεν ξεχώριζε από τις άλλες ετικέτες της σελίδας — ενώ
+              είναι το μόνο πράγμα εδώ που χτίζεται με τον καιρό. */}
+          <span
+            className={
+              'flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl text-2xl leading-none ring-1 ring-inset ring-black/5 ' +
+              level.className
+            }
+            title={level.label}
+          >
+            <span aria-hidden="true">{level.icon}</span>
+            <span className="text-[9px] font-bold uppercase tracking-wide">{level.label}</span>
+          </span>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <p className="text-lg font-bold leading-tight tracking-tight text-gray-900">
+                {completed} ολοκληρωμένες δουλειές
+              </p>
+              {next && (
+                <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-600">
+                  Ακόμη {Math.max(0, next.minCompleted - completed)} για {next.icon}{' '}
+                  {next.label}
+                </span>
+              )}
             </div>
+            <p className="mt-1 text-sm leading-snug text-gray-500">{level.perk}</p>
+
+            {next && (
+              <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-gray-100">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all duration-500"
+                  style={{
+                    width: `${Math.min(100, next.minCompleted === 0 ? 100 : (completed / next.minCompleted) * 100)}%`,
+                  }}
+                />
+              </div>
+            )}
           </div>
-          {next && (
-            <p className="text-xs text-gray-500">
-              Ακόμη{' '}
-              <strong className="text-gray-900">
-                {Math.max(0, next.minCompleted - completed)}
-              </strong>{' '}
-              για {next.icon} {next.label}
-            </p>
-          )}
         </div>
 
-        {next && (
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100">
-            <div
-              className="h-full rounded-full bg-amber-500 transition-all"
-              style={{
-                width: `${Math.min(100, next.minCompleted === 0 ? 100 : (completed / next.minCompleted) * 100)}%`,
-              }}
-            />
-          </div>
-        )}
-
         {/* Ο στόχος τον βάζει ο ίδιος. Δεν τον πιέζει η πλατφόρμα. */}
-        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-gray-100 pt-4">
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            Στόχος μήνα:
-            <input
-              value={goal}
-              onChange={(e) => setGoal(e.target.value.replace(/\D/g, ''))}
-              inputMode="numeric"
-              className="w-20 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm"
-            />
-            €
-          </label>
-          <div className="h-2 min-w-[120px] flex-1 overflow-hidden rounded-full bg-gray-100">
+        <div className="mt-5 border-t border-gray-100 pt-5">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <label className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                Στόχος μήνα
+              </span>
+              <span className="flex items-center rounded-full border border-gray-200 bg-gray-50 pr-3 transition focus-within:border-emerald-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-400/20">
+                <input
+                  value={goal}
+                  onChange={(e) => setGoal(e.target.value.replace(/\D/g, ''))}
+                  inputMode="numeric"
+                  aria-label="Στόχος μήνα σε ευρώ"
+                  className="w-14 rounded-full bg-transparent py-1.5 pl-3.5 text-xs font-semibold tabular-nums text-gray-900 outline-none"
+                />
+                <span className="text-xs font-semibold text-gray-400">€</span>
+              </span>
+            </label>
+            <span className="text-sm font-bold tabular-nums text-gray-900">
+              {earned}€ <span className="font-medium text-gray-400">/ {goalNumber}€</span>
+            </span>
+          </div>
+          <div className="mt-2.5 h-2.5 overflow-hidden rounded-full bg-gray-100">
             <div
               className="h-full rounded-full bg-emerald-500 transition-all"
               style={{ width: `${goalNumber > 0 ? Math.min(100, (earned / goalNumber) * 100) : 0}%` }}
             />
           </div>
-          <span className="text-sm font-semibold text-gray-900">
-            {earned}€ / {goalNumber}€
-          </span>
         </div>
 
         {/* Ειδοποιήσεις — ο πιο δυνατός λόγος να ξαναμπεί κάποιος, γι' αυτό
-            είναι πραγματική ρύθμιση και όχι διακοσμητικό κουμπάκι. */}
-        <div className="mt-4 rounded-xl bg-amber-50 p-4">
-          <label className="flex cursor-pointer items-start gap-3">
-            <input
-              type="checkbox"
-              checked={notify.enabled}
-              onChange={(e) => setNotifyPrefs({ enabled: e.target.checked })}
-              className="mt-0.5 h-4 w-4 shrink-0 accent-amber-500"
-            />
-            <span className="text-xs leading-relaxed text-amber-900">
-              <strong>Ειδοποίησέ με</strong> όταν βγαίνει μικροδουλειά στην περιοχή και
-              την ειδικότητά μου. Δεν χρειάζεται να μπαίνεις να κοιτάς — σε ειδοποιούμε
-              εμείς.
+            είναι πραγματική ρύθμιση και όχι διακοσμητικό κουμπάκι.
+
+            ΓΙΑΤΙ ΕΦΥΓΕ ΤΟ ΚΙΤΡΙΝΟ ΠΛΑΚΙΔΙΟ: ήταν το μεγαλύτερο έγχρωμο
+            κομμάτι της σελίδας και τραβούσε περισσότερη προσοχή από τα δύο
+            κουμπιά δράσης. Χειρότερα, το κίτρινο φόντο σημαίνει «προσοχή» σε
+            όλο το υπόλοιπο StaffNow — εδώ δεν υπάρχει τίποτα να προσέξεις.
+            Μένει λευκή κάρτα με λεπτό πορτοκαλί πλαίσιο· το χρώμα κρατιέται
+            μόνο στο εικονίδιο, όπως λέει ο κανόνας του TaskNow. */}
+        <div className="mt-5 rounded-2xl border border-amber-200 bg-white p-4">
+          <label className="flex cursor-pointer items-center gap-3">
+            <span
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-base"
+              aria-hidden="true"
+            >
+              🔔
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-bold leading-tight text-gray-900">
+                Ειδοποίησέ με
+              </span>
+              <span className="mt-0.5 block text-xs leading-relaxed text-gray-600">
+                όταν βγαίνει μικροδουλειά στην περιοχή και την ειδικότητά μου. Δεν
+                χρειάζεται να μπαίνεις να κοιτάς — σε ειδοποιούμε εμείς.
+              </span>
+            </span>
+            {/* Διακόπτης, όχι τετραγωνάκι. Το τετραγωνάκι του browser είναι
+                ό,τι πιο παλιό δείχνει σε μια σελίδα και δεν αλλάζει εμφάνιση
+                από μηχάνημα σε μηχάνημα. Το πραγματικό κουτάκι μένει από κάτω
+                για το πληκτρολόγιο και τους αναγνώστες οθόνης. */}
+            <span className="relative inline-flex shrink-0">
+              <input
+                type="checkbox"
+                checked={notify.enabled}
+                onChange={(e) => setNotifyPrefs({ enabled: e.target.checked })}
+                aria-label="Ειδοποίησέ με για νέες μικροδουλειές"
+                className="peer h-7 w-12 cursor-pointer appearance-none rounded-full bg-gray-200 transition-colors checked:bg-amber-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500"
+              />
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute left-0.5 top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"
+              />
             </span>
           </label>
 
           {notify.enabled && (
             <>
-              <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-amber-900">
-                <label className="flex items-center gap-1.5">
-                  περιοχή:
-                  <select
-                    value={notify.area}
-                    onChange={(e) => setNotifyPrefs({ area: e.target.value })}
-                    className="rounded-lg border border-amber-300 bg-white px-2 py-1"
+              <div className="mt-4 space-y-3">
+                {/* Η περιοχή: κουτάκι με δικό μας βελάκι. Το σκέτο κουτάκι του
+                    browser έδειχνε αλλιώς σε κάθε σύστημα και χάλαγε τη σειρά. */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-medium text-gray-500">Περιοχή</span>
+                  <span className="relative">
+                    <select
+                      value={notify.area}
+                      onChange={(e) => setNotifyPrefs({ area: e.target.value })}
+                      aria-label="Περιοχή ειδοποιήσεων"
+                      className="cursor-pointer appearance-none rounded-full border border-gray-200 bg-gray-50 py-1.5 pl-3.5 pr-8 text-xs font-semibold text-gray-900 transition hover:border-gray-300 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20"
+                    >
+                      {Object.keys(AREA_COORDS).map((a) => (
+                        <option key={a} value={a}>
+                          {a}
+                        </option>
+                      ))}
+                    </select>
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[9px] text-gray-400"
+                    >
+                      ▼
+                    </span>
+                  </span>
+                </div>
+
+                {/* Η ακτίνα: τέσσερις τιμές, άρα κουμπιά. Ένα κουτάκι που
+                    ανοίγει για να διαλέξεις ανάμεσα σε τέσσερα είναι δύο
+                    κινήσεις εκεί που φτάνει μία. */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-medium text-gray-500">Ακτίνα</span>
+                  <div className="inline-flex rounded-full bg-gray-100 p-0.5">
+                    {[2, 5, 10, 25].map((r) => {
+                      const on = notify.radiusKm === r;
+                      return (
+                        <button
+                          key={r}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() => setNotifyPrefs({ radiusKm: r })}
+                          className={
+                            'rounded-full px-3 py-1 text-xs font-semibold transition ' +
+                            (on
+                              ? 'bg-white text-gray-900 shadow-sm'
+                              : 'text-gray-500 hover:text-gray-900')
+                          }
+                        >
+                          {r} χλμ
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowNotifySettings((v) => !v)}
+                    className="rounded-full px-2 py-1 text-xs font-semibold text-amber-700 underline-offset-2 transition hover:bg-amber-50 hover:underline"
                   >
-                    {Object.keys(AREA_COORDS).map((a) => (
-                      <option key={a} value={a}>
-                        {a}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex items-center gap-1.5">
-                  ακτίνα:
-                  <select
-                    value={notify.radiusKm}
-                    onChange={(e) => setNotifyPrefs({ radiusKm: Number(e.target.value) })}
-                    className="rounded-lg border border-amber-300 bg-white px-2 py-1"
-                  >
-                    {[2, 5, 10, 25].map((r) => (
-                      <option key={r} value={r}>
-                        {r} χλμ
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setShowNotifySettings((v) => !v)}
-                  className="underline"
-                >
-                  {showNotifySettings ? 'κλείσε τις ειδικότητες' : 'διάλεξε ειδικότητες'}
-                </button>
+                    {showNotifySettings ? 'κλείσε τις ειδικότητες' : 'διάλεξε ειδικότητες'}
+                  </button>
+                </div>
               </div>
 
               {showNotifySettings && (
@@ -504,15 +622,15 @@ export function TaskNowDashboardHub() {
 
               {/* Η λίστα βγαίνει από τα ΠΡΑΓΜΑΤΙΚΑ δεδομένα κάθε φορά —
                   δεν αποθηκεύουμε ψεύτικες «ειδοποιήσεις». */}
-              <div className="mt-3 border-t border-amber-200 pt-3">
+              <div className="mt-3 border-t border-gray-100 pt-3">
                 {matches.length === 0 ? (
-                  <p className="text-xs text-amber-900">
+                  <p className="text-xs text-gray-500">
                     Αυτή τη στιγμή δεν υπάρχει κάτι που να ταιριάζει. Θα σου φτάσει μόλις
                     βγει.
                   </p>
                 ) : (
                   <>
-                    <p className="text-xs font-semibold text-amber-900">
+                    <p className="text-xs font-semibold text-gray-900">
                       {matches.length} {matches.length === 1 ? 'δουλειά ταιριάζει' : 'δουλειές ταιριάζουν'} τώρα —
                       αυτές θα σου έφταναν:
                     </p>
@@ -521,7 +639,7 @@ export function TaskNowDashboardHub() {
                         <Link
                           key={t.id}
                           href="/tasknow"
-                          className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 transition hover:bg-amber-100"
+                          className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 transition hover:border-amber-200 hover:bg-amber-50"
                         >
                           <span className="min-w-0 truncate text-xs text-gray-800">
                             {CATEGORY_BY_KEY[t.category]?.icon} {t.title}
@@ -544,17 +662,18 @@ export function TaskNowDashboardHub() {
       {/* Λόγος να ξαναμπεί: τι έβγαλε, τι έχτισε */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat
+          icon="💶"
           label="Έβγαλες αυτόν τον μήνα"
           value={`${earned}€`}
           note={earned === 0 ? 'καμία δεκτή προσφορά ακόμη' : 'από δεκτές προσφορές'}
         />
-        <Stat label="Δουλειές που ανέβασες" value={String(mine.length)} />
-        <Stat label="Προσφορές που έστειλες" value={String(offers.length)} />
-        <Stat label="Επαλήθευση" value="Κινητό" note="ταυτότητα: όχι ακόμη" />
+        <Stat icon="📤" label="Δουλειές που ανέβασες" value={String(mine.length)} />
+        <Stat icon="📥" label="Προσφορές που έστειλες" value={String(offers.length)} />
+        <Stat icon="✅" label="Επαλήθευση" value="Κινητό" note="ταυτότητα: όχι ακόμη" />
       </div>
 
       {/* Οι δουλειές μου / οι προσφορές μου */}
-      <div className="rounded-2xl border border-gray-200 bg-white">
+      <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
         <div className="flex gap-1 border-b border-gray-100 p-2">
           <button
             type="button"
@@ -562,7 +681,7 @@ export function TaskNowDashboardHub() {
             aria-pressed={tab === 'tasks'}
             className={
               'rounded-lg px-4 py-2 text-sm font-medium transition ' +
-              (tab === 'tasks' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:text-gray-900')
+              (tab === 'tasks' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900')
             }
           >
             Οι δουλειές μου ({mine.length})
@@ -573,7 +692,7 @@ export function TaskNowDashboardHub() {
             aria-pressed={tab === 'offers'}
             className={
               'rounded-lg px-4 py-2 text-sm font-medium transition ' +
-              (tab === 'offers' ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:text-gray-900')
+              (tab === 'offers' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900')
             }
           >
             Οι προσφορές μου ({offers.length})
