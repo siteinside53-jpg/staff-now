@@ -1,31 +1,42 @@
 'use client';
 
-import { AREA_COORDS, type Coords, distanceKm, formatKm } from './data';
+import { useEffect, useRef } from 'react';
+import 'leaflet/dist/leaflet.css';
+import { AREA_COORDS, type Coords, distanceKm } from './data';
 import type { MockTask } from './mock-store';
 
 /**
- * ΜΑΚΕΤΑ — ο χάρτης με τις μικροδουλειές και τα ποσά.
+ * Ο χάρτης με τις μικροδουλειές — με πραγματικούς δρόμους.
  *
- * ΤΙ ΕΙΝΑΙ ΑΛΗΘΙΝΟ ΕΔΩ: οι συντεταγμένες των γειτονιών και οι αποστάσεις.
- * Το «σε ακτίνα 3 χλμ» υπολογίζεται κανονικά (haversine), οπότε ό,τι βλέπεις
- * μέσα στον κύκλο είναι όντως μέσα στην ακτίνα.
+ * ΤΙ ΗΤΑΝ ΠΡΙΝ: λευκό φόντο με κάνναβο και πινέζες. Οι αποστάσεις ήταν σωστές,
+ * αλλά χωρίς δρόμους από κάτω ο χάρτης δεν έλεγε τίποτα σε κανέναν — και οι
+ * πινέζες ήταν ανά ΓΕΙΤΟΝΙΑ, δηλαδή όλες οι δουλειές της Καλαμαριάς κάθονταν
+ * στο ίδιο ακριβώς σημείο.
  *
- * ΤΙ ΔΕΝ ΕΙΝΑΙ: υπόβαθρο με δρόμους. Δεν φορτώνουμε πλακίδια χάρτη από τρίτο
- * πάροχο (Google / Mapbox / OpenStreetMap) γιατί αυτό είναι απόφαση με κόστος
- * και όρους χρήσης — δεν την παίρνει μια μακέτα. Οι θέσεις των πινέζων είναι
- * ήδη σε πραγματικές συντεταγμένες, οπότε όταν μπει υπόβαθρο δεν αλλάζει
- * τίποτα άλλο.
+ * ΓΙΑΤΙ OPENSTREETMAP: δωρεάν, χωρίς λογαριασμό και χωρίς κάρτα, οπότε δεν
+ * μπλοκάρει το ξεκίνημα σε απόφαση κόστους. Ο πάροχος αλλάζει από ΜΙΑ γραμμή
+ * (`TILE_URL`) — αν κάποτε χρειαστεί Mapbox ή Google, δεν ξαναγράφεται τίποτα.
+ * Η αναφορά στο υπόμνημα είναι ΥΠΟΧΡΕΩΤΙΚΗ από τους όρους χρήσης· μη τη βγάλεις.
+ *
+ * Η ΘΕΣΗ ΤΩΝ ΠΙΝΕΖΩΝ: το ακριβές σημείο δεν φτάνει ποτέ εδώ για τους ξένους —
+ * ο server το έχει ήδη μετατοπίσει πριν το στείλει. Ο κύκλος γύρω από την
+ * πινέζα δεν είναι διακοσμητικός: λέει «κάπου εδώ γύρω», που είναι η αλήθεια.
  */
 
-const VIEW = 100;
+/** Ο πάροχος του υποβάθρου. Άλλαξε ΜΟΝΟ αυτές τις δύο γραμμές για άλλον. */
+const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const TILE_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
 
-type Placed = { task: MockTask; x: number; y: number; km: number };
+/** Πόσο μεγάλος είναι ο κύκλος «κάπου εδώ γύρω». Ίδιος με του server. */
+const APPROX_RADIUS_M = 300;
 
-/** Χιλιόμετρα ανά μοίρα — αρκετά ακριβές για μία πόλη. */
-function toKmOffset(center: Coords, p: Coords) {
-  const kmPerLat = 110.574;
-  const kmPerLon = 111.32 * Math.cos((center.lat * Math.PI) / 180);
-  return { dx: (p.lon - center.lon) * kmPerLon, dy: (center.lat - p.lat) * kmPerLat };
+type TaskPoint = MockTask & { lat?: number; lon?: number; exactPoint?: boolean };
+
+/** Πού κάθεται μια δουλειά: το σημείο της, αλλιώς η γειτονιά της. */
+function pointOf(t: TaskPoint): Coords | null {
+  if (typeof t.lat === 'number' && typeof t.lon === 'number') return { lat: t.lat, lon: t.lon };
+  return AREA_COORDS[t.area] ?? null;
 }
 
 export function TaskMap({
@@ -35,6 +46,8 @@ export function TaskMap({
   radiusKm,
   selectedId,
   onSelect,
+  onSearchHere,
+  autoFit = true,
 }: {
   tasks: MockTask[];
   center: Coords;
@@ -42,166 +55,194 @@ export function TaskMap({
   radiusKm: number | null;
   selectedId?: string | null;
   onSelect: (task: MockTask) => void;
+  /** «Ψάξε σε αυτή την περιοχή» — δίνει τα όρια της οθόνης του χάρτη. */
+  onSearchHere?: (bounds: { north: number; south: number; east: number; west: number }) => void;
+  /**
+   * Να προσαρμόζεται μόνος του ώστε να χωράνε όλες οι πινέζες;
+   *
+   * ΟΧΙ αφού ο χρήστης πατήσει «ψάξε σε αυτή την περιοχή»: εκείνος διάλεξε τι
+   * κοιτάει, και μια αυτόματη προσαρμογή θα του ξανάνοιγε αμέσως τον χάρτη
+   * ακυρώνοντας ό,τι μόλις έκανε.
+   */
+  autoFit?: boolean;
 }) {
-  // Πόσα χιλιόμετρα πρέπει να χωρέσει ο χάρτης, ώστε να φαίνονται όλα.
-  const offsets = tasks
-    .map((t) => {
-      const c = AREA_COORDS[t.area];
-      return c ? toKmOffset(center, c) : null;
-    })
-    .filter((o): o is { dx: number; dy: number } => o !== null);
+  const holder = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<any>(null);
+  const layerRef = useRef<any>(null);
+  /* Η τελευταία επιλογή, ώστε το κλικ στην πινέζα να μη χρειάζεται να
+     ξαναδημιουργεί τον χάρτη σε κάθε αλλαγή. */
+  const selectRef = useRef(onSelect);
+  selectRef.current = onSelect;
 
-  const needed = Math.max(
-    radiusKm ?? 0,
-    ...offsets.map((o) => Math.max(Math.abs(o.dx), Math.abs(o.dy))),
-    2,
-  );
-  const span = needed * 1.25;
-  const kmToUnits = (km: number) => (km / span) * (VIEW / 2);
+  // ── Ο χάρτης φτιάχνεται ΜΙΑ φορά ──────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    let map: any = null;
 
-  // Πινέζες. Όσες μοιράζονται γειτονιά ανοίγουν λίγο σε κύκλο, για να μην
-  // κάθεται η μία πάνω στην άλλη.
-  const perArea = new Map<string, number>();
-  const placed: Placed[] = [];
-  for (const task of tasks) {
-    const c = AREA_COORDS[task.area];
-    if (!c) continue;
-    const seen = perArea.get(task.area) ?? 0;
-    perArea.set(task.area, seen + 1);
-    const km = distanceKm(center, c);
-    const { dx, dy } = toKmOffset(center, c);
+    (async () => {
+      // Δυναμική εισαγωγή: το Leaflet αγγίζει το `window`, οπότε δεν επιτρέπεται
+      // να τρέξει την ώρα του χτισίματος της στατικής έκδοσης.
+      const L = (await import('leaflet')).default;
+      if (cancelled || !holder.current || mapRef.current) return;
 
-    /**
-     * Το άνοιγμα των πινέζων γίνεται σε ΜΟΝΑΔΕΣ ΤΟΥ ΣΧΕΔΙΟΥ, όχι σε
-     * χιλιόμετρα.
-     *
-     * ΓΙΑΤΙ ΕΧΕΙ ΣΗΜΑΣΙΑ: αν μετατοπίζαμε κατά χιλιόμετρα, μια πινέζα θα
-     * κουνιόταν έως και 1 χλμ από την πραγματική της θέση — κάτω από υπόμνημα
-     * που υπόσχεται αληθινές αποστάσεις. Σε μονάδες σχεδίου η μετατόπιση
-     * είναι απλώς οπτικό ξεχώρισμα, σταθερό όσο κι αν αλλάξει το ζουμ, και
-     * δεν μεταφράζεται ποτέ σε ψεύτικο νούμερο.
-     */
-    // Το βήμα είναι αρκετά μεγάλο ώστε δύο πινέζες της ίδιας γειτονιάς να μην
-    // ακουμπάνε, ακόμη και όταν ο χάρτης είναι στενός (πλάι στη λίστα).
-    const spread = (km < 0.6 ? 4 : 0) + seen * 5;
-    const angle = seen * 2.399963;
-    placed.push({
-      task,
-      x: VIEW / 2 + kmToUnits(dx) + Math.cos(angle) * spread,
-      y: VIEW / 2 + kmToUnits(dy) + Math.sin(angle) * spread,
-      km,
-    });
-  }
+      map = L.map(holder.current, {
+        zoomControl: true,
+        // Ο χάρτης είναι βοηθητικός, όχι ο κύριος τρόπος περιήγησης: αν έπιανε
+        // τον τροχό, ο χρήστης θα κόλλαγε μέσα του κατεβαίνοντας τη σελίδα.
+        scrollWheelZoom: false,
+      }).setView([center.lat, center.lon], 13);
 
-  const radiusUnits = radiusKm ? kmToUnits(radiusKm) : null;
+      L.tileLayer(TILE_URL, { attribution: TILE_ATTRIBUTION, maxZoom: 19 }).addTo(map);
+      layerRef.current = L.layerGroup().addTo(map);
+      mapRef.current = map;
+      // Το ζουμ με τον τροχό ανοίγει μόλις ο χρήστης πατήσει μέσα στον χάρτη —
+      // τότε ξέρουμε ότι όντως τον χρησιμοποιεί.
+      map.on('click', () => map.scrollWheelZoom.enable());
+      map.on('mouseout', () => map.scrollWheelZoom.disable());
+    })();
+
+    return () => {
+      cancelled = true;
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+        layerRef.current = null;
+      }
+    };
+    // Ο χάρτης δεν ξαναφτιάχνεται όταν αλλάξει το κέντρο — μετακινείται πιο κάτω.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Οι πινέζες ξαναζωγραφίζονται όταν αλλάξουν τα δεδομένα ────────────
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const L = (await import('leaflet')).default;
+      const map = mapRef.current;
+      const layer = layerRef.current;
+      if (cancelled || !map || !layer) return;
+      layer.clearLayers();
+
+      const pts: [number, number][] = [];
+
+      // Ο κύκλος της ακτίνας αναζήτησης, γύρω από το κέντρο.
+      if (radiusKm) {
+        L.circle([center.lat, center.lon], {
+          radius: radiusKm * 1000,
+          color: '#f59e0b',
+          weight: 1,
+          fillColor: '#f59e0b',
+          fillOpacity: 0.06,
+        }).addTo(layer);
+      }
+
+      for (const t of tasks as TaskPoint[]) {
+        const p = pointOf(t);
+        if (!p) continue;
+        pts.push([p.lat, p.lon]);
+
+        // Όσο το σημείο είναι κατά προσέγγιση, ο κύκλος το λέει καθαρά.
+        if (!t.exactPoint) {
+          L.circle([p.lat, p.lon], {
+            radius: APPROX_RADIUS_M,
+            color: '#f59e0b',
+            weight: 1,
+            opacity: 0.35,
+            fillColor: '#f59e0b',
+            fillOpacity: 0.08,
+          }).addTo(layer);
+        }
+
+        const on = selectedId === t.id;
+        /* Το ποσό μπαίνει ΠΑΝΩ στην πινέζα: είναι το πρώτο πράγμα που θέλει να
+           ξέρει όποιος κοιτάζει χάρτη, και γλιτώνει ένα κλικ ανά δουλειά. */
+        const icon = L.divIcon({
+          className: '',
+          html:
+            `<span style="display:inline-flex;align-items:center;gap:2px;` +
+            `padding:2px 7px;border-radius:9999px;font:700 12px/1.4 Inter,system-ui,sans-serif;` +
+            `white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.25);` +
+            (on
+              ? 'background:#111827;color:#fff;'
+              : t.isSample
+                ? 'background:#fff;color:#6b7280;border:1px solid #d1d5db;'
+                : 'background:#f59e0b;color:#fff;') +
+            `">${t.budget}€</span>`,
+          iconSize: [0, 0],
+          iconAnchor: [0, 0],
+        });
+
+        L.marker([p.lat, p.lon], { icon, title: t.title })
+          .on('click', () => selectRef.current(t))
+          .addTo(layer);
+      }
+
+      // Ο χάρτης δείχνει ό,τι υπάρχει — αλλιώς ο χρήστης βλέπει άδεια περιοχή
+      // και νομίζει ότι δεν υπάρχουν δουλειές. Αλλά μόνο όσο δεν έχει πάρει
+      // εκείνος τα ηνία.
+      if (!autoFit) {
+        /* ο χρήστης κάδρο έχει διαλέξει — δεν το πειράζουμε */
+      } else if (pts.length > 1) {
+        map.fitBounds(L.latLngBounds(pts).pad(0.2), { animate: false });
+      } else if (pts.length === 1) {
+        map.setView(pts[0], 14, { animate: false });
+      } else {
+        map.setView([center.lat, center.lon], 13, { animate: false });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tasks, center.lat, center.lon, radiusKm, selectedId, autoFit]);
+
+  const nearest = tasks.length
+    ? Math.min(
+        ...tasks
+          .map((t) => {
+            const p = pointOf(t as TaskPoint);
+            return p ? distanceKm(center, p) : Infinity;
+          })
+          .filter((n) => Number.isFinite(n)),
+      )
+    : null;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-[#eef2f7]">
-      <svg
-        viewBox={`0 0 ${VIEW} ${VIEW}`}
-        // Στο κινητό σταθερό ύψος: το τετράγωνο έπιανε ολόκληρη την οθόνη και
-        // έσπρωχνε τη λίστα εκτός. Ο χάρτης είναι βοηθητικός, όχι ο κύριος.
-        className="block h-64 w-full sm:aspect-[16/10] sm:h-auto"
-        role="img"
-        aria-label={`Χάρτης με ${placed.length} μικροδουλειές γύρω από ${centerLabel}`}
-      >
-        <defs>
-          <pattern id="tn-grid" width="6.25" height="6.25" patternUnits="userSpaceOnUse">
-            <path d="M6.25 0H0V6.25" fill="none" stroke="#d7dee8" strokeWidth="0.25" />
-          </pattern>
-          <radialGradient id="tn-halo">
-            <stop offset="60%" stopColor="#f59e0b" stopOpacity="0.10" />
-            <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.02" />
-          </radialGradient>
-        </defs>
+    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+      <div
+        ref={holder}
+        className="h-64 w-full sm:h-80"
+        role="application"
+        aria-label={`Χάρτης με ${tasks.length} μικροδουλειές γύρω από ${centerLabel}`}
+      />
 
-        <rect width={VIEW} height={VIEW} fill="#eef2f7" />
-        <rect width={VIEW} height={VIEW} fill="url(#tn-grid)" />
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 px-3 py-2">
+        <p className="text-[11px] leading-snug text-gray-500">
+          Οι θέσεις είναι κατά προσέγγιση — ο κύκλος δείχνει περιοχή, όχι διεύθυνση.
+          {nearest !== null && Number.isFinite(nearest) && (
+            <> Πιο κοντινή: {nearest < 1 ? `${Math.round(nearest * 1000)} μ.` : `${nearest.toFixed(1)} χλμ`}.</>
+          )}
+        </p>
 
-        {/* Η ακτίνα αναζήτησης */}
-        {radiusUnits && (
-          <>
-            <circle cx={VIEW / 2} cy={VIEW / 2} r={radiusUnits} fill="url(#tn-halo)" />
-            <circle
-              cx={VIEW / 2}
-              cy={VIEW / 2}
-              r={radiusUnits}
-              fill="none"
-              stroke="#f59e0b"
-              strokeWidth="0.4"
-              strokeDasharray="1.6 1.2"
-            />
-          </>
+        {onSearchHere && (
+          <button
+            type="button"
+            onClick={() => {
+              const map = mapRef.current;
+              if (!map) return;
+              const b = map.getBounds();
+              onSearchHere({
+                north: b.getNorth(),
+                south: b.getSouth(),
+                east: b.getEast(),
+                west: b.getWest(),
+              });
+            }}
+            className="shrink-0 rounded-full bg-gray-900 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-gray-700"
+          >
+            Ψάξε σε αυτή την περιοχή
+          </button>
         )}
-
-        {/* Εσύ */}
-        <circle cx={VIEW / 2} cy={VIEW / 2} r="2.2" fill="#2563eb" opacity="0.18" />
-        <circle cx={VIEW / 2} cy={VIEW / 2} r="1" fill="#2563eb" stroke="white" strokeWidth="0.35" />
-
-        {/* Οι μικροδουλειές, με το ποσό πάνω στην πινέζα */}
-        {placed.map(({ task, x, y, km }) => {
-          const label = `${task.budget}€`;
-          const w = 5.5 + label.length * 1.9;
-          const selected = selectedId === task.id;
-          return (
-            <g
-              key={task.id}
-              className="cursor-pointer"
-              onClick={() => onSelect(task)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onSelect(task);
-                }
-              }}
-            >
-              <title>{`${task.title} — ${task.budget}€ · ${task.area} · ${formatKm(km)}`}</title>
-              {/* Αόρατη περιοχή αφής: η πινέζα είναι 6 μονάδες ψηλή, πολύ
-                  μικρή για δάχτυλο. Αυτό το ορθογώνιο δεν φαίνεται αλλά
-                  πιάνεται. */}
-              <rect x={x - w / 2 - 2} y={y - 12} width={w + 4} height={16} fill="transparent" />
-              <path
-                d={`M ${x} ${y} l -1.5 -2 h 3 z`}
-                fill={selected ? '#111827' : '#f59e0b'}
-              />
-              <rect
-                x={x - w / 2}
-                y={y - 8}
-                width={w}
-                height={6}
-                rx="3"
-                fill={selected ? '#111827' : '#f59e0b'}
-                stroke="white"
-                strokeWidth="0.5"
-              />
-              <text
-                x={x}
-                y={y - 3.8}
-                textAnchor="middle"
-                fontSize="3.4"
-                fontWeight="700"
-                fill="white"
-              >
-                {label}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-
-      {/* Υπόμνημα */}
-      <div className="pointer-events-none absolute bottom-2 left-2 hidden rounded-lg bg-white/90 px-2.5 py-1.5 text-[11px] font-medium text-gray-600 shadow-sm sm:block">
-        <span className="mr-1 inline-block h-2 w-2 rounded-full bg-blue-600 align-middle" /> εσύ
-        <span className="mx-1.5 text-gray-300">|</span>
-        <span className="mr-1 inline-block h-2 w-2 rounded-full bg-amber-500 align-middle" /> μικροδουλειά
       </div>
-      {/* Το υπόμνημα ΚΑΤΩ από τον χάρτη, όχι πάνω του: όταν έπεφτε πάνω,
-          σκέπαζε πινέζες σε στενές οθόνες. */}
-      <p className="border-t border-gray-200 bg-white px-3 py-1.5 text-center text-[11px] text-gray-500">
-        αληθινές αποστάσεις · θέσεις κατά προσέγγιση ανά γειτονιά
-      </p>
     </div>
   );
 }

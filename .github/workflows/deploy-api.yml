@@ -43,7 +43,8 @@ jobs:
         run: |
           for f in migrations/0056_interest_dismissals.sql \
                    migrations/0057_tasknow.sql \
-                   migrations/0058_tasknow_samples.sql; do
+                   migrations/0058_tasknow_samples.sql \
+                   migrations/0059_tasknow_points.sql; do
             echo "→ $f"
             npx wrangler d1 execute staffnow-db-prod \
               --remote --env production --config ./wrangler.toml --file="$f"

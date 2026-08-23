@@ -267,6 +267,9 @@ export async function addTask(input: {
   postedByName?: string;
   postedByPhoto?: string;
   postedByRole?: 'worker' | 'business';
+  /** Πού ακριβώς. Προαιρετικό — ο χάρτης το θέλει, το ανέβασμα όχι. */
+  lat?: number;
+  lon?: number;
 }): Promise<MockTask | null> {
   const res: any = await (api as any).tasknow.create({
     title: input.title,
@@ -277,6 +280,8 @@ export async function addTask(input: {
     when: input.when,
     urgent: input.urgent === true,
     remote: input.area === 'Εξ αποστάσεως',
+    lat: input.lat,
+    lon: input.lon,
   });
   const id = res?.data?.id;
   await refreshTasks();

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Modal, MockNote } from './modal';
+import { PointPicker } from './point-picker';
 import {
   AREAS,
   CATEGORIES,
@@ -45,6 +46,8 @@ export function PostTaskModal({
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState(DEFAULT_CATEGORY);
   const [area, setArea] = useState(DEFAULT_AREA);
+  /** Το σημείο στον χάρτη. Προαιρετικό — δεν κλειδώνει το ανέβασμα. */
+  const [point, setPoint] = useState<{ lat: number; lon: number } | null>(null);
   const [budget, setBudget] = useState('');
   const [description, setDescription] = useState('');
   const [when, setWhen] = useState('');
@@ -105,6 +108,8 @@ export function PostTaskModal({
         postedByName: poster?.name,
         postedByPhoto: poster?.photo,
         postedByRole: poster?.role,
+        lat: point?.lat,
+        lon: point?.lon,
       });
       // Δείχνουμε ό,τι ΠΡΑΓΜΑΤΙΚΑ αποθηκεύτηκε, όχι ό,τι νομίζαμε ότι στείλαμε.
       if (saved) setCreated(saved);
@@ -231,6 +236,18 @@ export function PostTaskModal({
                 ))}
               </select>
             </label>
+          </div>
+
+          {/* Η γειτονιά λέει «Καλαμαριά». Ο χάρτης λέει «εδώ». Η διαφορά είναι
+              που θα σε βρει κάποιος που ψάχνει «τι υπάρχει κοντά μου». */}
+          <div>
+            <span className="text-sm font-medium text-gray-900">
+              Δείξε πού{' '}
+              <span className="font-normal text-gray-400">(προαιρετικό)</span>
+            </span>
+            <div className="mt-1.5">
+              <PointPicker area={area} value={point} onChange={setPoint} />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

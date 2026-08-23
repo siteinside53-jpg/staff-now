@@ -140,6 +140,32 @@ function minutesAgo(iso: string): number {
   return Math.max(0, Math.floor((Date.now() - t) / 60_000));
 }
 
+/**
+ * ΠΟΣΟ ΘΟΛΩΝΕΙ ΤΟ ΣΗΜΕΙΟ ΓΙΑ ΤΟ ΚΟΙΝΟ.
+ *
+ * Η δημόσια σελίδα τη βλέπει οποιοσδήποτε, χωρίς λογαριασμό. Ακριβής πινέζα
+ * εκεί σημαίνει «να το σπίτι αυτού του ανθρώπου», και συχνά είναι γυναίκα που
+ * ζητάει κάποιον να μπει μέσα. Δεν το κάνουμε.
+ *
+ * ΔΕΝ ΑΡΚΕΙ ΚΥΚΛΟΣ ΣΤΗΝ ΟΘΟΝΗ: όποιος κοιτάξει τι κατεβάζει ο browser θα
+ * έβλεπε το σωστό σημείο. Η μετατόπιση γίνεται ΕΔΩ, πριν φύγει.
+ *
+ * Είναι σταθερή ανά δουλειά (βγαίνει από το id της), ώστε η πινέζα να μην
+ * χοροπηδάει σε κάθε φόρτωση — αυτό θα φαινόταν σαν χαλασμένος χάρτης.
+ */
+const FUZZ_METERS = 300;
+
+function fuzzPoint(lat: number, lon: number, seed: string): { lat: number; lon: number } {
+  // Απλός, σταθερός κατακερματισμός του id → γωνία και απόσταση.
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  const angle = ((h % 3600) / 3600) * 2 * Math.PI;
+  const dist = FUZZ_METERS * (0.45 + ((h >>> 12) % 1000) / 1000 / 2); // 45%–95%
+  const dLat = (dist * Math.cos(angle)) / 111_320;
+  const dLon = (dist * Math.sin(angle)) / (111_320 * Math.cos((lat * Math.PI) / 180));
+  return { lat: +(lat + dLat).toFixed(5), lon: +(lon + dLon).toFixed(5) };
+}
+
 /** Ανοιχτή σημαίνει: δέχεται προσφορές τώρα. */
 function isOpenRow(t: TaskRow): boolean {
   return t.status === 'open' && t.hidden === 0;
@@ -154,7 +180,12 @@ function isOpenRow(t: TaskRow): boolean {
 async function shapeTask(
   db: D1Database,
   t: TaskRow,
-  opts: { viewerId: string | null; offers: OfferRow[]; messages: { id: string; sender_id: string; body: string; created_at: string }[] },
+  opts: {
+    viewerId: string | null;
+    offers: OfferRow[];
+    messages: { id: string; sender_id: string; body: string; created_at: string }[];
+    point?: { lat: number; lon: number };
+  },
 ) {
   const owner = await displayInfoFor(db, t.owner_id);
   const isOwner = opts.viewerId === t.owner_id;
@@ -233,6 +264,25 @@ async function shapeTask(
     disputeReason: t.dispute_reason || undefined,
     disputeBy: (t.dispute_by as 'owner' | 'worker' | null) || undefined,
 
+    /*
+      ΤΟ ΑΚΡΙΒΕΣ ΣΗΜΕΙΟ ΤΟ ΒΛΕΠΟΥΝ ΔΥΟ ΑΝΘΡΩΠΟΙ, ΚΑΝΕΝΑΣ ΑΛΛΟΣ.
+
+      Αυτός που ανέβασε τη δουλειά, και αυτός που τελικά επιλέχθηκε να την
+      κάνει — εκείνος πρέπει να ξέρει πού να πάει. Σε όλους τους υπόλοιπους,
+      συμπεριλαμβανομένων όσων έχουν κάνει προσφορά αλλά δεν επιλέχθηκαν,
+      φεύγει μετατοπισμένο σημείο.
+    */
+    ...(opts.point
+      ? (() => {
+          const chosenWorkerId = t.chosen_offer_id
+            ? opts.offers.find((o) => o.id === t.chosen_offer_id)?.worker_id
+            : undefined;
+          const exact = isOwner || (!!opts.viewerId && opts.viewerId === chosenWorkerId);
+          const p = exact ? opts.point : fuzzPoint(opts.point.lat, opts.point.lon, t.id);
+          return { lat: p.lat, lon: p.lon, exactPoint: exact };
+        })()
+      : {}),
+
     // Η συνομιλία ανοίγει μόνο μετά την επιλογή, και τη βλέπουν μόνο οι δύο.
     messages: opts.messages.map((m) => ({
       id: m.id,
@@ -241,6 +291,19 @@ async function shapeTask(
       at: m.created_at,
     })),
   };
+}
+
+/** Τα σημεία των δουλειών, με ένα ερώτημα. */
+async function loadPoints(db: D1Database, taskIds: string[]) {
+  const out = new Map<string, { lat: number; lon: number }>();
+  if (!taskIds.length) return out;
+  const marks = taskIds.map(() => '?').join(',');
+  const r = await db
+    .prepare(`SELECT task_id, lat, lon FROM tasknow_task_points WHERE task_id IN (${marks})`)
+    .bind(...taskIds)
+    .all<{ task_id: string; lat: number; lon: number }>();
+  for (const row of r.results || []) out.set(row.task_id, { lat: row.lat, lon: row.lon });
+  return out;
 }
 
 /** Οι προσφορές και τα μηνύματα για ένα σύνολο δουλειών, με δύο ερωτήματα. */
@@ -294,10 +357,17 @@ tasknow.get('/feed', async (c) => {
     .all<TaskRow>();
 
   const list = rows.results || [];
-  const { offers, messages } = await loadChildren(db, list.map((t) => t.id));
+  const ids = list.map((t) => t.id);
+  const { offers, messages } = await loadChildren(db, ids);
+  const points = await loadPoints(db, ids);
   const tasks = await Promise.all(
     list.map((t) =>
-      shapeTask(db, t, { viewerId: null, offers: offers.get(t.id) || [], messages: [] }),
+      shapeTask(db, t, {
+        viewerId: null,
+        offers: offers.get(t.id) || [],
+        messages: [],
+        point: points.get(t.id),
+      }),
     ),
   );
   void messages;
@@ -326,7 +396,9 @@ tasknow.get('/state', requireAuth, async (c) => {
     .all<TaskRow>();
 
   const list = rows.results || [];
-  const { offers, messages } = await loadChildren(db, list.map((t) => t.id));
+  const ids = list.map((t) => t.id);
+  const { offers, messages } = await loadChildren(db, ids);
+  const points = await loadPoints(db, ids);
 
   const tasks = await Promise.all(
     list.map((t) => {
@@ -338,6 +410,7 @@ tasknow.get('/state', requireAuth, async (c) => {
         viewerId: user.id,
         offers: offers.get(t.id) || [],
         messages: canSeeChat ? messages.get(t.id) || [] : [],
+        point: points.get(t.id),
       });
     }),
   );
@@ -435,6 +508,23 @@ tasknow.post('/tasks', requireAuth, async (c) => {
       now,
     )
     .run();
+
+  /*
+    Το σημείο είναι ΠΡΟΑΙΡΕΤΙΚΟ.
+
+    Δεν κλειδώνουμε το ανέβασμα πίσω από πινέζα: κάποιος μπορεί να ανεβάζει
+    από υπολογιστή χωρίς να ξέρει ακριβώς, ή η δουλειά να είναι εξ αποστάσεως.
+    Όποιος δεν βάλει, μένει στη γειτονιά — απλώς δεν εμφανίζεται στον χάρτη με
+    δικό του σημείο.
+  */
+  const lat = Number(body.lat);
+  const lon = Number(body.lon);
+  if (Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
+    await db
+      .prepare('INSERT OR REPLACE INTO tasknow_task_points (task_id, lat, lon) VALUES (?, ?, ?)')
+      .bind(id, lat, lon)
+      .run();
+  }
 
   return success(c, { id }, 201);
 });
@@ -689,6 +779,7 @@ tasknow.delete('/tasks/:id', requireAuth, async (c) => {
   const task = await myTask(db, c.req.param('id'), user.id);
   if (!task) return error(c, 'Δεν βρέθηκε', 404);
 
+  await db.prepare('DELETE FROM tasknow_task_points WHERE task_id = ?').bind(task.id).run();
   await db.prepare('DELETE FROM tasknow_messages WHERE task_id = ?').bind(task.id).run();
   await db.prepare('DELETE FROM tasknow_offers WHERE task_id = ?').bind(task.id).run();
   await db.prepare('DELETE FROM tasknow_tasks WHERE id = ?').bind(task.id).run();

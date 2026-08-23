@@ -72,6 +72,16 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
   const [cats, setCats] = useState<string[]>([]);
   const [sort, setSort] = useState<Sort>('new');
   const [showMap, setShowMap] = useState(false);
+  /**
+   * «Ψάξε σε αυτή την περιοχή» — τα όρια της οθόνης του χάρτη.
+   *
+   * Δουλεύει ΜΑΖΙ με τα υπόλοιπα φίλτρα, όχι αντί γι' αυτά: μπορείς να πεις
+   * «καθαριότητα, σε αυτό το κομμάτι της πόλης». Καθαρίζεται με το κουμπί
+   * καθαρισμού φίλτρων όπως όλα τα άλλα.
+   */
+  const [mapBounds, setMapBounds] = useState<
+    { north: number; south: number; east: number; west: number } | null
+  >(null);
   const [radius, setRadius] = useState<number | null>(null);
 
   const [center, setCenter] = useState<Coords>(DEFAULT_CENTER);
@@ -219,6 +229,25 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
       ? withinRadius.filter((x) => cats.includes(x.task.category))
       : withinRadius;
 
+    // Ό,τι φαίνεται στον χάρτη τώρα. Το σημείο έρχεται από τον server· όποια
+    // δουλειά δεν έχει, κρίνεται από τη γειτονιά της.
+    if (mapBounds) {
+      list = list.filter((x) => {
+        const t = x.task as any;
+        const p =
+          typeof t.lat === 'number' && typeof t.lon === 'number'
+            ? { lat: t.lat, lon: t.lon }
+            : AREA_COORDS[t.area];
+        if (!p) return false;
+        return (
+          p.lat <= mapBounds.north &&
+          p.lat >= mapBounds.south &&
+          p.lon <= mapBounds.east &&
+          p.lon >= mapBounds.west
+        );
+      });
+    }
+
     if (q) {
       // Η αναζήτηση πιάνει τίτλο, περιγραφή, περιοχή και κατηγορία — ό,τι
       // θα σκεφτόταν κάποιος να πληκτρολογήσει.
@@ -243,13 +272,17 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
     // Το «Επείγον» κρατάει την κορυφή μέσα σε όποια ταξινόμηση.
     sorted.sort((a, b) => Number(b.task.urgent === true) - Number(a.task.urgent === true));
     return sorted;
-  }, [withinRadius, cats, sort, search]);
+  }, [withinRadius, cats, sort, search, mapBounds]);
 
   const visibleOpen = visible.filter((x) => isOpen(x.task));
   const cutByRadius = openTasks.length - withinRadius.filter((x) => isOpen(x.task)).length;
 
+  /* Στον χάρτη μπαίνει ό,τι έχει θέση: δικό του σημείο ή, αλλιώς, γειτονιά. */
   const mapTasks = useMemo(
-    () => visible.map((x) => x.task).filter((t) => AREA_COORDS[t.area]),
+    () =>
+      visible
+        .map((x) => x.task)
+        .filter((t) => typeof (t as any).lat === 'number' || AREA_COORDS[t.area]),
     [visible],
   );
 
@@ -404,6 +437,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
           setCats([]);
           setSearch('');
           pickArea('');
+          setMapBounds(null);
         }}
         resultCount={visibleOpen.length}
         resultNoun={['μικροδουλειά', 'μικροδουλειές']}
@@ -418,9 +452,23 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
               radiusKm={radius}
               selectedId={detail?.id ?? null}
               onSelect={(t) => setDetail(t)}
+              onSearchHere={setMapBounds}
+              autoFit={!mapBounds}
             />
             <p className="mt-2 text-center text-xs text-gray-400">
               Πάτησε πάνω σε ένα ποσό για να δεις τη μικροδουλειά.
+              {mapBounds && (
+                <>
+                  {' · '}
+                  <button
+                    type="button"
+                    onClick={() => setMapBounds(null)}
+                    className="font-medium text-amber-600 underline hover:text-amber-700"
+                  >
+                    δες ξανά όλη την πόλη
+                  </button>
+                </>
+              )}
             </p>
           </div>
         )}
