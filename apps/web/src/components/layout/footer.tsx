@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { t } from '@/i18n';
+import { StaffNowLogo } from '@/components/staffnow-logo';
 
 // ---------------------------------------------------------------------------
 // Link columns
@@ -58,13 +59,7 @@ function Footer() {
           {/* Brand column */}
           <div className="lg:col-span-1">
             <Link href="/" className="inline-block">
-              <span className="inline-flex items-center gap-2 text-xl font-extrabold tracking-tight">
-                <svg viewBox="0 0 32 32" className="h-6 w-6 block" aria-label="StaffNow">
-                  <circle cx="16" cy="16" r="16" fill="#3b82f6" />
-                  <path d="M9 16.5l4.5 4.5L23 11" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <span><span className="text-gray-800">Staff</span><span className="text-blue-500">Now</span></span>
-              </span>
+              <StaffNowLogo size="lg" />
             </Link>
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-gray-500">
               {t('footer.description')}

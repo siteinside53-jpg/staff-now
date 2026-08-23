@@ -204,7 +204,9 @@ export default async function Image({ params }: { params: Promise<{ id: string }
             <div style={{ display: 'flex', alignItems: 'center' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               {/* borderRadius = μισό του πλάτους → κύκλος, όπως παντού αλλού. */}
-              <img src={logoDataUri()} width={52} height={52} style={{ borderRadius: 26 }} alt="" />
+              {/* 41 προς 34: η ΙΔΙΑ αναλογία σημαδιού-γραμμάτων (1,2) που έχει
+                  το σήμα σε όλο το site. Ήταν 52, δηλαδή 1,5 — έδειχνε μεγάλο. */}
+              <img src={logoDataUri()} width={41} height={41} style={{ borderRadius: 21 }} alt="" />
               <div style={{ display: 'flex', marginLeft: 14, fontSize: 34, fontWeight: 700, letterSpacing: -0.8 }}>
                 <div style={{ display: 'flex', color: '#1f2937' }}>Staff</div>
                 <div style={{ display: 'flex', color: '#3b82f6' }}>Now</div>

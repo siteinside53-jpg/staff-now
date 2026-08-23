@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/ui/avatar';
 import { CreditsProvider } from '@/components/credits/credits-context';
 import { CallCenter } from '@/components/video/call-center';
+import { StaffNowLogo } from '@/components/staffnow-logo';
 
 // ΠΡΟΣΟΧΗ στη σειρά: η κάτω μπάρα του κινητού δείχνει τα ΠΡΩΤΑ ΠΕΝΤΕ
 // (`navItems.slice(0, 5)` πιο κάτω). Οι «Προσλήψεις» και οι «Αξιολογήσεις»
@@ -239,9 +240,8 @@ export default function DashboardLayout({
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-gray-200 bg-white lg:flex">
         {/* Logo + Notification bell */}
         <div className="flex h-16 items-center justify-between border-b px-6">
-          <Link href="/" className="inline-flex items-center gap-2 text-xl font-extrabold">
-            <img src="/staffnow-logo.png" alt="StaffNow" className="h-9 w-9 rounded-full" />
-            <span><span className="text-gray-900">Staff</span><span className="text-blue-500">Now</span></span>
+          <Link href="/">
+            <StaffNowLogo size="lg" />
           </Link>
           {/* Notification bell */}
           <div className="relative">
@@ -424,9 +424,8 @@ export default function DashboardLayout({
 
       {/* Mobile header */}
       <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b bg-white px-4 lg:hidden">
-        <Link href="/" className="inline-flex items-center gap-2 text-lg font-extrabold">
-          <img src="/staffnow-logo.png" alt="StaffNow" className="h-8 w-8 rounded-full" />
-          <span><span className="text-gray-800">Staff</span><span className="text-blue-500">Now</span></span>
+        <Link href="/">
+          <StaffNowLogo size="md" />
         </Link>
         <div className="flex items-center gap-2">
           {/* Notification bell with dropdown */}

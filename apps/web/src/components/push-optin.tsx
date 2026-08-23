@@ -20,6 +20,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { API_URL } from '@/lib/config';
+import { StaffNowLogo } from '@/components/staffnow-logo';
 
 const STORAGE_KEY = 'staffnow_push_optin';
 const DELAY_MS = 5000;
@@ -171,13 +172,7 @@ export function PushOptIn() {
       className="fixed left-1/2 top-4 z-[90] -translate-x-1/2 px-4 pointer-events-none"
     >
       <div className="flex items-center gap-3 rounded-2xl bg-white shadow-xl border border-gray-200 ring-1 ring-black/5 px-4 py-3 pointer-events-auto max-w-md animate-[slideDown_0.3s_ease-out]">
-        <div className="flex flex-shrink-0 items-center gap-1.5">
-          <svg viewBox="0 0 32 32" className="h-6 w-6 block" aria-label="StaffNow">
-            <circle cx="16" cy="16" r="16" fill="#3b82f6" />
-            <path d="M9 16.5l4.5 4.5L23 11" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span className="text-sm font-extrabold tracking-tight"><span className="text-gray-800">Staff</span><span className="text-blue-500">Now</span></span>
-        </div>
+        <StaffNowLogo size="sm" className="flex-shrink-0" />
         <p className="text-sm font-medium text-gray-800 flex-1">{message}</p>
         <div className="flex flex-shrink-0 items-center gap-2">
           <button

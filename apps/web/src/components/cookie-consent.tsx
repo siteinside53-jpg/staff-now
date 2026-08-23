@@ -21,6 +21,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { StaffNowLogo } from '@/components/staffnow-logo';
 
 const STORAGE_KEY = 'staffnow_cookie_consent';
 
@@ -88,16 +89,7 @@ export function CookieConsent() {
       <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl bg-white shadow-2xl overflow-hidden">
         {/* HEADER — logo + title */}
         <div className="flex flex-col items-center gap-3 px-6 pt-8 pb-4">
-          <div className="flex items-center gap-2">
-            <svg viewBox="0 0 32 32" className="h-9 w-9 block" aria-label="StaffNow">
-              <circle cx="16" cy="16" r="16" fill="#3b82f6" />
-              <path d="M9 16.5l4.5 4.5L23 11" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span className="text-2xl font-extrabold tracking-tight">
-              <span className="text-gray-800">Staff</span>
-              <span className="text-blue-500">Now</span>
-            </span>
-          </div>
+          <StaffNowLogo size="xl" />
           <h2 className="text-center text-xl font-bold text-gray-900 sm:text-2xl">
             Σεβόμαστε την ιδιωτικότητά σας
           </h2>

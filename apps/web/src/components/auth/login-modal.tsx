@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
+import { StaffNowMark } from '@/components/staffnow-logo';
 
 // ==================== TYPES ====================
 
@@ -264,7 +265,7 @@ function AuthModal({ onClose, authMode, setAuthMode }: AuthModalProps) {
 
         {/* Logo above card */}
         <div className="mb-5 flex flex-col items-center">
-          <img src="/staffnow-logo.png" alt="StaffNow" className="h-16 w-16 rounded-full shadow-2xl" />
+          <StaffNowMark className="h-16 w-16 drop-shadow-2xl" />
           <p className="mt-2 text-base font-extrabold text-white drop-shadow-lg">
             <span>Staff</span>
             <span className="text-blue-300">Now</span>

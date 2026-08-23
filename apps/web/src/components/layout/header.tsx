@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useLoginModal } from '@/components/auth/login-modal';
 import { TaskNowMark } from '@/components/tasknow/logo';
+import { StaffNowLogo } from '@/components/staffnow-logo';
 
 const NAV_LINKS: { href: string; label: string; accent?: boolean }[] = [
   { href: '/how-it-works', label: 'Πώς λειτουργεί' },
@@ -20,17 +21,9 @@ const MOBILE_EXTRA_LINKS = [
   { href: '/pricing', label: 'Τιμολόγηση' },
 ];
 
-function StaffNowLogo({ light = false }: { light?: boolean }) {
-  return (
-    <span className="flex items-center gap-2 text-xl font-extrabold tracking-tight">
-      <svg viewBox="0 0 32 32" className="h-6 w-6 block" aria-label="StaffNow">
-        <circle cx="16" cy="16" r="16" fill="#3b82f6" />
-        <path d="M9 16.5l4.5 4.5L23 11" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      <span><span className={light ? 'text-white' : 'text-gray-800'}>Staff</span><span className="text-blue-500">Now</span></span>
-    </span>
-  );
-}
+// Το σήμα ζει πια σε ΕΝΑ αρχείο (components/staffnow-logo.tsx) — εδώ υπήρχε
+// το ένα από τα επτά αντίγραφά του. Η επανεξαγωγή από κάτω μένει ώστε να μη
+// χρειαστεί να αλλάξει όποιος το εισάγει από εδώ.
 
 function Header() {
   const { user, logout } = useAuth();
