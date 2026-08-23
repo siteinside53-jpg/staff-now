@@ -29,6 +29,7 @@ export default function InterestsPage() {
   const [interests, setInterests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [liking, setLiking] = useState<string | null>(null);
+  const [dismissing, setDismissing] = useState<string | null>(null);
   const [viewingProfileId, setViewingProfileId] = useState<string | null>(null);
   const [viewingBusinessId, setViewingBusinessId] = useState<string | null>(null);
 
@@ -76,6 +77,50 @@ export default function InterestsPage() {
       toast.error('Κάτι πήγε στραβά');
     } finally {
       setLiking(null);
+    }
+  };
+
+  /*
+    «Όχι, ευχαριστώ».
+
+    ΓΙΑΤΙ ΧΡΕΙΑΖΟΤΑΝ: υπήρχαν μόνο «δες προφίλ» και «✓ ενδιαφέρομαι». Ό,τι δεν
+    σε ενδιέφερε έμενε στη λίστα για πάντα, οπότε η λίστα σταματούσε να είναι
+    «τι πρέπει να απαντήσω» και γινόταν σωρός. Τα αιτήματα του Ιουλίου που
+    ξέμειναν είναι ακριβώς αυτό.
+
+    ΦΕΥΓΕΙ ΑΜΕΣΩΣ ΑΠΟ ΤΗΝ ΟΘΟΝΗ, πριν απαντήσει ο server: το πάτημα πρέπει να
+    δίνει αίσθηση καθαρίσματος. Αν ο server δεν το δεχτεί, η κάρτα επιστρέφει
+    στη θέση της και το λέμε — δεν κρύβουμε αποτυχία.
+
+    ΜΕ ΑΝΑΙΡΕΣΗ: η απόρριψη είναι ένα κλικ και γίνεται και κατά λάθος. Δεν
+    ειδοποιείται ο άλλος με τίποτα.
+  */
+  const handleDismiss = async (interest: any) => {
+    const swipeId = interest.swipe_id;
+    setDismissing(swipeId);
+    setInterests((prev) => prev.filter((i) => i.swipe_id !== swipeId));
+    try {
+      await (api as any).interests.dismiss(swipeId);
+      toast.success('Το αίτημα αφαιρέθηκε', {
+        action: {
+          label: 'Αναίρεση',
+          onClick: async () => {
+            try {
+              await (api as any).interests.undismiss(swipeId);
+              setInterests((prev) =>
+                prev.some((i) => i.swipe_id === swipeId) ? prev : [interest, ...prev],
+              );
+            } catch {
+              toast.error('Δεν έγινε η αναίρεση');
+            }
+          },
+        },
+      });
+    } catch {
+      setInterests((prev) => (prev.some((i) => i.swipe_id === swipeId) ? prev : [interest, ...prev]));
+      toast.error('Δεν αφαιρέθηκε — δοκίμασε ξανά');
+    } finally {
+      setDismissing(null);
     }
   };
 
@@ -163,10 +208,24 @@ export default function InterestsPage() {
                             💬
                           </a>
                         ) : (
-                          <button onClick={() => handleLikeBack(item)} disabled={liking === item.swiper_id}
-                            className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-                            {liking === item.swiper_id ? '…' : '✓'}
-                          </button>
+                          <>
+                            {/* Το «όχι» αριστερά από το «ναι», ουδέτερο και
+                                διακριτικό — δεν πρέπει να μοιάζει ισοδύναμο
+                                με το κουμπί που φτιάχνει match. */}
+                            <button
+                              onClick={() => handleDismiss(item)}
+                              disabled={dismissing === item.swipe_id}
+                              title="Δεν με ενδιαφέρει"
+                              aria-label="Δεν με ενδιαφέρει"
+                              className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-gray-500 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                            >
+                              {dismissing === item.swipe_id ? '…' : '✕'}
+                            </button>
+                            <button onClick={() => handleLikeBack(item)} disabled={liking === item.swiper_id}
+                              className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+                              {liking === item.swiper_id ? '…' : '✓'}
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -207,10 +266,24 @@ export default function InterestsPage() {
                             💬
                           </a>
                         ) : (
-                          <button onClick={() => handleLikeBack(item)} disabled={liking === item.swiper_id}
-                            className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-                            {liking === item.swiper_id ? '…' : '✓'}
-                          </button>
+                          <>
+                            {/* Το «όχι» αριστερά από το «ναι», ουδέτερο και
+                                διακριτικό — δεν πρέπει να μοιάζει ισοδύναμο
+                                με το κουμπί που φτιάχνει match. */}
+                            <button
+                              onClick={() => handleDismiss(item)}
+                              disabled={dismissing === item.swipe_id}
+                              title="Δεν με ενδιαφέρει"
+                              aria-label="Δεν με ενδιαφέρει"
+                              className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-gray-500 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                            >
+                              {dismissing === item.swipe_id ? '…' : '✕'}
+                            </button>
+                            <button onClick={() => handleLikeBack(item)} disabled={liking === item.swiper_id}
+                              className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-2 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+                              {liking === item.swiper_id ? '…' : '✓'}
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>

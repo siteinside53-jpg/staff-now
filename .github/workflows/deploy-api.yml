@@ -25,6 +25,31 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # ── Αλλαγές βάσης, ΠΡΙΝ ανέβει ο νέος κώδικας ────────────────────────
+      #
+      # ΓΙΑΤΙ ΥΠΑΡΧΕΙ: ο νέος κώδικας μπορεί να ρωτάει πίνακα που δεν υπάρχει
+      # ακόμη στην παραγωγή. Αν ανέβαινε πρώτος, η σελίδα που τον χρησιμοποιεί
+      # θα έσπαγε για όλους. Τρέχοντας πρώτα τη βάση, αν κάτι πάει στραβά
+      # σταματάει ΕΔΩ και ο παλιός, δουλεύων κώδικας μένει στη θέση του.
+      #
+      # ΓΙΑΤΙ ΟΝΟΜΑΣΤΙΚΑ ΚΑΙ ΟΧΙ «ΟΛΑ ΤΑ ΑΡΧΕΙΑ»: έξι από τα παλιά αρχεία
+      # περιέχουν εντολές διαγραφής. Ένα «τρέξε τα όλα» πάνω σε πραγματικά
+      # δεδομένα θα ήταν καταστροφικό. Γι' αυτό γράφεται ρητά ποιο τρέχει.
+      #
+      # ΟΤΑΝ ΠΡΟΣΘΕΤΕΙΣ ΚΑΙΝΟΥΡΓΙΟ: βάλε το εδώ, και γράψ' το ΜΟΝΟ με
+      # CREATE ... IF NOT EXISTS ώστε να αντέχει δεύτερο τρέξιμο.
+      - name: Apply new database migrations
+        working-directory: apps/api
+        run: |
+          for f in migrations/0056_interest_dismissals.sql; do
+            echo "→ $f"
+            npx wrangler d1 execute staffnow-db-prod \
+              --remote --env production --config ./wrangler.toml --file="$f"
+          done
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 19a8ae246fe10ce24660b285944ba774
+
       - name: Deploy to production
         working-directory: apps/api
         run: npx wrangler deploy --env production

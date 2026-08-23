@@ -79,6 +79,10 @@ export class StaffNowApi {
     received: () => this.client.get<any>('/interests/received'),
     likeBack: (swiperId: string) => this.client.post<any>(`/interests/like-back/${swiperId}`),
     sent: () => this.client.get<any>('/interests/sent'),
+    /** «Όχι, ευχαριστώ» — κρύβει το αίτημα. Ο άλλος δεν ειδοποιείται. */
+    dismiss: (swipeId: string) => this.client.post<any>(`/interests/dismiss/${swipeId}`),
+    /** Αναίρεση της απόρριψης — το αίτημα ξαναγυρνάει στη λίστα. */
+    undismiss: (swipeId: string) => this.client.delete<any>(`/interests/dismiss/${swipeId}`),
   };
 
   jobs = {

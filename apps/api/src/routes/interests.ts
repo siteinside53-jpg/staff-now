@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { Env, AuthUser } from '../types';
 import { requireAuth } from '../middleware/auth';
 import { checkActiveMatchesLimit } from '../middleware/subscription';
-import { success } from '../lib/response';
+import { success, error } from '../lib/response';
 import { generateId } from '../lib/id';
 import { notifyUser } from '../lib/notify';
 
@@ -35,10 +35,11 @@ interests.get('/received', requireAuth, async (c) => {
          WHERE s.target_id = ? AND s.target_type = 'worker' AND s.direction = 'like'
            AND s.swiper_id NOT IN (SELECT blocked_id FROM blocks WHERE blocker_id = ?)
            AND s.swiper_id NOT IN (SELECT blocker_id FROM blocks WHERE blocked_id = ?)
+           AND s.id NOT IN (SELECT swipe_id FROM interest_dismissals WHERE user_id = ?)
          ORDER BY s.created_at DESC
          LIMIT 50`
       )
-      .bind(user.id, user.id, user.id, user.id, user.id, user.id)
+      .bind(user.id, user.id, user.id, user.id, user.id, user.id, user.id)
       .all();
     return success(c, results.results);
   } else {
@@ -63,10 +64,11 @@ interests.get('/received', requireAuth, async (c) => {
            AND s.direction = 'like'
            AND s.swiper_id NOT IN (SELECT blocked_id FROM blocks WHERE blocker_id = ?)
            AND s.swiper_id NOT IN (SELECT blocker_id FROM blocks WHERE blocked_id = ?)
+           AND s.id NOT IN (SELECT swipe_id FROM interest_dismissals WHERE user_id = ?)
          ORDER BY (jl.listing_kind = 'shift') DESC, s.created_at DESC
          LIMIT 50`
       )
-      .bind(user.id, user.id, user.id, user.id, user.id, user.id)
+      .bind(user.id, user.id, user.id, user.id, user.id, user.id, user.id)
       .all();
     return success(c, results.results);
   }
@@ -128,6 +130,65 @@ interests.delete('/cancel/:swipeId', requireAuth, async (c) => {
 
   await db.prepare('DELETE FROM swipes WHERE id = ? AND swiper_id = ?').bind(swipeId, user.id).run();
   return c.json({ success: true, data: { cancelled: true } });
+});
+
+/*
+  POST /dismiss/:swipeId — «όχι, ευχαριστώ».
+
+  Ο ΠΑΡΑΛΗΠΤΗΣ κρύβει ένα αίτημα που δεν τον ενδιαφέρει. Δεν σβήνεται τίποτα
+  ξένο: η γραμμή του άλλου μένει ακέραιη, εμείς απλώς σημειώνουμε ότι εγώ την
+  προσπέρασα. Γι' αυτό αναιρείται καθαρά με DELETE στην ίδια διεύθυνση.
+
+  ΔΕΝ ΕΙΔΟΠΟΙΕΙΤΑΙ Ο ΑΛΛΟΣ. Ένα «σε απέρριψαν» δεν βοηθάει κανέναν και κάνει
+  τον κόσμο να μη ξαναστείλει ενδιαφέρον πουθενά. Το αίτημα απλώς μένει
+  αναπάντητο, όπως θα ήταν και χωρίς το κουμπί.
+*/
+interests.post('/dismiss/:swipeId', requireAuth, async (c) => {
+  const user = c.get('user');
+  const swipeId = c.req.param('swipeId');
+  const db = c.env.DB;
+
+  // Το αίτημα πρέπει να απευθύνεται ΣΕ ΕΜΕΝΑ — είτε απευθείας στο προφίλ μου
+  // (είμαι εργαζόμενος), είτε σε μια αγγελία μου (είμαι επιχείρηση).
+  const mine = await db
+    .prepare(
+      `SELECT s.id FROM swipes s
+        WHERE s.id = ? AND s.direction = 'like'
+          AND (
+            (s.target_type = 'worker' AND s.target_id = ?)
+            OR (s.target_type = 'job' AND s.target_id IN (
+                  SELECT jl.id FROM job_listings jl
+                    JOIN business_profiles bp ON bp.id = jl.business_id
+                   WHERE bp.user_id = ?))
+          )
+        LIMIT 1`
+    )
+    .bind(swipeId, user.id, user.id)
+    .first();
+
+  if (!mine) return error(c, 'Δεν βρέθηκε', 404);
+
+  // Δεύτερο πάτημα δεν είναι σφάλμα: το αποτέλεσμα είναι ήδη αυτό που ζητάει.
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO interest_dismissals (id, user_id, swipe_id, created_at)
+       VALUES (?, ?, ?, ?)`
+    )
+    .bind(generateId(), user.id, swipeId, new Date().toISOString())
+    .run();
+
+  return success(c, { dismissed: true });
+});
+
+// DELETE /dismiss/:swipeId — αναίρεση: το αίτημα ξαναγυρνάει στη λίστα.
+interests.delete('/dismiss/:swipeId', requireAuth, async (c) => {
+  const user = c.get('user');
+  const db = c.env.DB;
+  await db
+    .prepare('DELETE FROM interest_dismissals WHERE user_id = ? AND swipe_id = ?')
+    .bind(user.id, c.req.param('swipeId'))
+    .run();
+  return success(c, { restored: true });
 });
 
 // POST /like-back/:swiperId — create mutual match from interest
