@@ -1,22 +1,33 @@
 'use client';
 
-import { useState } from 'react';
-import { Modal, MockNote } from './modal';
+import { useEffect, useState } from 'react';
+import { Modal } from './modal';
+import { api } from '@/lib/api';
 import { CATEGORY_BY_KEY, REQUIRED_LICENCE, isLicensedCategory } from './data';
 import { addOffer, type MockTask } from './mock-store';
 
 /**
- * ΜΑΚΕΤΑ — η ροή «κάνω προσφορά».
+ * Η ροή «κάνω προσφορά».
  *
- * Δείχνει τα πράγματα που ζητήθηκαν ρητά:
- *  1. Η επαλήθευση ζητιέται ΤΗ ΣΤΙΓΜΗ της πρώτης προσφοράς, όχι στην είσοδο.
+ *  1. Η επαλήθευση κινητού ζητιέται ΤΗ ΣΤΙΓΜΗ της πρώτης προσφοράς, όχι στην
+ *     είσοδο.
  *  2. Σε δουλειές που θέλουν άδεια (ηλεκτρολογικά, υδραυλικά, αέριο, ψύξη)
  *     δεν προχωράει προσφορά χωρίς ανέβασμα άδειας. Η άδεια μένει
  *     «δηλωμένη» μέχρι να την ελέγξει άνθρωπος.
  *  3. Η δήλωση νομιμότητας καταγράφεται πριν σταλεί οτιδήποτε.
  *
- * Τίποτα δεν φεύγει από τον browser: καμία κλήση στο API, κανένα αρχείο δεν
- * ανεβαίνει πουθενά — κρατάμε μόνο το όνομα του αρχείου.
+ * ⚠️ ΤΟ ΒΗΜΑ ΤΟΥ ΚΙΝΗΤΟΥ ΗΤΑΝ ΘΕΑΤΡΟ — ΚΑΙ ΕΛΕΓΕ ΨΕΜΑΤΑ ΣΤΟΝ ΧΡΗΣΤΗ.
+ *
+ * Δεν ρωτούσε ΠΟΤΕ τον server. Το «Στείλε μου κωδικό» απλώς άλλαζε οθόνη, και
+ * η επιβεβαίωση δεχόταν ΟΠΟΙΟΝΔΗΠΟΤΕ τετραψήφιο αριθμό και έγραφε ότι το
+ * κινητό επαληθεύτηκε. Ο πραγματικός κωδικός του server είναι ΕΞΑΨΗΦΙΟΣ —
+ * ούτε το μήκος δεν συμφωνούσε.
+ *
+ * Τώρα περνάει από τις ίδιες ακριβώς διαδρομές με τη σελίδα επαλήθευσης του
+ * λογαριασμού. Και όταν δεν υπάρχει πάροχος SMS — που είναι η σημερινή
+ * κατάσταση στην παραγωγή — ΔΕΝ λέμε ότι στείλαμε κωδικό και ΔΕΝ λέμε ότι
+ * επαληθεύτηκε: κρατάμε το νούμερο ως «δηλωμένο», ακριβώς όπως γίνεται ήδη με
+ * την άδεια, και το γράφουμε καθαρά στην οθόνη.
  */
 
 type Step = 'phone' | 'code' | 'licence' | 'offer' | 'done';
@@ -55,6 +66,16 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
   const [declared, setDeclared] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /** Όσο μιλάμε με τον server, τα κουμπιά κλειδώνουν — αλλιώς διπλά SMS. */
+  const [busy, setBusy] = useState(false);
+  /** Ρωτάμε τον server τι ισχύει ήδη, πριν ζητήσουμε οτιδήποτε από τον χρήστη. */
+  const [loadingStatus, setLoadingStatus] = useState(true);
+  /**
+   * `null` όσο δεν ξέρουμε. `false` σημαίνει ότι δεν υπάρχει πάροχος SMS, οπότε
+   * το νούμερο μένει «δηλωμένο» και δεν παριστάνουμε καμία επαλήθευση.
+   */
+  const [smsAvailable, setSmsAvailable] = useState<boolean | null>(null);
+
   const cat = CATEGORY_BY_KEY[task.category];
   const needsLicence = isLicensedCategory(task.category);
   const licenceLabel = REQUIRED_LICENCE[task.category] ?? 'Επαγγελματική άδεια';
@@ -63,22 +84,86 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
     setStep(needsLicence ? 'licence' : 'offer');
   }
 
-  function sendCode() {
-    if (!GREEK_MOBILE.test(phone.replace(/\s+/g, ''))) {
+  /*
+    ΑΝ ΤΟ ΚΙΝΗΤΟ ΕΙΝΑΙ ΗΔΗ ΕΠΙΒΕΒΑΙΩΜΕΝΟ, ΔΕΝ ΤΟ ΞΑΝΑΖΗΤΑΜΕ.
+
+    Το λέει ρητά η οθόνη: «γίνεται μία φορά». Πριν, το ζητούσε σε κάθε προσφορά,
+    επειδή δεν ρωτούσε ποτέ τον server τι ισχύει.
+  */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = (await (api as any).workers.getVerification()) as any;
+        const d = res?.data || {};
+        if (cancelled) return;
+        setSmsAvailable(!!d.smsAvailable);
+        if (d.phone) {
+          setPhone(String(d.phone));
+        }
+        if (d.phoneConfirmed) afterCode();
+      } catch {
+        // Δεν ξέρουμε — δείχνουμε κανονικά το βήμα του κινητού.
+      } finally {
+        if (!cancelled) setLoadingStatus(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Τρέχει μία φορά, με το άνοιγμα του παραθύρου.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function sendCode() {
+    const clean = phone.replace(/\s+/g, '');
+    if (!GREEK_MOBILE.test(clean)) {
       setError('Γράψε κινητό που ξεκινάει με 69 και έχει 10 ψηφία.');
       return;
     }
     setError(null);
-    setStep('code');
+    setBusy(true);
+    try {
+      const res = (await (api as any).auth.sendPhoneCode({ phone: clean })) as any;
+      const d = res?.data || {};
+      if (d.smsAvailable === false) {
+        /*
+          ΔΕΝ ΥΠΑΡΧΕΙ ΠΑΡΟΧΟΣ SMS — ΚΑΙ ΤΟ ΛΕΜΕ.
+
+          Ο server κράτησε το νούμερο και δεν έστειλε τίποτα. Το να δείχναμε εδώ
+          οθόνη κωδικού θα ήταν ακριβώς το ψέμα που είχαμε. Προχωράμε με το
+          κινητό ΔΗΛΩΜΕΝΟ, όπως ακριβώς προχωράει και η άδεια.
+        */
+        setSmsAvailable(false);
+        afterCode();
+        return;
+      }
+      setSmsAvailable(true);
+      setStep('code');
+    } catch (err: any) {
+      setError(err?.message || 'Δεν στάλθηκε ο κωδικός. Δοκίμασε ξανά.');
+    } finally {
+      setBusy(false);
+    }
   }
 
-  function confirmCode() {
-    if (!/^\d{4}$/.test(code.trim())) {
-      setError('Ο κωδικός είναι 4 ψηφία.');
+  async function confirmCode() {
+    // Ο κωδικός του server είναι ΕΞΑΨΗΦΙΟΣ. Η μακέτα ζητούσε τέσσερα ψηφία.
+    if (!/^\d{6}$/.test(code.trim())) {
+      setError('Ο κωδικός είναι 6 ψηφία.');
       return;
     }
     setError(null);
-    afterCode();
+    setBusy(true);
+    try {
+      await (api as any).auth.confirmPhone({ code: code.trim() });
+      afterCode();
+    } catch (err: any) {
+      // Λάθος κωδικός σημαίνει ΛΑΘΟΣ — δεν προχωράμε.
+      setError(err?.message || 'Λάθος κωδικός.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   function confirmLicence() {
@@ -90,7 +175,7 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
     setStep('offer');
   }
 
-  function submitOffer() {
+  async function submitOffer() {
     const value = Number(amount.replace(',', '.'));
     if (!Number.isFinite(value) || value <= 0) {
       setError('Γράψε πόσα ζητάς, σε ευρώ.');
@@ -109,12 +194,28 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
       return;
     }
     setError(null);
-    addOffer(task.id, {
-      amount: value,
-      message: message.trim(),
-      licenceFileName: licenceFile ?? undefined,
-    });
-    setStep('done');
+    /*
+      ΠΕΡΙΜΕΝΟΥΜΕ ΤΟΝ SERVER ΠΡΙΝ ΠΟΥΜΕ «ΣΤΑΛΘΗΚΕ».
+
+      Πριν, το `addOffer` έφευγε χωρίς αναμονή και η οθόνη πήγαινε κατευθείαν
+      στο «έτοιμο». Ο server όμως απορρίπτει προσφορές για πραγματικούς λόγους
+      — δείγμα, κλειστή δουλειά, δική σου δουλειά, δεύτερη προσφορά, άδεια που
+      λείπει. Σε καθεμιά από αυτές ο χρήστης έβλεπε επιβεβαίωση για προσφορά
+      που δεν υπήρχε πουθενά, και περίμενε απάντηση που δεν θα ερχόταν ποτέ.
+    */
+    setBusy(true);
+    try {
+      await addOffer(task.id, {
+        amount: value,
+        message: message.trim(),
+        licenceFileName: licenceFile ?? undefined,
+      });
+      setStep('done');
+    } catch (err: any) {
+      setError(err?.message || 'Η προσφορά δεν στάλθηκε. Δοκίμασε ξανά.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -170,30 +271,38 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
           <button
             type="button"
             onClick={sendCode}
-            className="w-full rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-600"
+            disabled={busy || loadingStatus}
+            className="w-full rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Στείλε μου κωδικό
+            {busy ? 'Στέλνουμε…' : 'Στείλε μου κωδικό'}
           </button>
 
-          <MockNote>
-            εδώ θα έφευγε αληθινό SMS. Δεν στέλνεται τίποτα και δεκτός είναι
-            οποιοσδήποτε τετραψήφιος κωδικός.
-          </MockNote>
+          {/* Το λέμε ΠΡΙΝ πατήσει, όχι αφού. */}
+          {smsAvailable === false && (
+            <p className="rounded-xl bg-gray-50 px-4 py-3 text-xs leading-relaxed text-gray-600">
+              Δεν στέλνουμε ακόμη SMS. Το νούμερο κρατιέται στον λογαριασμό σου ως{' '}
+              <strong>δηλωμένο</strong> και επιβεβαιώνεται από εμάς πριν κλειδώσει η
+              δουλειά. Δεν εμφανίζεται ως επαληθευμένο σε κανέναν.
+            </p>
+          )}
         </div>
       )}
 
       {/* Βήμα 2 — κωδικός */}
       {step === 'code' && (
         <div className="mt-5 space-y-4">
-          <Field label="Ο κωδικός που έλαβες" hint={`Στάλθηκε στο ${phone.replace(/\s+/g, '')}.`}>
+          <Field
+            label="Ο κωδικός που έλαβες"
+            hint={`Στάλθηκε με SMS στο ${phone.replace(/\s+/g, '')}. Ισχύει για 15 λεπτά.`}
+          >
             <input
               type="text"
               inputMode="numeric"
-              maxLength={4}
+              maxLength={6}
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-              placeholder="1234"
-              className={inputClass + ' text-center text-lg tracking-[0.5em]'}
+              placeholder="123456"
+              className={inputClass + ' text-center text-lg tracking-[0.4em]'}
             />
           </Field>
 
@@ -202,9 +311,10 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
           <button
             type="button"
             onClick={confirmCode}
-            className="w-full rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-600"
+            disabled={busy}
+            className="w-full rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Επιβεβαίωση
+            {busy ? 'Ελέγχουμε…' : 'Επιβεβαίωση'}
           </button>
           <button
             type="button"
@@ -263,10 +373,13 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
             Συνέχεια
           </button>
 
-          <MockNote>
-            το αρχείο ΔΕΝ ανεβαίνει πουθενά. Κρατάμε μόνο το όνομά του, για να
-            φανεί η ροή.
-          </MockNote>
+          {/* Αυτό εξακολουθεί να ισχύει: το αρχείο δεν αποθηκεύεται ακόμη. Το
+              λέμε, αντί να αφήσουμε τον χρήστη να νομίζει ότι το στείλαμε. */}
+          <p className="rounded-xl bg-gray-50 px-4 py-3 text-xs leading-relaxed text-gray-600">
+            Προς το παρόν κρατάμε μόνο το <strong>όνομα</strong> του αρχείου, όχι το
+            ίδιο το αρχείο. Η άδεια καταγράφεται ως «δηλωμένη» και θα σου τη
+            ζητήσουμε ξανά πριν κλειδώσει η δουλειά.
+          </p>
         </div>
       )}
 
@@ -274,9 +387,22 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
       {step === 'offer' && (
         <div className="mt-5 space-y-4">
           <div className="flex flex-wrap gap-2">
-            <span className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
-              ✓ Το κινητό σου επαληθεύτηκε
-            </span>
+            {/*
+              ΤΟ ΠΡΑΣΙΝΟ ✓ ΜΠΑΙΝΕΙ ΜΟΝΟ ΟΤΑΝ ΟΝΤΩΣ ΕΓΙΝΕ ΕΠΑΛΗΘΕΥΣΗ.
+
+              Ήταν σταθερά γραμμένο «επαληθεύτηκε», ό,τι κι αν είχε γίνει πριν.
+              Χωρίς πάροχο SMS δεν επαληθεύεται τίποτα, οπότε το σήμα λέει την
+              αλήθεια: δηλωμένο. Ίδια λογική με την άδεια, δίπλα δίπλα.
+            */}
+            {smsAvailable ? (
+              <span className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
+                ✓ Το κινητό σου επαληθεύτηκε
+              </span>
+            ) : (
+              <span className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                Κινητό: δηλωμένο, σε έλεγχο
+              </span>
+            )}
             {licenceFile && (
               <span className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
                 Άδεια: δηλωμένη, σε έλεγχο
@@ -329,9 +455,10 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
           <button
             type="button"
             onClick={submitOffer}
-            className="w-full rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-500"
+            disabled={busy}
+            className="w-full rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Στείλε την προσφορά
+            {busy ? 'Στέλνουμε…' : 'Στείλε την προσφορά'}
           </button>
         </div>
       )}
@@ -350,11 +477,13 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
             </p>
           </div>
 
-          <MockNote>
-            η προσφορά κρατήθηκε μόνο σε αυτόν τον browser, ώστε να δεις τη
-            συνέχεια. Στην πραγματική έκδοση θα κρατούσαμε και τη δήλωσή σου με
-            ημερομηνία και διεύθυνση σύνδεσης.
-          </MockNote>
+          {/* Αυτό ΔΕΝ ισχύει πια: η προσφορά φεύγει κανονικά στον server και τη
+              βλέπει ο άνθρωπος που ανέβασε τη δουλειά. Το παλιό κείμενο έλεγε
+              στον χρήστη ότι η αληθινή του προσφορά ήταν εικονική. */}
+          <p className="rounded-xl bg-gray-50 px-4 py-3 text-xs leading-relaxed text-gray-600">
+            Η προσφορά στάλθηκε και τη βλέπει αυτός που ανέβασε τη δουλειά. Θα σε
+            ειδοποιήσουμε αν σε διαλέξει.
+          </p>
 
           <button
             type="button"
