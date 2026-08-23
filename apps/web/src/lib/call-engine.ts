@@ -655,6 +655,35 @@ export class CallEngine {
     try {
       const res = await this.api.poll(callId, 0);
       offer = res?.data?.offer || null;
+
+      /*
+        ΕΔΩ ΧΑΝΟΤΑΝ Η ΚΛΗΣΗ.
+
+        Αυτό το πρώτο ρώτημα δεν φέρνει μόνο την πρόταση σύνδεσης — φέρνει και
+        ΟΛΟΥΣ τους δρόμους (ICE candidates) που έχει ήδη στείλει ο καλών όσο
+        χτυπούσε. Ο κώδικας κρατούσε μόνο τον δείκτη, δηλαδή έλεγε στον server
+        «τα είδα» και τα πετούσε: η σύνδεση δεν είχε φτιαχτεί ακόμη (γίνεται
+        δέκα γραμμές πιο κάτω), οπότε δεν είχε πού να μπουν.
+
+        Αποτέλεσμα: ο παραλήπτης έπαιρνε ΜΟΝΟ όσους δρόμους έφταναν ΜΕΤΑ την
+        απάντηση. Ο καλών όμως τους μαζεύει μέσα στο πρώτο δευτερόλεπτο και
+        τελειώνει — άρα συνήθως δεν έμενε κανένας. Η κλήση χτυπούσε, απαντιόταν,
+        κολλούσε στο «σύνδεση» και πέθαινε.
+
+        Τώρα μπαίνουν στην ουρά και προστίθενται μόλις στηθεί η σύνδεση
+        (drainEarly, πιο κάτω).
+      */
+      const early = res?.data?.candidates;
+      if (Array.isArray(early)) {
+        for (const raw of early) {
+          try {
+            this.earlyCandidates.push(typeof raw === 'string' ? JSON.parse(raw) : raw);
+          } catch {
+            /* ένας χαλασμένος δρόμος δεν χαλάει την κλήση */
+          }
+        }
+      }
+
       if (typeof res?.data?.cursor === 'number') this.cursor = res.data.cursor;
       if (res?.data?.status === 'ended') {
         this.finish((res.data.endReason as CallEndReason) || 'hangup', false);
