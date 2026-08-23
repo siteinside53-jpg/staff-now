@@ -132,6 +132,12 @@ export function TaskRow({
                 <span className="relative z-10 flex-shrink-0 rounded-full bg-emerald-50 px-4 py-1.5 text-xs font-bold text-emerald-700">
                   ✓ Έστειλες προσφορά
                 </span>
+              ) : task.isSample ? (
+                /* Στο παράδειγμα ΔΕΝ μπαίνει κουμπί προσφοράς. Ένα κουμπί που
+                   δεν οδηγεί πουθενά είναι χειρότερο από κανένα κουμπί. */
+                <span className="relative z-10 flex-shrink-0 rounded-full bg-gray-100 px-4 py-1.5 text-xs font-bold text-gray-500">
+                  Παράδειγμα
+                </span>
               ) : (
                 <button
                   type="button"
@@ -144,8 +150,13 @@ export function TaskRow({
             </div>
 
             {/* Ο περιορισμός της άδειας δεν κρύβεται ποτέ. */}
-            {(licensed || task.urgent || task.remote || task.mine) && (
+            {(licensed || task.urgent || task.remote || task.mine || task.isSample) && (
               <div className="mt-2 flex flex-wrap gap-1">
+                {task.isSample && (
+                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600">
+                    δείγμα — έτσι δείχνει μια μικροδουλειά
+                  </span>
+                )}
                 {licensed && (
                   <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700">
                     θέλει άδεια

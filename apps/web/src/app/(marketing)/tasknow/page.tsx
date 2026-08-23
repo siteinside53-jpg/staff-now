@@ -3,7 +3,6 @@ import { TaskNowDemo } from '@/components/tasknow/demo-entry';
 import { HeroCtas } from '@/components/tasknow/hero-ctas';
 import { LEVELS } from '@/components/tasknow/data';
 import { TaskNowLogo } from '@/components/tasknow/logo';
-import { TASKNOW_DEMO } from '@/components/tasknow/flags';
 
 /**
  * ΜΑΚΕΤΑ — TaskNow (μικροδουλειές).
@@ -33,78 +32,16 @@ export const metadata = {
  * δουλεύει: δωρεάν λογαριασμός. Ο λογαριασμός χρειάζεται ούτως ή άλλως για
  * να ανεβάσεις ή να αναλάβεις — οπότε δεν είναι παρακαμπτήριος.
  */
-function ComingSoon() {
-  return (
-    <div className="rounded-2xl border border-amber-200 bg-white p-6 text-center sm:p-10">
-      <div className="flex justify-center">
-        <TaskNowLogo />
-      </div>
-
-      <span className="mt-4 inline-flex items-center gap-2 rounded-full bg-amber-50 px-4 py-1.5 text-sm font-semibold text-amber-800">
-        Ανοίγει σύντομα στη Θεσσαλονίκη
-      </span>
-
-      <h2 className="mt-4 text-2xl font-bold leading-tight tracking-tight text-gray-900 sm:text-3xl">
-        Μικρές δουλειές που θέλουν χέρια <span className="text-amber-500">σήμερα</span>.
-      </h2>
-
-      <p className="mx-auto mt-3 max-w-xl text-base leading-relaxed text-gray-600">
-        Βόλτα με τον σκύλο, μεταφορά, καθάρισμα, θελήματα, μαστορέματα. Ανεβάζεις τι
-        θέλεις να γίνει, δέχεσαι προσφορές με ποσό, διαλέγεις ποιον εμπιστεύεσαι. Και το
-        αντίστροφο: αναλαμβάνεις μια δουλειά όταν σου χρειάζονται χρήματα.
-      </p>
-
-      <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-gray-500">
-        Δεν υπάρχει ακόμη καμία ανοιχτή μικροδουλειά — ανοίγουμε πρώτα στη Θεσσαλονίκη.
-        Με δωρεάν λογαριασμό θα είσαι από τους πρώτους που θα μπορούν να ανεβάσουν και να
-        αναλάβουν.
-      </p>
-
-      <div className="mt-6 flex flex-wrap justify-center gap-3">
-        <Link
-          href="/auth/register"
-          className="rounded-xl bg-amber-500 px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-amber-500/25 transition hover:bg-amber-600"
-        >
-          Φτιάξε δωρεάν λογαριασμό
-        </Link>
-        <Link
-          href="/find-job"
-          className="rounded-xl bg-gray-100 px-7 py-3.5 text-sm font-semibold text-gray-800 transition hover:bg-gray-200"
-        >
-          Δες τις αγγελίες εργασίας
-        </Link>
-      </div>
-    </div>
-  );
-}
 
 export default function TaskNowPage() {
   return (
     <main className="min-h-screen bg-gray-50">
-      {/* Η μαύρη γραμμή με τους ΕΣΩΤΕΡΙΚΟΥΣ συνδέσμους (πίνακας χρήστη,
-          διαχειριστικό) είναι εργαλείο δικό μας. Στο live δεν έχει καμία
-          δουλειά: ο επισκέπτης δεν πρέπει να μπορεί να πατήσει
-          «διαχειριστικό» και να δει κονσόλα. Φαίνεται μόνο τοπικά. */}
-      {TASKNOW_DEMO && (
-        <div className="bg-gray-900 px-4 py-2 text-center text-sm text-amber-300">
-          <strong className="font-semibold">ΜΑΚΕΤΑ</strong> — παραδείγματα, όχι αληθινές
-          αγγελίες.{' '}
-          <Link href="/tasknow/preview/dashboard" className="hidden underline hover:text-white sm:inline">
-            πίνακας χρήστη
-          </Link>
-          <span className="hidden sm:inline"> · </span>
-          <Link href="/tasknow/preview/admin" className="hidden underline hover:text-white sm:inline">
-            διαχειριστικό
-          </Link>
-        </div>
-      )}
-
       <h1 className="sr-only">Μικροδουλειές στη Θεσσαλονίκη — TaskNow</h1>
 
       {/* ── Οι αγγελίες, αμέσως ── */}
       <section className="pb-8">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          {TASKNOW_DEMO ? <TaskNowDemo /> : <ComingSoon />}
+          <TaskNowDemo />
         </div>
       </section>
 
@@ -143,6 +80,14 @@ export default function TaskNowPage() {
                 <span>
                   <strong>Δεν</strong> κρατάει χρήματα. Πληρώνεστε μεταξύ σας — και ο
                   καθένας έχει τις δικές του φορολογικές υποχρεώσεις.
+                </span>
+              </li>
+              <li className="flex gap-3">
+                <span aria-hidden="true">✓</span>
+                <span>
+                  <strong>Δεν κοστίζει τίποτα.</strong> Ούτε για να ανεβάσεις, ούτε για να
+                  κάνεις προσφορά, ούτε όταν κλείσει η δουλειά. Καμία προμήθεια, καμία
+                  συνδρομή, καμία κρυφή χρέωση.
                 </span>
               </li>
             </ul>
@@ -300,27 +245,25 @@ export default function TaskNowPage() {
             Κάποιος να βγάλει βόλτα τον σκύλο, να μεταφέρει έναν καναπέ, να καθαρίσει ένα
             σπίτι. Ανεβάζεις τι θέλεις, δέχεσαι προσφορές, διαλέγεις ποιον εμπιστεύεσαι.
           </p>
-          <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-800">
-            <span aria-hidden="true">📍</span>
-            Ξεκινάμε μόνο από τη Θεσσαλονίκη
+          {/* Δύο πράγματα που πρέπει να ξέρει πριν σκεφτεί οτιδήποτε άλλο:
+              πού ισχύει, και ότι δεν πληρώνει τίποτα. Το δεύτερο είναι η πιο
+              συχνή σιωπηλή ερώτηση σε κάθε τέτοια πλατφόρμα — αν δεν
+              απαντηθεί, ο κόσμος υποθέτει προμήθεια και φεύγει. */}
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+            <span className="inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-800">
+              <span aria-hidden="true">📍</span>
+              Ξεκινάμε μόνο από τη Θεσσαλονίκη
+            </span>
+            <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-800">
+              <span aria-hidden="true">✓</span>
+              Εντελώς δωρεάν — καμία προμήθεια
+            </span>
           </div>
 
           <div className="mt-6 flex justify-center">
             <HeroCtas />
           </div>
 
-          {TASKNOW_DEMO && (
-            <p className="mt-8 text-xs text-gray-400">
-              Μακέτα:{' '}
-              <Link href="/tasknow/preview/dashboard" className="underline hover:text-gray-600">
-                πίνακας χρήστη
-              </Link>{' '}
-              ·{' '}
-              <Link href="/tasknow/preview/admin" className="underline hover:text-gray-600">
-                διαχειριστικό
-              </Link>
-            </p>
-          )}
 
           <div className="mt-6">
             <Link href="/" className="text-sm font-medium text-gray-500 hover:text-gray-900">

@@ -20,7 +20,9 @@ import { Share2, Facebook, Link2, Check, MessageCircle } from 'lucide-react';
  */
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://staffnow.gr';
-const MOCK = true;
+// Οι μικροδουλειές είναι πλέον αληθινές — ζουν στη βάση, όχι στον browser.
+// Ο διακόπτης μένει γιατί τα ΠΑΡΑΔΕΙΓΜΑΤΑ σημαδεύονται ξεχωριστά, ανά αγγελία.
+const MOCK = false;
 
 export function ShareTask({
   taskId,

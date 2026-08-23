@@ -85,6 +85,47 @@ export class StaffNowApi {
     undismiss: (swipeId: string) => this.client.delete<any>(`/interests/dismiss/${swipeId}`),
   };
 
+  /**
+   * TaskNow — μικροδουλειές.
+   *
+   * `state` φέρνει με ΜΙΑ κλήση ό,τι δείχνει η οθόνη: τη δημόσια ροή, τις δικές
+   * μου δουλειές και τις δικές μου προσφορές. Πέντε ξεχωριστές κλήσεις θα
+   * έκαναν τη σελίδα να «χτίζεται» μπροστά στα μάτια του χρήστη.
+   */
+  tasknow = {
+    /** Η δημόσια ροή — δουλεύει και χωρίς σύνδεση. */
+    feed: () => this.client.get<any>('/tasknow/feed'),
+    state: () => this.client.get<any>('/tasknow/state'),
+    acceptTerms: () => this.client.post<any>('/tasknow/consent'),
+
+    create: (body: unknown) => this.client.post<any>('/tasknow/tasks', body),
+    remove: (id: string) => this.client.delete<any>(`/tasknow/tasks/${id}`),
+    pause: (id: string) => this.client.post<any>(`/tasknow/tasks/${id}/pause`),
+    resume: (id: string) => this.client.post<any>(`/tasknow/tasks/${id}/resume`),
+    cancel: (id: string, reason: string) =>
+      this.client.post<any>(`/tasknow/tasks/${id}/cancel`, { reason }),
+    complete: (id: string) => this.client.post<any>(`/tasknow/tasks/${id}/complete`),
+    declarePaid: (id: string) => this.client.post<any>(`/tasknow/tasks/${id}/paid`),
+
+    offer: (taskId: string, body: unknown) =>
+      this.client.post<any>(`/tasknow/tasks/${taskId}/offers`, body),
+    acceptOffer: (offerId: string) =>
+      this.client.post<any>(`/tasknow/offers/${offerId}/accept`),
+
+    sendMessage: (taskId: string, text: string) =>
+      this.client.post<any>(`/tasknow/tasks/${taskId}/messages`, { text }),
+
+    dispute: (id: string, reason: string) =>
+      this.client.post<any>(`/tasknow/tasks/${id}/dispute`, { reason }),
+
+    /** Διαχειριστικό: απόκρυψη και έγκριση άδειας. */
+    adminHide: (id: string, hidden: boolean, reason?: string) =>
+      this.client.post<any>(`/tasknow/admin/tasks/${id}/hide`, { hidden, reason }),
+    adminLicence: (offerId: string, verified: boolean) =>
+      this.client.post<any>(`/tasknow/admin/offers/${offerId}/licence`, { verified }),
+    adminResolve: (id: string) => this.client.post<any>(`/tasknow/admin/tasks/${id}/resolve`),
+  };
+
   jobs = {
     list: (params?: Params) => this.client.get<any>('/jobs', params),
     getById: (id: string) => this.client.get<any>(`/jobs/${id}`),

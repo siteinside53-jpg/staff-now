@@ -7,7 +7,6 @@ import { TaskDetailModal } from './task-detail-modal';
 import { TaskMap } from './task-map';
 import { TaskNowLogo } from './logo';
 import { TaskRow } from './task-row';
-import { TASKNOW_DEMO } from './flags';
 import {
   FilteredListLayout,
   type FilterGroup,
@@ -27,7 +26,6 @@ import {
   isOpen,
   isPublic,
   publicOpenTasks,
-  resetMock,
   useMockTasks,
   type MockTask,
 } from './mock-store';
@@ -375,11 +373,6 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
       {/* Μπάρα ταμπλό: ποιοι είμαστε και το ανέβασμα */}
       <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
         <TaskNowLogo className="text-base" markClassName="h-5 w-5" />
-        {TASKNOW_DEMO && (
-          <span className="rounded bg-gray-900 px-1.5 py-0.5 text-[11px] font-bold tracking-wide text-amber-300">
-            ΜΑΚΕΤΑ
-          </span>
-        )}
         <span className="hidden text-sm text-gray-500 sm:inline">
           {stats.count} ανοιχτές
           {stats.min !== null && stats.max !== null && (
@@ -433,6 +426,42 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
         )}
 
         {visible.length === 0 ? (
+          /*
+            ΔΥΟ ΔΙΑΦΟΡΕΤΙΚΑ ΑΔΕΙΑ, ΔΥΟ ΔΙΑΦΟΡΕΤΙΚΑ ΜΗΝΥΜΑΤΑ.
+
+            «Δεν υπάρχει τίποτα με αυτά τα φίλτρα» και «δεν υπάρχει τίποτα
+            καθόλου» είναι εντελώς άλλο πράγμα. Στο πρώτο ο χρήστης πρέπει να
+            χαλαρώσει τα φίλτρα. Στο δεύτερο δεν φταίνε τα φίλτρα — και ένα
+            «καθάρισε τα φίλτρα» εκεί μοιάζει με χαλασμένη σελίδα.
+
+            Όταν το ταμπλό είναι όντως άδειο, η μόνη χρήσιμη κίνηση είναι να
+            ανεβάσει ο ίδιος την πρώτη. Αυτό του λέμε.
+          */
+          openTasks.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-amber-300 bg-amber-50/40 px-6 py-12 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-2xl">
+                👋
+              </div>
+              <p className="mt-3 text-base font-bold text-gray-900">
+                Κανείς δεν έχει ανεβάσει μικροδουλειά ακόμη.
+              </p>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-gray-600">
+                Ανέβασε την πρώτη και δες ποιος τη θέλει. Γράφεις τι θες να γίνει, λες πόσα
+                δίνεις, και περιμένεις προσφορές — δύο λεπτά όλο κι όλο.
+              </p>
+              <p className="mt-2 text-sm font-semibold text-emerald-700">
+                Δεν κοστίζει τίποτα. Ούτε τώρα, ούτε μετά.
+              </p>
+              <div className="mt-5 flex justify-center">
+                <PostTaskButton
+                  className="rounded-xl bg-amber-500 px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-amber-500/25 transition hover:bg-amber-600"
+                  ariaLabel="Ανέβασε την πρώτη μικροδουλειά"
+                >
+                  Ανέβασε την πρώτη μικροδουλειά
+                </PostTaskButton>
+              </div>
+            </div>
+          ) : (
           <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center">
             <p className="text-sm font-medium text-gray-900">Δεν υπάρχει τίποτα εδώ.</p>
             <p className="mt-1 text-sm text-gray-500">
@@ -450,6 +479,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
               Καθάρισε τα φίλτρα
             </button>
           </div>
+          )
         ) : (
           <ul className="space-y-3">
             {visible.slice(0, 6).map(({ task, km }) => (
@@ -502,17 +532,6 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
           </p>
         )}
 
-        {TASKNOW_DEMO && (
-          <div className="mt-3 text-center">
-            <button
-              type="button"
-              onClick={resetMock}
-              className="text-[11px] font-medium text-gray-400 underline hover:text-gray-600"
-            >
-              Καθάρισε τη μακέτα και ξεκίνα από την αρχή
-            </button>
-          </div>
-        )}
       </FilteredListLayout>
 
       {liveDetail && (

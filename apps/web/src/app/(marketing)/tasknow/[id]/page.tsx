@@ -3,12 +3,12 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import {
   CATEGORY_BY_KEY,
-  SAMPLE_TASKS,
   formatPostedAgo,
   isLicensedCategory,
   REQUIRED_LICENCE,
 } from '@/components/tasknow/data';
 import { TaskNowLogo } from '@/components/tasknow/logo';
+import { fetchAllTasks } from '@/lib/seo-data';
 import { TaskPageActions } from '@/components/tasknow/task-page-actions';
 
 /**
@@ -40,13 +40,13 @@ type Params = { params: Promise<{ id: string }> };
  * περιεχόμενο δεν ανεβαίνει, και το χτίσιμο περνάει.
  */
 export async function generateStaticParams() {
-  const ids = SAMPLE_TASKS.filter((t) => !t.hidden).map((t) => ({ id: t.id }));
+  const ids = (await fetchAllTasks()).map((t) => ({ id: t.id }));
   return ids.length > 0 ? ids : [{ id: '_none' }];
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { id } = await params;
-  const task = SAMPLE_TASKS.find((t) => t.id === id && !t.hidden);
+  const task = (await fetchAllTasks()).find((t) => t.id === id);
   if (!task) return { title: 'Μικροδουλειά', robots: { index: false, follow: false } };
 
   const cat = CATEGORY_BY_KEY[task.category]?.label ?? 'Μικροδουλειά';
@@ -70,7 +70,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 
 export default async function TaskPage({ params }: Params) {
   const { id } = await params;
-  const task = SAMPLE_TASKS.find((t) => t.id === id && !t.hidden);
+  const task = (await fetchAllTasks()).find((t) => t.id === id);
   if (!task) notFound();
 
   const cat = CATEGORY_BY_KEY[task.category];

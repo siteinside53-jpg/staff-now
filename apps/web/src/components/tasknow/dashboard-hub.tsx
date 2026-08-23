@@ -186,7 +186,10 @@ export function TaskNowDashboardHub() {
         <div>
           <TaskNowLogo className="text-xl" markClassName="h-6 w-6" />
           <p className="mt-1 text-sm text-gray-500">
-            Μικροδουλειές: ανέβασε μία ή ανάλαβε μία.
+            Μικροδουλειές: ανέβασε μία ή ανάλαβε μία.{' '}
+            {/* Η πιο συχνή σιωπηλή ερώτηση. Αν δεν απαντηθεί εδώ, ο κόσμος
+                υποθέτει προμήθεια και δεν προχωράει. */}
+            <span className="font-semibold text-emerald-700">Εντελώς δωρεάν.</span>
           </p>
         </div>
 

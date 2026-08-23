@@ -1,7 +1,8 @@
 import { ImageResponse } from 'next/og';
 import fs from 'node:fs';
 import path from 'node:path';
-import { CATEGORY_BY_KEY, SAMPLE_TASKS, isLicensedCategory } from '@/components/tasknow/data';
+import { CATEGORY_BY_KEY, isLicensedCategory } from '@/components/tasknow/data';
+import { fetchAllTasks } from '@/lib/seo-data';
 
 /**
  * Η εικόνα που βλέπει ο κόσμος όταν κάποιος κολλάει τον σύνδεσμο μιας
@@ -26,11 +27,13 @@ export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 export const alt = 'Μικροδουλειά στο TaskNow';
 
-const MOCK = true;
+// Οι μικροδουλειές είναι πλέον αληθινές — ζουν στη βάση, όχι στον browser.
+// Ο διακόπτης μένει γιατί τα ΠΑΡΑΔΕΙΓΜΑΤΑ σημαδεύονται ξεχωριστά, ανά αγγελία.
+const MOCK = false;
 
 /** Ίδιος λόγος με τη σελίδα: άδεια λίστα σταματάει το χτίσιμο. */
 export async function generateStaticParams() {
-  const ids = SAMPLE_TASKS.filter((t) => !t.hidden).map((t) => ({ id: t.id }));
+  const ids = (await fetchAllTasks()).map((t) => ({ id: t.id }));
   return ids.length > 0 ? ids : [{ id: '_none' }];
 }
 
@@ -109,7 +112,7 @@ function Fact({ label, value }: { label: string; value: string }) {
 
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const task = SAMPLE_TASKS.find((t) => t.id === id);
+  const task = (await fetchAllTasks()).find((t) => t.id === id);
 
   const title = clamp(task?.title ?? 'Μικροδουλειά', 62);
   const category = task ? (CATEGORY_BY_KEY[task.category]?.label ?? '') : '';

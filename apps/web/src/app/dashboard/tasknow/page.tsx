@@ -21,10 +21,7 @@
  */
 
 import { TaskNowDashboardHub } from '@/components/tasknow/dashboard-hub';
-import { TaskNowOpeningSoon } from '@/components/tasknow/opening-soon';
-import { TASKNOW_DEMO } from '@/components/tasknow/flags';
 
 export default function DashboardTaskNowPage() {
-  if (!TASKNOW_DEMO) return <TaskNowOpeningSoon />;
   return <TaskNowDashboardHub />;
 }

@@ -51,6 +51,8 @@ export function PostTaskModal({
   const [urgent, setUrgent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<MockTask | null>(null);
+  /** Όσο μιλάει με τον server, το κουμπί κλειδώνει — αλλιώς ανεβαίνει δύο φορές. */
+  const [saving, setSaving] = useState(false);
 
   const { blockedWords } = useMockTasks();
   const licensed = isLicensedCategory(category);
@@ -58,7 +60,7 @@ export function PostTaskModal({
   const budgetNumber = Number(budget.replace(',', '.'));
   const licenceLabel = REQUIRED_LICENCE[category] ?? 'Επαγγελματική άδεια';
 
-  function submit() {
+  async function submit() {
     if (title.trim().length < 10) {
       setError('Γράψε λίγο πιο αναλυτικά τι θέλεις να γίνει (τουλάχιστον 10 χαρακτήρες).');
       return;
@@ -90,8 +92,9 @@ export function PostTaskModal({
       return;
     }
     setError(null);
-    setCreated(
-      addTask({
+    setSaving(true);
+    try {
+      const saved = await addTask({
         title: title.trim(),
         description: description.trim(),
         category,
@@ -102,8 +105,15 @@ export function PostTaskModal({
         postedByName: poster?.name,
         postedByPhoto: poster?.photo,
         postedByRole: poster?.role,
-      }),
-    );
+      });
+      // Δείχνουμε ό,τι ΠΡΑΓΜΑΤΙΚΑ αποθηκεύτηκε, όχι ό,τι νομίζαμε ότι στείλαμε.
+      if (saved) setCreated(saved);
+      else setError('Δεν αποθηκεύτηκε. Δοκίμασε ξανά.');
+    } catch (err: any) {
+      setError(err?.message || 'Δεν αποθηκεύτηκε. Δοκίμασε ξανά.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -312,10 +322,11 @@ export function PostTaskModal({
 
           <button
             type="button"
-            onClick={submit}
-            className="w-full rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-600"
+            onClick={() => void submit()}
+            disabled={saving}
+            className="w-full rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
           >
-            Ανέβασέ το
+            {saving ? 'Ανεβαίνει…' : 'Ανέβασέ το'}
           </button>
 
           <p className="text-center text-[11px] leading-relaxed text-gray-500">

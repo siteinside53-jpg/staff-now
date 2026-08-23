@@ -1,31 +1,29 @@
 'use client';
 
 import { useEffect, useReducer } from 'react';
+import { api } from '@/lib/api';
 import {
   AREA_COORDS,
   DEFAULT_BLOCKED_WORDS,
   REQUIRED_LICENCE,
-  SAMPLE_TASKS,
   distanceKm,
-  isLicensedCategory,
   type Task,
 } from './data';
 
-/** Τα λεπτά κάθε δείγματος, για συμπλήρωση παλιότερης αποθήκευσης. */
-const SAMPLE_MINUTES: Record<string, number> = Object.fromEntries(
-  SAMPLE_TASKS.map((t) => [t.id, t.postedMinutesAgo]),
-);
-
 /**
- * ΜΑΚΕΤΑ — η μνήμη της επίδειξης.
+ * Η μνήμη των μικροδουλειών — ΠΛΕΟΝ ΠΑΝΩ ΑΠΟ ΤΗ ΒΑΣΗ.
  *
- * Κρατάει σε ΕΝΑ σημείο ό,τι κάνει ο επισκέπτης όσο περιηγείται: τι ανέβασε,
- * τι προσφορές έστειλε, ποιον διάλεξε, τι είπανε, τι πήγε στραβά. Έτσι η
- * διαδρομή δουλεύει από την αρχή ως το τέλος και ανάμεσα σε σελίδες.
+ * ΤΙ ΗΤΑΝ ΜΕΧΡΙ ΤΩΡΑ: μακέτα. Ό,τι ανέβαζες ζούσε μέσα στον browser σου, στη
+ * μία εκείνη συσκευή, και χανόταν με το καθάρισμα. Κανείς άλλος δεν έβλεπε τη
+ * δουλειά σου — άρα καμία προσφορά δεν ερχόταν ποτέ.
  *
- * ΤΙ ΔΕΝ ΕΙΝΑΙ: βάση δεδομένων. Όλα μένουν στον browser (localStorage) και
- * σβήνονται με το κουμπί «καθάρισε τη μακέτα». Καμία κλήση στο API, καμία
- * εγγραφή σε πραγματικά δεδομένα.
+ * ΤΙ ΕΙΝΑΙ ΤΩΡΑ: ένα λεπτό στρώμα πάνω από τον server. Οι μικροδουλειές, οι
+ * προσφορές και η συνομιλία ζουν στη βάση, όπως οι αγγελίες εργασίας. Στον
+ * browser μένει ΜΟΝΟ μία προσωπική ρύθμιση οθόνης: για τι θέλεις ειδοποιήσεις.
+ *
+ * ΓΙΑΤΙ ΚΡΑΤΗΘΗΚΑΝ ΤΑ ΟΝΟΜΑΤΑ: δεκατρείς οθόνες καλούν αυτές τις λειτουργίες.
+ * Αλλάζοντας μόνο το ΤΙ κάνουν από μέσα, όλες πέρασαν στη βάση χωρίς να
+ * ξαναγραφτεί καμία τους.
  *
  * ΓΙΑΤΙ ΧΕΙΡΟΓΡΑΦΟ ΚΑΤΑΣΤΗΜΑ ΚΑΙ ΟΧΙ CONTEXT: οι οθόνες ζουν σε τρία
  * διαφορετικά μέρη του site (δημόσια ροή, πίνακας χρήστη, διαχειριστικό).
@@ -110,109 +108,15 @@ export type MockState = {
 
 const STORAGE_KEY = 'tasknow_mock_state_v2';
 
-// ── Οι υποψήφιοι της επίδειξης ──────────────────────────────────────────────
-// Σταθερή λίστα, ώστε ο server και ο browser να βγάζουν το ίδιο αποτέλεσμα.
-const PEOPLE: Omit<MockOffer, 'id' | 'amount' | 'message' | 'createdAgo' | 'status'>[] = [
-  {
-    name: 'Κώστας Ι.',
-    rating: 4.9,
-    completed: 23,
-    verifiedPhone: true,
-    verifiedId: true,
-    credentials: [{ label: 'Πιστοποιητικό πρώτων βοηθειών', verified: true }],
-    invoice: true,
-  },
-  {
-    name: 'Λίνα Τ.',
-    rating: 4.7,
-    completed: 11,
-    verifiedPhone: true,
-    verifiedId: false,
-    credentials: [{ label: 'Δίπλωμα οδήγησης', verified: false }],
-    invoice: true,
-  },
-  {
-    name: 'Σάββας Ρ.',
-    rating: 4.2,
-    completed: 6,
-    verifiedPhone: true,
-    verifiedId: false,
-    credentials: [],
-    invoice: false,
-  },
-  {
-    name: 'Ζωή Ν.',
-    rating: null,
-    completed: 0,
-    verifiedPhone: true,
-    verifiedId: false,
-    credentials: [],
-    invoice: false,
-  },
-  {
-    name: 'Ανδρέας Χ.',
-    rating: 4.5,
-    completed: 31,
-    verifiedPhone: true,
-    verifiedId: true,
-    credentials: [{ label: 'Άδεια επαγγελματία φωτογράφου', verified: false }],
-    invoice: true,
-  },
-];
-
-const MESSAGES = [
-  'Μένω δίπλα, μπορώ και σήμερα το απόγευμα.',
-  'Το έχω κάνει πολλές φορές, έχω και τα εργαλεία μου.',
-  'Είμαι διαθέσιμη όλη τη βδομάδα, κανονίζουμε ό,τι σε βολεύει.',
-  'Πρώτη μου δουλειά εδώ, αλλά ξέρω καλά τη δουλειά.',
-  'Αναλαμβάνω και τη μεταφορά αν χρειαστεί.',
-];
-
-const AGO = ['πριν 10 λεπτά', 'πριν 1 ώρα', 'πριν 3 ώρες', 'χθες', 'πριν 2 μέρες'];
-
-/** Φτιάχνει τις προσφορές μιας δουλειάς — ντετερμινιστικά, χωρίς τυχαιότητα. */
-function buildOffers(task: Task): MockOffer[] {
-  const out: MockOffer[] = [];
-  const count = Math.min(task.offers, PEOPLE.length);
-  for (let i = 0; i < count; i++) {
-    const person = PEOPLE[(i + task.id.length) % PEOPLE.length]!;
-    const licence = isLicensedCategory(task.category)
-      ? {
-          label: REQUIRED_LICENCE[task.category] ?? 'Επαγγελματική άδεια',
-          fileName: `adeia-${i + 1}.pdf`,
-          // Στα δείγματα μόνο η πρώτη άδεια είναι ελεγμένη — για να φαίνεται
-          // καθαρά η διαφορά «ελεγμένο» / «δηλωμένο».
-          verified: i === 0,
-        }
-      : undefined;
-    // Οι προσφορές κινούνται γύρω από τον προϋπολογισμό, σταθερά ανά θέση.
-    const delta = [0, -0.1, 0.15, -0.2, 0.3][i % 5]!;
-    out.push({
-      ...person,
-      licence,
-      id: `${task.id}-o${i + 1}`,
-      amount: Math.max(5, Math.round(task.budget * (1 + delta))),
-      message: MESSAGES[(i + task.id.length) % MESSAGES.length]!,
-      createdAgo: AGO[i % AGO.length]!,
-      status: 'pending',
-    });
-  }
-  return out;
-}
-
+/**
+ * Η αρχική, ΑΔΕΙΑ κατάσταση.
+ *
+ * Οι μικροδουλειές δεν φτιάχνονται πια εδώ: έρχονται από τη βάση, όπως οι
+ * αγγελίες εργασίας. Ό,τι μένει σε αυτό το αρχείο είναι προτιμήσεις οθόνης.
+ */
 function seed(): MockState {
   return {
-    tasks: SAMPLE_TASKS.map((t) => ({
-      ...t,
-      status: 'open' as const,
-      hidden: t.hidden === true,
-      mine: false,
-      offersList: buildOffers(t),
-      chosenOfferId: null,
-      messages: [],
-      paidByOwner: false,
-      paidByWorker: false,
-    })),
+    tasks: [],
     blockedWords: [...DEFAULT_BLOCKED_WORDS],
     notify: {
       enabled: true,
@@ -223,59 +127,93 @@ function seed(): MockState {
   };
 }
 
+/** «πριν 12 λεπτά» — ο server στέλνει λεπτά, η οθόνη θέλει φράση. */
+function agoLabel(minutes: number): string {
+  if (minutes < 1) return 'μόλις τώρα';
+  if (minutes < 60) return `πριν ${minutes} λεπτά`;
+  const h = Math.floor(minutes / 60);
+  if (h < 24) return `πριν ${h} ${h === 1 ? 'ώρα' : 'ώρες'}`;
+  const d = Math.floor(h / 24);
+  return `πριν ${d} ${d === 1 ? 'μέρα' : 'μέρες'}`;
+}
+
+/** Η μικροδουλειά όπως έρχεται από τον server → όπως τη θέλει η οθόνη. */
+function fromServer(t: any): MockTask {
+  const minutes = Number(t.postedMinutesAgo) || 0;
+  return {
+    ...t,
+    postedAgo: agoLabel(minutes),
+    postedMinutesAgo: minutes,
+    offersList: Array.isArray(t.offersList) ? t.offersList : [],
+    messages: Array.isArray(t.messages) ? t.messages : [],
+  } as MockTask;
+}
+
 // ── Το store ────────────────────────────────────────────────────────────────
 let state: MockState = seed();
 let hydrated = false;
 const listeners = new Set<() => void>();
 
+/**
+ * Στον browser μένουν ΜΟΝΟ οι προτιμήσεις ειδοποιήσεων.
+ *
+ * Είναι προσωπική ρύθμιση οθόνης — «ειδοποίησέ με για Καθαριότητα σε 5 χλμ» —
+ * όχι δεδομένα που πρέπει να δει κάποιος άλλος. Οι μικροδουλειές, οι προσφορές
+ * και η συνομιλία ζουν πλέον ΟΛΕΣ στη βάση.
+ */
 function persist() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ notify: state.notify }));
   } catch {}
 }
 
+/**
+ * Φέρνει τα δεδομένα ΑΠΟ ΤΟΝ SERVER.
+ *
+ * Δύο διαδρομές, επίτηδες:
+ *   • Συνδεδεμένος → `state`: η δημόσια ροή ΜΑΖΙ με τις δικές του δουλειές και
+ *     τις δικές του προσφορές, με μία κλήση.
+ *   • Χωρίς σύνδεση → `feed`: μόνο η δημόσια ροή. Τη βλέπει ο καθένας, όπως
+ *     ζητήθηκε — δεν κρύβουμε το προϊόν πίσω από εγγραφή.
+ *
+ * Αν η κλήση αποτύχει, ΔΕΝ αδειάζουμε την οθόνη: κρατάμε ό,τι ήδη δείχνει.
+ * Μια στιγμιαία διακοπή δικτύου δεν σημαίνει ότι χάθηκαν οι δουλειές.
+ */
+let loading = false;
+
+export async function refreshTasks(): Promise<void> {
+  if (loading) return;
+  loading = true;
+  try {
+    const signedIn =
+      typeof localStorage !== 'undefined' && !!localStorage.getItem('staffnow_token');
+    const res: any = signedIn
+      ? await (api as any).tasknow.state()
+      : await (api as any).tasknow.feed();
+    const list = res?.data?.tasks;
+    if (Array.isArray(list)) {
+      state = { ...state, tasks: list.map(fromServer) };
+      listeners.forEach((l) => l());
+    }
+  } catch {
+    /* Κρατάμε ό,τι δείχνει η οθόνη. */
+  } finally {
+    loading = false;
+  }
+}
+
+/** Οι προτιμήσεις ειδοποιήσεων ζουν στον browser — είναι ρύθμιση οθόνης. */
 function hydrate() {
   if (hydrated) return;
   hydrated = true;
   try {
-    /*
-      ΟΤΑΝ Η ΜΑΚΕΤΑ ΕΙΝΑΙ ΚΛΕΙΣΤΗ, Η ΠΑΛΙΑ ΑΠΟΘΗΚΕΥΣΗ ΠΕΤΑΓΕΤΑΙ.
-
-      Το `SAMPLE_TASKS` αδειάζει στο χτίσιμο, άρα η καινούργια έκδοση δεν
-      φτιάχνει ποτέ δείγματα. Αυτό όμως δεν έφτανε: όποιος είχε ανοίξει το
-      TaskNow σε ΠΑΛΙΟΤΕΡΗ έκδοση κρατούσε τις 16 ψεύτικες μικροδουλειές
-      αποθηκευμένες στον browser του, και η `hydrate()` τις ξαναέφερνε στην
-      οθόνη — μέσα στον λογαριασμό του, στο staffnow.gr, χωρίς τίποτα να λέει
-      ότι δεν είναι αληθινές. Ο διακόπτης έσβηνε την πηγή αλλά όχι το ίχνος.
-
-      Ο κανόνας «ποτέ ψεύτικα δεδομένα σαν αληθινά» ισχύει και για ό,τι έχει
-      ήδη γραφτεί. Οπότε: κλειστή μακέτα σημαίνει σβήνουμε και την εγγραφή.
-    */
-    if (SAMPLE_TASKS.length === 0) {
-      localStorage.removeItem(STORAGE_KEY);
-      return;
-    }
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const parsed = JSON.parse(raw) as Partial<MockState>;
-    if (parsed && Array.isArray(parsed.tasks)) {
-      // Συμπληρώνουμε ό,τι λείπει από παλιότερη αποθήκευση, ώστε μια
-      // ημιτελής εγγραφή να μη ρίξει τη σελίδα.
-      state = {
-        tasks: parsed.tasks.map((t) => ({
-          ...t,
-          messages: t.messages ?? [],
-          // Χωρίς αυτό, όποιος ξαναμπαίνει βλέπει νεκρή ταξινόμηση «πιο πρόσφατα».
-          postedMinutesAgo: t.postedMinutesAgo ?? SAMPLE_MINUTES[t.id ?? ''] ?? 0,
-          paidByOwner: t.paidByOwner ?? false,
-          paidByWorker: t.paidByWorker ?? false,
-        })) as MockTask[],
-        blockedWords: parsed.blockedWords ?? [...DEFAULT_BLOCKED_WORDS],
-        notify: parsed.notify ?? seed().notify,
-      };
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<MockState>;
+      if (parsed?.notify) state = { ...state, notify: { ...state.notify, ...parsed.notify } };
     }
   } catch {
-    state = seed();
+    /* χαλασμένη εγγραφή — μένουν οι προεπιλογές */
   }
 }
 
@@ -301,6 +239,8 @@ export function useMockTasks(): MockState {
     hydrate();
     force();
     listeners.add(force);
+    // Με το που ανοίγει η οθόνη, ρωτάμε τη βάση.
+    void refreshTasks();
     return () => {
       listeners.delete(force);
     };
@@ -308,17 +248,14 @@ export function useMockTasks(): MockState {
   return state;
 }
 
-function newId(prefix: string): string {
-  return `${prefix}-${Date.now().toString(36)}-${(idCounter += 1)}`;
-}
-let idCounter = 0;
-
-function patch(taskId: string, fn: (t: MockTask) => MockTask): void {
-  state = { ...state, tasks: state.tasks.map((t) => (t.id === taskId ? fn(t) : t)) };
-  emit();
-}
-
-export function addTask(input: {
+/**
+ * Ανέβασμα μικροδουλειάς.
+ *
+ * Επιστρέφει τη δουλειά ΑΦΟΥ την καταχωρήσει ο server, ώστε η οθόνη
+ * επιβεβαίωσης να δείχνει ό,τι πραγματικά αποθηκεύτηκε — όχι ό,τι νομίζαμε ότι
+ * στείλαμε.
+ */
+export async function addTask(input: {
   title: string;
   description?: string;
   category: string;
@@ -326,117 +263,63 @@ export function addTask(input: {
   budget: number;
   when: string;
   urgent?: boolean;
-  /** Ποιος την ανεβάζει — όνομα, φωτογραφία και ρόλος του συνδεδεμένου. */
+  /** Μένουν για συμβατότητα με την οθόνη· ο server ξέρει ποιος ανεβάζει. */
   postedByName?: string;
   postedByPhoto?: string;
   postedByRole?: 'worker' | 'business';
-}): MockTask {
-  const task: MockTask = {
-    id: newId('my'),
+}): Promise<MockTask | null> {
+  const res: any = await (api as any).tasknow.create({
     title: input.title,
-    description: input.description?.trim() || undefined,
+    description: input.description,
     category: input.category,
     area: input.area,
     budget: input.budget,
     when: input.when,
-    postedAgo: 'μόλις τώρα',
-    postedMinutesAgo: 0,
-    // Μέσα στον λογαριασμό ξέρουμε ποιος είναι: όνομα και φωτογραφία μπαίνουν
-    // κανονικά, όπως ακριβώς σε κάθε άλλη αγγελία. Εκτός λογαριασμού μένει
-    // το «Εσύ», γιατί δεν έχουμε τι άλλο να γράψουμε τίμια.
-    postedByName: input.postedByName?.trim() || 'Εσύ',
-    postedByPhoto: input.postedByPhoto,
-    postedByRole: input.postedByRole,
-    offers: 0,
     urgent: input.urgent === true,
     remote: input.area === 'Εξ αποστάσεως',
-    status: 'open',
-    hidden: false,
-    mine: true,
-    offersList: [],
-    chosenOfferId: null,
-    messages: [],
-    paidByOwner: false,
-    paidByWorker: false,
-  };
-
-  // Για να δει ο ιδιοκτήτης της δουλειάς τη διαδικασία επιλογής, η μακέτα
-  // βάζει τρεις δείγμα-προσφορές. Στην πραγματική έκδοση έρχονται από κόσμο.
-  task.offersList = buildOffers({ ...task, offers: 3 });
-  task.offers = task.offersList.length;
-
-  state = { ...state, tasks: [task, ...state.tasks] };
-  emit();
-  return task;
+  });
+  const id = res?.data?.id;
+  await refreshTasks();
+  return state.tasks.find((t) => t.id === id) ?? null;
 }
 
-export function addOffer(
+/** Προσφορά σε ξένη μικροδουλειά. */
+export async function addOffer(
   taskId: string,
   input: { amount: number; message: string; licenceFileName?: string },
-): void {
-  patch(taskId, (t) => {
-    const licence = input.licenceFileName
-      ? {
-          label: REQUIRED_LICENCE[t.category] ?? 'Επαγγελματική άδεια',
-          fileName: input.licenceFileName,
-          // Μόλις ανέβηκε: δηλωμένη, όχι ελεγμένη.
-          verified: false,
-        }
-      : undefined;
-    const offer: MockOffer = {
-      id: newId('off'),
-      licence,
-      name: 'Εσύ',
-      amount: input.amount,
-      message: input.message,
-      rating: 4.8,
-      completed: 7,
-      verifiedPhone: true,
-      verifiedId: false,
-      credentials: [],
-      invoice: true,
-      createdAgo: 'μόλις τώρα',
-      mine: true,
-      status: 'pending',
-    };
-    return { ...t, offersList: [offer, ...t.offersList], offers: t.offers + 1 };
+): Promise<void> {
+  const task = state.tasks.find((t) => t.id === taskId);
+  await (api as any).tasknow.offer(taskId, {
+    amount: input.amount,
+    message: input.message,
+    // Η ετικέτα της άδειας βγαίνει από την κατηγορία, όπως και στον server.
+    licenceLabel: input.licenceFileName
+      ? (task && REQUIRED_LICENCE[task.category]) || 'Επαγγελματική άδεια'
+      : undefined,
+    licenceFileName: input.licenceFileName,
   });
+  await refreshTasks();
 }
 
-export function chooseOffer(taskId: string, offerId: string): void {
-  patch(taskId, (t) => {
-    const chosen = t.offersList.find((o) => o.id === offerId);
-    return {
-      ...t,
-      status: 'assigned',
-      chosenOfferId: offerId,
-      offersList: t.offersList.map((o) => ({
-        ...o,
-        status: o.id === offerId ? 'accepted' : 'rejected',
-      })),
-      // Η συνομιλία ανοίγει μόνη της. Χωρίς αυτό, η επιλογή είναι αδιέξοδο:
-      // διαλέγεις κάποιον και δεν έχεις τρόπο να του μιλήσεις.
-      messages: [
-        {
-          id: newId('msg'),
-          from: 'owner',
-          text: `Γεια σου ${chosen?.name ?? ''}! Σε διάλεξα για «${t.title}». Πες μου πότε σε βολεύει.`,
-          at: 'μόλις τώρα',
-        },
-      ],
-    };
-  });
+/** «Σε διαλέγω» — με δική σου ευθύνη, όπως γράφει η οθόνη τη στιγμή αυτή. */
+export async function chooseOffer(_taskId: string, offerId: string): Promise<void> {
+  await (api as any).tasknow.acceptOffer(offerId);
+  await refreshTasks();
 }
 
-export function sendMessage(taskId: string, from: 'owner' | 'worker', text: string): void {
-  patch(taskId, (t) => ({
-    ...t,
-    messages: [...t.messages, { id: newId('msg'), from, text, at: 'μόλις τώρα' }],
-  }));
+export async function sendMessage(
+  taskId: string,
+  _from: 'owner' | 'worker',
+  text: string,
+): Promise<void> {
+  // Ποιος γράφει το ξέρει ο server από τη σύνδεση — δεν το δηλώνει ο browser.
+  await (api as any).tasknow.sendMessage(taskId, text);
+  await refreshTasks();
 }
 
-export function completeTask(taskId: string): void {
-  patch(taskId, (t) => ({ ...t, status: 'done' }));
+export async function completeTask(taskId: string): Promise<void> {
+  await (api as any).tasknow.complete(taskId);
+  await refreshTasks();
 }
 
 /**
@@ -446,61 +329,77 @@ export function completeTask(taskId: string): void {
  * αναλαμβάνουμε ευθύνη πληρωμής — αλλά αποκτάμε ιστορικό. Όποιος συστηματικά
  * δεν επιβεβαιώνει πληρωμή, φαίνεται.
  */
-export function declarePaid(taskId: string, side: 'owner' | 'worker'): void {
-  patch(taskId, (t) =>
-    side === 'owner' ? { ...t, paidByOwner: true } : { ...t, paidByWorker: true },
-  );
+export async function declarePaid(taskId: string, _side: 'owner' | 'worker'): Promise<void> {
+  await (api as any).tasknow.declarePaid(taskId);
+  await refreshTasks();
 }
 
 /** Παύση: σταματάει να φαίνεται, κρατάει τα πάντα, γυρίζει πίσω όποτε θες. */
-export function pauseTask(taskId: string): void {
-  patch(taskId, (t) => (t.status === 'open' ? { ...t, status: 'paused' } : t));
+export async function pauseTask(taskId: string): Promise<void> {
+  await (api as any).tasknow.pause(taskId);
+  await refreshTasks();
 }
 
-export function resumeTask(taskId: string): void {
-  patch(taskId, (t) => (t.status === 'paused' ? { ...t, status: 'open' } : t));
+export async function resumeTask(taskId: string): Promise<void> {
+  await (api as any).tasknow.resume(taskId);
+  await refreshTasks();
 }
 
-export function cancelTask(taskId: string, reason: string): void {
-  patch(taskId, (t) => ({ ...t, status: 'cancelled', cancelReason: reason }));
+export async function cancelTask(taskId: string, reason: string): Promise<void> {
+  await (api as any).tasknow.cancel(taskId, reason);
+  await refreshTasks();
 }
 
-export function openDispute(taskId: string, by: 'owner' | 'worker', reason: string): void {
-  patch(taskId, (t) => ({ ...t, status: 'disputed', disputeBy: by, disputeReason: reason }));
+export async function openDispute(
+  taskId: string,
+  _by: 'owner' | 'worker',
+  reason: string,
+): Promise<void> {
+  await (api as any).tasknow.dispute(taskId, reason);
+  await refreshTasks();
 }
 
 /** Ο διαχειριστής κλείνει τη διαφωνία — επιστρέφει τη δουλειά σε ολοκληρωμένη. */
-export function resolveDispute(taskId: string): void {
-  patch(taskId, (t) => ({ ...t, status: 'done', disputeReason: undefined, disputeBy: undefined }));
+export async function resolveDispute(taskId: string): Promise<void> {
+  await (api as any).tasknow.adminResolve(taskId);
+  await refreshTasks();
 }
 
 /** Απόκρυψη ή επαναφορά μιας μικροδουλειάς — απόφαση διαχειριστή. */
-export function setTaskHidden(taskId: string, hidden: boolean): void {
-  patch(taskId, (t) => ({ ...t, hidden }));
+export async function setTaskHidden(taskId: string, hidden: boolean): Promise<void> {
+  await (api as any).tasknow.adminHide(taskId, hidden);
+  await refreshTasks();
 }
 
-/** Οριστική διαγραφή. Στην πραγματική έκδοση θα κρατούσαμε ίχνος στο audit log. */
-export function deleteTask(taskId: string): void {
-  state = { ...state, tasks: state.tasks.filter((t) => t.id !== taskId) };
-  emit();
+/** Οριστική διαγραφή της δικής σου μικροδουλειάς. */
+export async function deleteTask(taskId: string): Promise<void> {
+  await (api as any).tasknow.remove(taskId);
+  await refreshTasks();
 }
 
 /**
  * Έλεγχος άδειας από άνθρωπο.
  *
- * ΤΟ ΚΡΙΣΙΜΟ: μόνο από εδώ μπορεί μια άδεια να γίνει «ελεγμένη». Πουθενά
- * αλλού στον κώδικα δεν μπαίνει `verified: true` σε άδεια — αυτό είναι που
- * κρατάει τη διαφορά «δηλωμένο» / «ελεγμένο» αληθινή.
+ * ΤΟ ΚΡΙΣΙΜΟ: μόνο από εδώ μπορεί μια άδεια να γίνει «ελεγμένη». Ούτε ο
+ * browser ούτε καμία αυτόματη διαδικασία δεν την ανάβει — αυτό κρατάει τη
+ * διαφορά «δηλωμένο» / «ελεγμένο» αληθινή.
  */
-export function setLicenceVerified(taskId: string, offerId: string, verified: boolean): void {
-  patch(taskId, (t) => ({
-    ...t,
-    offersList: t.offersList.map((o) =>
-      o.id === offerId && o.licence ? { ...o, licence: { ...o.licence, verified } } : o,
-    ),
-  }));
+export async function setLicenceVerified(
+  _taskId: string,
+  offerId: string,
+  verified: boolean,
+): Promise<void> {
+  await (api as any).tasknow.adminLicence(offerId, verified);
+  await refreshTasks();
 }
 
+/**
+ * Οι απαγορευμένες λέξεις.
+ *
+ * ΕΠΙΒΑΛΛΟΝΤΑΙ ΣΤΟΝ SERVER, όχι εδώ — ο browser παρακάμπτεται. Αυτό το σημείο
+ * μένει μόνο για να τις δείχνει το διαχειριστικό. Η επεξεργασία τους από την
+ * οθόνη δεν έχει ακόμη αντίκρισμα στον server και είναι σημειωμένη ως εκκρεμής.
+ */
 export function setBlockedWords(words: string[]): void {
   state = { ...state, blockedWords: words };
   emit();
@@ -511,13 +410,9 @@ export function setNotifyPrefs(next: Partial<NotifyPrefs>): void {
   emit();
 }
 
-/** Καθαρίζει τα πάντα και ξαναρχίζει την επίδειξη από την αρχή. */
+/** Ξαναρωτάει τη βάση. Κρατά το παλιό όνομα για να μην αλλάξουν οι οθόνες. */
 export function resetMock(): void {
-  state = seed();
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {}
-  listeners.forEach((l) => l());
+  void refreshTasks();
 }
 
 // ── Παράγωγα ────────────────────────────────────────────────────────────────

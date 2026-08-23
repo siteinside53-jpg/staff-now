@@ -55,6 +55,42 @@ export async function fetchAllJobs(): Promise<PublicJob[]> {
   }
 }
 
+/**
+ * Οι ανοιχτές μικροδουλειές, για το χτίσιμο των δικών τους σελίδων.
+ *
+ * Πριν, οι σελίδες αυτές φτιάχνονταν από χειρόγραφα δείγματα — άρα υπήρχαν
+ * μόνο όσο έτρεχε η μακέτα. Τώρα βγαίνουν από τη βάση, όπως ακριβώς οι
+ * σελίδες των αγγελιών εργασίας.
+ */
+export type PublicTask = {
+  id: string;
+  title: string;
+  description?: string;
+  category: string;
+  area: string;
+  budget: number;
+  budgetNote?: string;
+  when: string;
+  postedMinutesAgo: number;
+  offers: number;
+  urgent?: boolean;
+  remote?: boolean;
+  isSample?: boolean;
+  postedByName?: string;
+  postedByRole?: 'worker' | 'business';
+};
+
+export async function fetchAllTasks(): Promise<PublicTask[]> {
+  try {
+    const res = await fetch(`${API_URL}/tasknow/feed?limit=200`, { cache: 'force-cache' });
+    if (!res.ok) return [];
+    const d = (await res.json()) as { data?: { tasks?: PublicTask[] } };
+    return Array.isArray(d?.data?.tasks) ? d.data!.tasks! : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchAllWorkers(): Promise<PublicWorker[]> {
   try {
     const res = await fetch(`${API_URL}/public/workers?limit=500`, { cache: 'force-cache' });

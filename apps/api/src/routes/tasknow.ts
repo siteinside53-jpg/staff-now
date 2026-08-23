@@ -110,6 +110,29 @@ type OfferRow = {
 
 const nowIso = () => new Date().toISOString();
 
+/**
+ * ΠΟΤΕ ΕΞΑΦΑΝΙΖΟΝΤΑΙ ΤΑ ΠΑΡΑΔΕΙΓΜΑΤΑ.
+ *
+ * Άδειο ταμπλό σημαίνει ότι όποιος μπει δεν ξαναμπαίνει — δεν έχει καταλάβει
+ * καν τι είναι το προϊόν. Γι' αυτό ξεκινάει με λίγα παραδείγματα.
+ *
+ * Από τη στιγμή όμως που υπάρχουν αληθινές δουλειές, τα παραδείγματα γίνονται
+ * θόρυβος: πιάνουν χώρο και μπερδεύουν. Φεύγουν μόνα τους στις 5 αληθινές, ώστε
+ * να μη χρειάζεται να το θυμηθεί κανείς.
+ */
+const HIDE_SAMPLES_AFTER = 5;
+
+/** Πόσες ΑΛΗΘΙΝΕΣ ανοιχτές μικροδουλειές υπάρχουν αυτή τη στιγμή. */
+async function realOpenCount(db: D1Database): Promise<number> {
+  const row = await db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM tasknow_tasks
+        WHERE status = 'open' AND hidden = 0 AND is_sample = 0`,
+    )
+    .first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
 /** Πόσα λεπτά πριν ανέβηκε — το χρειάζεται η οθόνη για το «πριν 12 λεπτά». */
 function minutesAgo(iso: string): number {
   const t = Date.parse(iso);
@@ -194,8 +217,9 @@ async function shapeTask(
     remote: t.remote === 1,
     flagReason: t.flag_reason || undefined,
     hidden: t.hidden === 1,
-    postedByName: owner.name,
-    postedByPhoto: owner.avatar || undefined,
+    // Το παράδειγμα ΔΕΝ προσποιείται ότι το ανέβασε κάποιος άνθρωπος.
+    postedByName: t.is_sample === 1 ? 'Παράδειγμα' : owner.name,
+    postedByPhoto: t.is_sample === 1 ? undefined : owner.avatar || undefined,
     postedByRole: owner.role === 'business' ? 'business' : 'worker',
     isSample: t.is_sample === 1,
 
@@ -258,11 +282,13 @@ tasknow.get('/feed', async (c) => {
   const db = c.env.DB;
   const limit = Math.min(parseInt(c.req.query('limit') || '100', 10) || 100, 200);
 
+  const hideSamples = (await realOpenCount(db)) >= HIDE_SAMPLES_AFTER;
   const rows = await db
     .prepare(
       `SELECT * FROM tasknow_tasks
         WHERE status = 'open' AND hidden = 0
-        ORDER BY created_at DESC LIMIT ?`,
+          ${hideSamples ? 'AND is_sample = 0' : ''}
+        ORDER BY is_sample ASC, created_at DESC LIMIT ?`,
     )
     .bind(limit)
     .all<TaskRow>();
@@ -287,13 +313,14 @@ tasknow.get('/state', requireAuth, async (c) => {
   const user = c.get('user');
   const db = c.env.DB;
 
+  const hideSamples = (await realOpenCount(db)) >= HIDE_SAMPLES_AFTER;
   const rows = await db
     .prepare(
       `SELECT * FROM tasknow_tasks
-        WHERE (status = 'open' AND hidden = 0)
+        WHERE (status = 'open' AND hidden = 0 ${hideSamples ? 'AND is_sample = 0' : ''})
            OR owner_id = ?
            OR id IN (SELECT task_id FROM tasknow_offers WHERE worker_id = ?)
-        ORDER BY created_at DESC LIMIT 300`,
+        ORDER BY is_sample ASC, created_at DESC LIMIT 300`,
     )
     .bind(user.id, user.id)
     .all<TaskRow>();
@@ -668,6 +695,47 @@ tasknow.delete('/tasks/:id', requireAuth, async (c) => {
   return success(c, { deleted: true });
 });
 
+// ── POST /tasks/:id/dispute — «κάτι πήγε στραβά» ──────────────────────────
+//
+// Τη δηλώνει οποιαδήποτε από τις δύο πλευρές. Δεν κρίνουμε ποιος έχει δίκιο:
+// το StaffNow δεν είναι συμβαλλόμενο μέρος. Σημειώνουμε ότι υπάρχει διαφωνία,
+// ώστε να τη δει άνθρωπος και να μη συνεχίσει σαν να μην έγινε τίποτα.
+tasknow.post('/tasks/:id/dispute', requireAuth, async (c) => {
+  const user = c.get('user');
+  const db = c.env.DB;
+  const task = await taskById(db, c.req.param('id'));
+  if (!task) return error(c, 'Δεν βρέθηκε', 404);
+
+  const chosen = task.chosen_offer_id
+    ? await db
+        .prepare('SELECT worker_id FROM tasknow_offers WHERE id = ?')
+        .bind(task.chosen_offer_id)
+        .first<{ worker_id: string }>()
+    : null;
+
+  const side =
+    task.owner_id === user.id ? 'owner' : chosen?.worker_id === user.id ? 'worker' : null;
+  if (!side) return error(c, 'Δεν έχεις δικαίωμα', 403);
+
+  let reason = '';
+  try {
+    reason = String(((await c.req.json()) as any)?.reason || '').trim().slice(0, 500);
+  } catch {
+    /* χωρίς λόγο — επιτρεπτό */
+  }
+
+  await db
+    .prepare(
+      `UPDATE tasknow_tasks
+          SET status = 'disputed', dispute_by = ?, dispute_reason = ?, updated_at = ?
+        WHERE id = ?`,
+    )
+    .bind(side, reason || null, nowIso(), task.id)
+    .run();
+
+  return success(c, { disputed: true });
+});
+
 // ── Διαχειριστικό ─────────────────────────────────────────────────────────
 //
 // «Κρυμμένη» σημαίνει ΚΑΙ αόρατη ΚΑΙ να μη μετριέται πουθενά — αλλιώς τα
@@ -702,6 +770,18 @@ tasknow.post('/admin/offers/:id/licence', requireAuth, requireRole('admin'), asy
     .bind(verified ? 1 : 0, c.req.param('id'))
     .run();
   return success(c, { verified });
+});
+
+// Ο διαχειριστής κλείνει τη διαφωνία και η δουλειά επιστρέφει σε ολοκληρωμένη.
+tasknow.post('/admin/tasks/:id/resolve', requireAuth, requireRole('admin'), async (c) => {
+  await c.env.DB.prepare(
+    `UPDATE tasknow_tasks
+        SET status = 'done', dispute_reason = NULL, dispute_by = NULL, updated_at = ?
+      WHERE id = ?`,
+  )
+    .bind(nowIso(), c.req.param('id'))
+    .run();
+  return success(c, { resolved: true });
 });
 
 export default tasknow;
