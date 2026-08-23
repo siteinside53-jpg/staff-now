@@ -90,8 +90,29 @@ export default function InterestsPage() {
             ? 'Επιχειρήσεις που σε έκαναν like. Πάτα "Ενδιαφέρομαι" για match!'
             : 'Εργαζόμενοι που ενδιαφέρθηκαν για τις αγγελίες σου.'}
         </p>
-        {interests.length > 0 && (
-          <Badge className="mt-2 bg-blue-100 text-blue-700">{interests.length} ενδιαφερόμενοι</Badge>
+        {/*
+          Ο ΜΕΤΡΗΤΗΣ ΜΕΤΡΑΕΙ ΑΥΤΟ ΠΟΥ ΦΑΙΝΕΤΑΙ ΑΠΟ ΚΑΤΩ.
+
+          Έγραφε το σύνολο (`interests.length`) ενώ η λίστα δείχνει μόνο τα
+          αναπάντητα (`pending`), οπότε έλεγε «3 ενδιαφερόμενοι» και από κάτω
+          είχε δύο κάρτες. Όσοι λείπουν έχουν ήδη γίνει match — δεν χάθηκαν,
+          ζουν στα Matches, και τώρα το λέει ρητά με σύνδεσμο για να πάει
+          κανείς να τους δει.
+        */}
+        {pending.length > 0 && (
+          <Badge className="mt-2 bg-blue-100 text-blue-700">
+            {pending.length}{' '}
+            {pending.length === 1 ? 'περιμένει απάντηση' : 'περιμένουν απάντηση'}
+          </Badge>
+        )}
+        {interests.length > pending.length && (
+          <p className="mt-2 text-sm text-gray-500">
+            Άλλα {interests.length - pending.length} έγιναν ήδη match —{' '}
+            <a href="/dashboard/matches" className="font-medium text-blue-600 hover:underline">
+              δες τα στα Matches
+            </a>
+            .
+          </p>
         )}
       </div>
 
