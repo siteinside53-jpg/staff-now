@@ -89,7 +89,6 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
   const [centerSource, setCenterSource] = useState<CenterSource>('default');
   const [locating, setLocating] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
-  const [geoAllowed, setGeoAllowed] = useState(true);
 
   const [detail, setDetail] = useState<MockTask | null>(null);
   const [offerFor, setOfferFor] = useState<MockTask | null>(null);
@@ -143,7 +142,18 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
       .query({ name: 'geolocation' as PermissionName })
       .then((status) => {
         if (status.state === 'granted') locate();
-        if (status.state === 'denied') setGeoAllowed(false);
+        if (status.state === 'denied') {
+          /*
+            ΤΟ ΚΟΥΜΠΙ ΜΕΝΕΙ. Πριν εξαφανιζόταν, και ο χρήστης δεν είχε κανέναν
+            τρόπο να καταλάβει γιατί λείπει ούτε να ξαναδοκιμάσει αφού
+            διορθώσει τις ρυθμίσεις. Τώρα φαίνεται, και το πάτημα εξηγεί τι
+            ακριβώς πρέπει να αλλάξει.
+          */
+          setLocError(
+            'Ο browser δεν μας δίνει την τοποθεσία σου. Στο Safari: Ρυθμίσεις → ' +
+              'Ιστότοποι → Τοποθεσία → staffnow.gr → «Να επιτρέπεται».',
+          );
+        }
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -165,11 +175,51 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
         setSort('near');
         setLocating(false);
       },
-      () => {
+      (err) => {
         setLocating(false);
-        setLocError('Δεν πήραμε την τοποθεσία σου. Διάλεξε γειτονιά από τη λίστα.');
+        /*
+          ΤΡΕΙΣ ΕΝΤΕΛΩΣ ΔΙΑΦΟΡΕΤΙΚΕΣ ΑΙΤΙΕΣ, ΤΡΙΑ ΔΙΑΦΟΡΕΤΙΚΑ ΜΗΝΥΜΑΤΑ.
+
+          Πριν έγραφε το ίδιο και για τις τρεις: «δεν πήραμε την τοποθεσία σου».
+          Η πιο συχνή στην πράξη είναι η ΑΡΝΗΣΗ — και τότε ο browser ΔΕΝ
+          ξαναρωτάει ποτέ, όσες φορές κι αν πατήσεις το κουμπί. Ο χρήστης
+          νομίζει ότι χάλασε κάτι, ενώ το μόνο που χρειάζεται είναι δύο κλικ
+          στις ρυθμίσεις του browser. Χωρίς να του το πούμε, δεν πρόκειται να
+          το βρει.
+        */
+        if (err?.code === 1) {
+          setLocError(
+            'Ο browser δεν μας δίνει την τοποθεσία σου. Στο Safari: Ρυθμίσεις → ' +
+              'Ιστότοποι → Τοποθεσία → staffnow.gr → «Να επιτρέπεται». Στο Chrome: ' +
+              'το εικονίδιο αριστερά από τη διεύθυνση → Τοποθεσία → Να επιτρέπεται.',
+          );
+        } else if (err?.code === 3) {
+          setLocError('Άργησε πολύ. Δοκίμασε ξανά ή διάλεξε γειτονιά από τη λίστα.');
+        } else {
+          /*
+            Στο Mac αυτό σημαίνει σχεδόν πάντα ότι η τοποθεσία είναι κλειστή σε
+            επίπεδο ΣΥΣΤΗΜΑΤΟΣ, όχι browser. Τότε το Safari αποτυγχάνει αμέσως
+            χωρίς να ρωτήσει τίποτα — και ο χρήστης ψάχνει στον browser, όπου
+            δεν υπάρχει τίποτα να αλλάξει.
+          */
+          setLocError(
+            'Η συσκευή δεν έδωσε τοποθεσία. Σε Mac: Ρυθμίσεις Συστήματος → ' +
+              'Απόρρητο και ασφάλεια → Υπηρεσίες τοποθεσίας → ενεργοποίησέ τες και ' +
+              'βάλε ✓ στο Safari. Αλλιώς διάλεξε γειτονιά από τη λίστα.',
+          );
+        }
       },
-      { timeout: 8000 },
+      {
+        // 20 δευτ.: το χρονόμετρο τρέχει ΚΑΙ όσο ο χρήστης διαβάζει την ερώτηση
+        // άδειας. Με 8 δευτ. προλάβαινε να λήξει πριν προλάβει εκείνος να πει ναι.
+        timeout: 20_000,
+        // Δεκτή και θέση των τελευταίων 5 λεπτών: είναι ακαριαία, και για
+        // «τι υπάρχει κοντά μου» δεν αλλάζει τίποτα αν κουνήθηκες 100 μέτρα.
+        maximumAge: 300_000,
+        // Δεν χρειαζόμαστε GPS ακριβείας — μας αρκεί η γειτονιά, και το WiFi
+        // απαντάει πολύ πιο γρήγορα και χωρίς να ανάβει ο δέκτης του κινητού.
+        enableHighAccuracy: false,
+      },
     );
   }
 
@@ -320,16 +370,16 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
       <div>
         <p className="mb-2 text-sm font-bold text-gray-900">Περιοχή</p>
 
-        {geoAllowed && (
-          <button
-            type="button"
-            onClick={locate}
-            disabled={locating}
-            className="mb-2 w-full rounded-lg bg-gray-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:opacity-60"
-          >
-            <span aria-hidden="true">📍</span> {locating ? 'Ψάχνω…' : 'Κοντά μου'}
-          </button>
-        )}
+        {/* Το κουμπί μένει ΠΑΝΤΑ. Αν λείπει, ο χρήστης δεν έχει τρόπο να
+            καταλάβει γιατί, ούτε να ξαναδοκιμάσει αφού φτιάξει τις ρυθμίσεις. */}
+        <button
+          type="button"
+          onClick={locate}
+          disabled={locating}
+          className="mb-2 w-full rounded-lg bg-gray-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:opacity-60"
+        >
+          <span aria-hidden="true">📍</span> {locating ? 'Ψάχνω…' : 'Κοντά μου'}
+        </button>
 
         <select
           value={centerSource === 'area' ? centerLabel : ''}

@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
 import { AREA_COORDS, type Coords, distanceKm } from './data';
 import type { MockTask } from './mock-store';
 
@@ -23,13 +24,19 @@ import type { MockTask } from './mock-store';
  * πινέζα δεν είναι διακοσμητικός: λέει «κάπου εδώ γύρω», που είναι η αλήθεια.
  */
 
-/** Ο πάροχος του υποβάθρου. Άλλαξε ΜΟΝΟ αυτές τις δύο γραμμές για άλλον. */
-const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+/**
+ * Ο πάροχος του υποβάθρου. Άλλαξε ΜΟΝΟ αυτές τις δύο γραμμές για άλλον.
+ *
+ * ΓΙΑΤΙ CARTO ΚΑΙ ΟΧΙ ΣΚΕΤΟ OPENSTREETMAP: το βασικό σχέδιο του OSM είναι
+ * φτιαγμένο για να διαβάζεις τον χάρτη — έντονα χρώματα, πολλές λεπτομέρειες,
+ * κόκκινοι δρόμοι. Όταν από πάνω μπαίνουν δεκάδες πινέζες με ποσά, γίνεται
+ * φασαρία και δεν ξεχωρίζει τίποτα. Το σχέδιο της CARTO είναι ξεπλυμένο
+ * επίτηδες, ώστε να ξεχωρίζει ό,τι βάζεις εσύ από πάνω. Τα δεδομένα είναι τα
+ * ίδια του OpenStreetMap, γι' αυτό αναφέρονται και οι δύο — υποχρεωτικά.
+ */
+const TILE_URL = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
 const TILE_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
-
-/** Πόσο μεγάλος είναι ο κύκλος «κάπου εδώ γύρω». Ίδιος με του server. */
-const APPROX_RADIUS_M = 500;
+  '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>';
 
 type TaskPoint = MockTask & { lat?: number; lon?: number; exactPoint?: boolean };
 
@@ -69,6 +76,19 @@ export function TaskMap({
   const holder = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const layerRef = useRef<any>(null);
+  const ringRef = useRef<any>(null);
+  /*
+    ΓΙΑΤΙ ΧΡΕΙΑΖΕΤΑΙ ΣΗΜΑΙΑ ΚΑΙ ΔΕΝ ΑΡΚΕΙ Η ΑΝΑΦΟΡΑ.
+
+    Ο χάρτης στήνεται ασύγχρονα (κατεβαίνει πρώτα η βιβλιοθήκη). Το πέρασμα που
+    βάζει τις πινέζες έτρεχε πριν προλάβει να φτιαχτεί η ομάδα, έβρισκε άδειο
+    και σταματούσε — και δεν ξανάτρεχε ποτέ, γιατί τίποτα από όσα παρακολουθεί
+    δεν άλλαζε. Αποτέλεσμα: χάρτης με δρόμους και ΚΑΜΙΑ πινέζα.
+
+    Η σημαία αλλάζει κατάσταση μόλις ο χάρτης είναι έτοιμος, οπότε το πέρασμα
+    ξανατρέχει από μόνο του.
+  */
+  const [ready, setReady] = useState(false);
   /* Η τελευταία επιλογή, ώστε το κλικ στην πινέζα να μη χρειάζεται να
      ξαναδημιουργεί τον χάρτη σε κάθε αλλαγή. */
   const selectRef = useRef(onSelect);
@@ -92,9 +112,45 @@ export function TaskMap({
         scrollWheelZoom: false,
       }).setView([center.lat, center.lon], 13);
 
-      L.tileLayer(TILE_URL, { attribution: TILE_ATTRIBUTION, maxZoom: 19 }).addTo(map);
-      layerRef.current = L.layerGroup().addTo(map);
+      L.tileLayer(TILE_URL, {
+        attribution: TILE_ATTRIBUTION,
+        maxZoom: 20,
+        subdomains: 'abcd',
+      }).addTo(map);
+
+      /*
+        ΟΜΑΔΟΠΟΙΗΣΗ: όταν δύο πινέζες πέφτουν η μία πάνω στην άλλη, δεν διαβάζεις
+        καμία από τις δύο. Και με πενήντα, ο χάρτης γίνεται τοίχος από ποσά.
+
+        Οι πινέζες που είναι κοντά γίνονται ΕΝΑΣ κύκλος με τον αριθμό τους. Το
+        πάτημα ανοίγει την περιοχή. Έτσι από μακριά βλέπεις «πού υπάρχει
+        κίνηση» και πλησιάζοντας βλέπεις τι ακριβώς.
+      */
+      await import('leaflet.markercluster');
+      layerRef.current = (L as any)
+        .markerClusterGroup({
+          showCoverageOnHover: false,
+          spiderfyOnMaxZoom: true,
+          maxClusterRadius: 45,
+          iconCreateFunction: (cluster: any) => {
+            const n = cluster.getChildCount();
+            const size = n < 10 ? 34 : n < 50 ? 40 : 46;
+            return L.divIcon({
+              className: '',
+              html:
+                `<span style="display:flex;align-items:center;justify-content:center;` +
+                `width:${size}px;height:${size}px;margin:${-size / 2}px 0 0 ${-size / 2}px;` +
+                `border-radius:9999px;background:#f59e0b;color:#fff;border:3px solid #fff;` +
+                `font:800 ${n < 100 ? 14 : 12}px/1 Inter,system-ui,sans-serif;` +
+                `box-shadow:0 2px 8px rgba(0,0,0,.28)">${n}</span>`,
+              iconSize: [0, 0],
+              iconAnchor: [0, 0],
+            });
+          },
+        })
+        .addTo(map);
       mapRef.current = map;
+      setReady(true);
       // Το ζουμ με τον τροχό ανοίγει μόλις ο χρήστης πατήσει μέσα στον χάρτη —
       // τότε ξέρουμε ότι όντως τον χρησιμοποιεί.
       map.on('click', () => map.scrollWheelZoom.enable());
@@ -107,6 +163,7 @@ export function TaskMap({
         mapRef.current.remove();
         mapRef.current = null;
         layerRef.current = null;
+        ringRef.current = null;
       }
     };
     // Ο χάρτης δεν ξαναφτιάχνεται όταν αλλάξει το κέντρο — μετακινείται πιο κάτω.
@@ -125,15 +182,20 @@ export function TaskMap({
 
       const pts: [number, number][] = [];
 
-      // Ο κύκλος της ακτίνας αναζήτησης, γύρω από το κέντρο.
+      // Ο κύκλος της ακτίνας δεν μπαίνει στην ομάδα — δεν είναι πινέζα και δεν
+      // πρέπει να μετριέται μαζί με τις δουλειές.
+      if (ringRef.current) {
+        map.removeLayer(ringRef.current);
+        ringRef.current = null;
+      }
       if (radiusKm) {
-        L.circle([center.lat, center.lon], {
+        ringRef.current = L.circle([center.lat, center.lon], {
           radius: radiusKm * 1000,
           color: '#f59e0b',
           weight: 1,
           fillColor: '#f59e0b',
-          fillOpacity: 0.06,
-        }).addTo(layer);
+          fillOpacity: 0.05,
+        }).addTo(map);
       }
 
       for (const t of tasks as TaskPoint[]) {
@@ -141,17 +203,6 @@ export function TaskMap({
         if (!p) continue;
         pts.push([p.lat, p.lon]);
 
-        // Όσο το σημείο είναι κατά προσέγγιση, ο κύκλος το λέει καθαρά.
-        if (!t.exactPoint) {
-          L.circle([p.lat, p.lon], {
-            radius: APPROX_RADIUS_M,
-            color: '#f59e0b',
-            weight: 1,
-            opacity: 0.35,
-            fillColor: '#f59e0b',
-            fillOpacity: 0.08,
-          }).addTo(layer);
-        }
 
         const on = selectedId === t.id;
         /* Το ποσό μπαίνει ΠΑΝΩ στην πινέζα: είναι το πρώτο πράγμα που θέλει να
@@ -193,7 +244,7 @@ export function TaskMap({
     return () => {
       cancelled = true;
     };
-  }, [tasks, center.lat, center.lon, radiusKm, selectedId, autoFit]);
+  }, [ready, tasks, center.lat, center.lon, radiusKm, selectedId, autoFit]);
 
   const nearest = tasks.length
     ? Math.min(
@@ -208,9 +259,25 @@ export function TaskMap({
 
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+      {/* Ο μετρητής πάνω από τον χάρτη: το πρώτο που θέλει να ξέρει κάποιος
+          που ανοίγει χάρτη είναι «έχει πράγματα εδώ;». */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-3 py-2">
+        <span className="rounded-full bg-gray-900 px-3 py-1 text-xs font-bold text-white">
+          {tasks.length} {tasks.length === 1 ? 'μικροδουλειά' : 'μικροδουλειές'} στον χάρτη
+        </span>
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-gray-500">
+          <span
+            aria-hidden="true"
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ background: '#f59e0b' }}
+          />
+          ζητάνε χέρια
+        </span>
+      </div>
+
       <div
         ref={holder}
-        className="h-64 w-full sm:h-80"
+        className="h-80 w-full sm:h-[28rem]"
         role="application"
         aria-label={`Χάρτης με ${tasks.length} μικροδουλειές γύρω από ${centerLabel}`}
       />
@@ -219,7 +286,19 @@ export function TaskMap({
         <p className="text-[11px] leading-snug text-gray-500">
           Οι θέσεις είναι κατά προσέγγιση — ο κύκλος δείχνει τετράγωνο ~500 μ., όχι διεύθυνση.
           {nearest !== null && Number.isFinite(nearest) && (
-            <> Πιο κοντινή: {nearest < 1 ? `${Math.round(nearest * 1000)} μ.` : `${nearest.toFixed(1)} χλμ`}.</>
+            <>
+              {' '}
+              Πιο κοντινή:{' '}
+              {/* «0 μ.» διαβάζεται σαν χαλασμένος υπολογισμός. Κάτω από 100 μέτρα
+                  η ακρίβεια δεν έχει νόημα ούτως ή άλλως — το σημείο είναι
+                  κουμπωμένο σε τετράγωνο 500 μέτρων. */}
+              {nearest < 0.1
+                ? 'εδώ δίπλα'
+                : nearest < 1
+                  ? `${Math.round(nearest * 1000)} μ.`
+                  : `${nearest.toFixed(1)} χλμ`}
+              .
+            </>
           )}
         </p>
 
