@@ -431,6 +431,18 @@ app.get('/public/workers', async (c) => {
 // Μόνο μόνιμες αγγελίες: αυτό το endpoint τροφοδοτεί το generateStaticParams()
 // και το sitemap του static export. Οι βάρδιες λήγουν σε ώρες και θα παρήγαγαν
 // νεκρές στατικές σελίδες. Για βάρδιες υπάρχει το /public/shifts.
+//
+// Η ΠΡΟΩΘΗΣΗ ΜΕΤΡΑΕΙ ΚΑΙ ΕΔΩ — ΕΔΩ ΜΕΤΡΑΕΙ ΠΕΡΙΣΣΟΤΕΡΟ ΑΠ' ΟΠΟΥΔΗΠΟΤΕ.
+//
+// Αυτό το ρώτημα τροφοδοτεί τη «Βρες εργασία» και την αρχική, δηλαδή ΟΛΟΥΣ τους
+// επισκέπτες χωρίς λογαριασμό — το μεγαλύτερο κοινό που έχει μια αγγελία.
+// Μέχρι τώρα ταξινομούσε μόνο κατά ημερομηνία και δεν ήξερε καν ότι υπάρχει
+// προώθηση: η επιχείρηση πλήρωνε 5 μονάδες για 7 μέρες και δεν έπαιρνε τίποτα
+// ακριβώς εκεί που το πλήρωνε. Η συνδεδεμένη λίστα το έκανε ήδη σωστά, οπότε το
+// σφάλμα ήταν αόρατο σε όποιον δοκίμαζε συνδεδεμένος.
+//
+// Η προωθημένη πάει πρώτη· μέσα στην ίδια ομάδα μένει η σειρά ημερομηνίας, ώστε
+// μια πληρωμένη παλιά αγγελία να μην κρύβει για πάντα τις νεότερες.
 app.get('/public/jobs', async (c) => {
   const db = c.env.DB;
   const limit = Math.min(parseInt(c.req.query('limit') || '30', 10), 500);
@@ -450,13 +462,17 @@ app.get('/public/jobs', async (c) => {
          COALESCE(br.logo_url, bp.logo_url) as company_logo,
          COALESCE(NULLIF(br.name, ''), bp.company_name) as display_company_name,
          br.cover_photo_url as company_cover_photo,
+         CASE WHEN active_boost.id IS NOT NULL THEN 1 ELSE 0 END as is_boosted,
          (SELECT GROUP_CONCAT(role) FROM job_listing_roles
            WHERE job_listing_id = j.id) as roles_csv
        FROM job_listings j
        LEFT JOIN business_profiles bp ON bp.id = j.business_id
        LEFT JOIN business_branches br ON br.user_id = bp.user_id
+       LEFT JOIN (
+         SELECT job_id, id FROM job_boosts WHERE expires_at > datetime('now')
+       ) active_boost ON active_boost.job_id = j.id
        WHERE j.status = 'published' AND j.listing_kind = 'job'
-       ORDER BY j.created_at DESC
+       ORDER BY is_boosted DESC, j.created_at DESC
        LIMIT ?`
     )
     .bind(limit)

@@ -27,6 +27,8 @@ type Job = {
   mealsProvided: boolean;
   postedAgo: string;
   createdAtMs: number;
+  /** Πληρωμένη προώθηση σε ισχύ. Ανεβαίνει πάνω και παίρνει ετικέτα. */
+  boosted: boolean;
   logo: string | null;
   description?: string;
   /** Ετικέτες ειδικοτήτων στα ελληνικά (για εμφάνιση). */
@@ -155,6 +157,7 @@ export function PublicJobsList() {
             mealsProvided: !!j.meals_provided,
             postedAgo: timeAgoGreek(j.created_at ?? null),
             createdAtMs: j.created_at ? new Date(j.created_at).getTime() : 0,
+            boosted: !!j.is_boosted,
             logo: j.company_logo || null,
             description: typeof j.description === 'string' && j.description.trim() ? j.description.trim() : undefined,
             roleKeys,
@@ -254,7 +257,22 @@ export function PublicJobsList() {
         if ((sel.perks ?? []).includes('meals') && !j.mealsProvided) return false;
         return true;
       })
-      .sort((a, b) => b.createdAtMs - a.createdAtMs);
+      /*
+        Η ΠΡΟΩΘΗΜΕΝΗ ΠΡΩΤΗ — ΑΛΛΙΩΣ Η ΠΛΗΡΩΜΗ ΔΕΝ ΑΓΟΡΑΖΕΙ ΤΙΠΟΤΑ.
+
+        Εδώ ήταν σκέτη ταξινόμηση κατά ημερομηνία, που έσβηνε ΚΑΙ τη σειρά που
+        έστελνε ο server. Η επιχείρηση πλήρωνε για 7 μέρες προβολής και η
+        αγγελία της καθόταν στη θέση της ημερομηνίας της, σε αυτή ακριβώς τη
+        σελίδα που τη βλέπουν όλοι οι επισκέπτες χωρίς λογαριασμό.
+
+        Μέσα στην ίδια ομάδα κρατάμε την ημερομηνία, ώστε μια παλιά πληρωμένη
+        αγγελία να μη σκεπάζει μόνιμα τις καινούριες.
+      */
+      .sort((a, b) =>
+        a.boosted === b.boosted
+          ? b.createdAtMs - a.createdAtMs
+          : (b.boosted ? 1 : 0) - (a.boosted ? 1 : 0)
+      );
   }, [items, query, sel]);
 
   // Όλα από τις ΠΡΑΓΜΑΤΙΚΕΣ αγγελίες. Ο μέσος μισθός υπολογίζεται μόνο από
@@ -416,6 +434,11 @@ export function PublicJobsList() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start gap-2">
                         <p className="min-w-0 flex-1 truncate font-bold text-gray-900">{j.title}</p>
+                        {j.boosted && (
+                          <span className="mt-0.5 flex-shrink-0 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                            Προωθημένη
+                          </span>
+                        )}
                         {isNew(j) && (
                           <span className="mt-0.5 flex-shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
                             Νέο
