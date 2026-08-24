@@ -96,7 +96,8 @@ export class StaffNowApi {
     /** Η δημόσια ροή — δουλεύει και χωρίς σύνδεση. */
     feed: () => this.client.get<any>('/tasknow/feed'),
     /** Διεύθυνση → σημείο στον χάρτη. Περνάει από τον δικό μας server. */
-    geocode: (q: string) => this.client.get<any>('/tasknow/geocode', { q }),
+    geocode: (q: string, near?: { lat: number; lon: number }) =>
+      this.client.get<any>('/tasknow/geocode', near ? { q, lat: near.lat, lon: near.lon } : { q }),
     state: () => this.client.get<any>('/tasknow/state'),
     acceptTerms: () => this.client.post<any>('/tasknow/consent'),
 

@@ -21,6 +21,7 @@ import {
   type CenterSource,
   type Coords,
   distanceKm,
+  shortPlaceLabel,
 } from './data';
 import {
   areaStats,
@@ -158,7 +159,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
     navigator.permissions
       .query({ name: 'geolocation' as PermissionName })
       .then((status) => {
-        if (status.state === 'granted') locate();
+        if (status.state === 'granted') locate(false);
         /*
           ΤΟ ΚΟΥΜΠΙ ΜΕΝΕΙ. Πριν εξαφανιζόταν, και ο χρήστης δεν είχε κανέναν
           τρόπο να καταλάβει γιατί λείπει ούτε να ξαναδοκιμάσει αφού διορθώσει
@@ -181,9 +182,20 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function locate() {
+  /*
+    ΟΤΑΝ ΤΟ ΚΑΝΟΥΜΕ ΕΜΕΙΣ, ΑΠΟΤΥΓΧΑΝΟΥΜΕ ΣΙΩΠΗΛΑ.
+
+    Με το φόρτωμα της σελίδας ζητάμε μόνοι μας την τοποθεσία, αν ο browser λέει
+    ότι έχουμε ήδη άδεια. Στον Mac όμως η άδεια του site μπορεί να είναι
+    «δοσμένη» ενώ οι υπηρεσίες τοποθεσίας του ΣΥΣΤΗΜΑΤΟΣ είναι κλειστές: τότε
+    αυτό αποτυγχάνει και πετούσε κόκκινο μήνυμα και οδηγό σε κάποιον που μόλις
+    άνοιξε τη σελίδα και δεν ζήτησε τίποτα. Και ξανά, και ξανά, σε κάθε είσοδο.
+
+    Μήνυμα βγάζουμε ΜΟΝΟ όταν το ζήτησε ο χρήστης πατώντας «Κοντά μου».
+  */
+  function locate(userAsked = true) {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      setLocError('Ο browser δεν υποστηρίζει τοποθεσία.');
+      if (userAsked) setLocError('Ο browser δεν υποστηρίζει τοποθεσία.');
       return;
     }
     setLocating(true);
@@ -199,6 +211,15 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
       },
       (err) => {
         setLocating(false);
+        /*
+          ΣΙΩΠΗ ΟΤΑΝ ΔΕΝ ΤΟ ΖΗΤΗΣΕ Ο ΧΡΗΣΤΗΣ.
+
+          Αυτό εδώ τρέχει ΚΑΙ αυτόματα με το φόρτωμα. Στον Mac η άδεια του site
+          μπορεί να λέει «δοσμένη» ενώ οι υπηρεσίες τοποθεσίας του συστήματος
+          είναι κλειστές — οπότε πετούσε παράθυρο και κόκκινο μήνυμα σε κάθε
+          είσοδο, χωρίς να έχει πατήσει κανείς τίποτα.
+        */
+        if (!userAsked) return;
         /*
           ΤΡΕΙΣ ΕΝΤΕΛΩΣ ΔΙΑΦΟΡΕΤΙΚΕΣ ΑΙΤΙΕΣ, ΤΡΙΑ ΔΙΑΦΟΡΕΤΙΚΑ ΜΗΝΥΜΑΤΑ.
 
@@ -257,8 +278,17 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
     setAddrErr(null);
     setAddrBusy(true);
     try {
-      const res: any = await (api as any).tasknow.geocode(q);
-      const hits = res?.data?.results ?? [];
+      const res: any = await (api as any).tasknow.geocode(q, center);
+      const hits: { label: string; lat: number; lon: number }[] = res?.data?.results ?? [];
+      /*
+        ΤΑ ΚΟΝΤΙΝΑ ΠΡΩΤΑ.
+
+        Η υπηρεσία του χάρτη δεν ξέρει πού κοιτάς. Γράφοντας «Αγίου Γεωργίου 11»
+        από τη Θεσσαλονίκη έπαιρνες πρώτα Νέα Ιωνία, Χαλάνδρι και Αχαρνές —
+        δρόμοι που υπάρχουν σε κάθε πόλη. Ταξινομούμε με βάση το σημείο που
+        βλέπει ήδη ο χρήστης, οπότε το δικό του βγαίνει πάνω.
+      */
+      hits.sort((a, b) => distanceKm(center, a) - distanceKm(center, b));
       setAddrHits(hits);
       if (!hits.length) setAddrErr('Δεν βρέθηκε. Δοκίμασε με πόλη, π.χ. «Τσιμισκή 50, Θεσσαλονίκη».');
     } catch {
@@ -454,7 +484,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
             καταλάβει γιατί, ούτε να ξαναδοκιμάσει αφού φτιάξει τις ρυθμίσεις. */}
         <button
           type="button"
-          onClick={locate}
+          onClick={() => locate(true)}
           disabled={locating}
           className="mb-2 w-full rounded-lg bg-gray-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:opacity-60"
         >
@@ -470,6 +500,9 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
               onChange={(e) => {
                 setAddr(e.target.value);
                 setAddrErr(null);
+                /* Το παλιό μήνυμα του «Κοντά μου» δεν αφορά αυτή τη διαδρομή. */
+                setLocError(null);
+                setGuide(null);
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -502,7 +535,15 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
                     onClick={() => applyAddress(h)}
                     className="w-full rounded-md px-2 py-1.5 text-left text-xs leading-snug text-gray-700 transition hover:bg-amber-50"
                   >
-                    {h.label}
+                    {(() => {
+                      const { main, sub } = shortPlaceLabel(h.label);
+                      return (
+                        <>
+                          <span className="block font-medium text-gray-900">{main}</span>
+                          {sub && <span className="block text-[11px] text-gray-500">{sub}</span>}
+                        </>
+                      );
+                    })()}
                   </button>
                 </li>
               ))}

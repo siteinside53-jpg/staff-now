@@ -791,3 +791,31 @@ export function posterLabel(name?: string, role?: 'worker' | 'business'): string
   if (!role) return name;
   return `${name} · ${role === 'business' ? 'επιχείρηση' : 'εργαζόμενος'}`;
 }
+
+/*
+  ΚΟΝΤΑ ΟΝΟΜΑΤΑ ΓΙΑ ΤΙΣ ΠΡΟΤΑΣΕΙΣ ΔΙΕΥΘΥΝΣΗΣ.
+
+  Η υπηρεσία του χάρτη επιστρέφει ΟΛΟΚΛΗΡΗ τη διοικητική αλυσίδα:
+  «11, Αγίου Γεωργίου, Ελευθερούπολη, Νέα Ιωνία, Δήμος Νέας Ιωνίας,
+   Περιφερειακή Ενότητα Βορείου Τομέα Αθηνών, Περιφέρεια Αττικής,
+   Αποκεντρωμένη Διοίκηση Αττικής, 142 34, Ελλάδα»
+
+  Πέντε τέτοια στη σειρά γεμίζουν την οθόνη και δεν διαβάζεται κανένα. Κρατάμε
+  τον δρόμο με τον αριθμό, και ξεχωριστά τον δήμο — που είναι το μόνο που
+  χρειάζεται κάποιος για να ξεχωρίσει «ποιο από τα πέντε Αγίου Γεωργίου».
+*/
+export function shortPlaceLabel(label: string): { main: string; sub: string } {
+  const parts = label
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean)
+    // Έξω ο ταχυδρομικός κώδικας και η χώρα: δεν βοηθούν να διαλέξεις.
+    .filter((x) => x !== 'Ελλάδα' && !/^\d{3}\s?\d{2}$/.test(x));
+
+  const main = parts.slice(0, 2).join(', ') || label;
+  const municipality = parts.find((x) => x.startsWith('Δήμος '));
+  const sub = municipality
+    ? municipality.replace(/^Δήμος\s+/, '')
+    : (parts[2] ?? '');
+  return { main, sub: sub && sub !== main ? sub : '' };
+}

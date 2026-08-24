@@ -369,7 +369,29 @@ tasknow.get('/geocode', async (c) => {
   const q = (c.req.query('q') || '').trim().slice(0, 160);
   if (q.length < 3) return success(c, { results: [] });
 
-  const key = `geo:v1:${q.toLowerCase()}`;
+  /*
+    ΠΟΥ ΚΟΙΤΑΕΙ Ο ΧΡΗΣΤΗΣ.
+
+    Χωρίς αυτό, το «Αγίου Γεωργίου 11» από τη Θεσσαλονίκη γύριζε Νέα Ιωνία,
+    Χαλάνδρι και Αχαρνές — δρόμοι που υπάρχουν σε κάθε πόλη. Και επειδή η
+    υπηρεσία δίνει το πολύ 5 αποτελέσματα, καμιά ταξινόμηση από τη μεριά μας
+    δεν μπορούσε να σώσει την κατάσταση: η σωστή διεύθυνση δεν ερχόταν καν.
+
+    Το «viewbox» ΠΡΟΤΙΜΑ την περιοχή, δεν την επιβάλλει (bounded=0): αν κάποιος
+    ψάχνει όντως άλλη πόλη, θα τη βρει κανονικά, απλώς πιο κάτω.
+  */
+  const lat = Number(c.req.query('lat'));
+  const lon = Number(c.req.query('lon'));
+  const near = Number.isFinite(lat) && Number.isFinite(lon);
+  // ~0.4 μοίρες ≈ 40 χλμ: όλη η ευρύτερη πόλη, χωρίς να κόβει τα προάστια.
+  const box = near
+    ? `&viewbox=${(lon - 0.4).toFixed(2)},${(lat + 0.4).toFixed(2)},${(lon + 0.4).toFixed(2)},${(lat - 0.4).toFixed(2)}&bounded=0`
+    : '';
+
+  // Η περιοχή μπαίνει στο κλειδί: αλλιώς η Θεσσαλονίκη θα έπαιρνε την
+  // αποθηκευμένη απάντηση της Αθήνας για το ίδιο κείμενο.
+  const area = near ? `${lat.toFixed(1)},${lon.toFixed(1)}` : 'gr';
+  const key = `geo:v2:${area}:${q.toLowerCase()}`;
   try {
     const hit = await c.env.KV.get(key, 'json');
     if (hit) return success(c, { results: hit, cached: true });
@@ -380,7 +402,8 @@ tasknow.get('/geocode', async (c) => {
   // Περιορισμός στην Ελλάδα: ο χρήστης γράφει «Τσιμισκή 50» και δεν θέλει
   // αποτελέσματα από τη Γερμανία.
   const url =
-    'https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=gr&limit=5' +
+    'https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=gr&limit=8' +
+    box +
     `&accept-language=el&q=${encodeURIComponent(q)}`;
 
   let results: { label: string; lat: number; lon: number }[] = [];

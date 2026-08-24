@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
 import { api } from '@/lib/api';
-import { AREA_COORDS, type Coords } from './data';
+import { AREA_COORDS, distanceKm, shortPlaceLabel, type Coords } from './data';
 
 /**
  * «Δείξε πού» — η πινέζα την ώρα του ανεβάσματος.
@@ -73,8 +73,14 @@ export function PointPicker({
     setSearching(true);
     setNoHits(false);
     try {
-      const res: any = await (api as any).tasknow.geocode(text);
-      const list = res?.data?.results ?? [];
+      /* Πού κοιτάει ήδη ο χάρτης — το στέλνουμε ΠΡΙΝ ρωτήσουμε, ώστε η υπηρεσία
+         να προτιμήσει αυτή την περιοχή, και ταξινομούμε ξανά από κοντά. */
+      const here = mapRef.current
+        ? { lat: mapRef.current.getCenter().lat, lon: mapRef.current.getCenter().lng }
+        : (AREA_COORDS[area] ?? AREA_COORDS['Κέντρο']!);
+      const res: any = await (api as any).tasknow.geocode(text, here);
+      const list: { label: string; lat: number; lon: number }[] = res?.data?.results ?? [];
+      list.sort((a, b) => distanceKm(here, a) - distanceKm(here, b));
       setHits(list);
       setNoHits(list.length === 0);
     } catch {
@@ -258,7 +264,15 @@ export function PointPicker({
                 }}
                 className="block w-full px-3 py-2 text-left text-xs leading-snug text-gray-700 transition hover:bg-amber-50"
               >
-                {h.label}
+                {(() => {
+                  const { main, sub } = shortPlaceLabel(h.label);
+                  return (
+                    <>
+                      <span className="block font-medium text-gray-900">{main}</span>
+                      {sub && <span className="block text-[11px] text-gray-500">{sub}</span>}
+                    </>
+                  );
+                })()}
               </button>
             </li>
           ))}
