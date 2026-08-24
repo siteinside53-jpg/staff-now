@@ -11,6 +11,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Spinner } from '@/components/ui/spinner';
 import { WorkerVerification } from '@/components/dashboard/worker-verification';
+import { PhoneVerification } from '@/components/dashboard/phone-verification';
+import { EmailVerification } from '@/components/dashboard/email-verification';
 import { API_URL } from '@/lib/config';
 
 type VerificationRequest = {
@@ -39,6 +41,14 @@ export default function VerificationPage() {
   const [notes, setNotes] = useState('');
   const [docUrl, setDocUrl] = useState('');
   const [docName, setDocName] = useState('');
+  /* Η επαλήθευση κινητού ήταν εντελώς απούσα από την οθόνη της επιχείρησης. */
+  const [phoneInfo, setPhoneInfo] = useState<{
+    phone: string;
+    phoneConfirmed: boolean;
+    smsAvailable: boolean;
+    email: string;
+    emailConfirmed: boolean;
+  } | null>(null);
 
   const load = useCallback(async () => {
     // Ο εργαζόμενος βλέπει το <WorkerVerification/> — μην χτυπάς business endpoint.
@@ -48,6 +58,13 @@ export default function VerificationPage() {
       setVerified(!!res?.data?.verified);
       setRequest(res?.data?.request || null);
       if (res?.data?.request?.vat_number) setVat(res.data.request.vat_number);
+      setPhoneInfo({
+        phone: res?.data?.phone || '',
+        phoneConfirmed: !!res?.data?.phoneConfirmed,
+        smsAvailable: !!res?.data?.smsAvailable,
+        email: res?.data?.email || '',
+        emailConfirmed: !!res?.data?.emailConfirmed,
+      });
     } catch {
       // Αν αποτύχει, δείχνουμε απλώς την κενή φόρμα.
     } finally {
@@ -139,6 +156,19 @@ export default function VerificationPage() {
             </Link>
           </CardContent>
         </Card>
+
+        {/* Η επιχείρηση μπορεί να είναι επαληθευμένη και να μην έχει δώσει
+            κινητό. Εδώ κατέληγε το κουμπί του TaskNow και δεν έβρισκε τίποτα. */}
+        {phoneInfo && (
+          <div className="mt-4 space-y-4">
+            <EmailVerification
+              email={phoneInfo.email}
+              emailConfirmed={phoneInfo.emailConfirmed}
+              onConfirmed={load}
+            />
+            <PhoneVerification {...phoneInfo} onConfirmed={load} />
+          </div>
+        )}
       </div>
     );
 
@@ -159,6 +189,17 @@ export default function VerificationPage() {
             )}
           </CardContent>
         </Card>
+
+        {phoneInfo && (
+          <div className="mt-4 space-y-4">
+            <EmailVerification
+              email={phoneInfo.email}
+              emailConfirmed={phoneInfo.emailConfirmed}
+              onConfirmed={load}
+            />
+            <PhoneVerification {...phoneInfo} onConfirmed={load} />
+          </div>
+        )}
       </div>
     );
 
@@ -266,6 +307,17 @@ export default function VerificationPage() {
           </p>
         </CardContent>
       </Card>
+
+      {phoneInfo && (
+        <div className="mt-4 space-y-4">
+          <EmailVerification
+            email={phoneInfo.email}
+            emailConfirmed={phoneInfo.emailConfirmed}
+            onConfirmed={load}
+          />
+          <PhoneVerification {...phoneInfo} onConfirmed={load} />
+        </div>
+      )}
     </div>
   );
 }

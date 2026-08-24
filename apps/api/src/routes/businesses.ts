@@ -9,6 +9,7 @@ import { generateId } from '../lib/id';
 import { recordDataChange, computeDiff, getRequestIp, getGeoFromRequest } from '../lib/activity';
 import { notifyUser } from '../lib/notify';
 import { getReputation } from '../lib/reputation';
+import { smsConfigured } from '../lib/sms';
 
 const businesses = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
 
@@ -178,7 +179,38 @@ businesses.get('/me/verification', requireAuth, requireRole('business'), async (
     .bind(user.id)
     .first();
 
-  return success(c, { verified: profile.verified === 1, request: request || null });
+  /*
+    ΤΟ ΚΙΝΗΤΟ ΛΕΙΠΕ ΕΝΤΕΛΩΣ ΑΠΟ ΕΔΩ — ΚΑΙ ΤΟ ΤΑΜΠΛΟ ΤΟ ΖΗΤΟΥΣΕ.
+
+    Το TaskNow δείχνει στην επιχείρηση κάρτα «Επαλήθευση» με «○ Κινητό» και
+    κουμπί «Επαλήθευσε το κινητό →» που οδηγεί εδώ. Η σελίδα όμως δεν είχε
+    κανένα βήμα κινητού: αν η επιχείρηση ήταν ήδη επαληθευμένη, έβλεπε μόνο το
+    πράσινο «είσαι επαληθευμένη» και τέλος. Δηλαδή το κουμπί οδηγούσε σε
+    αδιέξοδο, και το «○ Κινητό» δεν γινόταν ✓ ποτέ.
+
+    Τα ίδια πεδία με τον εργαζόμενο, ώστε η οθόνη να είναι μία και κοινή.
+  */
+  const account = await c.env.DB.prepare(
+    'SELECT email, email_confirmed_at, phone, phone_confirmed_at FROM users WHERE id = ?',
+  )
+    .bind(user.id)
+    .first<{
+      email: string;
+      email_confirmed_at: string | null;
+      phone: string | null;
+      phone_confirmed_at: string | null;
+    }>();
+
+  return success(c, {
+    verified: profile.verified === 1,
+    request: request || null,
+    phone: account?.phone || '',
+    phoneConfirmed: !!account?.phone_confirmed_at,
+    // Λέει στη σελίδα ποια εκδοχή να δείξει: κωδικό SMS ή «δηλωμένο».
+    smsAvailable: smsConfigured(c.env),
+    email: account?.email || '',
+    emailConfirmed: !!account?.email_confirmed_at,
+  });
 });
 
 // POST /me/verify — υποβολή αιτήματος επαλήθευσης
