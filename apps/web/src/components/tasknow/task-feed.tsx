@@ -668,6 +668,19 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
             reason={guide}
             onRetry={() => locate()}
             onClose={() => setGuide(null)}
+            onWriteAddress={() => {
+              /* Κλείνει τον οδηγό ΚΑΙ πάει τον κέρσορα στο πεδίο διεύθυνσης —
+                 αλλιώς ο χρήστης κλείνει το παράθυρο και δεν ξέρει πού να πάει. */
+              setGuide(null);
+              setLocError(null);
+              setTimeout(() => {
+                const el = document.querySelector<HTMLInputElement>(
+                  'input[placeholder="ή γράψε τη διεύθυνσή σου"]',
+                );
+                el?.scrollIntoView({ block: 'center' });
+                el?.focus();
+              }, 60);
+            }}
           />
         )}
 

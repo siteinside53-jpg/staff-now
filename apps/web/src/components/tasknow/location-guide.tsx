@@ -121,10 +121,13 @@ export function LocationGuide({
   reason,
   onRetry,
   onClose,
+  onWriteAddress,
 }: {
   reason: Reason;
   onRetry: () => void;
   onClose: () => void;
+  /** «Γράψε τη διεύθυνσή σου» — η διέξοδος που δεν θέλει καμία άδεια. */
+  onWriteAddress?: () => void;
 }) {
   const { title, steps, note } = stepsFor(reason);
   const [checking, setChecking] = useState(false);
@@ -203,6 +206,25 @@ export function LocationGuide({
             Θα διαλέξω γειτονιά
           </button>
         </div>
+
+        {/*
+          Η ΔΙΕΞΟΔΟΣ ΠΟΥ ΔΕΝ ΕΞΑΡΤΑΤΑΙ ΑΠΟ ΚΑΜΙΑ ΑΔΕΙΑ.
+
+          Ο οδηγός εξηγούσε πώς να φτιάξεις τις ρυθμίσεις και προσέφερε λίστα με
+          γειτονιές. Σε κάποιους όμως — χαρακτηριστικά στο Safari σε Mac — η
+          τοποθεσία δεν δίνεται όσες ρυθμίσεις κι αν αλλάξεις. Τότε το μόνο που
+          δουλεύει σίγουρα είναι να γράψει ο ίδιος τη διεύθυνσή του, και μέχρι
+          τώρα το κουτί αυτό ήταν κρυμμένο ΠΙΣΩ από αυτό εδώ το παράθυρο.
+        */}
+        {onWriteAddress && (
+          <button
+            type="button"
+            onClick={onWriteAddress}
+            className="mt-3 w-full rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+          >
+            ✍️ Ή γράψε τη διεύθυνσή σου — δουλεύει πάντα
+          </button>
+        )}
       </div>
     </div>
   );
