@@ -22,6 +22,7 @@ import {
   type Coords,
   distanceKm,
   shortPlaceLabel,
+  PLACES,
 } from './data';
 import {
   areaStats,
@@ -94,6 +95,8 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
   /** Ποιος οδηγός τοποθεσίας είναι ανοιχτός, αν είναι. */
   const [guide, setGuide] = useState<'denied' | 'unavailable' | 'timeout' | null>(null);
   const [locError, setLocError] = useState<string | null>(null);
+  /** «Σε βρήκαμε κατά προσέγγιση» — λέγεται καθαρά, ποτέ σαν ακριβής θέση. */
+  const [approxNote, setApproxNote] = useState<string | null>(null);
 
   /*
     «ΓΡΑΨΕ ΤΗ ΔΙΕΥΘΥΝΣΗ ΣΟΥ» — Η ΔΙΕΞΟΔΟΣ ΟΤΑΝ Ο BROWSER ΑΡΝΕΙΤΑΙ.
@@ -212,47 +215,43 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
       (err) => {
         setLocating(false);
         /*
-          ΣΙΩΠΗ ΟΤΑΝ ΔΕΝ ΤΟ ΖΗΤΗΣΕ Ο ΧΡΗΣΤΗΣ.
+          ΔΕΥΤΕΡΟΣ ΔΡΟΜΟΣ ΠΡΙΝ ΠΑΡΑΙΤΗΘΟΥΜΕ.
 
-          Αυτό εδώ τρέχει ΚΑΙ αυτόματα με το φόρτωμα. Στον Mac η άδεια του site
-          μπορεί να λέει «δοσμένη» ενώ οι υπηρεσίες τοποθεσίας του συστήματος
-          είναι κλειστές — οπότε πετούσε παράθυρο και κόκκινο μήνυμα σε κάθε
-          είσοδο, χωρίς να έχει πατήσει κανείς τίποτα.
-        */
-        if (!userAsked) return;
-        /*
-          ΤΡΕΙΣ ΕΝΤΕΛΩΣ ΔΙΑΦΟΡΕΤΙΚΕΣ ΑΙΤΙΕΣ, ΤΡΙΑ ΔΙΑΦΟΡΕΤΙΚΑ ΜΗΝΥΜΑΤΑ.
+          Ο browser αρνήθηκε. Αντί να πετάξουμε οδηγίες για ρυθμίσεις
+          συστήματος — που στο Safari σε Mac μπορεί να μη λύνουν τίποτα —
+          ρωτάμε τον δικό μας server: ξέρει κατά προσέγγιση από πού ήρθε το
+          αίτημα. Ακρίβεια πόλης, που για «τι υπάρχει κοντά μου» αρκεί.
 
-          Πριν έγραφε το ίδιο και για τις τρεις: «δεν πήραμε την τοποθεσία σου».
-          Η πιο συχνή στην πράξη είναι η ΑΡΝΗΣΗ — και τότε ο browser ΔΕΝ
-          ξαναρωτάει ποτέ, όσες φορές κι αν πατήσεις το κουμπί. Ο χρήστης
-          νομίζει ότι χάλασε κάτι, ενώ το μόνο που χρειάζεται είναι δύο κλικ
-          στις ρυθμίσεις του browser. Χωρίς να του το πούμε, δεν πρόκειται να
-          το βρει.
+          Ο οδηγός με τα βήματα μένει ΤΕΛΕΥΤΑΙΑ λύση: μόνο αν αποτύχει κι αυτό.
         */
-        // Ο οδηγός με τα βήματα, αντί για κόκκινο κειμενάκι που δεν διαβάζεται.
-        setGuide(err?.code === 1 ? 'denied' : err?.code === 3 ? 'timeout' : 'unavailable');
-        if (err?.code === 1) {
-          setLocError(
-            'Ο browser δεν μας δίνει την τοποθεσία σου. Στο Safari: Ρυθμίσεις → ' +
-              'Ιστότοποι → Τοποθεσία → staffnow.gr → «Να επιτρέπεται». Στο Chrome: ' +
-              'το εικονίδιο αριστερά από τη διεύθυνση → Τοποθεσία → Να επιτρέπεται.',
-          );
-        } else if (err?.code === 3) {
-          setLocError('Άργησε πολύ. Δοκίμασε ξανά ή διάλεξε γειτονιά από τη λίστα.');
-        } else {
+        void (async () => {
+          const found = await approximateLocate(userAsked);
+          if (found) return;
+
+          // Σιωπή όταν δεν το ζήτησε ο χρήστης: τρέχει και αυτόματα με το
+          // φόρτωμα, και δεν πετάμε παράθυρο σε κάποιον που δεν ζήτησε τίποτα.
+          if (!userAsked) return;
+
           /*
-            Στο Mac αυτό σημαίνει σχεδόν πάντα ότι η τοποθεσία είναι κλειστή σε
-            επίπεδο ΣΥΣΤΗΜΑΤΟΣ, όχι browser. Τότε το Safari αποτυγχάνει αμέσως
-            χωρίς να ρωτήσει τίποτα — και ο χρήστης ψάχνει στον browser, όπου
-            δεν υπάρχει τίποτα να αλλάξει.
+            ΤΡΕΙΣ ΕΝΤΕΛΩΣ ΔΙΑΦΟΡΕΤΙΚΕΣ ΑΙΤΙΕΣ, ΤΡΙΑ ΔΙΑΦΟΡΕΤΙΚΑ ΜΗΝΥΜΑΤΑ.
+            Η πιο συχνή είναι η ΑΡΝΗΣΗ — και τότε ο browser δεν ξαναρωτάει ποτέ.
           */
-          setLocError(
-            'Η συσκευή δεν έδωσε τοποθεσία. Σε Mac: Ρυθμίσεις Συστήματος → ' +
-              'Απόρρητο και ασφάλεια → Υπηρεσίες τοποθεσίας → ενεργοποίησέ τες και ' +
-              'βάλε ✓ στο Safari. Αλλιώς διάλεξε γειτονιά από τη λίστα.',
-          );
-        }
+          setGuide(err?.code === 1 ? 'denied' : err?.code === 3 ? 'timeout' : 'unavailable');
+          if (err?.code === 1) {
+            setLocError(
+              'Ο browser δεν μας δίνει την τοποθεσία σου. Στο Safari: Ρυθμίσεις → ' +
+                'Ιστότοποι → Τοποθεσία → staffnow.gr → «Να επιτρέπεται». Στο Chrome: ' +
+                'το εικονίδιο αριστερά από τη διεύθυνση → Τοποθεσία → Να επιτρέπεται.',
+            );
+          } else if (err?.code === 3) {
+            setLocError('Άργησε πολύ. Δοκίμασε ξανά ή γράψε τη διεύθυνσή σου.');
+          } else {
+            setLocError(
+              'Η συσκευή δεν έδωσε τοποθεσία. Γράψε τη διεύθυνσή σου παρακάτω — ' +
+                'δουλεύει πάντα, χωρίς καμία άδεια.',
+            );
+          }
+        })();
       },
       {
         // 20 δευτ.: το χρονόμετρο τρέχει ΚΑΙ όσο ο χρήστης διαβάζει την ερώτηση
@@ -266,6 +265,54 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
         enableHighAccuracy: false,
       },
     );
+  }
+
+  /**
+   * Κατά προσέγγιση τοποθεσία από τον server — χωρίς καμία άδεια browser.
+   *
+   * Δεν είναι η διεύθυνσή σου και δεν παρουσιάζεται ως τέτοια: η ετικέτα λέει
+   * την πόλη, και η ακτίνα ξεκινάει πλατιά ώστε να μην κρύβει δουλειές.
+   */
+  async function approximateLocate(userAsked: boolean) {
+    try {
+      const res: any = await (api as any).tasknow.whereAmI();
+      const d = res?.data;
+      if (!d?.found) return false;
+      setCenter({ lat: d.lat, lon: d.lon });
+      /*
+        ΕΛΛΗΝΙΚΟ ΟΝΟΜΑ, ΔΙΚΟ ΜΑΣ.
+
+        Το δίκτυο επιστρέφει λατινικά («Thessaloníki»), που δείχνει ξένο μέσα σε
+        ελληνική οθόνη. Βρίσκουμε την πιο κοντινή από τις δικές μας 98 περιοχές
+        και λέμε ΕΚΕΙΝΗ — ίδιο λεξιλόγιο με τα φίλτρα δίπλα.
+      */
+      const here = { lat: d.lat, lon: d.lon };
+      const nearest = PLACES.reduce(
+        (best, pl) => {
+          const km = distanceKm(here, pl);
+          return km < best.km ? { name: pl.name, km } : best;
+        },
+        { name: '', km: Infinity },
+      );
+      const where = nearest.km < 25 ? nearest.name : d.city || '';
+      setCenterLabel(where || 'εσένα');
+      setCenterSource('geo');
+      setRadius(10);
+      setSort('near');
+      // Βρήκαμε κάτι χρήσιμο — δεν έχει νόημα να δείχνουμε οδηγίες ρυθμίσεων.
+      setGuide(null);
+      setLocError(null);
+      if (userAsked) {
+        setApproxNote(
+          where
+            ? `Σε βρήκαμε κατά προσέγγιση, γύρω από ${where}. Για ακριβές σημείο, γράψε τη διεύθυνσή σου.`
+            : 'Σε βρήκαμε κατά προσέγγιση από τη σύνδεσή σου. Για ακριβές σημείο, γράψε τη διεύθυνσή σου.',
+        );
+      }
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /** Ψάχνει τη γραμμένη διεύθυνση και δείχνει τα σημεία που ταιριάζουν. */
@@ -327,6 +374,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
     setCenterSource('geo');
     setRadius(5);
     setSort('near');
+    setApproxNote(null);
     setAddrHits([]);
     setAddrErr(null);
     setGuide(null);
@@ -583,6 +631,13 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
               </button>
             ))}
           </div>
+        )}
+
+        {/* Σε βρήκαμε — αλλά το λέμε ακριβώς όπως είναι: κατά προσέγγιση. */}
+        {approxNote && (
+          <p className="mt-2 rounded-lg bg-blue-50 px-3 py-2 text-[11px] leading-relaxed text-blue-900">
+            📍 {approxNote}
+          </p>
         )}
 
         {locError && <p className="mt-2 text-xs font-medium text-red-600">{locError}</p>}
