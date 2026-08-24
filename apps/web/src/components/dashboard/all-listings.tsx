@@ -97,7 +97,7 @@ const KIND: Record<
     action: 'bg-gray-900 hover:bg-amber-500',
     newBorder: 'border-2 border-amber-500/60 shadow-md',
     hover: 'hover:border-amber-400',
-    avatar: 'bg-gradient-to-br from-amber-100 to-orange-100 text-amber-700',
+    avatar: 'bg-gradient-to-br from-amber-100 to-orange-300 text-amber-800',
     solid: 'bg-amber-500',
     money: 'text-amber-600',
     href: '/dashboard/tasknow',

@@ -826,7 +826,7 @@ export function TaskNowDashboardHub() {
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     {task.postedByName && (
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-amber-100 to-orange-100 text-xs font-bold text-amber-700">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-amber-100 to-orange-300 text-xs font-bold text-amber-800">
                         {task.postedByPhoto ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={task.postedByPhoto} alt="" className="h-full w-full object-cover" />

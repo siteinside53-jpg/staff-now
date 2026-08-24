@@ -58,7 +58,7 @@ export function TaskRow({
         <div className="flex gap-3">
           {/* Ποιος την ανέβασε — φωτογραφία αν έχει, αλλιώς το αρχικό γράμμα.
               Μια μικροδουλειά χωρίς πρόσωπο είναι απλώς ένα ποσό. */}
-          <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 text-xl font-bold text-amber-700">
+          <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-amber-100 to-orange-300 text-xl font-bold text-amber-800">
             {task.postedByPhoto ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={task.postedByPhoto} alt="" loading="lazy" className="h-full w-full object-cover" />
