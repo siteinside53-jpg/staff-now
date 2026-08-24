@@ -203,68 +203,90 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
     }
     setLocating(true);
     setLocError(null);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setCenter({ lat: pos.coords.latitude, lon: pos.coords.longitude });
-        setCenterLabel('σένα');
-        setCenterSource('geo');
-        setRadius(5);
-        setSort('near');
-        setLocating(false);
-      },
-      (err) => {
-        setLocating(false);
-        /*
-          ΔΕΥΤΕΡΟΣ ΔΡΟΜΟΣ ΠΡΙΝ ΠΑΡΑΙΤΗΘΟΥΜΕ.
 
-          Ο browser αρνήθηκε. Αντί να πετάξουμε οδηγίες για ρυθμίσεις
-          συστήματος — που στο Safari σε Mac μπορεί να μη λύνουν τίποτα —
-          ρωτάμε τον δικό μας server: ξέρει κατά προσέγγιση από πού ήρθε το
-          αίτημα. Ακρίβεια πόλης, που για «τι υπάρχει κοντά μου» αρκεί.
+    /*
+      ΓΙΑΤΙ ΔΥΟ ΠΡΟΣΠΑΘΕΙΕΣ, ΚΑΙ ΓΙΑΤΙ Η ΠΡΩΤΗ ΖΗΤΑΕΙ ΑΚΡΙΒΕΙΑ.
 
-          Ο οδηγός με τα βήματα μένει ΤΕΛΕΥΤΑΙΑ λύση: μόνο αν αποτύχει κι αυτό.
-        */
-        void (async () => {
-          const found = await approximateLocate(userAsked);
-          if (found) return;
+      Εδώ ζητούσαμε ΡΗΤΑ «όχι ακρίβεια» (enableHighAccuracy: false) με ανοχή
+      πεντάλεπτης παλιάς θέσης. Δηλαδή ζητούσαμε γειτονιά — και αυτό ακριβώς
+      παίρναμε. Ο χρήστης όμως θέλει τη διεύθυνσή του.
 
-          // Σιωπή όταν δεν το ζήτησε ο χρήστης: τρέχει και αυτόματα με το
-          // φόρτωμα, και δεν πετάμε παράθυρο σε κάποιον που δεν ζήτησε τίποτα.
-          if (!userAsked) return;
+      Chrome και Safari ΔΕΝ ρωτούν την ίδια υπηρεσία: ο Chrome στέλνει τα γύρω
+      δίκτυα στη Google, το Safari χρησιμοποιεί αποκλειστικά τον εντοπισμό του
+      macOS. Γι' αυτό δουλεύει στο ένα και αποτυγχάνει στο άλλο, στο ΙΔΙΟ
+      μηχάνημα. Καμία ρύθμιση της σελίδας δεν το αλλάζει αυτό.
 
-          /*
-            ΤΡΕΙΣ ΕΝΤΕΛΩΣ ΔΙΑΦΟΡΕΤΙΚΕΣ ΑΙΤΙΕΣ, ΤΡΙΑ ΔΙΑΦΟΡΕΤΙΚΑ ΜΗΝΥΜΑΤΑ.
-            Η πιο συχνή είναι η ΑΡΝΗΣΗ — και τότε ο browser δεν ξαναρωτάει ποτέ.
-          */
-          setGuide(err?.code === 1 ? 'denied' : err?.code === 3 ? 'timeout' : 'unavailable');
-          if (err?.code === 1) {
-            setLocError(
-              'Ο browser δεν μας δίνει την τοποθεσία σου. Στο Safari: Ρυθμίσεις → ' +
-                'Ιστότοποι → Τοποθεσία → staffnow.gr → «Να επιτρέπεται». Στο Chrome: ' +
-                'το εικονίδιο αριστερά από τη διεύθυνση → Τοποθεσία → Να επιτρέπεται.',
-            );
-          } else if (err?.code === 3) {
-            setLocError('Άργησε πολύ. Δοκίμασε ξανά ή γράψε τη διεύθυνσή σου.');
-          } else {
-            setLocError(
-              'Η συσκευή δεν έδωσε τοποθεσία. Γράψε τη διεύθυνσή σου παρακάτω — ' +
-                'δουλεύει πάντα, χωρίς καμία άδεια.',
-            );
-          }
-        })();
-      },
-      {
-        // 20 δευτ.: το χρονόμετρο τρέχει ΚΑΙ όσο ο χρήστης διαβάζει την ερώτηση
-        // άδειας. Με 8 δευτ. προλάβαινε να λήξει πριν προλάβει εκείνος να πει ναι.
-        timeout: 20_000,
-        // Δεκτή και θέση των τελευταίων 5 λεπτών: είναι ακαριαία, και για
-        // «τι υπάρχει κοντά μου» δεν αλλάζει τίποτα αν κουνήθηκες 100 μέτρα.
-        maximumAge: 300_000,
-        // Δεν χρειαζόμαστε GPS ακριβείας — μας αρκεί η γειτονιά, και το WiFi
-        // απαντάει πολύ πιο γρήγορα και χωρίς να ανάβει ο δέκτης του κινητού.
+      Τι κάνουμε: ζητάμε πρώτα ακριβή, φρέσκια θέση. Αν αποτύχει — που στο
+      Safari συμβαίνει όταν ο εντοπισμός της Apple δεν έχει «κλειδώσει» ποτέ —
+      ξαναρωτάμε χαλαρά, δεχόμενοι και αποθηκευμένη θέση. Δύο διαφορετικοί
+      δρόμοι μέσα στον ίδιο browser· συχνά ο δεύτερος πετυχαίνει.
+    */
+    const onOk = (pos: GeolocationPosition) => {
+      const here = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+      setCenter(here);
+      setCenterLabel('σένα');
+      setCenterSource('geo');
+      setRadius(5);
+      setSort('near');
+      setLocating(false);
+      setApproxNote(null);
+      setGuide(null);
+      // Νούμερα δεν λένε τίποτα: δείχνουμε τη διεύθυνση που βρέθηκε, ώστε να
+      // μπορεί ο χρήστης να κρίνει αν τον βρήκε σωστά.
+      void showAddressOf(here, pos.coords.accuracy);
+    };
+
+    const giveUp = (err: GeolocationPositionError) => {
+      setLocating(false);
+      void (async () => {
+        const found = await approximateLocate(userAsked);
+        if (found) return;
+        if (!userAsked) return;
+        setGuide(err?.code === 1 ? 'denied' : err?.code === 3 ? 'timeout' : 'unavailable');
+        if (err?.code === 1) {
+          setLocError(
+            'Ο browser δεν μας δίνει την τοποθεσία σου. Στο Safari: Ρυθμίσεις → ' +
+              'Ιστότοποι → Τοποθεσία → staffnow.gr → «Να επιτρέπεται».',
+          );
+        } else if (err?.code === 3) {
+          setLocError('Άργησε πολύ. Δοκίμασε ξανά ή γράψε τη διεύθυνσή σου.');
+        } else {
+          setLocError(
+            'Η συσκευή δεν έδωσε τοποθεσία. Γράψε τη διεύθυνσή σου παρακάτω — ' +
+              'δουλεύει πάντα, χωρίς καμία άδεια.',
+          );
+        }
+      })();
+    };
+
+    // 1η: ακριβής και φρέσκια.
+    navigator.geolocation.getCurrentPosition(onOk, () => {
+      // 2η: χαλαρή, δέχεται και αποθηκευμένη θέση.
+      navigator.geolocation.getCurrentPosition(onOk, giveUp, {
         enableHighAccuracy: false,
-      },
-    );
+        timeout: 20_000,
+        maximumAge: 600_000,
+      });
+    }, { enableHighAccuracy: true, timeout: 12_000, maximumAge: 0 });
+  }
+
+  /** Δείχνει ΠΟΙΑ διεύθυνση βρέθηκε — αλλιώς ο χρήστης δεν ξέρει αν πέτυχε. */
+  async function showAddressOf(here: Coords, accuracyMeters?: number) {
+    try {
+      const res: any = await (api as any).tasknow.reverse(here.lat, here.lon);
+      const address = res?.data?.address;
+      if (!address) return;
+      /* Στις αποστάσεις μπαίνει ΜΟΝΟ ο δρόμος: το «500 μ. από Αλέξανδρου Σβώλου
+         29, Μητροπολιτική Περιοχή Θεσσαλονίκης» δεν χωράει και δεν διαβάζεται.
+         Ολόκληρη η διεύθυνση μένει στη σημείωση από πάνω. */
+      setCenterLabel((String(address).split(',')[0] ?? address).trim());
+      const acc = Number.isFinite(accuracyMeters as number)
+        ? ` (ακρίβεια ±${Math.round(accuracyMeters as number)} μ.)`
+        : '';
+      setApproxNote(`Σε βρήκαμε: ${address}${acc}.`);
+    } catch {
+      /* χωρίς διεύθυνση, το φιλτράρισμα δουλεύει ούτως ή άλλως */
+    }
   }
 
   /**

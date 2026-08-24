@@ -97,6 +97,7 @@ export class StaffNowApi {
     feed: () => this.client.get<any>('/tasknow/feed'),
     /** Διεύθυνση → σημείο στον χάρτη. Περνάει από τον δικό μας server. */
     whereAmI: () => this.client.get<any>('/tasknow/where-am-i'),
+    reverse: (lat: number, lon: number) => this.client.get<any>('/tasknow/reverse', { lat, lon }),
     geocode: (q: string, near?: { lat: number; lon: number }) =>
       this.client.get<any>('/tasknow/geocode', near ? { q, lat: near.lat, lon: near.lon } : { q }),
     state: () => this.client.get<any>('/tasknow/state'),

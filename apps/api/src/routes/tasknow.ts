@@ -384,6 +384,71 @@ async function loadChildren(db: D1Database, taskIds: string[]) {
   ζητούμενο είναι «τι υπάρχει στην πόλη μου», όχι «τι υπάρχει στον δρόμο μου».
   Γι' αυτό επιστρέφεται με σημαία `approximate` — η οθόνη το λέει καθαρά.
 */
+/*
+  GET /reverse — ΑΠΟ ΣΥΝΤΕΤΑΓΜΕΝΕΣ ΣΕ ΔΙΕΥΘΥΝΣΗ.
+
+  Ο browser δίνει νούμερα (40.6314, 22.9503). Ο χρήστης θέλει να δει «Κασσάνδρου
+  123» — αλλιώς δεν έχει τρόπο να κρίνει αν τον βρήκε σωστά ή τον έστειλε στην
+  άλλη άκρη της πόλης.
+
+  Ίδιοι κανόνες με το /geocode: περνάει από εμάς (όροι χρήσης του χάρτη),
+  αποθηκεύεται, και δεν καταγράφεται ΠΟΤΕ ποιος ρώτησε για ποιο σημείο.
+*/
+tasknow.get('/reverse', async (c) => {
+  const lat = Number(c.req.query('lat'));
+  const lon = Number(c.req.query('lon'));
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    return success(c, { address: null });
+  }
+
+  // 5 δεκαδικά ≈ 1 μέτρο: αρκετά ακριβές για διεύθυνση, και το κλειδί δεν
+  // γίνεται μοναδικό ανά χρήστη ώστε να μη λειτουργεί σαν ίχνος.
+  const key = `rev:v1:${lat.toFixed(4)},${lon.toFixed(4)}`;
+  try {
+    const hit = await c.env.KV.get(key, 'json');
+    if (hit) return success(c, hit as Record<string, unknown>);
+  } catch {
+    /* χωρίς αποθήκευση, ρωτάμε κατευθείαν */
+  }
+
+  const url =
+    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&accept-language=el` +
+    `&lat=${lat}&lon=${lon}`;
+
+  let address: string | null = null;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'StaffNow/1.0 (https://staffnow.gr; info@staffnow.gr)',
+        Accept: 'application/json',
+      },
+    });
+    if (res.ok) {
+      const raw = (await res.json()) as any;
+      const a = raw?.address || {};
+      // Δρόμος με αριθμό, αλλιώς ό,τι πιο συγκεκριμένο υπάρχει.
+      const street = a.road || a.pedestrian || a.footway || null;
+      const num = a.house_number ? `${a.house_number}` : '';
+      const place = a.suburb || a.neighbourhood || a.city_district || a.town || a.city || a.village || null;
+      address = street
+        ? `${street}${num ? ' ' + num : ''}${place ? ', ' + place : ''}`
+        : place || (typeof raw?.display_name === 'string' ? raw.display_name.split(',').slice(0, 2).join(',') : null);
+    }
+  } catch {
+    /* χωρίς διεύθυνση συνεχίζουμε — οι συντεταγμένες αρκούν για το φιλτράρισμα */
+  }
+
+  const payload = { address };
+  if (address) {
+    try {
+      await c.env.KV.put(key, JSON.stringify(payload), { expirationTtl: 60 * 60 * 24 * 30 });
+    } catch {
+      /* ignore */
+    }
+  }
+  return success(c, payload);
+});
+
 tasknow.get('/where-am-i', async (c) => {
   const cf = (c.req.raw as any)?.cf;
   const lat = Number(cf?.latitude);
