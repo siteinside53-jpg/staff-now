@@ -55,6 +55,7 @@ export function TaskMap({
   onSelect,
   onSearchHere,
   autoFit = true,
+  youAreHere = false,
 }: {
   tasks: MockTask[];
   center: Coords;
@@ -64,6 +65,8 @@ export function TaskMap({
   onSelect: (task: MockTask) => void;
   /** «Ψάξε σε αυτή την περιοχή» — δίνει τα όρια της οθόνης του χάρτη. */
   onSearchHere?: (bounds: { north: number; south: number; east: number; west: number }) => void;
+  /** Να μπει μπλε κουκκίδα στο σημείο του χρήστη (όταν το έχει δηλώσει). */
+  youAreHere?: boolean;
   /**
    * Να προσαρμόζεται μόνος του ώστε να χωράνε όλες οι πινέζες;
    *
@@ -77,6 +80,8 @@ export function TaskMap({
   const mapRef = useRef<any>(null);
   const layerRef = useRef<any>(null);
   const ringRef = useRef<any>(null);
+  /** Η μπλε κουκκίδα «εδώ είσαι» — ζει έξω από την ομαδοποίηση. */
+  const meRef = useRef<any>(null);
   /*
     ΓΙΑΤΙ ΧΡΕΙΑΖΕΤΑΙ ΣΗΜΑΙΑ ΚΑΙ ΔΕΝ ΑΡΚΕΙ Η ΑΝΑΦΟΡΑ.
 
@@ -164,6 +169,7 @@ export function TaskMap({
         mapRef.current = null;
         layerRef.current = null;
         ringRef.current = null;
+        meRef.current = null;
       }
     };
     // Ο χάρτης δεν ξαναφτιάχνεται όταν αλλάξει το κέντρο — μετακινείται πιο κάτω.
@@ -195,6 +201,39 @@ export function TaskMap({
           weight: 1,
           fillColor: '#f59e0b',
           fillOpacity: 0.05,
+        }).addTo(map);
+      }
+
+      /*
+        ΠΟΥ ΕΙΣΑΙ ΕΣΥ.
+
+        Ο χάρτης έδειχνε μόνο τις δουλειές. Πατούσες «Κοντά μου», η λίστα
+        φιλτραριζόταν σωστά, αλλά πάνω στον χάρτη δεν φαινόταν πουθενά το δικό
+        σου σημείο — οπότε δεν είχες τρόπο να κρίνεις αν το «3 χλμ» είναι κοντά
+        ή μακριά, ούτε καν αν σε βρήκε σωστά.
+      */
+      if (meRef.current) {
+        map.removeLayer(meRef.current);
+        meRef.current = null;
+      }
+      if (youAreHere) {
+        const meIcon = L.divIcon({
+          className: '',
+          html:
+            '<span style="display:block;width:16px;height:16px;margin:-8px 0 0 -8px;' +
+            'border-radius:9999px;background:#2563eb;border:3px solid #fff;' +
+            'box-shadow:0 0 0 3px rgba(37,99,235,.25),0 1px 4px rgba(0,0,0,.35)"></span>',
+          iconSize: [0, 0],
+          iconAnchor: [0, 0],
+        });
+        /* ΑΠΕΥΘΕΙΑΣ ΣΤΟΝ ΧΑΡΤΗ, ΟΧΙ ΣΤΗΝ ΟΜΑΔΟΠΟΙΗΣΗ. Μέσα στην ομάδα η κουκκίδα
+           καταπίνεται από το σύμπλεγμα και μετριέται σαν δουλειά — δηλαδή
+           εξαφανίζεται ακριβώς εκεί που έχει σημασία, στο κέντρο της πόλης. */
+        meRef.current = L.marker([center.lat, center.lon], {
+          icon: meIcon,
+          title: `Εδώ είσαι — ${centerLabel}`,
+          zIndexOffset: 1000,
+          interactive: false,
         }).addTo(map);
       }
 
@@ -233,6 +272,16 @@ export function TaskMap({
       // εκείνος τα ηνία.
       if (!autoFit) {
         /* ο χρήστης κάδρο έχει διαλέξει — δεν το πειράζουμε */
+      } else if (radiusKm && ringRef.current) {
+        /*
+          ΟΤΑΝ Ο ΧΡΗΣΤΗΣ ΕΧΕΙ ΠΕΙ ΠΟΥ ΕΙΝΑΙ, Ο ΧΑΡΤΗΣ ΚΕΝΤΡΑΡΕΙ ΠΑΝΩ ΤΟΥ.
+
+          Πριν, ο χάρτης χώραγε όλες τις πινέζες. Το αποτέλεσμα ήταν ότι μετά
+          το «Κοντά μου» έβλεπες μια εικόνα κεντραρισμένη κάπου ανάμεσα στις
+          δουλειές — όχι πάνω σου. Τώρα δείχνει ακριβώς τον κύκλο της ακτίνας
+          που διάλεξες, με εσένα στη μέση.
+        */
+        map.fitBounds(ringRef.current.getBounds(), { animate: false });
       } else if (pts.length > 1) {
         map.fitBounds(L.latLngBounds(pts).pad(0.2), { animate: false });
       } else if (pts.length === 1) {
@@ -244,7 +293,7 @@ export function TaskMap({
     return () => {
       cancelled = true;
     };
-  }, [ready, tasks, center.lat, center.lon, radiusKm, selectedId, autoFit]);
+  }, [ready, tasks, center.lat, center.lon, centerLabel, radiusKm, selectedId, autoFit, youAreHere]);
 
   const nearest = tasks.length
     ? Math.min(

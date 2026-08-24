@@ -84,6 +84,65 @@ export function PointPicker({
     }
   }
 
+  /*
+    ΠΡΟΤΑΣΕΙΣ ΚΑΘΩΣ ΓΡΑΦΕΙΣ.
+
+    Πριν, έπρεπε να πατήσεις «Βρες το» ή Enter. Ο κόσμος γράφει «Κασσάνδρου
+    123, Θεσσαλονίκη», περιμένει να πέσει λίστα από κάτω όπως παντού αλλού, δεν
+    πέφτει τίποτα, και συμπεραίνει ότι ο χάρτης δεν βρίσκει διευθύνσεις. Η
+    διεύθυνση βρισκόταν κανονικά — απλώς κανείς δεν είχε πατήσει το κουμπί.
+
+    Μισό δευτερόλεπτο καθυστέρηση: ούτε ένα αίτημα ανά πλήκτρο, ούτε αναμονή
+    που να γίνεται αισθητή. Η υπηρεσία του χάρτη ΔΕΝ ψάχνει μισοτελειωμένες
+    λέξεις, οπότε όσο γράφεις μπορεί να μη βρίσκει — και δεν φωνάζουμε
+    «δεν βρέθηκε» παρά μόνο όταν σταματήσεις να γράφεις.
+  */
+  const lastTyped = useRef('');
+  useEffect(() => {
+    const text = q.trim();
+    lastTyped.current = text;
+    if (text.length < 3) {
+      setHits([]);
+      setNoHits(false);
+      return;
+    }
+    const t = setTimeout(() => {
+      // Αν στο μεταξύ άλλαξε το κείμενο, το παλιό αίτημα δεν μας ενδιαφέρει.
+      if (lastTyped.current === text) void search();
+    }, 500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
+
+  /** «Η τοποθεσία μου» — ρίχνει την πινέζα εκεί που είσαι. */
+  const [locating, setLocating] = useState(false);
+  const [locErr, setLocErr] = useState<string | null>(null);
+  function useMyLocation() {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setLocErr('Ο browser δεν υποστηρίζει τοποθεσία.');
+      return;
+    }
+    setLocating(true);
+    setLocErr(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        place({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+        setHits([]);
+        setNoHits(false);
+        setLocating(false);
+      },
+      (err) => {
+        setLocating(false);
+        setLocErr(
+          err?.code === 1
+            ? 'Ο browser δεν δίνει την τοποθεσία. Επίτρεψέ την από το εικονίδιο αριστερά της διεύθυνσης, ή γράψε τη διεύθυνση εδώ πάνω.'
+            : 'Δεν βρέθηκε η τοποθεσία. Γράψε τη διεύθυνση ή δείξε το σημείο στον χάρτη.',
+        );
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 60000 },
+    );
+  }
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -173,6 +232,18 @@ export function PointPicker({
           {searching ? '…' : 'Βρες το'}
         </button>
       </div>
+
+      {/* Η γρήγορη οδός: είσαι ήδη εκεί που θα γίνει η δουλειά. */}
+      <button
+        type="button"
+        onClick={useMyLocation}
+        disabled={locating}
+        className="mb-2 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+      >
+        <span aria-hidden="true">📍</span> {locating ? 'Ψάχνω…' : 'Η τοποθεσία μου'}
+      </button>
+
+      {locErr && <p className="mb-2 text-[11px] leading-snug text-red-600">{locErr}</p>}
 
       {hits.length > 0 && (
         <ul className="mb-2 divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200">

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { api } from '@/lib/api';
 import { OfferModal } from './offer-modal';
 import { PostTaskButton } from './post-trigger';
 import { TaskDetailModal } from './task-detail-modal';
@@ -93,6 +94,19 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
   const [guide, setGuide] = useState<'denied' | 'unavailable' | 'timeout' | null>(null);
   const [locError, setLocError] = useState<string | null>(null);
 
+  /*
+    «ΓΡΑΨΕ ΤΗ ΔΙΕΥΘΥΝΣΗ ΣΟΥ» — Η ΔΙΕΞΟΔΟΣ ΟΤΑΝ Ο BROWSER ΑΡΝΕΙΤΑΙ.
+
+    Υπήρχε μόνο στο ανέβασμα δουλειάς. Εδώ, στην αναζήτηση, ο χρήστης είχε δύο
+    επιλογές: «Κοντά μου» ή λίστα με γειτονιές. Αν ο browser του είχε αρνηθεί
+    την τοποθεσία — και μια άρνηση ΔΕΝ ξαναρωτιέται ποτέ — έμενε κλειδωμένος
+    στο «Όλη η Θεσσαλονίκη», ακόμη κι αν ήξερε ακριβώς τη διεύθυνσή του.
+  */
+  const [addr, setAddr] = useState('');
+  const [addrBusy, setAddrBusy] = useState(false);
+  const [addrHits, setAddrHits] = useState<{ label: string; lat: number; lon: number }[]>([]);
+  const [addrErr, setAddrErr] = useState<string | null>(null);
+
   const [detail, setDetail] = useState<MockTask | null>(null);
   const [offerFor, setOfferFor] = useState<MockTask | null>(null);
 
@@ -145,15 +159,23 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
       .query({ name: 'geolocation' as PermissionName })
       .then((status) => {
         if (status.state === 'granted') locate();
-        if (status.state === 'denied') {
-          /*
-            ΤΟ ΚΟΥΜΠΙ ΜΕΝΕΙ. Πριν εξαφανιζόταν, και ο χρήστης δεν είχε κανέναν
-            τρόπο να καταλάβει γιατί λείπει ούτε να ξαναδοκιμάσει αφού
-            διορθώσει τις ρυθμίσεις. Τώρα φαίνεται, και το πάτημα εξηγεί τι
-            ακριβώς πρέπει να αλλάξει.
-          */
-          setGuide('denied');
-        }
+        /*
+          ΤΟ ΚΟΥΜΠΙ ΜΕΝΕΙ. Πριν εξαφανιζόταν, και ο χρήστης δεν είχε κανέναν
+          τρόπο να καταλάβει γιατί λείπει ούτε να ξαναδοκιμάσει αφού διορθώσει
+          τις ρυθμίσεις. Τώρα φαίνεται, και το πάτημα εξηγεί τι πρέπει να αλλάξει.
+
+          ΔΕΝ ΑΝΟΙΓΟΥΜΕ ΤΟΝ ΟΔΗΓΟ ΜΟΝΟΙ ΜΑΣ ΟΤΑΝ Η ΑΔΕΙΑ ΕΙΝΑΙ ΑΡΝΗΜΕΝΗ.
+
+          Εδώ έμπαινε `setGuide('denied')` με το που φόρτωνε η σελίδα. Ο χρήστης
+          άνοιγε τις μικροδουλειές και του πεταγόταν αμέσως παράθυρο «ο Chrome
+          δεν μας δίνει την τοποθεσία» — χωρίς να έχει ζητήσει τίποτα. Έμοιαζε
+          με βλάβη, έκρυβε τη λίστα, και το χειρότερο: έδινε την εντύπωση ότι
+          το κουμπί δεν δουλεύει ενώ δεν το είχε πατήσει ποτέ.
+
+          Ο οδηγός εμφανίζεται πλέον ΜΟΝΟ όταν ο χρήστης πατήσει «Κοντά μου»:
+          τότε το getCurrentPosition αποτυγχάνει αμέσως με κωδικό 1 και τον
+          ανοίγει από μόνο του, εκεί που έχει και νόημα.
+        */
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -223,6 +245,62 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
         enableHighAccuracy: false,
       },
     );
+  }
+
+  /** Ψάχνει τη γραμμένη διεύθυνση και δείχνει τα σημεία που ταιριάζουν. */
+  async function findAddress() {
+    const q = addr.trim();
+    if (q.length < 3) {
+      setAddrErr('Γράψε λίγο περισσότερο — π.χ. «Τσιμισκή 50, Θεσσαλονίκη».');
+      return;
+    }
+    setAddrErr(null);
+    setAddrBusy(true);
+    try {
+      const res: any = await (api as any).tasknow.geocode(q);
+      const hits = res?.data?.results ?? [];
+      setAddrHits(hits);
+      if (!hits.length) setAddrErr('Δεν βρέθηκε. Δοκίμασε με πόλη, π.χ. «Τσιμισκή 50, Θεσσαλονίκη».');
+    } catch {
+      setAddrErr('Δεν μπόρεσε να γίνει η αναζήτηση. Δοκίμασε ξανά.');
+    } finally {
+      setAddrBusy(false);
+    }
+  }
+
+  /*
+    Προτάσεις καθώς γράφεις, ίδια συμπεριφορά με το ανέβασμα δουλειάς. Χωρίς
+    αυτό ο χρήστης γράφει και περιμένει λίστα που δεν έρχεται ποτέ, γιατί δεν
+    ξέρει ότι πρέπει να πατήσει «Ψάξε».
+  */
+  const addrTyped = useRef('');
+  useEffect(() => {
+    const q = addr.trim();
+    addrTyped.current = q;
+    if (q.length < 3) {
+      setAddrHits([]);
+      setAddrErr(null);
+      return;
+    }
+    const t = setTimeout(() => {
+      if (addrTyped.current === q) void findAddress();
+    }, 500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addr]);
+
+  /** Κεντράρει την αναζήτηση στο σημείο που διάλεξε ο χρήστης. */
+  function useAddress(hit: { label: string; lat: number; lon: number }) {
+    setCenter({ lat: hit.lat, lon: hit.lon });
+    // Κρατάμε μόνο το πρώτο κομμάτι: το πλήρες κείμενο του χάρτη είναι σεντόνι.
+    setCenterLabel(hit.label.split(',')[0]?.trim() || 'τη διεύθυνσή σου');
+    setCenterSource('geo');
+    setRadius(5);
+    setSort('near');
+    setAddrHits([]);
+    setAddrErr(null);
+    setGuide(null);
+    setLocError(null);
   }
 
   function pickArea(area: string) {
@@ -383,6 +461,55 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
           <span aria-hidden="true">📍</span> {locating ? 'Ψάχνω…' : 'Κοντά μου'}
         </button>
 
+        {/* Η διέξοδος όταν ο browser αρνείται: γράφεις εσύ πού είσαι. */}
+        <div className="mb-2">
+          <div className="flex gap-1.5">
+            <input
+              type="text"
+              value={addr}
+              onChange={(e) => {
+                setAddr(e.target.value);
+                setAddrErr(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  void findAddress();
+                }
+              }}
+              placeholder="ή γράψε τη διεύθυνσή σου"
+              aria-label="Γράψε τη διεύθυνσή σου"
+              className="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-100"
+            />
+            <button
+              type="button"
+              onClick={() => void findAddress()}
+              disabled={addrBusy}
+              className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-200 disabled:opacity-60"
+            >
+              {addrBusy ? '…' : 'Ψάξε'}
+            </button>
+          </div>
+
+          {addrErr && <p className="mt-1.5 text-xs font-medium text-red-600">{addrErr}</p>}
+
+          {addrHits.length > 0 && (
+            <ul className="mt-1.5 space-y-1 rounded-lg border border-gray-200 bg-white p-1">
+              {addrHits.map((h) => (
+                <li key={`${h.lat},${h.lon}`}>
+                  <button
+                    type="button"
+                    onClick={() => useAddress(h)}
+                    className="w-full rounded-md px-2 py-1.5 text-left text-xs leading-snug text-gray-700 transition hover:bg-amber-50"
+                  >
+                    {h.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         <select
           value={centerSource === 'area' ? centerLabel : ''}
           onChange={(e) => pickArea(e.target.value)}
@@ -514,6 +641,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
               onSelect={(t) => setDetail(t)}
               onSearchHere={setMapBounds}
               autoFit={!mapBounds}
+              youAreHere={centerSource !== 'default'}
             />
             <p className="mt-2 text-center text-xs text-gray-400">
               Πάτησε πάνω σε ένα ποσό για να δεις τη μικροδουλειά.
