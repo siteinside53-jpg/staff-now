@@ -290,7 +290,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
   }, [addr]);
 
   /** Κεντράρει την αναζήτηση στο σημείο που διάλεξε ο χρήστης. */
-  function useAddress(hit: { label: string; lat: number; lon: number }) {
+  function applyAddress(hit: { label: string; lat: number; lon: number }) {
     setCenter({ lat: hit.lat, lon: hit.lon });
     // Κρατάμε μόνο το πρώτο κομμάτι: το πλήρες κείμενο του χάρτη είναι σεντόνι.
     setCenterLabel(hit.label.split(',')[0]?.trim() || 'τη διεύθυνσή σου');
@@ -499,7 +499,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
                 <li key={`${h.lat},${h.lon}`}>
                   <button
                     type="button"
-                    onClick={() => useAddress(h)}
+                    onClick={() => applyAddress(h)}
                     className="w-full rounded-md px-2 py-1.5 text-left text-xs leading-snug text-gray-700 transition hover:bg-amber-50"
                   >
                     {h.label}

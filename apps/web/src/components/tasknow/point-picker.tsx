@@ -117,7 +117,7 @@ export function PointPicker({
   /** «Η τοποθεσία μου» — ρίχνει την πινέζα εκεί που είσαι. */
   const [locating, setLocating] = useState(false);
   const [locErr, setLocErr] = useState<string | null>(null);
-  function useMyLocation() {
+  function pickMyLocation() {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       setLocErr('Ο browser δεν υποστηρίζει τοποθεσία.');
       return;
@@ -236,7 +236,7 @@ export function PointPicker({
       {/* Η γρήγορη οδός: είσαι ήδη εκεί που θα γίνει η δουλειά. */}
       <button
         type="button"
-        onClick={useMyLocation}
+        onClick={pickMyLocation}
         disabled={locating}
         className="mb-2 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
       >
