@@ -3,7 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
-import { AREA_COORDS, type Coords, distanceKm } from './data';
+import {
+  AREA_COORDS,
+  MAP_TILE_ATTRIBUTION,
+  MAP_TILE_URL,
+  type Coords,
+  distanceKm,
+} from './data';
 import type { MockTask } from './mock-store';
 
 /**
@@ -34,9 +40,8 @@ import type { MockTask } from './mock-store';
  * επίτηδες, ώστε να ξεχωρίζει ό,τι βάζεις εσύ από πάνω. Τα δεδομένα είναι τα
  * ίδια του OpenStreetMap, γι' αυτό αναφέρονται και οι δύο — υποχρεωτικά.
  */
-const TILE_URL = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-const TILE_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>';
+const TILE_URL = MAP_TILE_URL;
+const TILE_ATTRIBUTION = MAP_TILE_ATTRIBUTION;
 
 type TaskPoint = MockTask & { lat?: number; lon?: number; exactPoint?: boolean };
 

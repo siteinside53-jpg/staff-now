@@ -819,3 +819,20 @@ export function shortPlaceLabel(label: string): { main: string; sub: string } {
     : (parts[2] ?? '');
   return { main, sub: sub && sub !== main ? sub : '' };
 }
+
+/*
+  ΤΟ ΥΠΟΒΑΘΡΟ ΤΟΥ ΧΑΡΤΗ — ΓΡΑΜΜΕΝΟ ΜΙΑ ΦΟΡΑ.
+
+  Ήταν γραμμένο σε ΔΥΟ σημεία: ο χάρτης της ροής είχε το ήσυχο σχέδιο της CARTO,
+  ενώ ο χάρτης του ανεβάσματος είχε μείνει στο βασικό, έντονο σχέδιο του
+  OpenStreetMap. Ο ίδιος χρήστης έβλεπε δύο διαφορετικούς χάρτες μέσα στην ίδια
+  λειτουργία, ανάλογα με το πού βρισκόταν.
+
+  Αλλάζοντας ΑΥΤΕΣ τις δύο γραμμές αλλάζουν και οι δύο χάρτες. Η αναφορά στο
+  υπόμνημα είναι ΥΠΟΧΡΕΩΤΙΚΗ από τους όρους χρήσης — μη τη βγάλεις.
+*/
+export const MAP_TILE_URL =
+  'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+
+export const MAP_TILE_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>';

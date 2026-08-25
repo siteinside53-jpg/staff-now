@@ -3,7 +3,14 @@
 import { useEffect, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
 import { api } from '@/lib/api';
-import { AREA_COORDS, distanceKm, shortPlaceLabel, type Coords } from './data';
+import {
+  AREA_COORDS,
+  MAP_TILE_ATTRIBUTION,
+  MAP_TILE_URL,
+  distanceKm,
+  shortPlaceLabel,
+  type Coords,
+} from './data';
 
 /**
  * «Δείξε πού» — η πινέζα την ώρα του ανεβάσματος.
@@ -120,9 +127,24 @@ export function PointPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
-  /** «Η τοποθεσία μου» — ρίχνει την πινέζα εκεί που είσαι. */
+  /*
+    «Η ΤΟΠΟΘΕΣΙΑ ΜΟΥ» — ΚΑΙ ΣΤΟ ΚΙΝΗΤΟ ΑΚΡΙΒΩΣ ΕΚΕΙ ΠΟΥ ΕΙΣΑΙ.
+
+    ΤΟ ΠΡΟΒΛΗΜΑ: στο κινητό η ΠΡΩΤΗ θέση που δίνει ο browser έρχεται από το
+    δίκτυο — κεραία ή WiFi — και πέφτει εκατοντάδες μέτρα μακριά. Το GPS
+    κλειδώνει λίγα δευτερόλεπτα ΑΡΓΟΤΕΡΑ. Ζητώντας μία και μόνη θέση,
+    κρατούσαμε πάντα τη χονδρική και η πινέζα έπεφτε αλλού. Στο λάπτοπ δεν
+    φαινόταν, γιατί εκεί υπάρχει μόνο μία πηγή.
+
+    Η ΛΥΣΗ: παρακολουθούμε τη θέση για λίγο και κρατάμε την ΚΑΛΥΤΕΡΗ. Σταματάμε
+    μόλις πιάσουμε ακρίβεια 25 μέτρων ή στα 15 δευτερόλεπτα — ό,τι έρθει πρώτο.
+    Η πινέζα μετακινείται ζωντανά όσο βελτιώνεται, οπότε ο χρήστης βλέπει τι
+    γίνεται αντί να περιμένει μπροστά σε ακίνητη οθόνη.
+  */
   const [locating, setLocating] = useState(false);
   const [locErr, setLocErr] = useState<string | null>(null);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
+
   function pickMyLocation() {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       setLocErr('Ο browser δεν υποστηρίζει τοποθεσία.');
@@ -130,23 +152,47 @@ export function PointPicker({
     }
     setLocating(true);
     setLocErr(null);
-    navigator.geolocation.getCurrentPosition(
+    setAccuracy(null);
+
+    let best: number = Infinity;
+    let watchId: number | null = null;
+    let done = false;
+
+    const finish = () => {
+      if (done) return;
+      done = true;
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+      setLocating(false);
+    };
+
+    watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        place({ lat: pos.coords.latitude, lon: pos.coords.longitude });
-        setHits([]);
-        setNoHits(false);
-        setLocating(false);
+        const acc = pos.coords.accuracy ?? Infinity;
+        // Κρατάμε μόνο ό,τι είναι ΚΑΛΥΤΕΡΟ από αυτό που έχουμε ήδη.
+        if (acc <= best) {
+          best = acc;
+          setAccuracy(Math.round(acc));
+          place({ lat: pos.coords.latitude, lon: pos.coords.longitude });
+          setHits([]);
+          setNoHits(false);
+        }
+        // Αρκετά ακριβές: δεν κρατάμε το GPS ανοιχτό χωρίς λόγο.
+        if (acc <= 25) finish();
       },
       (err) => {
-        setLocating(false);
+        finish();
         setLocErr(
           err?.code === 1
             ? 'Ο browser δεν δίνει την τοποθεσία. Επίτρεψέ την από το εικονίδιο αριστερά της διεύθυνσης, ή γράψε τη διεύθυνση εδώ πάνω.'
             : 'Δεν βρέθηκε η τοποθεσία. Γράψε τη διεύθυνση ή δείξε το σημείο στον χάρτη.',
         );
       },
-      { enableHighAccuracy: true, timeout: 20000, maximumAge: 60000 },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
     );
+
+    // Δίχτυ ασφαλείας: αν το GPS δεν κλειδώσει ποτέ κάτω από 25 μ., κρατάμε την
+    // καλύτερη που πιάσαμε και σταματάμε — δεν αφήνουμε τον χρήστη να περιμένει.
+    setTimeout(finish, 15_000);
   }
 
   useEffect(() => {
@@ -160,10 +206,10 @@ export function PointPicker({
         [value?.lat ?? start.lat, value?.lon ?? start.lon],
         15,
       );
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
-        maxZoom: 19,
+      L.tileLayer(MAP_TILE_URL, {
+        attribution: MAP_TILE_ATTRIBUTION,
+        maxZoom: 20,
+        subdomains: 'abcd',
       }).addTo(map);
 
       const icon = L.divIcon({
@@ -246,7 +292,14 @@ export function PointPicker({
         disabled={locating}
         className="mb-2 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
       >
-        <span aria-hidden="true">📍</span> {locating ? 'Ψάχνω…' : 'Η τοποθεσία μου'}
+        <span aria-hidden="true">📍</span>{' '}
+        {locating
+          ? accuracy
+            ? `Ακριβεύω… ±${accuracy} μ.`
+            : 'Ψάχνω…'
+          : accuracy
+            ? `Η τοποθεσία μου (±${accuracy} μ.)`
+            : 'Η τοποθεσία μου'}
       </button>
 
       {locErr && <p className="mb-2 text-[11px] leading-snug text-red-600">{locErr}</p>}
