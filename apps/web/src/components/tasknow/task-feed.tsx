@@ -97,6 +97,8 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
   const [locError, setLocError] = useState<string | null>(null);
   /** «Σε βρήκαμε κατά προσέγγιση» — λέγεται καθαρά, ποτέ σαν ακριβής θέση. */
   const [approxNote, setApproxNote] = useState<string | null>(null);
+  /** Το μήνυμα προήλθε από μαντεψιά (σύνδεση) και όχι από αληθινό εντοπισμό. */
+  const [approxIsGuess, setApproxIsGuess] = useState(false);
 
   /*
     «ΓΡΑΨΕ ΤΗ ΔΙΕΥΘΥΝΣΗ ΣΟΥ» — Η ΔΙΕΞΟΔΟΣ ΟΤΑΝ Ο BROWSER ΑΡΝΕΙΤΑΙ.
@@ -230,6 +232,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
       setSort('near');
       setLocating(false);
       setApproxNote(null);
+      setApproxIsGuess(false);
       setGuide(null);
       // Νούμερα δεν λένε τίποτα: δείχνουμε τη διεύθυνση που βρέθηκε, ώστε να
       // μπορεί ο χρήστης να κρίνει αν τον βρήκε σωστά.
@@ -330,16 +333,32 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
       const where = nearest.km < 25 ? nearest.name : d.city || '';
       setCenterLabel(where || 'εσένα');
       setCenterSource('geo');
-      setRadius(10);
+      /*
+        ΠΛΑΤΙΑ ΑΚΤΙΝΑ ΟΤΑΝ ΜΑΝΤΕΥΟΥΜΕ.
+
+        Αν η μαντεψιά πέσει σε λάθος πόλη, μια στενή ακτίνα δείχνει ΜΗΔΕΝ
+        δουλειές και ο χρήστης νομίζει ότι δεν υπάρχει τίποτα — αντί να
+        καταλάβει ότι τον βάλαμε αλλού.
+      */
+      setRadius(25);
       setSort('near');
+      setApproxIsGuess(true);
       // Βρήκαμε κάτι χρήσιμο — δεν έχει νόημα να δείχνουμε οδηγίες ρυθμίσεων.
       setGuide(null);
       setLocError(null);
       if (userAsked) {
+        /*
+          ΛΕΜΕ ΟΤΙ ΜΑΝΤΕΨΑΜΕ, ΟΧΙ ΟΤΙ ΣΕ ΒΡΗΚΑΜΕ.
+
+          Το «σε βρήκαμε» ήταν υπερβολή: αυτό βγαίνει από τη σύνδεση, και σε
+          κινητό δίκτυο δείχνει την έξοδο του παρόχου — μπορεί να πέσει και
+          εκατό χιλιόμετρα μακριά. Ο χρήστης πρέπει να το ξέρει ΠΡΙΝ ψάξει τι
+          φταίει.
+        */
         setApproxNote(
           where
-            ? `Σε βρήκαμε κατά προσέγγιση, γύρω από ${where}. Για ακριβές σημείο, γράψε τη διεύθυνσή σου.`
-            : 'Σε βρήκαμε κατά προσέγγιση από τη σύνδεσή σου. Για ακριβές σημείο, γράψε τη διεύθυνσή σου.',
+            ? `Ο browser δεν έδωσε τοποθεσία, οπότε μαντέψαμε από τη σύνδεσή σου: γύρω από ${where}. Σε κινητό δίκτυο μπορεί να πέσει έξω.`
+            : 'Ο browser δεν έδωσε τοποθεσία, οπότε μαντέψαμε από τη σύνδεσή σου. Σε κινητό δίκτυο μπορεί να πέσει έξω.',
         );
       }
       return true;
@@ -408,6 +427,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
     setRadius(5);
     setSort('near');
     setApproxNote(null);
+    setApproxIsGuess(false);
     setAddrHits([]);
     setAddrErr(null);
     setGuide(null);
@@ -667,10 +687,44 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
         )}
 
         {/* Σε βρήκαμε — αλλά το λέμε ακριβώς όπως είναι: κατά προσέγγιση. */}
+        {/*
+          ΤΟ «ΚΑΤΑ ΠΡΟΣΕΓΓΙΣΗ» ΠΡΕΠΕΙ ΝΑ ΔΙΟΡΘΩΝΕΤΑΙ ΜΕ ΕΝΑ ΠΑΤΗΜΑ.
+
+          Όταν ο browser αρνείται, μαντεύουμε από τη σύνδεση. Σε ΚΙΝΗΤΟ δίκτυο
+          αυτό δείχνει την έξοδο του παρόχου, που μπορεί να είναι σε άλλη πόλη:
+          χρήστης στη Θεσσαλονίκη βγήκε Σκιάθο, 100 χλμ μακριά. Το να το λέμε
+          απλώς «κατά προσέγγιση» δεν φτάνει — βλέπει λάθος δουλειές και δεν
+          ξέρει γιατί.
+
+          Η διόρθωση μπαίνει ΔΙΠΛΑ στο μήνυμα, όχι κρυμμένη σε ρυθμίσεις.
+        */}
         {approxNote && (
-          <p className="mt-2 rounded-lg bg-blue-50 px-3 py-2 text-[11px] leading-relaxed text-blue-900">
-            📍 {approxNote}
-          </p>
+          <div className="mt-2 rounded-lg bg-blue-50 px-3 py-2 text-[11px] leading-relaxed text-blue-900">
+            <p>📍 {approxNote}</p>
+            {approxIsGuess && (
+              <button
+                type="button"
+                onClick={() => {
+                  setApproxNote(null);
+                  setCenter(DEFAULT_CENTER);
+                  setCenterLabel('το κέντρο');
+                  setCenterSource('default');
+                  setRadius(null);
+                  setSort('new');
+                  setTimeout(() => {
+                    const el = document.querySelector<HTMLInputElement>(
+                      'input[placeholder="ή γράψε τη διεύθυνσή σου"]',
+                    );
+                    el?.scrollIntoView({ block: 'center' });
+                    el?.focus();
+                  }, 60);
+                }}
+                className="mt-1.5 font-semibold text-blue-700 underline underline-offset-2 hover:text-blue-900"
+              >
+                Δεν είμαι εκεί — γράψε τη διεύθυνσή μου
+              </button>
+            )}
+          </div>
         )}
 
         {locError && <p className="mt-2 text-xs font-medium text-red-600">{locError}</p>}
