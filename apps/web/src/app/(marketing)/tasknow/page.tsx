@@ -17,11 +17,47 @@ import { TaskNowLogo } from '@/components/tasknow/logo';
  * `robots: noindex` όσο είναι μακέτα — δεν θέλουμε να μπει στη Google σελίδα
  * με παραδείγματα αντί για αληθινές αγγελίες.
  */
+const TASKNOW_TITLE = 'TaskNow — Μικροδουλειές στη Θεσσαλονίκη';
+const TASKNOW_DESCRIPTION =
+  'Μικρές δουλειές που θέλουν χέρια: βόλτα με τον σκύλο, μεταφορά, καθαρισμός, θελήματα. Δες τι υπάρχει κοντά σου και πρότεινε δικό σου ποσό.';
+
 export const metadata = {
-  title: 'TaskNow — Μικροδουλειές στη Θεσσαλονίκη',
-  description:
-    'Μικρές δουλειές που θέλουν χέρια: βόλτα με τον σκύλο, μεταφορά, καθαρισμός, θελήματα. Δες τι υπάρχει κοντά σου και πρότεινε δικό σου ποσό.',
+  title: TASKNOW_TITLE,
+  description: TASKNOW_DESCRIPTION,
   robots: { index: false, follow: false },
+  /*
+    ΤΙ ΦΑΙΝΕΤΑΙ ΟΤΑΝ ΣΤΕΛΝΕΙΣ ΤΟΝ ΣΥΝΔΕΣΜΟ.
+
+    Η σελίδα δεν δήλωνε δικά της στοιχεία κοινοποίησης, οπότε κληρονομούσε της
+    αρχικής: όποιος έστελνε το staffnow.gr/tasknow σε φίλο, εκείνος έβλεπε
+    «Βρες Προσωπικό & Δουλειά σε Κάθε Κλάδο» — άσχετο με μικροδουλειές — ή
+    σκέτο σύνδεσμο χωρίς εικόνα.
+
+    Ο σύνδεσμος στέλνεται από άνθρωπο σε άνθρωπο· είναι ο φθηνότερος τρόπος να
+    μαθευτεί το TaskNow και δεν επιτρέπεται να δείχνει λάθος πράγμα.
+  */
+  openGraph: {
+    type: 'website',
+    url: 'https://staffnow.gr/tasknow',
+    siteName: 'StaffNow',
+    locale: 'el_GR',
+    title: TASKNOW_TITLE,
+    description: TASKNOW_DESCRIPTION,
+    images: [
+      {
+        url: 'https://staffnow.gr/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'TaskNow — μικροδουλειές στη Θεσσαλονίκη',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: TASKNOW_TITLE,
+    description: TASKNOW_DESCRIPTION,
+    images: ['https://staffnow.gr/og-image.png'],
+  },
 };
 
 /**

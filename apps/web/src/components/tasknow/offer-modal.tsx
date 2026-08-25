@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Modal } from './modal';
 import { api } from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
+import { useLoginModal } from '@/components/auth/login-modal';
 import { CATEGORY_BY_KEY, REQUIRED_LICENCE, isLicensedCategory } from './data';
 import { addOffer, type MockTask } from './mock-store';
 
@@ -56,6 +58,18 @@ function Field({
 }
 
 export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => void }) {
+  /*
+    ΧΩΡΙΣ ΛΟΓΑΡΙΑΣΜΟ ΔΕΝ ΖΗΤΑΜΕ ΚΙΝΗΤΟ.
+
+    Η ροή είναι δημόσια: τη βλέπει και όποιος δεν έχει λογαριασμό. Πατούσε
+    «Κάνε προσφορά», του ζητούσαμε το κινητό του, εκείνος το έγραφε — και μετά
+    έπαιρνε κόκκινο «Δεν είστε συνδεδεμένος». Δηλαδή του ζητούσαμε προσωπικό
+    στοιχείο για κάτι που δεν επρόκειτο να γίνει, και τον αφήναμε σε αδιέξοδο.
+
+    Τώρα βλέπει από την αρχή τι χρειάζεται, με το κουμπί εγγραφής μπροστά του.
+  */
+  const { user, loading: authLoading } = useAuth();
+  const loginModal = useLoginModal();
   const [step, setStep] = useState<Step>('phone');
 
   const [phone, setPhone] = useState('');
@@ -91,6 +105,12 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
     επειδή δεν ρωτούσε ποτέ τον server τι ισχύει.
   */
   useEffect(() => {
+    // Αποσυνδεδεμένος: δεν έχει νόημα να ρωτήσουμε — γυρίζει 401 και μόνο
+    // θόρυβο βάζει στην κονσόλα.
+    if (!user) {
+      setLoadingStatus(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -111,9 +131,9 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
     return () => {
       cancelled = true;
     };
-    // Τρέχει μία φορά, με το άνοιγμα του παραθύρου.
+    // Τρέχει μία φορά, μόλις ξέρουμε ποιος είναι ο χρήστης.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user]);
 
   async function sendCode() {
     const clean = phone.replace(/\s+/g, '');
@@ -185,10 +205,14 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
       setError('Το ποσό μοιάζει λάθος.');
       return;
     }
-    if (message.trim().length < 10) {
-      setError('Γράψε δυο λόγια για το γιατί να σε διαλέξει (τουλάχιστον 10 χαρακτήρες).');
-      return;
-    }
+    /*
+      ΤΑ «ΔΥΟ ΛΟΓΙΑ» ΕΙΝΑΙ ΠΡΟΑΙΡΕΤΙΚΑ.
+
+      Ήταν υποχρεωτικά, με ελάχιστο δέκα χαρακτήρες. Ο server όμως ΔΕΝ τα
+      απαιτεί ποτέ — μόνο η οθόνη τα επέβαλλε. Κάποιος που θέλει απλώς να πει
+      «60€, μπορώ αύριο» κόβεται στη μέση για ένα κείμενο που δεν χρειάζεται
+      κανείς. Το ζητούμενο είναι να φτάνουν προσφορές.
+    */
     if (!declared) {
       setError('Χρειάζεται να δηλώσεις ότι μπορείς νόμιμα να το αναλάβεις.');
       return;
@@ -216,6 +240,51 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
     } finally {
       setBusy(false);
     }
+  }
+
+  if (!authLoading && !user) {
+    return (
+      <Modal open onClose={onClose} title="Κάνε προσφορά">
+        <div className="mt-5 space-y-4">
+          <div className="rounded-xl bg-gray-50 px-4 py-3">
+            <div className="text-sm font-semibold text-gray-900">{task.title}</div>
+            <div className="mt-1 text-xs text-gray-500">
+              Προϋπολογισμός {task.budget}€ · {task.area}
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <span aria-hidden="true" className="text-lg leading-none">👋</span>
+            <p className="text-xs leading-relaxed text-amber-900">
+              Για να στείλεις προσφορά χρειάζεσαι λογαριασμό — <strong>δωρεάν</strong>, σε ένα
+              λεπτό. Χωρίς αυτόν δεν μπορεί να σε βρει αυτός που ανέβασε τη δουλειά.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              loginModal.open('register');
+            }}
+            className="w-full rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-600"
+          >
+            Δωρεάν εγγραφή
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              loginModal.open('login');
+            }}
+            className="w-full text-center text-xs font-medium text-gray-600 hover:text-gray-900"
+          >
+            Έχω ήδη λογαριασμό — Σύνδεση
+          </button>
+        </div>
+      </Modal>
+    );
   }
 
   return (
@@ -425,7 +494,10 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
             </div>
           </Field>
 
-          <Field label="Δυο λόγια" hint="Γιατί να διαλέξει εσένα; Τι έχεις ξανακάνει;">
+          <Field
+            label="Δυο λόγια (προαιρετικά)"
+            hint="Γιατί να διαλέξει εσένα; Τι έχεις ξανακάνει; Βοηθάει, αλλά δεν είναι υποχρεωτικό."
+          >
             <textarea
               rows={3}
               value={message}
