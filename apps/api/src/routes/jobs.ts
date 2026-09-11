@@ -258,6 +258,13 @@ jobs.post(
       }
     }
 
+    if (body.branch_id) {
+      // Ο πελάτης/υποκατάστημα πρέπει να είναι δικός μας — αλλιώς μια αγγελία
+      // θα έβγαινε με το όνομα και το λογότυπο ξένης επιχείρησης.
+      const ownsBranch = await db.prepare('SELECT id FROM business_branches WHERE id = ? AND user_id = ?').bind(String(body.branch_id), user.id).first();
+      if (!ownsBranch) return error(c, 'Η επιχείρηση/υποκατάστημα δεν ανήκει στον λογαριασμό σας', 403);
+    }
+
     await db
       .prepare(
         `INSERT INTO job_listings (
@@ -574,6 +581,37 @@ jobs.patch(
       endDate: 'end_date',
     };
 
+    // Όρια ανά πεδίο — η ενημέρωση δεν περνούσε από κανέναν έλεγχο και δεχόταν
+    // αρνητικούς μισθούς, τίτλους 10 MB, «θέσεις: -5».
+    const NUMERIC_BOUNDS: Record<string, [number, number]> = {
+      salary_min: [0, 100000],
+      salary_max: [0, 100000],
+      hours_per_day: [1, 24],
+      days_per_week: [1, 7],
+      positions: [1, 100],
+      shift_days: [1, 60],
+      shift_positions: [1, 100],
+    };
+    const TEXT_MAX: Record<string, number> = {
+      title: 120,
+      description: 8000,
+      region: 100,
+      city: 100,
+      address: 200,
+      postal_code: 12,
+      day_off_description: 300,
+      shift_type: 40,
+      employment_type: 40,
+      salary_type: 20,
+      experience_required: 40,
+      start_date: 40,
+      end_date: 40,
+      shift_date: 20,
+      shift_start_time: 10,
+      shift_end_time: 10,
+      branch_id: 60,
+    };
+
     for (const [key, value] of Object.entries(body)) {
       if (key === 'roles' || key === 'languages') continue;
       const dbField = fieldMap[key] || key;
@@ -581,11 +619,37 @@ jobs.patch(
         if (booleanFields.includes(dbField)) {
           updateFields.push(`${dbField} = ?`);
           updateValues.push(value ? 1 : 0);
+        } else if (dbField in NUMERIC_BOUNDS) {
+          if (value === null || value === '') {
+            updateFields.push(`${dbField} = ?`);
+            updateValues.push(null);
+            continue;
+          }
+          const n = Number(value);
+          const [lo, hi] = NUMERIC_BOUNDS[dbField]!;
+          if (!Number.isFinite(n) || n < lo || n > hi) {
+            return error(c, `Μη έγκυρη τιμή για ${dbField} (${lo}–${hi})`, 400);
+          }
+          updateFields.push(`${dbField} = ?`);
+          updateValues.push(n);
         } else {
+          if (value !== null && typeof value !== 'string' && typeof value !== 'number') {
+            return error(c, `Μη έγκυρη τιμή για ${dbField}`, 400);
+          }
+          const max = TEXT_MAX[dbField];
+          if (max && typeof value === 'string' && value.length > max) {
+            return error(c, `Το πεδίο ${dbField} είναι πολύ μεγάλο (έως ${max} χαρακτήρες)`, 400);
+          }
           updateFields.push(`${dbField} = ?`);
           updateValues.push(value as string | number | null);
         }
       }
+    }
+    if (body.branch_id) {
+      // Ο πελάτης/υποκατάστημα πρέπει να είναι δικός μας — αλλιώς μια αγγελία
+      // θα έβγαινε με το όνομα και το λογότυπο ξένης επιχείρησης.
+      const owns = await db.prepare('SELECT id FROM business_branches WHERE id = ? AND user_id = ?').bind(String(body.branch_id), user.id).first();
+      if (!owns) return error(c, 'Η επιχείρηση/υποκατάστημα δεν ανήκει στον λογαριασμό σας', 403);
     }
 
     // Handle languages (JSON serialization)

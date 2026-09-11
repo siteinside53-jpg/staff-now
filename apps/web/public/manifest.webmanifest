@@ -1,7 +1,7 @@
 {
-  "name": "StaffNow – Βρες Προσωπικό Τουρισμού & Εστίασης",
+  "name": "StaffNow – Βρες Προσωπικό & Δουλειά σε Κάθε Κλάδο",
   "short_name": "StaffNow",
-  "description": "Swipe-style αντιστοίχιση εργαζομένων & επιχειρήσεων στον τουρισμό και την εστίαση. Βρες προσωπικό σε λίγα λεπτά.",
+  "description": "Swipe-style αντιστοίχιση εργαζομένων & επιχειρήσεων σε όλους τους κλάδους. Βρες προσωπικό ή δουλειά σε λίγα λεπτά.",
   "lang": "el",
   "dir": "ltr",
   "start_url": "/dashboard",
@@ -10,7 +10,11 @@
   "orientation": "portrait",
   "background_color": "#0A0F2E",
   "theme_color": "#3B82F6",
-  "categories": ["business", "productivity", "lifestyle"],
+  "categories": [
+    "business",
+    "productivity",
+    "lifestyle"
+  ],
   "icons": [
     {
       "src": "/icon.svg?v=3",
@@ -43,36 +47,42 @@
       "purpose": "maskable"
     }
   ],
-  "screenshots": [
-    {
-      "src": "/screenshot-mobile.png",
-      "sizes": "640x1136",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "StaffNow mobile experience"
-    }
-  ],
   "shortcuts": [
     {
       "name": "Εύρεση εργαζομένων",
       "short_name": "Εύρεση",
       "description": "Ανακάλυψη διαθέσιμων εργαζομένων",
       "url": "/dashboard/discover",
-      "icons": [{ "src": "/icon-192.png?v=3", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192.png?v=3",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Μηνύματα",
       "short_name": "Μηνύματα",
       "description": "Άνοιξε τις συνομιλίες σου",
       "url": "/dashboard/messages",
-      "icons": [{ "src": "/icon-192.png?v=3", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192.png?v=3",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Αγγελίες",
       "short_name": "Αγγελίες",
       "description": "Οι αγγελίες μου",
       "url": "/dashboard/jobs",
-      "icons": [{ "src": "/icon-192.png?v=3", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192.png?v=3",
+          "sizes": "192x192"
+        }
+      ]
     }
   ],
   "prefer_related_applications": false

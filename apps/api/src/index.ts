@@ -661,6 +661,36 @@ app.get('/public/jobs', async (c) => {
   return c.json({ success: true, data: jobs });
 });
 
+// GET /public/jobs/:id — μία αγγελία, για τη ζωντανή εφεδρική σελίδα.
+//
+// Οι δημόσιες σελίδες αγγελιών χτίζονται κάθε 6 ώρες. Μια αγγελία που μόλις
+// δημοσιεύτηκε δεν έχει ακόμη σελίδα και ο σύνδεσμός της έβγαζε 404. Τώρα η
+// σελίδα «δεν βρέθηκε» ρωτάει εδώ και τη δείχνει ζωντανά.
+app.get('/public/jobs/:id', async (c) => {
+  const id = c.req.param('id');
+  const row = await c.env.DB.prepare(
+    `SELECT j.id, j.title, j.description, j.city, j.region, j.employment_type,
+         j.salary_min, j.salary_max, j.salary_type,
+         j.housing_provided, j.meals_provided, j.transport_provided,
+         j.bonus_provided, j.insurance_provided, j.created_at, j.status,
+         bp.company_name, bp.user_id as business_user_id,
+         COALESCE(br.logo_url, bp.logo_url) as company_logo,
+         COALESCE(NULLIF(br.name, ''), bp.company_name) as display_company_name,
+         (SELECT GROUP_CONCAT(role) FROM job_listing_roles WHERE job_listing_id = j.id) as roles_csv
+       FROM job_listings j
+       LEFT JOIN business_profiles bp ON bp.id = j.business_id
+       LEFT JOIN business_branches br ON br.id = j.branch_id
+       WHERE j.id = ? AND j.listing_kind = 'job'`,
+  )
+    .bind(id)
+    .first<Record<string, unknown>>();
+  if (!row || row.status !== 'published') {
+    return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Η αγγελία δεν βρέθηκε ή έκλεισε.' } }, 404);
+  }
+  const { roles_csv, status: _status, ...job } = row;
+  return c.json({ success: true, data: { ...job, roles: roles_csv ? String(roles_csv).split(',') : [] } });
+});
+
 // GET /public/shifts — έκτακτες βάρδιες που δεν έχουν ξεκινήσει ακόμα.
 // Το shift_start_utc είναι σε μορφή D1 ('YYYY-MM-DD HH:MM:SS' σε UTC), οπότε
 // συγκρίνεται απευθείας με datetime('now').

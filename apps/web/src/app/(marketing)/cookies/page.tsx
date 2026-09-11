@@ -52,19 +52,29 @@ export default function CookiesPage() {
                   </thead>
                   <tbody className="divide-y">
                     <tr>
-                      <td className="px-4 py-3 text-gray-700">session_id</td>
-                      <td className="px-4 py-3 text-gray-600">Αυθεντικοποίηση χρήστη</td>
-                      <td className="px-4 py-3 text-gray-600">Συνεδρία</td>
+                      <td className="px-4 py-3 text-gray-700">staffnow_token</td>
+                      <td className="px-4 py-3 text-gray-600">Σύνδεση στον λογαριασμό σας (απαραίτητο)</td>
+                      <td className="px-4 py-3 text-gray-600">72 ώρες</td>
                     </tr>
                     <tr>
-                      <td className="px-4 py-3 text-gray-700">csrf_token</td>
-                      <td className="px-4 py-3 text-gray-600">Ασφάλεια φόρμας</td>
-                      <td className="px-4 py-3 text-gray-600">Συνεδρία</td>
+                      <td className="px-4 py-3 text-gray-700">staffnow_cookie_consent</td>
+                      <td className="px-4 py-3 text-gray-600">Οι επιλογές σας σε αυτό το παράθυρο (απαραίτητο)</td>
+                      <td className="px-4 py-3 text-gray-600">Μέχρι να τις αλλάξετε</td>
                     </tr>
                     <tr>
-                      <td className="px-4 py-3 text-gray-700">cookie_consent</td>
-                      <td className="px-4 py-3 text-gray-600">Αποθήκευση επιλογών cookies</td>
-                      <td className="px-4 py-3 text-gray-600">12 μήνες</td>
+                      <td className="px-4 py-3 text-gray-700">staffnow_locale</td>
+                      <td className="px-4 py-3 text-gray-600">Γλώσσα (Ελληνικά / English) (απαραίτητο)</td>
+                      <td className="px-4 py-3 text-gray-600">Μέχρι να την αλλάξετε</td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-3 text-gray-700">staffnow_visitor_id, staffnow_utm</td>
+                      <td className="px-4 py-3 text-gray-600">Στατιστικά επισκεψιμότητας — ΜΟΝΟ αν συμφωνήσετε στα «Στατιστικά»</td>
+                      <td className="px-4 py-3 text-gray-600">Μέχρι να αρνηθείτε / τέλος επίσκεψης</td>
+                    </tr>
+                    <tr>
+                      <td className="px-4 py-3 text-gray-700">staffnow_push_optin, staffnow_interests_seen, staffnow_ratings_seen</td>
+                      <td className="px-4 py-3 text-gray-600">Τι έχετε ήδη δει/απαντήσει, για να μη σας ξαναρωτάμε (απαραίτητο)</td>
+                      <td className="px-4 py-3 text-gray-600">Μέχρι να καθαρίσετε τον browser</td>
                     </tr>
                   </tbody>
                 </table>
@@ -126,9 +136,11 @@ export default function CookiesPage() {
               4. Cookies Τρίτων
             </h2>
             <p className="mt-4 leading-relaxed text-gray-700">
-              Ορισμένα cookies τοποθετούνται από τρίτους παρόχους υπηρεσιών
-              (π.χ. Google Analytics, Stripe). Αυτά τα cookies υπόκεινται
-              στις πολιτικές απορρήτου των αντίστοιχων τρίτων μερών.
+              Δεν χρησιμοποιούμε Google Analytics ούτε διαφημιστικά cookies.
+              Μόνο κατά την πληρωμή, η σελίδα πληρωμής της Stripe θέτει δικά
+              της cookies ασφαλείας, που υπόκεινται στην πολιτική απορρήτου της
+              Stripe. Αν συνδεθείτε μέσω Google, ισχύει η πολιτική της Google
+              για τη διαδικασία σύνδεσης.
             </p>
           </section>
 

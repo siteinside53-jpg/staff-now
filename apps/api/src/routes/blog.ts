@@ -21,7 +21,11 @@ import { generateId } from '../lib/id';
  */
 const blog = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
 
+let tableEnsured = false;
 async function ensureTable(env: Env) {
+  // Μία φορά ανά εκκίνηση του server, όχι σε κάθε αίτημα.
+  if (tableEnsured) return;
+  tableEnsured = true;
   await env.DB.prepare(
     `CREATE TABLE IF NOT EXISTS blog_posts (
       id TEXT PRIMARY KEY,

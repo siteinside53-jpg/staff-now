@@ -19,7 +19,15 @@ const insights = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
 
 insights.use('*', async (c, next) => {
   return requireAuth(c, async () => {
-    const res = await requireRole('admin')(c, next);
+    const res = await requireRole('admin')(c, async () => {
+      const { loadAdminRole, adminDenial } = await import('../lib/admin-permissions');
+      const denial = adminDenial(await loadAdminRole(c.env, c.get('user').id), c.req.method, c.req.path);
+      if (denial) {
+        c.res = c.json({ success: false, error: { code: 'ADMIN_ROLE_FORBIDDEN', message: denial } }, 403);
+        return;
+      }
+      await next();
+    });
     if (res) c.res = res;
   });
 });

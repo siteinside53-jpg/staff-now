@@ -258,9 +258,13 @@ async function dispatchEmail(env: Env, input: NotifyInput, path: string): Promis
   if (!user?.email) return;
 
   const { icon, tint } = heroFor(category, input.title);
+  // Τίτλος και κείμενο περιέχουν ονόματα και μηνύματα χρηστών. Τα «<» και «>»
+  // γίνονται απλό κείμενο, ώστε κανείς να μη βάλει σύνδεσμο ή κώδικα μέσα σε
+  // email με το σήμα του StaffNow. Τα ίδια τα email μας είναι σκέτο κείμενο.
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const html = emailLayout({
-    title: input.title,
-    body: input.body,
+    title: esc(input.title),
+    body: esc(input.body).replace(/\n/g, '<br>'),
     ctaText: input.ctaText || 'Άνοιγμα StaffNow',
     ctaUrl: `${WEB_ORIGIN}${path}`,
     icon,

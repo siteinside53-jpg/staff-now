@@ -41,6 +41,11 @@ jobs:
       # κανονικά στην παραγωγή. Δεν τα κρύβουμε — φαίνονται στην αναφορά — αλλά
       # δεν μπλοκάρουν, γιατί αλλιώς ο έλεγχος θα ήταν μόνιμα κόκκινος και δεν
       # θα πρόσεχε κανείς τα πραγματικά προβλήματα.
+      # Τα κοινά πακέτα περνούν καθαρά τον έλεγχο τύπων — εδώ ΜΠΛΟΚΑΡΕΙ, ώστε
+      # να μην ξαναχαλάσει (το api-client είχε 9 λάθη που σταματούσαν τα πάντα).
+      - name: Typecheck κοινών πακέτων (μπλοκάρει)
+        run: pnpm --filter @staffnow/api-client --filter @staffnow/validation --filter @staffnow/config --filter @staffnow/types typecheck
+
       - name: Typecheck (αναφορά, δεν μπλοκάρει)
         continue-on-error: true
         run: pnpm typecheck

@@ -905,7 +905,8 @@ auth.post('/change-password', requireAuth, authRateLimiter, async (c) => {
     .first<{ id: string; password_hash: string | null }>();
 
   // Λογαριασμοί μέσω Google δεν έχουν κωδικό — δεν υπάρχει τι να αλλάξει.
-  if (!user || !user.password_hash) {
+  // Οι λογαριασμοί Google έχουν «google_oauth_…» αντί για πραγματικό hash (χωρίς ':').
+  if (!user || !user.password_hash || !user.password_hash.includes(':')) {
     return error(c, 'BAD_REQUEST', 'Ο λογαριασμός σας δεν έχει κωδικό. Συνδέεστε μέσω Google.', 400);
   }
 
@@ -1159,7 +1160,7 @@ auth.post('/2fa/setup', requireAuth, confirmCodeRateLimiter, async (c) => {
 
   const row = await c.env.DB.prepare(TWO_FA_SELECT).bind(me.id).first<TwoFactorRow>();
   if (!row) return error(c, 'NOT_FOUND', 'Ο λογαριασμός δεν βρέθηκε.', 404);
-  if (!row.password_hash) {
+  if (!row.password_hash || !row.password_hash.includes(':')) {
     return error(c, 'BAD_REQUEST', 'Ο λογαριασμός σας δεν έχει κωδικό. Συνδέεστε μέσω Google.', 400);
   }
   if (row.totp_secret && row.totp_enabled_at) {

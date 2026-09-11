@@ -30,7 +30,16 @@ admin.use('*', async (c, next) => {
   return requireAuth(c, async () => {
     // requireAuth ignores what its `next` returns, so surface a 403 from
     // requireRole on the context instead of letting it get swallowed.
-    const res = await requireRole('admin')(c, next);
+    const res = await requireRole('admin')(c, async () => {
+      // Οι ρόλοι διαχειριστών σημαίνουν πλέον κάτι: βλ. lib/admin-permissions.ts
+      const { loadAdminRole, adminDenial } = await import('../lib/admin-permissions');
+      const denial = adminDenial(await loadAdminRole(c.env, c.get('user').id), c.req.method, path);
+      if (denial) {
+        c.res = c.json({ success: false, error: { code: 'ADMIN_ROLE_FORBIDDEN', message: denial } }, 403);
+        return;
+      }
+      await next();
+    });
     if (res) c.res = res;
   });
 });
@@ -153,7 +162,7 @@ async function computeSeries(env: Env, daysRaw: number) {
     return result;
   };
 
-  const [signups, matches, jobs, messages] = await Promise.all([
+  const [signups, matches, jobs, messages, activeUsers] = await Promise.all([
     db
       .prepare(
         `SELECT date(created_at) as day, COUNT(*) as count
@@ -190,6 +199,16 @@ async function computeSeries(env: Env, daysRaw: number) {
       )
       .bind(modifier)
       .all(),
+    db
+      .prepare(
+        `SELECT date(created_at) as day, COUNT(DISTINCT user_id) as count
+         FROM user_activity_log
+         WHERE created_at >= date('now', ?)
+         GROUP BY day ORDER BY day`
+      )
+      .bind(modifier)
+      .all()
+      .catch(() => ({ results: [] })),
   ]);
 
   const signupsSeries = buildSeries(signups.results as any);
@@ -199,8 +218,9 @@ async function computeSeries(env: Env, daysRaw: number) {
     matches: buildSeries(matches.results as any),
     jobs: buildSeries(jobs.results as any),
     messages: buildSeries(messages.results as any),
-    // DAU approximation (deterministic, based on signups)
-    dau: signupsSeries.map((v) => Math.max(1, v * 4)),
+    // Αληθινοί ενεργοί χρήστες ανά ημέρα (διαφορετικοί λογαριασμοί με
+    // οποιαδήποτε κίνηση). Πριν ήταν «εγγραφές × 4» — ένα επινοημένο νούμερο.
+    dau: buildSeries(activeUsers.results as any),
   };
 }
 
@@ -1557,9 +1577,13 @@ admin.delete('/admins/:id', async (c) => {
   if (targetId === adminUser.id) return error(c, 'Δεν μπορείς να αφαιρέσεις τον εαυτό σου', 400);
 
   const now = new Date().toISOString();
+  // Γυρνάει στον ρόλο που είχε πριν γίνει διαχειριστής: αν έχει προφίλ
+  // εργαζομένου, εργαζόμενος· αλλιώς επιχείρηση. Πριν γινόταν πάντα
+  // «επιχείρηση» και ένας πρώην εργαζόμενος έβλεπε 404 παντού.
+  const hasWorker = await c.env.DB.prepare('SELECT id FROM worker_profiles WHERE user_id = ?').bind(targetId).first();
   await c.env.DB
-    .prepare("UPDATE users SET role = 'business', admin_role = NULL, updated_at = ? WHERE id = ?")
-    .bind(now, targetId)
+    .prepare('UPDATE users SET role = ?, admin_role = NULL, updated_at = ? WHERE id = ?')
+    .bind(hasWorker ? 'worker' : 'business', now, targetId)
     .run();
   await c.env.DB
     .prepare(

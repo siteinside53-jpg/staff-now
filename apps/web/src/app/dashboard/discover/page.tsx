@@ -485,7 +485,7 @@ export default function DiscoverPage() {
       const data = await res.json() as any;
       if (data.success) {
         setInterests((prev) => prev.filter((i: any) => i.id !== swipeId));
-        toast.success('Τo αίτημα ακυρώθηκε');
+        toast.success('Το αίτημα ακυρώθηκε');
       } else toast.error('Σφάλμα');
     } catch { toast.error('Σφάλμα'); }
   };
@@ -496,7 +496,7 @@ export default function DiscoverPage() {
       navigator.share({ title: name, url: shareUrl }).catch(() => {});
     } else {
       navigator.clipboard.writeText(shareUrl);
-      toast.success('Τo link αντιγράφηκε!');
+      toast.success('Το link αντιγράφηκε!');
     }
   };
 

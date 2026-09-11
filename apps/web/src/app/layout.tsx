@@ -61,10 +61,6 @@ export const metadata: Metadata = {
   applicationName: 'StaffNow',
   alternates: {
     canonical: '/',
-    languages: {
-      'el-GR': 'https://staffnow.gr',
-      'en-US': 'https://staffnow.gr',
-    },
   },
   appleWebApp: {
     capable: true,
