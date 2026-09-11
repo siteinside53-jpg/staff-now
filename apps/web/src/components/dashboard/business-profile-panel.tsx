@@ -6,6 +6,7 @@ import { API_URL } from '@/lib/config';
 import { Spinner } from '@/components/ui/spinner';
 import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
 import { JobPreviewPanel } from './job-preview-panel';
+import { ReviewsList } from './reviews-list';
 
 interface Props {
   businessUserId: string | null;
@@ -176,6 +177,8 @@ export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip, 
                   </span>
                 )}
               </div>
+              {/* Τα σχόλια των εργαζομένων που δούλεψαν εδώ — όχι μόνο ο μέσος όρος. */}
+              <ReviewsList userId={businessUserId} className="mt-3" />
 
               {/* Location + Size */}
               <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-gray-500">

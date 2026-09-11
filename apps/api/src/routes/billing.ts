@@ -729,7 +729,17 @@ billing.post('/checkout', requireAuth, async (c) => {
       ? plan.stripePriceEnvYearly
       : plan.stripePriceEnvMonthly;
   const priceId = priceEnvKey ? (c.env as any)[priceEnvKey] : undefined;
-  if (!priceId) return error(c, 'CONFIG_ERROR', 'Λείπει το Stripe Price ID στο config.', 500);
+  if (!priceId) {
+    // Το παλιό μήνυμα («Λείπει το Stripe Price ID στο config») έβγαινε στην
+    // οθόνη του χρήστη. Ο χρήστης δεν φταίει και δεν μπορεί να κάνει τίποτα.
+    console.error(`[billing] missing Stripe price: set the secret ${String(priceEnvKey)} for plan ${body.planId}`);
+    return error(
+      c,
+      'CONFIG_ERROR',
+      'Η πληρωμή για αυτό το πλάνο δεν είναι διαθέσιμη αυτή τη στιγμή. Δοκίμασε ξανά αργότερα.',
+      503,
+    );
+  }
 
   // Founding Members: a spot is consumed ONLY after a successful Stripe purchase
   // (see the webhook finalize step), never when the user merely clicks checkout.

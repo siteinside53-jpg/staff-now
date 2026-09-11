@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { Spinner } from '@/components/ui/spinner';
 import { PremiumTick } from '@/components/ui/premium-tick';
 import { RatingCard } from '@/components/dashboard/rating-card';
+import { ReviewsList } from '@/components/dashboard/reviews-list';
 import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
 
 interface Props {
@@ -339,6 +340,8 @@ export function WorkerProfilePanel({ workerId, onClose, onLike, onSkip, totalCar
                 ]}
                 hireLabel={(n) => `Προσλήφθηκε ${n} ${n === 1 ? 'φορά' : 'φορές'} μέσω StaffNow`}
               />
+              {/* Τα ίδια τα σχόλια — μέχρι τώρα φαινόταν μόνο ο μέσος όρος. */}
+              <ReviewsList userId={workerId} className="mt-4" />
             </div>
 
             {/* ====== LANGUAGES ====== */}

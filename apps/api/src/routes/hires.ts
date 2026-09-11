@@ -306,6 +306,18 @@ hires.post('/', requireAuth, async (c) => {
     throw e;
   }
 
+  // Η ερώτηση «Έγινε η πρόσληψη;» απαντήθηκε. Ό,τι ειδοποίηση την έκανε
+  // μένει αδιάβαστη στο καμπανάκι και μοιάζει σαν να ξαναρωτάμε — τη σβήνουμε
+  // και για τις δύο πλευρές.
+  await db
+    .prepare(
+      `UPDATE notifications SET read_at = ?
+        WHERE read_at IS NULL AND user_id IN (?, ?)
+          AND data LIKE '%"subtype":"hire_prompt"%' AND data LIKE ?`,
+    )
+    .bind(now, workerId, businessId, `%"conversationId":"${conversationId}"%`)
+    .run();
+
   // Το μήνυμα-κάρτα μέσα στη συνομιλία, με το ίδιο μοτίβο που ήδη χρησιμοποιεί
   // η βιντεοκλήση («📹 Video κλήση: …»): πρόθεμα που το αναγνωρίζει η οθόνη.
   await db
@@ -649,6 +661,39 @@ async function loadMyHire(db: D1Database, hireId: string, userId: string) {
  * Η απόφαση παίρνεται εδώ, στον server· ό,τι δεν επιτρέπεται δεν φεύγει καν από
  * το μηχάνημα.
  */
+/**
+ * GET /hires/ratings/of/:userId — οι αξιολογήσεις που έλαβε κάποιος, όπως τις
+ * βλέπουν οι ΑΛΛΟΙ (στο προφίλ του).
+ *
+ * Μέχρι τώρα ο μέσος όρος έβγαινε στο προφίλ, αλλά τα ίδια τα σχόλια δεν
+ * φαίνονταν πουθενά — ούτε από επιχειρήσεις που εξέταζαν έναν εργαζόμενο, ούτε
+ * από εργαζόμενους που κοίταζαν μια επιχείρηση. Δείχνουμε ποιος έγραψε (όνομα
+ * και ρόλος), για ποια αγγελία, πόσα αστέρια και τι — μόνο από επιβεβαιωμένες
+ * προσλήψεις, άρα δεν πλαστογραφείται.
+ */
+hires.get('/ratings/of/:userId', requireAuth, async (c) => {
+  const db = c.env.DB;
+  const rateeId = c.req.param('userId');
+  const rows = await db
+    .prepare(
+      `SELECT r.id, r.overall, r.score_a, r.score_b, r.score_c, r.comment, r.created_at, r.rater_role,
+              COALESCE(NULLIF(wp.full_name, ''), NULLIF(bp.company_name, ''), 'Χρήστης StaffNow') AS rater_name,
+              COALESCE(wp.photo_url, bp.logo_url) AS rater_photo,
+              j.title AS job_title
+         FROM hire_ratings r
+         JOIN hires h ON h.id = r.hire_id AND h.status = 'confirmed'
+         LEFT JOIN worker_profiles wp ON wp.user_id = r.rater_id AND r.rater_role = 'worker'
+         LEFT JOIN business_profiles bp ON bp.user_id = r.rater_id AND r.rater_role = 'business'
+         LEFT JOIN job_listings j ON j.id = h.job_id
+        WHERE r.ratee_id = ?
+        ORDER BY r.created_at DESC
+        LIMIT 20`,
+    )
+    .bind(rateeId)
+    .all<Record<string, unknown>>();
+  return success(c, { items: rows.results || [] });
+});
+
 hires.get('/ratings/mine', requireAuth, async (c) => {
   const user = c.get('user');
   const db = c.env.DB;
@@ -719,7 +764,10 @@ hires.get('/ratings/mine', requireAuth, async (c) => {
   }
 
   const items = [...byHire.values()].map((it) => {
-    const revealed = Boolean(it.mine) || (it._revealAt !== null && now >= it._revealAt);
+    // Η αξιολόγηση που έλαβες φαίνεται μόλις γραφτεί. Η «διπλή τυφλότητα»
+    // (να τη βλέπεις μόνο αφού γράψεις τη δική σου) μπέρδευε τον κόσμο: έβλεπε
+    // «ήρθε αξιολόγηση» και δεν μπορούσε να τη διαβάσει.
+    const revealed = Boolean(it.theirs) || Boolean(it.mine) || (it._revealAt !== null && now >= it._revealAt);
     const { _revealAt, ...rest } = it;
     return {
       ...rest,
@@ -753,10 +801,8 @@ hires.get('/:id/rating', requireAuth, async (c) => {
   const opensAt = hire.rating_opens_at ? Date.parse(hire.rating_opens_at) : null;
   const revealAt = hire.rating_reveal_at ? Date.parse(hire.rating_reveal_at) : null;
   const canRate = hire.status === 'confirmed' && opensAt !== null && now >= opensAt && !mineRating;
-  // Διπλή τυφλότητα: βλέπω τη δική του ΜΟΝΟ αν έγραψα τη δική μου ή πέρασε η
-  // προθεσμία. Ο έλεγχος γίνεται εδώ, στον server — αν γινόταν στην οθόνη θα
-  // φαινόταν στο δίκτυο.
-  const revealed = Boolean(mineRating) || (revealAt !== null && now >= revealAt);
+  // Ό,τι σου έγραψαν το βλέπεις μόλις γραφτεί (βλ. /ratings/mine για το γιατί).
+  const revealed = Boolean(theirsRating) || Boolean(mineRating) || (revealAt !== null && now >= revealAt);
 
   return success(c, {
     hire: {

@@ -118,6 +118,11 @@ const BASE_SQL = `
    -- Δεν υπάρχει ήδη ζωντανή πρόσληψη σε αυτή τη συνομιλία…
    AND NOT EXISTS (SELECT 1 FROM hires h WHERE h.conversation_id = c.id
                      AND h.status IN ('pending','confirmed'))
+   -- …ούτε δηλώθηκε κάτι τις τελευταίες 30 μέρες, ακόμη κι αν απορρίφθηκε ή
+   -- ακυρώθηκε. Αλλιώς μόλις ο άλλος πατούσε «όχι», ξαναρωτούσαμε από την
+   -- αρχή — και ο χρήστης έβλεπε «Έγινε πρόσληψη;» ενώ το είχε ήδη απαντήσει.
+   AND NOT EXISTS (SELECT 1 FROM hires h WHERE h.conversation_id = c.id
+                     AND julianday('now') - julianday(h.declared_at) < 30)
    -- …ούτε για το ίδιο ζευγάρι σε άλλη συνομιλία της ίδιας αγγελίας.
    AND NOT EXISTS (SELECT 1 FROM hires h WHERE h.worker_id = c.worker_id
                      AND h.business_id = c.business_id

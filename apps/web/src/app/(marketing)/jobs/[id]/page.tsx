@@ -159,8 +159,12 @@ export default async function JobPage({ params }: Params) {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={job.company_logo} alt={company} className="h-16 w-16 rounded-2xl object-cover ring-1 ring-gray-100" />
             ) : (
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 font-bold text-xs text-center px-1">
-                {employmentGreek(job.employment_type)}
+              // Χωρίς λογότυπο: το αρχικό της επιχείρησης, όπως σε όλες τις
+              // κάρτες. Πριν έμπαινε εδώ το «Πλήρης απασχόληση» και στο κινητό
+              // ξεχείλιζε έξω από το κουτάκι. Ο τύπος απασχόλησης γράφεται
+              // κανονικά πιο κάτω, στα στοιχεία της θέσης.
+              <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-2xl font-extrabold text-emerald-700">
+                {company.trim().charAt(0).toUpperCase() || '💼'}
               </div>
             )}
             <div className="min-w-0">

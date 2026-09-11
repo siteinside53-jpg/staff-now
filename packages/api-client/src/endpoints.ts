@@ -170,6 +170,8 @@ export class StaffNowApi {
     create: (body: { conversationId: string; jobId?: string }) =>
       this.client.post<any>('/hires', body),
     confirm: (id: string) => this.client.post<any>(`/hires/${id}/confirm`),
+    /** Οι αξιολογήσεις που έλαβε κάποιος — για το προφίλ του. */
+    ratingsOf: (userId: string) => this.client.get<any>(`/hires/ratings/of/${userId}`),
     decline: (id: string) => this.client.post<any>(`/hires/${id}/decline`),
     cancel: (id: string) => this.client.delete<any>(`/hires/${id}`),
     /**

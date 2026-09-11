@@ -154,9 +154,12 @@ export function RatingModal({ hireId, isWorker, otherName, onClose, onSaved }: R
           <div className="space-y-4 px-5 py-5">
             {state?.canRate ? (
               <>
+                {state.theirs && (
+                  <ReadOnlyRating title={`Τι έγραψε ${otherName}`} rating={state.theirs} labels={theirLabels} />
+                )}
                 <p className="text-sm text-gray-600">
                   Πώς πήγε με <span className="font-semibold text-gray-900">{otherName}</span>;
-                  Η αξιολόγησή σου δεν φαίνεται μέχρι να γράψει και ο άλλος.
+                  Η αξιολόγησή σου θα φαίνεται στο προφίλ του/της.
                 </p>
 
                 <div className="rounded-2xl border border-gray-200 p-4">
@@ -205,9 +208,7 @@ export function RatingModal({ hireId, isWorker, otherName, onClose, onSaved }: R
                   <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-center">
                     <p className="text-2xl">⏳</p>
                     <p className="mt-1 text-sm text-gray-600">
-                      {state.theyRated
-                        ? 'Η αξιολόγησή του/της θα φανεί σε λίγο.'
-                        : `${otherName} δεν έχει γράψει ακόμη.`}
+                      {`${otherName} δεν έχει γράψει ακόμη.`}
                     </p>
                   </div>
                 )}

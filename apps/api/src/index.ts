@@ -884,7 +884,7 @@ async function scheduled(event: ScheduledEvent, env: Env, _ctx: ExecutionContext
         .all<{ rater_id: string }>();
       const done = new Set((rated.results || []).map((r) => r.rater_id));
       const title = '⭐ Πώς πήγε;';
-      const body = 'Πέρασαν 15 μέρες. Γράψε την αξιολόγησή σου — τη βλέπει μόνο αφού γράψει και ο άλλος.';
+      const body = 'Πέρασαν 15 μέρες. Γράψε την αξιολόγησή σου — μετράει στο προφίλ του άλλου και φαίνεται σε όλους.';
       for (const userId of [h.worker_id, h.business_id]) {
         if (done.has(userId)) continue;
         await env.DB.prepare(

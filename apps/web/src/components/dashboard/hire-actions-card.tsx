@@ -52,10 +52,36 @@ function capitalize(s: string): string {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
 
+/**
+ * «Ήρθε η αξιολόγηση» — μόλις τη δει ο χρήστης, φεύγει από το κουτάκι.
+ *
+ * Πριν έμενε για πάντα: ο αριθμός στο «Χρειάζονται την προσοχή σου» δεν
+ * κατέβαινε ποτέ, ακόμη κι αφού είχε ανοίξει τις αξιολογήσεις. Δεν είναι
+ * εκκρεμότητα — είναι πληροφορία που διαβάστηκε. Θυμόμαστε στον browser
+ * ποιες είδε, όπως γίνεται και με το «Ενδιαφέρον».
+ */
+const RATINGS_SEEN_KEY = 'staffnow_ratings_seen';
+function loadSeenRatings(): Set<string> {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(RATINGS_SEEN_KEY) || '[]'));
+  } catch {
+    return new Set();
+  }
+}
+function rememberSeenRating(id: string) {
+  try {
+    const s = loadSeenRatings();
+    s.add(id);
+    localStorage.setItem(RATINGS_SEEN_KEY, JSON.stringify([...s].slice(-200)));
+  } catch {}
+}
+
 export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
   const [hires, setHires] = useState<Hire[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [rating, setRating] = useState<{ id: string; name: string } | null>(null);
+  const [seenRatings, setSeenRatings] = useState<Set<string>>(new Set());
+  useEffect(() => { setSeenRatings(loadSeenRatings()); }, []);
 
   const load = useCallback(async () => {
     try {
@@ -88,7 +114,8 @@ export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
 
   const rows = hires
     .map((h) => ({ h, kind: classify(h) }))
-    .filter((r): r is { h: Hire; kind: Exclude<Kind, null> } => r.kind !== null);
+    .filter((r): r is { h: Hire; kind: Exclude<Kind, null> } => r.kind !== null)
+    .filter((r) => !(r.kind === 'view' && seenRatings.has(r.h.id)));
 
   if (rows.length === 0) return null;
 
@@ -196,7 +223,11 @@ export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
                       Ήρθε η αξιολόγηση από {object(h)}{job}.
                     </p>
                     <button
-                      onClick={() => setRating({ id: h.id, name: other(h) })}
+                      onClick={() => {
+                        rememberSeenRating(h.id);
+                        setSeenRatings(loadSeenRatings());
+                        setRating({ id: h.id, name: other(h) });
+                      }}
                       className="mt-3 rounded-lg border border-gray-300 px-4 py-2 text-sm font-bold text-gray-800 hover:bg-gray-50"
                     >
                       ⭐ Δες τις αξιολογήσεις
@@ -210,7 +241,7 @@ export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
                       Έγραψες την αξιολόγησή σου για {object(h)}{job}.
                     </p>
                     <p className="mt-0.5 text-xs text-gray-500">
-                      Θα εμφανιστεί η δική του/της μόλις τη γράψει.
+                      Μόλις γράψει κι εκείνος/η τη δική του/της, θα τη δεις εδώ.
                     </p>
                   </>
                 )}

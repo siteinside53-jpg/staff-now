@@ -16,7 +16,6 @@ import { FilteredListLayout, type FilterGroup, type FilterCategory } from '@/com
 import { normText, splitLocation, buildCityCategories } from '@/lib/location';
 import { WORKER_JOB_ROLE_LABELS_EL, WORKER_JOB_ROLE_GROUPS } from '@staffnow/config';
 import { durationLabel, expiresLabel, netOf, whenLabel } from '@/lib/shift-display';
-import { AllListings } from '@/components/dashboard/all-listings';
 import { TaskNowStrip } from '@/components/dashboard/tasknow-strip';
 
 // Ελληνικό label ειδικότητας (fallback στο raw id αν λείπει)
@@ -673,16 +672,10 @@ export default function DiscoverPage() {
           υπάρχουν μικροδουλειές — εκεί είναι η περισσότερη κίνηση. */}
       {mobileSwipeFocus && <TaskNowStrip />}
 
-      {/* Όλες οι αγγελίες μαζί: εργασίας, μικροδουλειές και έκτακτες βάρδιες,
-          καθεμιά στο χρώμα της. Μπαίνει εδώ γιατί η «Εύρεση» είναι το σημείο
-          όπου ο χρήστης ψάχνει δουλειά — δεν τον νοιάζει σε ποια ενότητα
-          ανήκει αυτό που θα βρει.
-
-          Κρύβεται όσο το κινητό είναι στη λειτουργία swipe, ώστε να μη
-          σπρώχνει κάτω τις κάρτες που είναι το κύριο εργαλείο εκεί. */}
-      <div className={mobileSwipeFocus ? 'hidden' : 'mb-5'}>
-        <AllListings limit={6} heading={false} />
-      </div>
+      {/* Το μπλοκ «Όλες οι αγγελίες» ΔΕΝ μπαίνει εδώ. Στο κινητό, πατώντας
+          «Λίστα», ο χρήστης έπεφτε πρώτα πάνω του και νόμιζε ότι τον πέταξε
+          στο παράθυρο «Όλες οι αγγελίες». Η λίστα της Εύρεσης είναι η λίστα
+          των υποψηφίων — τίποτα άλλο. Το μπλοκ ζει στην αρχική. */}
 
       {/* Tabs — σε desktop πάνε αριστερά (sidebar). Εδώ μένουν μόνο για mobile. */}
       <div className={mobileSwipeFocus ? 'hidden' : 'mb-4 lg:hidden'}>
