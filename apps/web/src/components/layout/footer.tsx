@@ -1,5 +1,7 @@
+'use client';
+
 import Link from 'next/link';
-import { t } from '@/i18n';
+import { useT } from '@/i18n/locale-provider';
 import { StaffNowLogo } from '@/components/staffnow-logo';
 
 // ---------------------------------------------------------------------------
@@ -14,7 +16,7 @@ const COLUMNS = [
       { href: '/for-workers', labelKey: 'footer.forWorkers' },
       { href: '/for-businesses', labelKey: 'footer.forBusinesses' },
       { href: '/pricing', labelKey: 'nav.pricing' },
-      { href: '/categories', label: 'Κλάδοι' },
+      { href: '/categories', labelKey: 'footer.categories' },
     ],
   },
   {
@@ -49,6 +51,7 @@ const COLUMNS = [
 // ---------------------------------------------------------------------------
 
 function Footer() {
+  const t = useT();
   const currentYear = new Date().getFullYear();
 
   return (
@@ -79,7 +82,7 @@ function Footer() {
                       href={link.href}
                       className="text-sm text-gray-500 transition-colors hover:text-gray-900"
                     >
-                      {'labelKey' in link && link.labelKey ? t(link.labelKey) : (link as { label: string }).label}
+                      {t(link.labelKey)}
                     </Link>
                   </li>
                 ))}
@@ -98,7 +101,7 @@ function Footer() {
               onClick={() => window.dispatchEvent(new CustomEvent('cookieconsent:open'))}
               className="underline decoration-gray-300 underline-offset-2 hover:text-gray-700"
             >
-              Ρυθμίσεις cookies
+              {t('footer.cookieSettings')}
             </button>
           </p>
 

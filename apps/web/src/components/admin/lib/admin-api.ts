@@ -300,9 +300,10 @@ export const adminApi = {
   },
 
   // ---------- Events ----------
-  async getEvents(limit = 20) {
-    const res = await fetch(`${API_BASE}/admin/events?limit=${limit}`, { headers: authHeaders() });
-    return handle<any[]>(res);
+  // ── Ειδοποιήσεις ομάδας (πίνακας admin_events) ──────────────────────────
+  async getEvents(params: { page?: number; limit?: number; type?: string; unread?: '1' | ''; q?: string } = {}) {
+    const res = await fetch(`${API_BASE}/admin/events?${buildQS(params)}`, { headers: authHeaders() });
+    return handle<{ items: any[]; page: number; limit: number; hasMore: boolean; unread: number }>(res);
   },
 
   async ackEvent(id: string) {
@@ -312,14 +313,95 @@ export const adminApi = {
     return handle<{ acked: boolean }>(res);
   },
 
-  async ackAllEvents(ids: string[]) {
-    const res = await fetch(`${API_BASE}/admin/events/read-all`, {
-      method: 'POST',
-      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids }),
-    });
+  async ackAllEvents() {
+    const res = await fetch(`${API_BASE}/admin/events/read-all`, { method: 'POST', headers: authHeaders() });
     return handle<{ acked: number }>(res);
   },
+
+  async getAlertSettings() {
+    const res = await fetch(`${API_BASE}/admin/alert-settings`, { headers: authHeaders() });
+    return handle<{ settings: Record<string, number>; pushDevices: number; defaults: Record<string, number> }>(res);
+  },
+
+  async saveAlertSettings(settings: Record<string, boolean | number>) {
+    const res = await fetch(`${API_BASE}/admin/alert-settings`, {
+      method: 'PUT', headers: authHeaders(), body: JSON.stringify(settings),
+    });
+    return handle<{ settings: Record<string, number> }>(res);
+  },
+
+  async testAlert() {
+    const res = await fetch(`${API_BASE}/admin/alert-settings/test`, { method: 'POST', headers: authHeaders() });
+    return handle<{ sent: boolean }>(res);
+  },
+
+  // ── Όλες οι κινήσεις ────────────────────────────────────────────────────
+  async getActivity(params: { q?: string; kind?: string; type?: string; days?: number; country?: string; page?: number; limit?: number; heartbeats?: '1' | '' } = {}) {
+    const res = await fetch(`${API_BASE}/admin/activity?${buildQS(params)}`, { headers: authHeaders() });
+    return handle<{ items: any[]; page: number; limit: number; hasMore: boolean }>(res);
+  },
+
+  async getActivityTypes() {
+    const res = await fetch(`${API_BASE}/admin/activity/types`, { headers: authHeaders() });
+    return handle<{ types: { type: string; count: number }[] }>(res);
+  },
+
+  // ── Επισκεψιμότητα ───────────────────────────────────────────────────────
+  async getTrafficStats(days = 30) {
+    const res = await fetch(`${API_BASE}/admin/traffic/stats?days=${days}`, { headers: authHeaders() });
+    return handle<any>(res);
+  },
+
+  async getVisitors(params: { days?: number; source?: string; q?: string; page?: number; limit?: number } = {}) {
+    const res = await fetch(`${API_BASE}/admin/traffic/visitors?${buildQS(params)}`, { headers: authHeaders() });
+    return handle<{ items: any[]; page: number; limit: number; hasMore: boolean }>(res);
+  },
+
+  async getVisitor(visitorId: string) {
+    const res = await fetch(`${API_BASE}/admin/traffic/visitors/${encodeURIComponent(visitorId)}`, { headers: authHeaders() });
+    return handle<{ session: any; events: any[] }>(res);
+  },
+
+  async getSocialPosts() {
+    const res = await fetch(`${API_BASE}/admin/social-posts`, { headers: authHeaders() });
+    return handle<{ items: any[] }>(res);
+  },
+
+  async addSocialPost(body: { platform: string; kind: string; title: string; url?: string; notes?: string; postedAt?: string }) {
+    const res = await fetch(`${API_BASE}/admin/social-posts`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    return handle<{ id: string }>(res);
+  },
+
+  async deleteSocialPost(id: string) {
+    const res = await fetch(`${API_BASE}/admin/social-posts/${encodeURIComponent(id)}`, { method: 'DELETE', headers: authHeaders() });
+    return handle<{ deleted: boolean }>(res);
+  },
+
+  // ── Εισερχόμενα ─────────────────────────────────────────────────────────
+  async getInboxContact(params: { kind?: string; handled?: string; page?: number; limit?: number } = {}) {
+    const res = await fetch(`${API_BASE}/admin/inbox/contact?${buildQS(params)}`, { headers: authHeaders() });
+    return handle<{ items: any[]; page: number; hasMore: boolean; pending: number }>(res);
+  },
+
+  async setContactHandled(id: string, handled: boolean) {
+    const res = await fetch(`${API_BASE}/admin/inbox/contact/${encodeURIComponent(id)}/handled`, {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify({ handled }),
+    });
+    return handle<{ ok: boolean }>(res);
+  },
+
+  async getInboxFeedback(params: { handled?: string; page?: number; limit?: number } = {}) {
+    const res = await fetch(`${API_BASE}/admin/inbox/feedback?${buildQS(params)}`, { headers: authHeaders() });
+    return handle<{ items: any[]; page: number; hasMore: boolean; total: number; avgRating: number | null; pending: number }>(res);
+  },
+
+  async setFeedbackHandled(id: string, handled: boolean) {
+    const res = await fetch(`${API_BASE}/admin/inbox/feedback/${encodeURIComponent(id)}/handled`, {
+      method: 'POST', headers: authHeaders(), body: JSON.stringify({ handled }),
+    });
+    return handle<{ ok: boolean }>(res);
+  },
+
 
   // ---------- Admin team (RBAC) ----------
   async getAdmins() {

@@ -9,6 +9,7 @@ import { InstallPrompt } from '@/components/pwa/install-prompt';
 import { TrackPageView } from '@/components/track-page-view';
 import { CookieConsent } from '@/components/cookie-consent';
 import { PushOptIn } from '@/components/push-optin';
+import { LocaleProvider } from '@/i18n/locale-provider';
 
 const inter = Inter({ subsets: ['latin', 'greek'] });
 
@@ -201,13 +202,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         <QueryProvider>
           <AuthProvider>
-            <TrackPageView />
-            {children}
-            <Toaster position="top-right" richColors />
-            <ServiceWorkerRegister />
-            <InstallPrompt />
-            <CookieConsent />
-            <PushOptIn />
+            <LocaleProvider>
+              <TrackPageView />
+              {children}
+              <Toaster position="top-right" richColors />
+              <ServiceWorkerRegister />
+              <InstallPrompt />
+              <CookieConsent />
+              <PushOptIn />
+            </LocaleProvider>
           </AuthProvider>
         </QueryProvider>
       </body>

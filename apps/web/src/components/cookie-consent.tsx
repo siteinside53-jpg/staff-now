@@ -22,6 +22,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { StaffNowLogo } from '@/components/staffnow-logo';
+import { useT } from '@/i18n/locale-provider';
 
 const STORAGE_KEY = 'staffnow_cookie_consent';
 
@@ -33,6 +34,7 @@ interface ConsentState {
 }
 
 export function CookieConsent() {
+  const t = useT();
   const [visible, setVisible] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [analytics, setAnalytics] = useState(true);
@@ -90,7 +92,7 @@ export function CookieConsent() {
       role="dialog"
       aria-modal="true"
       aria-live="polite"
-      aria-label="Συγκατάθεση Cookies"
+      aria-label={t('cookie.aria')}
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 sm:p-6"
     >
       <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl bg-white shadow-2xl overflow-hidden">
@@ -98,7 +100,7 @@ export function CookieConsent() {
         <div className="flex flex-col items-center gap-3 px-6 pt-8 pb-4">
           <StaffNowLogo size="xl" />
           <h2 className="text-center text-xl font-bold text-gray-900 sm:text-2xl">
-            Σεβόμαστε την ιδιωτικότητά σας
+            {t('cookie.title')}
           </h2>
         </div>
 
@@ -106,65 +108,43 @@ export function CookieConsent() {
         <div className="flex-1 overflow-y-auto px-6 pb-6">
           {!expanded ? (
             <div className="text-sm leading-relaxed text-gray-700 space-y-3">
+              <p>{t('cookie.p1')}</p>
+              <p>{t('cookie.p2')}</p>
+              <p>{t('cookie.p3')}</p>
               <p>
-                Εμείς και οι συνεργάτες μας αποθηκεύουμε ή/και έχουμε πρόσβαση σε
-                πληροφορίες σε μια συσκευή, όπως τα cookies, και επεξεργαζόμαστε
-                προσωπικά δεδομένα, όπως μοναδικοί αναγνωριστικοί και προσαρμοσμένες
-                πληροφορίες που αποστέλλονται από μια συσκευή για εξατομικευμένες
-                διαφημίσεις και περιεχόμενο, μέτρηση διαφήμισης και περιεχομένου,
-                έρευνα ακροατηρίου και ανάπτυξη υπηρεσιών.
-              </p>
-              <p>
-                Με την άδειά σας, εμείς και οι συνεργάτες μας ενδέχεται να
-                χρησιμοποιήσουμε ακριβή δεδομένα γεωγραφικής τοποθεσίας και
-                ταυτοποίησης μέσω σάρωσης συσκευών. Μπορείτε να κάνετε κλικ για να
-                συναινέσετε στην επεξεργασία από εμάς και τους συνεργάτες μας όπως
-                περιγράφεται παραπάνω.
-              </p>
-              <p>
-                Εναλλακτικά, μπορείτε να κάνετε κλικ για να αρνηθείτε να
-                συναινέσετε ή να αποκτήσετε πρόσβαση σε πιο λεπτομερείς πληροφορίες
-                και να αλλάξετε τις προτιμήσεις σας πριν συναινέσετε. Λάβετε υπόψη
-                ότι κάποια επεξεργασία των προσωπικών σας δεδομένων ενδέχεται να
-                μην απαιτεί τη συγκατάθεσή σας, αλλά έχετε το δικαίωμα να αρνηθείτε
-                αυτήν την επεξεργασία.
-              </p>
-              <p>
-                Οι προτιμήσεις σας θα ισχύουν μόνο για αυτόν τον ιστότοπο. Μπορείτε
-                να αλλάξετε τις προτιμήσεις σας ή να ανακαλέσετε τη συγκατάθεσή σας
-                ανά πάσα στιγμή επιστρέφοντας σε αυτόν τον ιστότοπο και κάνοντας
-                κλικ στον σύνδεσμο{' '}
+                {t('cookie.p4a')}{' '}
                 <Link href="/cookies" className="font-medium text-blue-600 underline-offset-2 hover:underline">
-                  Πολιτική Cookies
+                  {t('cookie.cookiePolicy')}
                 </Link>{' '}
-                ή{' '}
+                {t('cookie.or')}{' '}
                 <Link href="/privacy" className="font-medium text-blue-600 underline-offset-2 hover:underline">
-                  Πολιτική Απορρήτου
+                  {t('cookie.privacyPolicy')}
                 </Link>{' '}
-                στο κάτω μέρος της ιστοσελίδας.
+                {t('cookie.p4b')}
               </p>
             </div>
           ) : (
             <div className="space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Διαχείριση επιλογών
+                {t('cookie.manage')}
               </p>
               <CategoryRow
-                title="Απαραίτητα"
-                description="Cookies που είναι απολύτως αναγκαία για τη λειτουργία του site (σύνδεση, ασφάλεια, language preference, αποθήκευση επιλογών). Χωρίς αυτά η πλατφόρμα δεν λειτουργεί."
+                title={t('cookie.necessaryTitle')}
+                description={t('cookie.necessaryDesc')}
+                alwaysOnLabel={t('cookie.alwaysOn')}
                 checked
                 disabled
                 onChange={() => {}}
               />
               <CategoryRow
-                title="Στατιστικά / Analytics"
-                description="Μας βοηθούν να καταλάβουμε πώς χρησιμοποιείται η πλατφόρμα (page views, clicks, sessions) ώστε να βελτιώνουμε την εμπειρία. Ανώνυμα δεδομένα — δεν σε ταυτοποιούν."
+                title={t('cookie.analyticsTitle')}
+                description={t('cookie.analyticsDesc')}
                 checked={analytics}
                 onChange={setAnalytics}
               />
               <CategoryRow
-                title="Marketing & Διαφήμιση"
-                description="Cookies από third-parties (Meta, Google) για στοχευμένες διαφημίσεις και remarketing όταν επισκέπτεσαι άλλα sites. Μπορείς να τα απενεργοποιήσεις χωρίς να επηρεαστεί η λειτουργία."
+                title={t('cookie.marketingTitle')}
+                description={t('cookie.marketingDesc')}
                 checked={marketing}
                 onChange={setMarketing}
               />
@@ -181,21 +161,21 @@ export function CookieConsent() {
                 onClick={() => setExpanded(true)}
                 className="rounded-lg border border-blue-600 bg-white px-4 py-2.5 text-sm font-bold uppercase tracking-wide text-blue-600 hover:bg-blue-50 transition-colors"
               >
-                Περισσότερες Επιλογές
+                {t('cookie.moreOptions')}
               </button>
               <button
                 type="button"
                 onClick={rejectAll}
                 className="rounded-lg border border-blue-600 bg-white px-4 py-2.5 text-sm font-bold uppercase tracking-wide text-blue-600 hover:bg-blue-50 transition-colors"
               >
-                Διαφωνώ
+                {t('cookie.reject')}
               </button>
               <button
                 type="button"
                 onClick={acceptAll}
                 className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold uppercase tracking-wide text-white hover:bg-blue-700 transition-colors shadow-sm"
               >
-                Συμφωνώ
+                {t('cookie.accept')}
               </button>
             </div>
           ) : (
@@ -205,7 +185,7 @@ export function CookieConsent() {
                 onClick={() => setExpanded(false)}
                 className="text-sm font-medium text-gray-600 hover:text-gray-900 underline-offset-2 hover:underline"
               >
-                ← Πίσω
+                ← {t('cookie.back')}
               </button>
               <div className="flex flex-wrap items-center gap-2">
                 <button
@@ -213,14 +193,14 @@ export function CookieConsent() {
                   onClick={rejectAll}
                   className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
                 >
-                  Απόρριψη όλων
+                  {t('cookie.rejectAll')}
                 </button>
                 <button
                   type="button"
                   onClick={saveCustom}
                   className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
                 >
-                  Αποθήκευση επιλογών
+                  {t('cookie.saveChoices')}
                 </button>
               </div>
             </div>
@@ -236,12 +216,14 @@ function CategoryRow({
   description,
   checked,
   disabled = false,
+  alwaysOnLabel,
   onChange,
 }: {
   title: string;
   description: string;
   checked: boolean;
   disabled?: boolean;
+  alwaysOnLabel?: string;
   onChange: (v: boolean) => void;
 }) {
   return (
@@ -252,7 +234,7 @@ function CategoryRow({
             <h4 className="text-sm font-bold text-gray-900">{title}</h4>
             {disabled && (
               <span className="rounded-full bg-emerald-50 ring-1 ring-emerald-200 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-700">
-                Πάντα ενεργά
+                {alwaysOnLabel}
               </span>
             )}
           </div>

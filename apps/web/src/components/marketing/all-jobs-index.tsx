@@ -39,7 +39,7 @@ export async function AllJobsIndex({
 }: {
   /** Πόσες να δείξει. Χωρίς αυτό, όλες (μέχρι το ταβάνι). */
   limit?: number;
-  title?: string;
+  title?: React.ReactNode;
   /** Κουμπί «δες όλες» — μπαίνει όταν κόβουμε τη λίστα. */
   showAllLink?: boolean;
 }) {

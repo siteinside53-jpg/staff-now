@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
 import { StaffNowMark } from '@/components/staffnow-logo';
+import { useT } from '@/i18n/locale-provider';
 
 // ==================== TYPES ====================
 
@@ -147,16 +148,12 @@ interface AuthModalProps {
   presetError?: string | null;
 }
 
-/** Τι λέμε όταν η σύνδεση Google γυρίσει με κωδικό σφάλματος. */
-const OAUTH_ERROR_MESSAGES: Record<string, string> = {
-  google_2fa: 'Ο λογαριασμός σου έχει διπλή επαλήθευση. Συνδέσου με email και κωδικό.',
-  google_no_email: 'Η Google δεν μας έδωσε το email σου. Συνδέσου με email και κωδικό.',
-  google_unverified: 'Το email σου στη Google δεν είναι επιβεβαιωμένο. Συνδέσου με email και κωδικό.',
-  google_state: 'Η σύνδεση Google έληξε ή δεν ξεκίνησε από εδώ. Δοκίμασε ξανά.',
-};
+/** Τι λέμε όταν η σύνδεση Google γυρίσει με κωδικό σφάλματος (κλειδιά i18n). */
+const OAUTH_ERROR_KEYS = new Set(['google_2fa', 'google_no_email', 'google_unverified', 'google_state']);
 
 function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: AuthModalProps) {
   const { login, completeTwoFactor, register } = useAuth();
+  const t = useT();
   const [view, setView] = useState<'main' | 'email' | 'totp'>('main');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -165,8 +162,7 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [errorMsg, setErrorMsg] = useState(
     presetError
-      ? OAUTH_ERROR_MESSAGES[presetError] ||
-          'Η σύνδεση μέσω Google δεν ολοκληρώθηκε. Δοκίμασε ξανά ή συνδέσου με email.'
+      ? t(OAUTH_ERROR_KEYS.has(presetError) ? `authModal.oauthErrors.${presetError}` : 'authModal.oauthErrors.generic')
       : '',
   );
   const [loading, setLoading] = useState(false);
@@ -213,7 +209,7 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
     e.preventDefault();
     setErrorMsg('');
     if (!email || !password) {
-      setErrorMsg('Συμπληρώστε email και κωδικό.');
+      setErrorMsg(t('authModal.errors.fillEmailPassword'));
       return;
     }
     setLoading(true);
@@ -230,7 +226,7 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
       }
       goToDashboard(result);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Λάθος email ή κωδικός.');
+      setErrorMsg(err.message || t('authModal.errors.invalidCredentials'));
     } finally {
       setLoading(false);
     }
@@ -240,7 +236,7 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
     e.preventDefault();
     setErrorMsg('');
     if (!twoFactorCode.trim()) {
-      setErrorMsg(useRecovery ? 'Συμπλήρωσε έναν κωδικό ανάκτησης.' : 'Συμπλήρωσε τον 6ψήφιο κωδικό.');
+      setErrorMsg(t(useRecovery ? 'authModal.errors.enterRecoveryCode' : 'authModal.errors.enterSixDigitCode'));
       return;
     }
     setLoading(true);
@@ -252,7 +248,7 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
       );
       goToDashboard(loggedInUser);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Ο κωδικός δεν είναι σωστός.');
+      setErrorMsg(err.message || t('authModal.errors.codeIncorrect'));
       setTwoFactorCode('');
     } finally {
       setLoading(false);
@@ -271,28 +267,28 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
     e.preventDefault();
     setErrorMsg('');
     if (!email || !password || !confirmPassword) {
-      setErrorMsg('Συμπληρώστε όλα τα πεδία.');
+      setErrorMsg(t('authModal.errors.fillAllFields'));
       return;
     }
     if (password.length < 8) {
-      setErrorMsg('Ο κωδικός πρέπει να είναι τουλάχιστον 8 χαρακτήρες.');
+      setErrorMsg(t('authModal.errors.passwordMin'));
       return;
     }
     if (password !== confirmPassword) {
-      setErrorMsg('Οι κωδικοί δεν ταιριάζουν.');
+      setErrorMsg(t('authModal.errors.passwordsMismatch'));
       return;
     }
     if (!acceptTerms) {
-      setErrorMsg('Πρέπει να αποδεχτείς τους Όρους Χρήσης.');
+      setErrorMsg(t('authModal.errors.termsRequired'));
       return;
     }
     setLoading(true);
     try {
       const created = await register({ email, password, confirmPassword, role, acceptTerms: true });
-      toast.success('Ο λογαριασμός δημιουργήθηκε επιτυχώς!');
+      toast.success(t('authModal.accountCreated'));
       goToDashboard(created);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Αποτυχία εγγραφής. Δοκίμασε ξανά.');
+      setErrorMsg(err.message || t('authModal.errors.registerFailed'));
     } finally {
       setLoading(false);
     }
@@ -316,7 +312,7 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
         <button
           onClick={onClose}
           className="absolute -top-3 -right-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white text-gray-600 shadow-lg hover:bg-gray-50 hover:scale-105 transition-all"
-          aria-label="Κλείσιμο"
+          aria-label={t('authModal.close')}
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -337,29 +333,29 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
           {view === 'main' && (
             <>
               <h1 className="text-center text-2xl font-extrabold text-gray-900 mb-1">
-                {isLogin ? 'Ξεκίνησε' : 'Δημιούργησε Λογαριασμό'}
+                {t(isLogin ? 'authModal.titleLogin' : 'authModal.titleRegister')}
               </h1>
               <p className="text-center text-xs text-gray-500 leading-relaxed mb-6">
-                Κάνοντας κλικ στη{' '}
+                {t('authModal.legal1')}{' '}
                 <span className="font-semibold text-gray-700">
-                  {isLogin ? 'Σύνδεση' : 'Εγγραφή'}
+                  {t(isLogin ? 'authModal.legalLogin' : 'authModal.legalRegister')}
                 </span>
-                , δηλώνεις ότι αποδέχεσαι τους{' '}
+                {t('authModal.legal2')}{' '}
                 <Link href="/terms" className="font-semibold text-gray-900 underline">
-                  Όρους Χρήσης
+                  {t('authModal.terms')}
                 </Link>
-                . Μάθε πώς επεξεργαζόμαστε τα δεδομένα σου διαβάζοντας την{' '}
+                {t('authModal.legal3')}{' '}
                 <Link href="/privacy" className="font-semibold text-gray-900 underline">
-                  Πολιτική Απορρήτου
+                  {t('authModal.privacy')}
                 </Link>
-                .
+                {t('authModal.legal4')}
               </p>
 
               {/* Role selector (only in register mode) */}
               {!isLogin && (
                 <div className="mb-4">
                   <p className="mb-2 text-center text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                    Είμαι
+                    {t('authModal.iAm')}
                   </p>
                   <div className="grid grid-cols-2 gap-2">
                     <button
@@ -371,7 +367,7 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
                           : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
                       }`}
                     >
-                      👤 Εργαζόμενος
+                      👤 {t('authModal.roleWorker')}
                     </button>
                     <button
                       type="button"
@@ -382,7 +378,7 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
                           : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
                       }`}
                     >
-                      🏢 Επιχείρηση
+                      🏢 {t('authModal.roleBusiness')}
                     </button>
                   </div>
                 </div>
@@ -399,7 +395,7 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
                   <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
                   <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                 </svg>
-                {isLogin ? 'Συνέχεια με Google' : 'Εγγραφή με Google'}
+                {t(isLogin ? 'authModal.googleLogin' : 'authModal.googleRegister')}
               </a>
 
               {/* Email CTA */}
@@ -414,7 +410,7 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
                     d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
                   />
                 </svg>
-                {isLogin ? 'Είσοδος με Email' : 'Εγγραφή με Email'}
+                {t(isLogin ? 'authModal.emailLogin' : 'authModal.emailRegister')}
               </button>
 
               {isLogin && (
@@ -424,7 +420,7 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
                     onClick={onClose}
                     className="text-xs font-semibold text-gray-600 hover:text-gray-900 underline underline-offset-2"
                   >
-                    Πρόβλημα εισόδου;
+                    {t('authModal.loginTrouble')}
                   </Link>
                 </div>
               )}
@@ -438,26 +434,26 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
               */}
               <div className="mt-6 pt-5 border-t border-gray-100">
                 <p className="text-center text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-3">
-                  Η εφαρμογή έρχεται σύντομα
+                  {t('authModal.appComingSoon')}
                 </p>
                 <div className="flex items-center justify-center gap-2">
                   {/* App Store — σύντομα */}
                   <div className="relative flex items-center gap-2 rounded-xl bg-black/90 px-3.5 py-2 text-left">
                     <span className="absolute -top-2 -right-2 rounded-full bg-blue-600 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white shadow">
-                      Σύντομα
+                      {t('authModal.soon')}
                     </span>
                     <svg className="h-6 w-6 text-white" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
                     </svg>
                     <div>
-                      <p className="text-[8px] text-white/70 leading-none">Έρχεται στο</p>
+                      <p className="text-[8px] text-white/70 leading-none">{t('authModal.comingOn')}</p>
                       <p className="text-xs font-bold text-white leading-tight">App Store</p>
                     </div>
                   </div>
                   {/* Google Play — σύντομα */}
                   <div className="relative flex items-center gap-2 rounded-xl bg-black/90 px-3.5 py-2 text-left">
                     <span className="absolute -top-2 -right-2 rounded-full bg-blue-600 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white shadow">
-                      Σύντομα
+                      {t('authModal.soon')}
                     </span>
                     <svg className="h-6 w-6" viewBox="0 0 24 24">
                       <path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 01-.61-.92V2.734a1 1 0 01.609-.92z" fill="#4285F4"/>
@@ -466,7 +462,7 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
                       <path d="M16.798 9l2.807 1.626a1 1 0 010 1.73l-2.808 1.626L14.5 12.707V11.293L16.798 9z" fill="#34A853"/>
                     </svg>
                     <div>
-                      <p className="text-[8px] text-white/70 leading-none">Έρχεται στο</p>
+                      <p className="text-[8px] text-white/70 leading-none">{t('authModal.comingOn')}</p>
                       <p className="text-xs font-bold text-white leading-tight">Google Play</p>
                     </div>
                   </div>
@@ -488,16 +484,14 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                 </svg>
-                Πίσω
+                {t('authModal.back')}
               </button>
 
               <h1 className="text-center text-2xl font-extrabold text-gray-900 mb-1">
-                {isLogin ? 'Είσοδος με Email' : 'Εγγραφή με Email'}
+                {t(isLogin ? 'authModal.emailLogin' : 'authModal.emailRegister')}
               </h1>
               <p className="text-center text-xs text-gray-500 mb-6">
-                {isLogin
-                  ? 'Συμπλήρωσε τα στοιχεία σου για να συνεχίσεις'
-                  : 'Δημιούργησε δωρεάν λογαριασμό σε 1 λεπτό'}
+                {t(isLogin ? 'authModal.emailSubLogin' : 'authModal.emailSubRegister')}
               </p>
 
               {errorMsg && (
@@ -510,7 +504,7 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
                 {!isLogin && (
                   <div>
                     <label className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500">
-                      Είμαι
+                      {t('authModal.iAm')}
                     </label>
                     <div className="grid grid-cols-2 gap-2">
                       <button
@@ -522,7 +516,7 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
                             : 'border-gray-200 bg-white text-gray-600'
                         }`}
                       >
-                        👤 Εργαζόμενος
+                        👤 {t('authModal.roleWorker')}
                       </button>
                       <button
                         type="button"
@@ -533,7 +527,7 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
                             : 'border-gray-200 bg-white text-gray-600'
                         }`}
                       >
-                        🏢 Επιχείρηση
+                        🏢 {t('authModal.roleBusiness')}
                       </button>
                     </div>
                   </div>
@@ -541,14 +535,14 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
 
                 <div>
                   <label htmlFor="auth-modal-email" className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500">
-                    Email
+                    {t('authModal.email')}
                   </label>
                   <input
                     id="auth-modal-email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="email@example.com"
+                    placeholder={t('authModal.emailPlaceholder')}
                     required
                     autoFocus
                     className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:border-blue-500 focus:bg-white focus:outline-none transition-colors"
@@ -558,7 +552,7 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
                 <div>
                   <div className="mb-1.5 flex items-center justify-between">
                     <label htmlFor="auth-modal-password" className="text-xs font-bold uppercase tracking-wide text-gray-500">
-                      Κωδικός
+                      {t('authModal.password')}
                     </label>
                     {isLogin && (
                       <Link
@@ -566,7 +560,7 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
                         onClick={onClose}
                         className="text-[11px] font-semibold text-blue-600 hover:underline"
                       >
-                        Ξέχασες;
+                        {t('authModal.forgot')}
                       </Link>
                     )}
                   </div>
@@ -575,7 +569,7 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder={isLogin ? '••••••••' : 'Τουλάχιστον 8 χαρακτήρες'}
+                    placeholder={isLogin ? '••••••••' : t('authModal.passwordPlaceholder')}
                     required
                     className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:border-blue-500 focus:bg-white focus:outline-none transition-colors"
                   />
@@ -585,14 +579,14 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
                   <>
                     <div>
                       <label htmlFor="auth-modal-confirm" className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500">
-                        Επιβεβαίωση Κωδικού
+                        {t('authModal.confirmPassword')}
                       </label>
                       <input
                         id="auth-modal-confirm"
                         type="password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="Επανάλαβε τον κωδικό"
+                        placeholder={t('authModal.confirmPlaceholder')}
                         required
                         className="w-full rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 text-sm focus:border-blue-500 focus:bg-white focus:outline-none transition-colors"
                       />
@@ -606,13 +600,13 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
                         className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                       <span className="text-[11px] text-gray-600 leading-snug">
-                        Αποδέχομαι τους{' '}
+                        {t('authModal.accept1')}{' '}
                         <Link href="/terms" target="_blank" className="font-semibold text-blue-600 hover:underline">
-                          Όρους Χρήσης
+                          {t('authModal.terms')}
                         </Link>{' '}
-                        και την{' '}
+                        {t('authModal.accept2')}{' '}
                         <Link href="/privacy" target="_blank" className="font-semibold text-blue-600 hover:underline">
-                          Πολιτική Απορρήτου
+                          {t('authModal.privacy')}
                         </Link>
                       </span>
                     </label>
@@ -624,7 +618,7 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
                   disabled={loading}
                   className="mt-2 flex w-full items-center justify-center gap-2 rounded-full bg-blue-600 py-3.5 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-blue-600/30 hover:bg-blue-700 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? (isLogin ? 'Σύνδεση...' : 'Δημιουργία...') : isLogin ? 'Σύνδεση' : 'Δημιουργία λογαριασμού'}
+                  {loading ? t(isLogin ? 'authModal.loggingIn' : 'authModal.creating') : t(isLogin ? 'authModal.submitLogin' : 'authModal.submitRegister')}
                 </button>
               </form>
             </>
@@ -639,16 +633,14 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                 </svg>
-                Πίσω
+                {t('authModal.back')}
               </button>
 
               <h1 className="text-center text-2xl font-extrabold text-gray-900 mb-1">
-                Διπλή επαλήθευση
+                {t('authModal.twoFactorTitle')}
               </h1>
               <p className="text-center text-xs text-gray-500 mb-6">
-                {useRecovery
-                  ? 'Γράψε έναν από τους κωδικούς ανάκτησης που αποθήκευσες.'
-                  : 'Άνοιξε την εφαρμογή στο κινητό σου και γράψε τον 6ψήφιο κωδικό.'}
+                {t(useRecovery ? 'authModal.twoFactorRecoveryHint' : 'authModal.twoFactorAppHint')}
               </p>
 
               {errorMsg && (
@@ -663,7 +655,7 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
                     htmlFor="auth-modal-2fa"
                     className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500"
                   >
-                    {useRecovery ? 'Κωδικός ανάκτησης' : 'Κωδικός 6 ψηφίων'}
+                    {t(useRecovery ? 'authModal.recoveryCodeLabel' : 'authModal.sixDigitLabel')}
                   </label>
                   <input
                     id="auth-modal-2fa"
@@ -695,7 +687,7 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
                   disabled={loading || secondsLeft <= 0}
                   className="mt-2 flex w-full items-center justify-center gap-2 rounded-full bg-blue-600 py-3.5 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-blue-600/30 hover:bg-blue-700 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? 'Έλεγχος...' : 'Επαλήθευση'}
+                  {t(loading ? 'authModal.checking' : 'authModal.verify')}
                 </button>
 
                 <div className="flex items-center justify-between pt-1">
@@ -708,12 +700,12 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
                     }}
                     className="text-[11px] font-semibold text-blue-600 hover:underline"
                   >
-                    {useRecovery ? 'Χρήση κωδικού εφαρμογής' : 'Χρήση κωδικού ανάκτησης'}
+                    {t(useRecovery ? 'authModal.useAppCode' : 'authModal.useRecoveryCode')}
                   </button>
                   <span className="text-[11px] text-gray-400">
                     {secondsLeft > 0
-                      ? `Λήγει σε ${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, '0')}`
-                      : 'Έληξε — πάτα «Πίσω»'}
+                      ? t('authModal.expiresIn', { time: `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, '0')}` })
+                      : t('authModal.expired')}
                   </span>
                 </div>
               </form>
@@ -727,22 +719,22 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
         <p className={`mt-5 text-center text-sm text-white/90 drop-shadow ${view === 'totp' ? 'hidden' : ''}`}>
           {isLogin ? (
             <>
-              Δεν έχεις λογαριασμό;{' '}
+              {t('authModal.noAccount')}{' '}
               <button
                 onClick={() => setAuthMode('register')}
                 className="font-bold text-white underline underline-offset-2 hover:text-blue-200"
               >
-                Εγγραφή
+                {t('authModal.register')}
               </button>
             </>
           ) : (
             <>
-              Έχεις ήδη λογαριασμό;{' '}
+              {t('authModal.hasAccount')}{' '}
               <button
                 onClick={() => setAuthMode('login')}
                 className="font-bold text-white underline underline-offset-2 hover:text-blue-200"
               >
-                Σύνδεση
+                {t('authModal.login')}
               </button>
             </>
           )}

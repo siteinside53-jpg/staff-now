@@ -17,6 +17,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { API_URL } from '@/lib/config';
+import { useT } from '@/i18n/locale-provider';
 import { durationLabel, expiresLabel, netOf, whenLabel } from '@/lib/shift-display';
 
 interface PublicShift {
@@ -134,6 +135,7 @@ const CalendarIcon = () => (
 );
 
 export function UrgentShifts() {
+  const t = useT();
   const [shifts, setShifts] = useState<PublicShift[]>([]);
   // Ξεκινάει στο 0 ώστε server και client να κάνουν render το ίδιο πράγμα
   // (μηδέν countdown) — το πραγματικό ρολόι μπαίνει μετά το mount.
@@ -188,20 +190,19 @@ export function UrgentShifts() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="max-w-[640px]">
           <div className="text-[12.5px] font-extrabold uppercase tracking-[0.13em] text-red-600">
-            Νέο · Έκτακτη βάρδια
+            {t('urgentShifts.eyebrow')}
           </div>
           <h2 className="mt-3.5 text-[clamp(28px,4.2vw,46px)] font-extrabold leading-[1.08] tracking-[-0.03em] text-gray-900">
-            Χρειάζεσαι άτομο απόψε;
+            {t('urgentShifts.title1')}
             <br />
-            Όχι σε δύο εβδομάδες.
+            {t('urgentShifts.title2')}
           </h2>
           <p className="mt-4 text-lg leading-relaxed text-gray-500">
-            Μία βάρδια, όχι θέση εργασίας. Ανεβάζεις ώρα και αμοιβή — βρίσκεις άτομο μέσα σε λεπτά.
-            Χωρίς βιογραφικά, χωρίς δέσμευση.
+            {t('urgentShifts.text')}
           </p>
           {isExample && (
             <p className="mt-5 inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-600">
-              Δεν υπάρχει ενεργή βάρδια αυτή τη στιγμή — έτσι φαίνονται
+              {t('urgentShifts.noneActive')}
             </p>
           )}
         </div>
@@ -211,9 +212,9 @@ export function UrgentShifts() {
             const countdown =
               !isExample && nowTick > 0 ? expiresLabel(s.shift_start_utc, now) : null;
             const net = netOf(s.salary_min);
-            const company = s.display_company_name || s.company_name || 'Επιχείρηση';
+            const company = s.display_company_name || s.company_name || t('urgentShifts.business');
             const city = s.display_city || s.city || s.region;
-            const when = s.shift_date ? whenLabel(s.shift_date, now) : 'ΣΗΜΕΡΑ';
+            const when = s.shift_date ? whenLabel(s.shift_date, now) : t('urgentShifts.today');
 
             return (
               <article
@@ -231,13 +232,13 @@ export function UrgentShifts() {
 
                 {countdown && (
                   <span className="absolute right-[18px] top-5 text-[11.5px] font-extrabold text-red-600">
-                    λήγει {countdown}
+                    {t('urgentShifts.expires', { countdown })}
                   </span>
                 )}
 
                 {isExample ? (
                   <span className="mb-[13px] inline-flex items-center rounded-full bg-gray-100 px-[11px] py-[5px] text-[11.5px] font-extrabold uppercase tracking-[0.03em] text-gray-500">
-                    Παράδειγμα
+                    {t('urgentShifts.example')}
                   </span>
                 ) : (
                   <span className="mb-[13px] inline-flex items-center gap-1.5 rounded-full bg-red-100 px-[11px] py-[5px] text-[11.5px] font-extrabold uppercase tracking-[0.03em] text-red-600">
@@ -282,13 +283,13 @@ export function UrgentShifts() {
                     <div className="mt-[15px] flex items-baseline gap-1.5 text-[27px] font-black tracking-[-0.03em] text-emerald-700">
                       {s.salary_min}€
                       <span className="text-[12.5px] font-semibold tracking-normal text-gray-500">
-                        μικτά για τη βάρδια
+                        {t('urgentShifts.grossForShift')}
                       </span>
                     </div>
                     {net && (
                       <div className="mt-1 text-xs text-gray-500">
-                        ≈ <b className="font-bold text-slate-800">{net}€ καθαρά</b> στο χέρι
-                        (ενδεικτικά) · δηλώνεται στην ΕΡΓΑΝΗ
+                        ≈ <b className="font-bold text-slate-800">{t('urgentShifts.netAmount', { net })}</b>{' '}
+                        {t('urgentShifts.netTail')}
                       </div>
                     )}
                   </>
@@ -296,14 +297,14 @@ export function UrgentShifts() {
 
                 {isExample ? (
                   <div className="mt-[15px] w-full rounded-[11px] border border-dashed border-gray-300 py-3 text-center text-sm font-bold text-gray-400">
-                    Δείγμα αγγελίας
+                    {t('urgentShifts.sample')}
                   </div>
                 ) : (
                   <Link
                     href="/auth/register?role=worker"
                     className="mt-[15px] block w-full rounded-[11px] bg-[#020817] py-3 text-center text-sm font-bold text-white transition-colors hover:bg-red-600"
                   >
-                    Δήλωσε διαθεσιμότητα
+                    {t('urgentShifts.declare')}
                   </Link>
                 )}
               </article>
@@ -316,10 +317,9 @@ export function UrgentShifts() {
             🛡️
           </span>
           <div>
-            <b>Νόμιμα, με τον σωστό τρόπο.</b> Η βάρδια σε επιχείρηση είναι{' '}
-            <b>εξαρτημένη εργασία</b> — δηλώνεται στην <b>ΕΡΓΑΝΗ</b> πριν ξεκινήσει, με ψηφιακή
-            κάρτα εργασίας. Τα «καθαρά» που βλέπεις είναι <b>ενδεικτική εκτίμηση</b> (μόνο εισφορές
-            εργαζομένου, χωρίς παρακράτηση φόρου). Το StaffNow δεν αντικαθιστά τον λογιστή σου.
+            <b>{t('urgentShifts.legal1')}</b> {t('urgentShifts.legal2')}{' '}
+            <b>{t('urgentShifts.legal3')}</b> {t('urgentShifts.legal4')} <b>{t('urgentShifts.legal5')}</b>{' '}
+            {t('urgentShifts.legal6')} <b>{t('urgentShifts.legal7')}</b> {t('urgentShifts.legal8')}
           </div>
         </div>
 
@@ -328,7 +328,7 @@ export function UrgentShifts() {
             href="/auth/register?role=business"
             className="inline-flex items-center justify-center rounded-xl bg-red-600 px-8 py-3.5 text-base font-semibold text-white transition-colors hover:bg-red-700"
           >
-            Ανέβασε έκτακτη βάρδια
+            {t('urgentShifts.postShift')}
           </Link>
         </div>
       </div>

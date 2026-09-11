@@ -56,10 +56,30 @@ export function errorHandler(err: Error, c: Context<{ Bindings: Env }>) {
         status,
       });
       const exec: any = (c as any).executionCtx;
+      // Τα 5xx φτάνουν και στις ειδοποιήσεις της ομάδας (με φρένο 10 λεπτών
+      // ανά διαδρομή, ώστε ένας βρόχος να μη γεμίσει το κινητό).
+      const alert =
+        status >= 500
+          ? import('../lib/admin-events').then(({ recordAdminErrorEvent }) => {
+              let userEmail: string | null = null;
+              try {
+                userEmail = ((c as any).get?.('user') as { email?: string } | undefined)?.email || null;
+              } catch {}
+              return recordAdminErrorEvent(c.env, {
+                code,
+                message: err.message || err.name,
+                path: new URL(c.req.url).pathname,
+                status,
+                userEmail,
+              });
+            })
+          : Promise.resolve();
       if (exec?.waitUntil) {
         exec.waitUntil(p);
+        exec.waitUntil(alert.catch(() => {}));
       } else {
         p.catch(() => {});
+        alert.catch(() => {});
       }
     } catch {
       // never propagate

@@ -1231,94 +1231,8 @@ admin.get('/audit-log', async (c) => {
 // =====================================================================
 // GET /events — system events feed
 // =====================================================================
-admin.get('/events', async (c) => {
-  const db = c.env.DB;
-  const limit = Math.min(parseInt(c.req.query('limit') || '20', 10), 50);
-  const acked = await loadAckedEventIds(c.env);
+// Οι ειδοποιήσεις ομάδας ζουν πλέον στο routes/admin-insights.ts (πίνακας admin_events).
 
-  const [recentReports, recentSignups, recentSuspensions, failedPayments] = await Promise.all([
-    db
-      .prepare(
-        `SELECT r.id, r.created_at, r.reason, r.description, u.email
-         FROM reports r
-         JOIN users u ON u.id = r.target_user_id
-         WHERE r.status = 'pending'
-         ORDER BY r.created_at DESC LIMIT 5`
-      )
-      .all(),
-    db
-      .prepare(
-        `SELECT id, email, role, created_at FROM users
-         WHERE created_at >= datetime('now', '-7 days')
-         ORDER BY created_at DESC LIMIT 5`
-      )
-      .all(),
-    db
-      .prepare(
-        `SELECT al.id, al.created_at, al.action, al.metadata
-         FROM audit_logs al
-         WHERE al.action IN ('user_suspended', 'job_deleted')
-         ORDER BY al.created_at DESC LIMIT 5`
-      )
-      .all(),
-    db
-      .prepare(
-        `SELECT id, created_at, amount_cents, currency, user_id
-         FROM payments
-         WHERE status = 'failed'
-         ORDER BY created_at DESC LIMIT 5`,
-      )
-      .all()
-      .catch(() => ({ results: [] as any[] })),
-  ]);
-
-  const events: any[] = [];
-
-  for (const r of recentReports.results as any[]) {
-    const id = `ev_rep_${r.id}`;
-    events.push({
-      id, type: 'report', title: 'Νέα αναφορά',
-      body: `${r.email} — ${r.reason || 'χωρίς λεπτομέρειες'}`,
-      severity: 'high', read: acked.has(id), createdAt: r.created_at,
-    });
-  }
-
-  for (const s of recentSignups.results as any[]) {
-    const id = `ev_su_${s.id}`;
-    events.push({
-      id, type: 'signup', title: 'Νέα εγγραφή',
-      body: `${s.email} (${s.role})`,
-      severity: 'low', read: acked.has(id) || true, createdAt: s.created_at,
-    });
-  }
-
-  for (const s of recentSuspensions.results as any[]) {
-    const id = `ev_sus_${s.id}`;
-    events.push({
-      id, type: 'suspicious', title: 'Διαχειριστική ενέργεια',
-      body: s.action === 'user_suspended' ? 'Αναστολή χρήστη' : 'Διαγραφή αγγελίας',
-      severity: 'medium', read: acked.has(id), createdAt: s.created_at,
-    });
-  }
-
-  for (const p of failedPayments.results as any[]) {
-    const id = `ev_pay_${p.id}`;
-    const amt = p.amount_cents != null ? `${(p.amount_cents / 100).toFixed(2)}${p.currency || 'EUR'}` : '';
-    events.push({
-      id, type: 'payment_failed', title: 'Αποτυχία πληρωμής',
-      body: `Χρήστης ${p.user_id || '—'}${amt ? ' — ' + amt : ''}`,
-      severity: 'high', read: acked.has(id), createdAt: p.created_at,
-    });
-  }
-
-  events.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-  return success(c, events.slice(0, limit));
-});
-
-// =====================================================================
-// GET /analytics/series — time-series data for sparklines
-// =====================================================================
 admin.get('/analytics/series', async (c) => {
   const rawDays = parseInt(c.req.query('days') || '14', 10);
   return success(c, await computeSeries(c.env, rawDays));
@@ -1658,41 +1572,6 @@ admin.delete('/admins/:id', async (c) => {
 });
 
 // =====================================================================
-// NOTIFICATIONS — read-state acks (KV-backed)
-// =====================================================================
-
-async function loadAckedEventIds(env: Env): Promise<Set<string>> {
-  try {
-    const raw = await env.KV.get('admin:acked_events');
-    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
-  } catch {
-    return new Set();
-  }
-}
-async function saveAckedEventIds(env: Env, set: Set<string>) {
-  // Cap the set so KV doesn't grow unbounded — keep the last 5000 acks.
-  const arr = Array.from(set).slice(-5000);
-  await env.KV.put('admin:acked_events', JSON.stringify(arr));
-}
-
-admin.post('/events/:id/read', async (c) => {
-  const id = c.req.param('id');
-  const set = await loadAckedEventIds(c.env);
-  set.add(id);
-  await saveAckedEventIds(c.env, set);
-  return success(c, { acked: true });
-});
-
-admin.post('/events/read-all', async (c) => {
-  const body = await c.req.json<{ ids: string[] }>().catch(() => ({ ids: [] as string[] }));
-  if (!Array.isArray(body.ids)) return error(c, 'ids πρέπει να είναι array', 400);
-  const set = await loadAckedEventIds(c.env);
-  for (const id of body.ids) set.add(id);
-  await saveAckedEventIds(c.env, set);
-  return success(c, { acked: body.ids.length });
-});
-
-// =====================================================================
 // SIDEBAR NAV BADGES — "new since I last visited" counts
 // =====================================================================
 // One KV key (`admin:nav_seen`) stores a JSON dict of per-section ISO
@@ -1776,15 +1655,14 @@ admin.get('/nav-counts', async (c) => {
     db.prepare("SELECT COUNT(*) AS c FROM payments WHERE status = 'failed' AND created_at > ?").bind(since('notifications')).first<{ c: number }>().catch(() => ({ c: 0 })),
   ]);
 
-  // For notifications, also count fresh signups since last seen (matches the
-  // event feed which lists recent registrations).
-  const newSignupsForNotifs = await db
-    .prepare('SELECT COUNT(*) AS c FROM users WHERE created_at > ?')
-    .bind(since('notifications'))
-    .first<{ c: number }>();
-
-  const notificationsCount =
-    (pendingRepR?.c || 0) + (failedPayR?.c || 0) + (newSignupsForNotifs?.c || 0);
+  // Το σήμα στις «Ειδοποιήσεις» = όσες ειδοποιήσεις ομάδας δεν διαβάστηκαν.
+  const unreadEvents = await db
+    .prepare('SELECT COUNT(*) AS c FROM admin_events WHERE read_at IS NULL')
+    .first<{ c: number }>()
+    .catch(() => ({ c: 0 }));
+  void pendingRepR;
+  void failedPayR;
+  const notificationsCount = unreadEvents?.c || 0;
 
   return success(c, {
     jobs: jobsR?.c || 0,

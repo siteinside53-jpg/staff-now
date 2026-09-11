@@ -1809,6 +1809,19 @@ workers.post('/me/verify', requireAuth, requireRole('worker'), async (c) => {
     .bind(id, user.id, documentUrl, documentBackUrl || null, kind, (body.notes || '').trim() || null, now)
     .run();
 
+  c.executionCtx.waitUntil(
+    import('../lib/admin-events').then(({ recordAdminEvent }) =>
+      recordAdminEvent(c.env, {
+        type: 'verification',
+        severity: 'medium',
+        title: '✅ Νέο αίτημα επαλήθευσης εργαζομένου',
+        body: `${user.email} · ${kind}`,
+        url: '/admin/verifications',
+        data: { requestId: id, userId: user.id },
+      }),
+    ),
+  );
+
   return success(c, { id, status: 'pending', createdAt: now }, 201);
 });
 

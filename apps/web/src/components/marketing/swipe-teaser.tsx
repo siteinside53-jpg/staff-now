@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
+import { useT } from '@/i18n/locale-provider';
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || 'https://staffnow-api-production.siteinside53.workers.dev';
@@ -81,41 +82,38 @@ const DEV_DEMO_WORKERS: Worker[] =
       ]
     : [];
 
-const EMPLOYMENT_LABELS: Record<string, string> = {
-  full_time: 'Πλήρης',
-  part_time: 'Μερική',
-  seasonal: 'Σεζόν',
-  contract: 'Σύμβαση',
-  temporary: 'Προσωρινή',
-};
+type TFn = (key: string, params?: Record<string, string | number>) => string;
 
-const AVAILABILITY_LABELS: Record<string, string> = {
-  immediate: 'Άμεσα διαθέσιμος/η',
-  within_7_days: 'Εντός 7 ημερών',
-  seasonal: 'Εποχιακά',
-  part_time: 'Μερική απασχόληση',
-  full_time: 'Πλήρης απασχόληση',
-};
+const EMPLOYMENT_TYPES = ['full_time', 'part_time', 'seasonal', 'contract', 'temporary'];
+const AVAILABILITY_TYPES = ['immediate', 'within_7_days', 'seasonal', 'part_time', 'full_time'];
 
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'μόλις τώρα';
-  if (mins < 60) return `πριν ${mins}′`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `πριν ${hours} ${hours === 1 ? 'ώρα' : 'ώρες'}`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `πριν ${days} ${days === 1 ? 'μέρα' : 'μέρες'}`;
-  const weeks = Math.floor(days / 7);
-  return `πριν ${weeks} ${weeks === 1 ? 'εβδομάδα' : 'εβδομάδες'}`;
+function employmentLabelOf(t: TFn, type: string | null | undefined): string | null {
+  return type && EMPLOYMENT_TYPES.includes(type) ? t(`swipeTeaser.employment.${type}`) : null;
 }
 
-function salaryText(j: Job): string | null {
+function availabilityLabelOf(t: TFn, type: string | null | undefined): string | null {
+  return type && AVAILABILITY_TYPES.includes(type) ? t(`swipeTeaser.availability.${type}`) : null;
+}
+
+function timeAgo(iso: string, t: TFn): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return t('swipeTeaser.timeAgo.justNow');
+  if (mins < 60) return t('swipeTeaser.timeAgo.minutes', { n: mins });
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return t(hours === 1 ? 'swipeTeaser.timeAgo.hourOne' : 'swipeTeaser.timeAgo.hourMany', { n: hours });
+  const days = Math.floor(hours / 24);
+  if (days < 7) return t(days === 1 ? 'swipeTeaser.timeAgo.dayOne' : 'swipeTeaser.timeAgo.dayMany', { n: days });
+  const weeks = Math.floor(days / 7);
+  return t(weeks === 1 ? 'swipeTeaser.timeAgo.weekOne' : 'swipeTeaser.timeAgo.weekMany', { n: weeks });
+}
+
+function salaryText(j: Job, t: TFn): string | null {
   if (j.salary_min == null && j.salary_max == null) return null;
   const suffix =
-    j.salary_type === 'hourly' ? '€/ώρα' :
-    j.salary_type === 'daily' ? '€/μέρα' :
-    j.salary_type === 'monthly' ? '€/μήνα' : '€';
+    j.salary_type === 'hourly' ? t('swipeTeaser.salary.hourly') :
+    j.salary_type === 'daily' ? t('swipeTeaser.salary.daily') :
+    j.salary_type === 'monthly' ? t('swipeTeaser.salary.monthly') : '€';
   if (j.salary_min != null && j.salary_max != null)
     return `${j.salary_min}–${j.salary_max} ${suffix}`;
   return `${j.salary_min ?? j.salary_max} ${suffix}`;
@@ -154,34 +152,34 @@ interface CardView {
   pills: { text: string; cls: string }[];
 }
 
-function jobToCard(j: Job): CardView {
+function jobToCard(j: Job, t: TFn): CardView {
   const pills: CardView['pills'] = [];
-  if (j.housing_provided) pills.push({ text: '🏠 Στέγαση', cls: 'bg-purple-50 text-purple-700' });
-  if (j.meals_provided) pills.push({ text: '🍽️ Γεύματα', cls: 'bg-emerald-50 text-emerald-700' });
-  const salary = salaryText(j);
+  if (j.housing_provided) pills.push({ text: `🏠 ${t('swipeTeaser.housing')}`, cls: 'bg-purple-50 text-purple-700' });
+  if (j.meals_provided) pills.push({ text: `🍽️ ${t('swipeTeaser.meals')}`, cls: 'bg-emerald-50 text-emerald-700' });
+  const salary = salaryText(j, t);
   return {
     hero: heroImage(j),
     heroFallback: initials(j.display_company_name),
     heroGradient: 'from-blue-500 to-indigo-600',
     heroPosition: 'object-center',
-    badgeLeft: { icon: '🕒', text: timeAgo(j.created_at), tone: 'text-amber-700' },
-    badgeRight: j.employment_type ? EMPLOYMENT_LABELS[j.employment_type] || null : null,
+    badgeLeft: { icon: '🕒', text: timeAgo(j.created_at, t), tone: 'text-amber-700' },
+    badgeRight: employmentLabelOf(t, j.employment_type),
     avatar: j.company_logo || null,
     avatarFallback: initials(j.display_company_name),
-    overlayTitle: j.display_company_name || 'Επιχείρηση',
-    overlaySub: [j.city, j.region].filter(Boolean).join(' · ') || 'Ελλάδα',
+    overlayTitle: j.display_company_name || t('swipeTeaser.business'),
+    overlaySub: [j.city, j.region].filter(Boolean).join(' · ') || t('swipeTeaser.greece'),
     title: j.title,
     highlight: salary ? { icon: '💶', text: salary } : null,
     pills,
   };
 }
 
-function workerToCard(w: Worker): CardView {
+function workerToCard(w: Worker, t: TFn): CardView {
   const roles = w.roles || [];
   const years = w.years_of_experience || 0;
   const primaryRole = roles[0];
-  const employmentLabel = w.employment_type ? EMPLOYMENT_LABELS[w.employment_type] : undefined;
-  const availabilityLabel = w.availability ? AVAILABILITY_LABELS[w.availability] : undefined;
+  const employmentLabel = employmentLabelOf(t, w.employment_type);
+  const availabilityLabel = availabilityLabelOf(t, w.availability);
   const pills: CardView['pills'] = roles
     .slice(1, 3)
     .map((r) => ({ text: roleLabel(r), cls: 'bg-blue-50 text-blue-700' }));
@@ -202,20 +200,21 @@ function workerToCard(w: Worker): CardView {
           tone: w.availability === 'immediate' ? 'text-emerald-700' : 'text-gray-700',
         }
       : null,
-    badgeRight: w.verified ? '✓ Επαληθευμένος' : null,
+    badgeRight: w.verified ? `✓ ${t('swipeTeaser.verified')}` : null,
     avatar: null,
     avatarFallback: initials(w.full_name, '👤'),
-    overlayTitle: w.full_name || 'Εργαζόμενος',
-    overlaySub: [w.city, w.region].filter(Boolean).join(' · ') || 'Ελλάδα',
-    title: primaryRole ? roleLabel(primaryRole) : 'Εργαζόμενος',
+    overlayTitle: w.full_name || t('swipeTeaser.worker'),
+    overlaySub: [w.city, w.region].filter(Boolean).join(' · ') || t('swipeTeaser.greece'),
+    title: primaryRole ? roleLabel(primaryRole) : t('swipeTeaser.worker'),
     highlight: years > 0
-      ? { icon: '⭐', text: `${years} ${years === 1 ? 'χρόνος' : 'χρόνια'} εμπειρία` }
+      ? { icon: '⭐', text: t(years === 1 ? 'swipeTeaser.experienceOne' : 'swipeTeaser.experienceMany', { years }) }
       : null,
     pills,
   };
 }
 
 export function SwipeTeaser() {
+  const t = useT();
   const [mode, setMode] = useState<Mode>('jobs');
   const [jobs, setJobs] = useState<Job[]>(() => withImagesFirst(DEV_DEMO_JOBS, heroImage));
   const [workers, setWorkers] = useState<Worker[]>(() =>
@@ -255,8 +254,8 @@ export function SwipeTeaser() {
   }, []);
 
   const cards: CardView[] = useMemo(
-    () => (mode === 'jobs' ? jobs.map(jobToCard) : workers.map(workerToCard)),
-    [mode, jobs, workers]
+    () => (mode === 'jobs' ? jobs.map((j) => jobToCard(j, t)) : workers.map((w) => workerToCard(w, t))),
+    [mode, jobs, workers, t]
   );
 
   const total = cards.length;
@@ -331,22 +330,20 @@ export function SwipeTeaser() {
           {/* Left — pitch */}
           <div className="text-center lg:text-left">
             <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm font-semibold text-slate-700 shadow-sm">
-              🔥 Δοκίμασέ το τώρα
+              🔥 {t('swipeTeaser.badge')}
             </span>
             <h2 className="mt-5 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl leading-tight">
-              {isJobs ? 'Κάνε swipe σε πραγματικές θέσεις' : 'Κάνε swipe σε πραγματικά προφίλ'}
+              {t(isJobs ? 'swipeTeaser.titleJobs' : 'swipeTeaser.titleWorkers')}
             </h2>
             <p className="mt-4 text-lg text-gray-500 leading-relaxed max-w-md mx-auto lg:mx-0">
-              {isJobs
-                ? 'Δες τι υπάρχει αυτή τη στιγμή κοντά σου. Swipe δεξιά αν σ\u2019αρέσει, αριστερά για πάσο. Χωρίς εγγραφή — μέχρι να θες να στείλεις ενδιαφέρον.'
-                : 'Δες ποιοι είναι διαθέσιμοι αυτή τη στιγμή κοντά σου. Swipe δεξιά αν σου κάνει, αριστερά για πάσο. Χωρίς εγγραφή — μέχρι να θες να επικοινωνήσεις.'}
+              {t(isJobs ? 'swipeTeaser.textJobs' : 'swipeTeaser.textWorkers')}
             </p>
 
             {/* Segmented control — ψάχνω εργασία / ψάχνω προσωπικό */}
             {showToggle && (
               <div
                 role="tablist"
-                aria-label="Τι ψάχνεις"
+                aria-label={t('swipeTeaser.tablistAria')}
                 className="mt-6 inline-flex rounded-2xl bg-gray-100 p-1 ring-1 ring-gray-200"
               >
                 <button
@@ -359,7 +356,7 @@ export function SwipeTeaser() {
                       : 'text-gray-500 hover:text-gray-900'
                   }`}
                 >
-                  🔎 Ψάχνω εργασία
+                  🔎 {t('swipeTeaser.tabJobs')}
                 </button>
                 <button
                   role="tab"
@@ -371,13 +368,13 @@ export function SwipeTeaser() {
                       : 'text-gray-500 hover:text-gray-900'
                   }`}
                 >
-                  🏢 Ψάχνω προσωπικό
+                  🏢 {t('swipeTeaser.tabWorkers')}
                 </button>
               </div>
             )}
 
             <div className="mt-6 flex items-center justify-center gap-6 lg:justify-start text-sm text-gray-500">
-              <span>👉 Σύρε την κάρτα ή χρησιμοποίησε τα κουμπιά</span>
+              <span>👉 {t('swipeTeaser.hint')}</span>
             </div>
           </div>
 
@@ -409,13 +406,13 @@ export function SwipeTeaser() {
                   className="pointer-events-none absolute left-5 top-6 rotate-[-14deg] rounded-lg border-4 border-emerald-500 px-3 py-1 text-xl font-black uppercase text-emerald-500"
                   style={{ opacity: likeOpacity }}
                 >
-                  Μ&apos;αρέσει
+                  {t('swipeTeaser.like')}
                 </div>
                 <div
                   className="pointer-events-none absolute right-5 top-6 rotate-[14deg] rounded-lg border-4 border-rose-500 px-3 py-1 text-xl font-black uppercase text-rose-500"
                   style={{ opacity: nopeOpacity }}
                 >
-                  Πάσο
+                  {t('swipeTeaser.nope')}
                 </div>
 
                 <div className="flex h-full flex-col">
@@ -495,7 +492,7 @@ export function SwipeTeaser() {
                     <div className="mt-auto flex items-center justify-between pt-5">
                       <button
                         onClick={() => commit('left')}
-                        aria-label="Πάσο"
+                        aria-label={t('swipeTeaser.nope')}
                         className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-2xl text-rose-500 shadow-lg ring-1 ring-gray-200 transition hover:scale-105 hover:bg-rose-50"
                       >
                         ✕
@@ -505,7 +502,7 @@ export function SwipeTeaser() {
                       </span>
                       <button
                         onClick={() => commit('right')}
-                        aria-label="Μ'αρέσει"
+                        aria-label={t('swipeTeaser.like')}
                         className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-2xl text-white shadow-lg shadow-emerald-500/30 transition hover:scale-105 hover:bg-emerald-600"
                       >
                         ✓
@@ -533,33 +530,30 @@ function GateCard({
   seen: number;
   remaining: number;
 }) {
+  const t = useT();
   const isJobs = mode === 'jobs';
   return (
     <div className="absolute inset-0 flex flex-col items-center justify-center rounded-[26px] bg-gradient-to-br from-blue-600 to-indigo-700 p-8 text-center shadow-card">
       <div className="text-5xl">🔥</div>
       <h3 className="mt-4 text-2xl font-extrabold text-white leading-tight">
-        Είδες {seen} από {total} {isJobs ? 'θέσεις' : 'προφίλ'}
+        {t(isJobs ? 'swipeTeaser.gate.seenJobs' : 'swipeTeaser.gate.seenWorkers', { seen, total })}
       </h3>
       <p className="mt-2 text-blue-100">
         {remaining > 0
-          ? isJobs
-            ? `Άλλες ${remaining} θέσεις σε περιμένουν. Κάνε εγγραφή για να τις δεις όλες και να στείλεις ενδιαφέρον.`
-            : `Άλλα ${remaining} προφίλ σε περιμένουν. Κάνε εγγραφή για να τα δεις όλα και να επικοινωνήσεις.`
-          : isJobs
-            ? 'Κάνε εγγραφή για να στείλεις ενδιαφέρον και να σε βρίσκουν οι επιχειρήσεις.'
-            : 'Κάνε εγγραφή για να επικοινωνήσεις με τους υποψήφιους και να ανεβάσεις αγγελία.'}
+          ? t(isJobs ? 'swipeTeaser.gate.moreJobs' : 'swipeTeaser.gate.moreWorkers', { n: remaining })
+          : t(isJobs ? 'swipeTeaser.gate.registerJobs' : 'swipeTeaser.gate.registerWorkers')}
       </p>
       <Link
         href={isJobs ? '/auth/register?role=worker' : '/auth/register?role=business'}
         className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-white px-6 py-3.5 text-base font-bold text-blue-700 shadow-lg transition hover:bg-blue-50"
       >
-        Δωρεάν εγγραφή →
+        {t('swipeTeaser.gate.cta')}
       </Link>
       <Link
         href={isJobs ? '/find-job' : '/find-staff'}
         className="mt-3 text-sm font-medium text-blue-100 underline-offset-2 hover:underline"
       >
-        {isJobs ? 'Δες όλες τις θέσεις' : 'Δες όλα τα προφίλ'}
+        {t(isJobs ? 'swipeTeaser.gate.allJobs' : 'swipeTeaser.gate.allWorkers')}
       </Link>
     </div>
   );

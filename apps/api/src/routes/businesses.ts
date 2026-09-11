@@ -279,6 +279,19 @@ businesses.post('/me/verify', requireAuth, requireRole('business'), async (c) =>
     )
     .run();
 
+  c.executionCtx.waitUntil(
+    import('../lib/admin-events').then(({ recordAdminEvent }) =>
+      recordAdminEvent(c.env, {
+        type: 'verification',
+        severity: 'medium',
+        title: '✅ Νέο αίτημα επαλήθευσης επιχείρησης',
+        body: `${user.email}${vat ? ` · ΑΦΜ ${vat}` : ''}`,
+        url: '/admin/verifications',
+        data: { requestId: id, userId: user.id },
+      }),
+    ),
+  );
+
   return success(c, { id, status: 'pending', createdAt: now }, 201);
 });
 

@@ -13,6 +13,9 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { href: '/admin/overview', label: 'Επισκόπηση', icon: '📊', section: 'Κεντρικά' },
+  { href: '/admin/activity', label: 'Όλες οι κινήσεις', icon: '🧭', section: 'Κεντρικά' },
+  { href: '/admin/traffic', label: 'Επισκεψιμότητα', icon: '🌍', section: 'Κεντρικά' },
+  { href: '/admin/inbox', label: 'Εισερχόμενα', icon: '📥', section: 'Κεντρικά' },
   { href: '/admin/users', label: 'Χρήστες', icon: '👥', section: 'Κεντρικά' },
   { href: '/admin/employers', label: 'Επιχειρήσεις', icon: '🏢', section: 'Κεντρικά' },
   { href: '/admin/workers', label: 'Εργαζόμενοι', icon: '👤', section: 'Κεντρικά' },

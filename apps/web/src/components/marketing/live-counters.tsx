@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import { usePoll } from '@/lib/use-poll';
+import { useT } from '@/i18n/locale-provider';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://staffnow-api-production.siteinside53.workers.dev';
 
@@ -15,6 +16,13 @@ const DEV_DEMO_STATS =
   process.env.NODE_ENV !== 'production'
     ? { totalUsers: 130, totalJobs: 10, totalMatches: 6, totalBusinesses: 34 }
     : null;
+
+interface StatsShape {
+  totalUsers: number;
+  totalJobs: number;
+  totalMatches: number;
+  totalBusinesses?: number;
+}
 
 interface Counter {
   label: string;
@@ -31,32 +39,37 @@ const COLOR_MAP = {
   purple:  { bg: 'bg-purple-500/10',  border: 'border-purple-500/20',  text: 'text-purple-400',  glow: 'text-purple-300' },
 };
 
-function buildCounters(stats: { totalUsers: number; totalJobs: number; totalMatches: number; totalBusinesses?: number }): Counter[] {
+type TFn = (key: string, params?: Record<string, string | number>) => string;
+
+function buildCounters(
+  stats: { totalUsers: number; totalJobs: number; totalMatches: number; totalBusinesses?: number },
+  t: TFn,
+): Counter[] {
   return [
     {
-      label: 'Χρήστες εγγεγραμμένοι',
-      shortLabel: 'Χρήστες',
+      label: t('liveCounters.users'),
+      shortLabel: t('liveCounters.usersShort'),
       value: stats.totalUsers || 0,
       icon: '⚡',
       color: 'blue',
     },
     {
-      label: 'Matches μέχρι τώρα',
-      shortLabel: 'Matches',
+      label: t('liveCounters.matches'),
+      shortLabel: t('liveCounters.matchesShort'),
       value: stats.totalMatches || 0,
       icon: '🎯',
       color: 'emerald',
     },
     {
-      label: 'Ενεργές αγγελίες',
-      shortLabel: 'Αγγελίες',
+      label: t('liveCounters.jobs'),
+      shortLabel: t('liveCounters.jobsShort'),
       value: stats.totalJobs || 0,
       icon: '💼',
       color: 'amber',
     },
     {
-      label: 'Επιχειρήσεις εγγεγραμμένες',
-      shortLabel: 'Επιχειρήσεις',
+      label: t('liveCounters.businesses'),
+      shortLabel: t('liveCounters.businessesShort'),
       value: stats.totalBusinesses || 0,
       icon: '🏢',
       color: 'purple',
@@ -67,12 +80,12 @@ function buildCounters(stats: { totalUsers: number; totalJobs: number; totalMatc
 export function LiveCounters() {
   // Production: ξεκινά κρυφό, γεμίζει με πραγματικά δεδομένα.
   // Dev: ξεκινά με demo ώστε το localhost να δείχνει το ίδιο section με το staffnow.gr.
-  const [counters, setCounters] = useState<Counter[] | null>(
-    DEV_DEMO_STATS ? buildCounters(DEV_DEMO_STATS) : null,
-  );
-  const [values, setValues] = useState<number[]>(
-    DEV_DEMO_STATS ? buildCounters(DEV_DEMO_STATS).map((c) => c.value) : [],
-  );
+  const t = useT();
+  // Κρατάμε τα ΩΜΑ στατιστικά· οι ετικέτες υπολογίζονται σε κάθε render ώστε
+  // να αλλάζουν μαζί με τη γλώσσα.
+  const [stats, setStats] = useState<StatsShape | null>(DEV_DEMO_STATS);
+  const counters = stats ? buildCounters(stats, t) : null;
+  const values = counters ? counters.map((c) => c.value) : [];
 
   // Ανανέωση ΠΡΑΓΜΑΤΙΚΩΝ στατιστικών κάθε 25s (χωρίς fake drift).
   // Το usePoll κάνει το πρώτο φόρτωμα, παύει όταν η καρτέλα είναι κρυφή και
@@ -82,12 +95,8 @@ export function LiveCounters() {
     if (res.status === 429) throw Object.assign(new Error('rate limited'), { status: 429 });
     if (!res.ok) return; // κανένα fake — κρατάμε τις τελευταίες πραγματικές τιμές
     const json = await res.json();
-    const stats = json?.data?.stats;
-    if (stats) {
-      const c = buildCounters(stats);
-      setCounters(c);
-      setValues(c.map((x) => x.value));
-    }
+    const fresh = json?.data?.stats;
+    if (fresh) setStats(fresh);
   }, []);
   usePoll(load, 25_000);
 

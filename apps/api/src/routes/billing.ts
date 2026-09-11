@@ -475,6 +475,19 @@ async function handleInvoiceFailed(env: Env, invoice: any) {
 
   await setGracePeriod(env, user.id, 3);
 
+  {
+    const { recordAdminEvent } = await import('../lib/admin-events');
+    const who = await env.DB.prepare('SELECT email FROM users WHERE id = ?').bind(user.id).first<{ email: string }>();
+    await recordAdminEvent(env, {
+      type: 'payment_failed',
+      severity: 'high',
+      title: `💳 Αποτυχία πληρωμής: ${who?.email || user.id}`,
+      body: `${((invoice.amount_due ?? 0) / 100).toFixed(2)} ${(invoice.currency || 'eur').toUpperCase()} · περίοδος χάριτος 3 ημερών`,
+      url: '/admin/payments',
+      data: { userId: user.id, invoiceId: invoice.id },
+    });
+  }
+
   await env.DB.prepare(
     `INSERT INTO notifications (id, user_id, type, title, body, read, created_at, updated_at)
      VALUES (?, ?, 'billing', ?, ?, 0, datetime('now'), datetime('now'))`,

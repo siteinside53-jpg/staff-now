@@ -111,3 +111,54 @@ export async function recordError(
     console.warn('[error_log] insert failed', insertErr);
   }
 }
+
+
+/**
+ * Σφάλμα που είδε ο χρήστης (ή ο ανώνυμος επισκέπτης) στον browser του.
+ * Γράφεται στον ίδιο πίνακα με τα σφάλματα του server, με επίπεδο «client»,
+ * ώστε η ομάδα να τα βλέπει όλα σε ΜΙΑ λίστα (Ασφάλεια › Σφάλματα).
+ */
+export async function recordClientError(
+  env: Env,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  c: Context<any>,
+  input: {
+    kind: string;
+    message: string;
+    path: string;
+    userId: string | null;
+    userRole: string | null;
+    userEmail: string | null;
+    meta?: unknown;
+  },
+): Promise<void> {
+  try {
+    const geo = getGeoFromRequest(c as any);
+    const code = `CLIENT_${input.kind.replace(/^error[_-]?/i, '').toUpperCase() || 'ERROR'}`;
+    await env.DB.prepare(
+      `INSERT INTO error_logs
+        (id, level, code, message, stack, status_code, method, path, query, body_snippet,
+         user_id, user_role, user_email, ip_address, user_agent, country, city, region, request_id, created_at)
+       VALUES (?, 'client', ?, ?, NULL, NULL, 'CLIENT', ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)`,
+    )
+      .bind(
+        generateId('err'),
+        code.slice(0, 60),
+        input.message.slice(0, 500),
+        input.path.slice(0, 300),
+        input.meta ? JSON.stringify(input.meta).slice(0, 500) : null,
+        input.userId,
+        input.userRole,
+        input.userEmail,
+        getRequestIp(c as any),
+        c.req.header('User-Agent') || null,
+        geo.country,
+        geo.city,
+        geo.region,
+        new Date().toISOString(),
+      )
+      .run();
+  } catch (err) {
+    console.error('[error-log] client error insert failed', err);
+  }
+}

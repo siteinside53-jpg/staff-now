@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { API_URL } from '@/lib/config';
+import { useT } from '@/i18n/locale-provider';
 
 /**
  * Trust bar με ΠΡΑΓΜΑΤΙΚΟΥΣ αριθμούς εγγεγραμμένων.
@@ -20,6 +21,7 @@ const DEV_DEMO_WORKERS = process.env.NODE_ENV !== 'production' ? 75 : null;
 const DEV_DEMO_BUSINESSES = process.env.NODE_ENV !== 'production' ? 29 : null;
 
 export function TrustBar() {
+  const t = useT();
   const [workers, setWorkers] = useState<number | null>(DEV_DEMO_WORKERS);
   const [businesses, setBusinesses] = useState<number | null>(DEV_DEMO_BUSINESSES);
 
@@ -64,23 +66,23 @@ export function TrustBar() {
         <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-12 text-center">
           <div className="flex items-center gap-2">
             <span className="text-2xl font-extrabold text-white tabular-nums">{fmt(workers)}</span>
-            <span className="text-sm text-gray-400">Εργαζόμενοι</span>
+            <span className="text-sm text-gray-400">{t('trustBar.workers')}</span>
           </div>
           <div className="hidden sm:block h-8 w-px bg-gray-700" />
           <div className="flex items-center gap-2">
             <span className="text-2xl font-extrabold text-white tabular-nums">{fmt(businesses)}</span>
-            <span className="text-sm text-gray-400">Επιχειρήσεις</span>
+            <span className="text-sm text-gray-400">{t('trustBar.businesses')}</span>
           </div>
           <div className="hidden sm:block h-8 w-px bg-gray-700" />
           <div className="flex items-center gap-2">
             <span className="text-emerald-400 text-lg">&#10003;</span>
-            <span className="text-2xl font-extrabold text-white">Δωρεάν</span>
-            <span className="text-sm text-gray-400">Εγγραφή &amp; χρήση</span>
+            <span className="text-2xl font-extrabold text-white">{t('trustBar.free')}</span>
+            <span className="text-sm text-gray-400">{t('trustBar.freeSub')}</span>
           </div>
           <div className="hidden sm:block h-8 w-px bg-gray-700" />
           <div className="flex items-center gap-2">
-            <span className="text-2xl font-extrabold text-blue-400">Άμεσα</span>
-            <span className="text-sm text-gray-400">Chat &amp; βιντεοκλήση μετά το match</span>
+            <span className="text-2xl font-extrabold text-blue-400">{t('trustBar.instant')}</span>
+            <span className="text-sm text-gray-400">{t('trustBar.instantSub')}</span>
           </div>
         </div>
       </div>

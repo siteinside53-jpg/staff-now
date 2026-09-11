@@ -18,6 +18,8 @@ import { generateId } from '../lib/id';
 import { success, error } from '../lib/response';
 import { recordActivity, startSession, endSession, getRequestIp, getGeoFromRequest } from '../lib/activity';
 import { sendEmail, emailLayout } from '../lib/email';
+import { recordAdminEvent } from '../lib/admin-events';
+import { recordDataChange } from '../lib/activity';
 import { sendSms, smsConfigured } from '../lib/sms';
 import { registerSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, changePasswordSchema } from '@staffnow/validation';
 
@@ -101,6 +103,48 @@ auth.post('/register', authRateLimiter, async (c) => {
         ip,
         userAgent: ua,
         geo,
+      });
+    })(),
+  );
+
+  // Η ομάδα μαθαίνει για κάθε εγγραφή (λίστα + push σε όποιον το θέλει).
+  // Αν ο επισκέπτης είχε καταγραφεί ανώνυμα πριν, δένουμε τις δύο ιστορίες.
+  const visitorId = (c.req.header('X-Visitor-Id') || '').slice(0, 80);
+  c.executionCtx.waitUntil(
+    (async () => {
+      if (visitorId.length >= 8) {
+        try {
+          await db
+            .prepare(
+              `INSERT INTO visitor_meta (visitor_id, registered_user_id, registered_at) VALUES (?, ?, ?)
+               ON CONFLICT(visitor_id) DO UPDATE SET registered_user_id = excluded.registered_user_id, registered_at = excluded.registered_at`,
+            )
+            .bind(visitorId, userId, now)
+            .run();
+        } catch {}
+      }
+      let origin = '';
+      if (visitorId.length >= 8) {
+        try {
+          const m = await db
+            .prepare('SELECT source, landing_path FROM visitor_meta WHERE visitor_id = ?')
+            .bind(visitorId)
+            .first<{ source: string | null; landing_path: string | null }>();
+          if (m?.source) {
+            const { sourceLabel } = await import('../lib/traffic');
+            origin = ` · ήρθε από ${sourceLabel(m.source)}`;
+          }
+        } catch {}
+      }
+      const geo = getGeoFromRequest(c);
+      const where = [geo.city, geo.country].filter(Boolean).join(', ');
+      await recordAdminEvent(c.env, {
+        type: 'signup',
+        severity: 'low',
+        title: `🆕 Νέα εγγραφή: ${role === 'business' ? 'επιχείρηση' : 'εργαζόμενος/η'}`,
+        body: `${email}${where ? ` · ${where}` : ''}${origin}`,
+        url: `/admin/users?focus=${userId}`,
+        data: { userId, email, role, visitorId: visitorId || null },
       });
     })(),
   );
@@ -363,6 +407,52 @@ auth.delete('/me', requireAuth, async (c) => {
     }
   }
 
+  // Πριν χαθούν όλα (τα περισσότερα σβήνονται αλυσιδωτά), κρατάμε ίχνος:
+  // ποιος ήταν, τι ρόλο είχε, πότε γράφτηκε. Πριν, μετά τη διαγραφή το
+  // διαχειριστικό δεν είχε καμία ένδειξη ότι υπήρξε ποτέ ο λογαριασμός.
+  const snapshot = await db
+    .prepare(
+      `SELECT u.email, u.role, u.created_at,
+              COALESCE(NULLIF(wp.full_name, ''), NULLIF(bp.company_name, ''), u.display_name) AS name
+         FROM users u
+         LEFT JOIN worker_profiles wp ON wp.user_id = u.id
+         LEFT JOIN business_profiles bp ON bp.user_id = u.id
+        WHERE u.id = ?`,
+    )
+    .bind(user.id)
+    .first<{ email: string; role: string; created_at: string; name: string | null }>();
+  const deletedAt = new Date().toISOString();
+  const geo = getGeoFromRequest(c);
+  await recordDataChange(c.env, {
+    actorUserId: user.id,
+    actorRole: snapshot?.role || user.role,
+    actorEmail: snapshot?.email || user.email,
+    actorName: snapshot?.name || null,
+    action: 'account_deleted',
+    entityType: 'user',
+    entityId: user.id,
+    entityOwnerId: user.id,
+    metadata: {
+      email: snapshot?.email || user.email,
+      role: snapshot?.role || user.role,
+      name: snapshot?.name || null,
+      registeredAt: snapshot?.created_at || null,
+      deletedAt,
+      by: 'self',
+    },
+    ip: getRequestIp(c),
+    userAgent: c.req.header('User-Agent') || null,
+    geo,
+  }).catch(() => {});
+  await recordAdminEvent(c.env, {
+    type: 'account_deleted',
+    severity: 'medium',
+    title: `🗑️ Διαγραφή λογαριασμού: ${snapshot?.email || user.email}`,
+    body: `${snapshot?.role === 'business' ? 'Επιχείρηση' : 'Εργαζόμενος/η'}${snapshot?.name ? ` · ${snapshot.name}` : ''} · εγγραφή ${snapshot?.created_at ? snapshot.created_at.slice(0, 10) : '—'} · ο ίδιος ο χρήστης`,
+    url: '/admin/data-changes?action=account_deleted',
+    data: { userId: user.id, email: snapshot?.email || user.email, role: snapshot?.role || user.role, name: snapshot?.name || null },
+  });
+
   // Remove rows that reference users(id) WITHOUT ON DELETE CASCADE first, then
   // delete the user (every other table cascades). Batched so it's atomic.
   await db.batch([
@@ -418,6 +508,7 @@ auth.post('/email/send-code', requireAuth, emailCodeRateLimiter, async (c) => {
       to: row.email,
       subject: `${code} — ο κωδικός επιβεβαίωσης StaffNow`,
       html: emailLayout({
+        recipient: { email: row.email },
         title: 'Επιβεβαίωση email',
         body: `Ο κωδικός επιβεβαίωσης του λογαριασμού σου είναι:<br><br><span style="display:inline-block;font-size:30px;font-weight:800;letter-spacing:8px;color:#0f172a;background:#f1f5f9;border-radius:12px;padding:12px 20px;">${code}</span><br><br>Ισχύει για 15 λεπτά. Αν δεν το ζήτησες εσύ, αγνόησε αυτό το email.`,
         ctaText: 'Άνοιγμα StaffNow',
@@ -719,6 +810,7 @@ auth.post('/forgot-password', passwordResetRateLimiter, async (c) => {
         to: email,
         subject: 'Επαναφορά κωδικού StaffNow',
         html: emailLayout({
+          recipient: { email },
           title: 'Επαναφορά κωδικού',
           body: 'Ζητήθηκε επαναφορά του κωδικού σου στο StaffNow. Πάτησε το κουμπί για να ορίσεις νέο κωδικό. Ο σύνδεσμος ισχύει για 1 ώρα.<br><br>Αν δεν το ζήτησες εσύ, αγνόησε αυτό το email — ο κωδικός σου παραμένει ο ίδιος.',
           ctaText: 'Ορισμός νέου κωδικού',

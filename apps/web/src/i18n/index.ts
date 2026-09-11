@@ -69,7 +69,18 @@ export function getLocale(): Locale {
  *   t('billing.renewsOn', { date: '15/04/2026' })
  */
 export function t(key: string, params?: Record<string, string | number>): string {
-  const locale = getLocale();
+  return translate(getLocale(), key, params);
+}
+
+/**
+ * Pure lookup for an explicit locale (no localStorage / module state).
+ * Used by the React LocaleProvider so renders stay side-effect free.
+ */
+export function translate(
+  locale: Locale,
+  key: string,
+  params?: Record<string, string | number>,
+): string {
   const dict = translations[locale]?.common;
   if (!dict) return key;
 

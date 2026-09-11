@@ -66,8 +66,25 @@ export function emailLayout(opts: {
    * businesses, whose body text is written in the plural too.
    */
   formal?: boolean;
+  /**
+   * Σε ποιον πάει και ποιον λογαριασμό αφορά. Μπαίνει ως χαιρετισμός πάνω
+   * από το κείμενο («Γεια σου Μαρία,») και ως γραμμή στο υποσέλιδο («Αφορά
+   * τον λογαριασμό maria@… — Εργαζόμενος»), ώστε κάθε email να λέει ξεκάθαρα
+   * σε ποιον απευθύνεται — ειδικά όταν κάποιος έχει δύο λογαριασμούς ή
+   * προωθεί το μήνυμα.
+   */
+  recipient?: { name?: string | null; email: string; role?: string | null };
 }): string {
-  const { title, body, ctaText, ctaUrl, icon, tint, secondary, formal } = opts;
+  const { title, body, ctaText, ctaUrl, icon, tint, secondary, formal, recipient } = opts;
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const roleLabel = (r?: string | null) =>
+    r === 'worker' ? 'Εργαζόμενος/η' : r === 'business' ? 'Επιχείρηση' : r === 'admin' ? 'Διαχειριστής' : '';
+  const greeting = recipient?.name
+    ? `<p style="margin:0 0 10px;font-size:15px;line-height:1.5;color:#0f172a;">${formal ? 'Αγαπητέ/ή' : 'Γεια σου'} <strong>${esc(recipient.name)}</strong>,</p>`
+    : '';
+  const recipientLine = recipient?.email
+    ? `<p style="margin:0 0 6px;font-size:12.5px;line-height:1.6;color:#94a3b8;">Αφορά τον λογαριασμό <strong style="color:#64748b;">${esc(recipient.email)}</strong>${roleLabel(recipient.role) ? ` — ${roleLabel(recipient.role)}` : ''}.</p>`
+    : '';
   const brand = 'linear-gradient(135deg,#3b82f6 0%,#2563eb 100%)';
   // With a hero badge present, drop a leading emoji from the headline (it stays
   // in the email subject) so the title reads clean, like a polished brand email.
@@ -130,7 +147,7 @@ export function emailLayout(opts: {
             <!-- Body -->
             <tr>
               <td style="padding:10px 30px 24px;">
-                <p style="margin:0;font-size:15px;line-height:1.65;color:#475569;">${body}</p>
+                ${greeting}<p style="margin:0;font-size:15px;line-height:1.65;color:#475569;">${body}</p>
               </td>
             </tr>
             <!-- CTA -->
@@ -155,7 +172,7 @@ export function emailLayout(opts: {
             <!-- Footer -->
             <tr>
               <td style="padding:20px 30px 26px;border-top:1px solid #eef2f7;">
-                <p style="margin:0 0 6px;font-size:12.5px;line-height:1.6;color:#94a3b8;">
+                ${recipientLine}<p style="margin:0 0 6px;font-size:12.5px;line-height:1.6;color:#94a3b8;">
                   ${formal ? 'Λαμβάνετε αυτό το email επειδή έχετε' : 'Λαμβάνεις αυτό το email επειδή έχεις'} λογαριασμό στο
                   <a href="https://staffnow.gr" style="color:#2563eb;text-decoration:none;font-weight:600;">StaffNow</a>.
                 </p>

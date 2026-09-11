@@ -84,7 +84,9 @@ jobs:
                    migrations/0058_tasknow_samples.sql \
                    migrations/0059_tasknow_points.sql \
                    migrations/0060_tasknow_services.sql \
-                   migrations/0061_contact_messages.sql; do
+                   migrations/0061_contact_messages.sql \
+                   migrations/0062_site_feedback.sql \
+                   migrations/0063_admin_events_and_traffic.sql; do
             echo "→ $f"
             npx wrangler d1 execute staffnow-db-prod \
               --remote --env production --config ./wrangler.toml --file="$f"

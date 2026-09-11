@@ -243,9 +243,18 @@ async function dispatchEmail(env: Env, input: NotifyInput, path: string): Promis
   if (!allowedByPrefs(prefs, 'email', category)) return;
   if (await emailInCooldown(env, input.userId, category, cooldown)) return;
 
-  const user = await env.DB.prepare('SELECT email FROM users WHERE id = ?')
+  // Όνομα και ρόλος του παραλήπτη: μπαίνουν στον χαιρετισμό και στο υποσέλιδο,
+  // ώστε το email να λέει ξεκάθαρα σε ποιον πάει και ποιον λογαριασμό αφορά.
+  const user = await env.DB.prepare(
+    `SELECT u.email, u.role,
+            COALESCE(NULLIF(wp.full_name, ''), NULLIF(bp.company_name, ''), NULLIF(u.display_name, '')) AS name
+       FROM users u
+       LEFT JOIN worker_profiles wp ON wp.user_id = u.id
+       LEFT JOIN business_profiles bp ON bp.user_id = u.id
+      WHERE u.id = ?`,
+  )
     .bind(input.userId)
-    .first<{ email: string }>();
+    .first<{ email: string; role: string; name: string | null }>();
   if (!user?.email) return;
 
   const { icon, tint } = heroFor(category, input.title);
@@ -257,6 +266,7 @@ async function dispatchEmail(env: Env, input: NotifyInput, path: string): Promis
     icon,
     tint,
     formal: input.formal,
+    recipient: { name: user.name, email: user.email, role: user.role },
   });
   const ok = await sendEmail(cfg, { to: user.email, subject: input.title, html });
   if (ok && category && cooldown > 0) {

@@ -13,6 +13,7 @@ import notificationRoutes from './routes/notifications';
 import billingRoutes from './routes/billing';
 import uploadRoutes from './routes/uploads';
 import adminRoutes from './routes/admin';
+import adminInsightsRoutes from './routes/admin-insights';
 import blogRoutes from './routes/blog';
 import branchRoutes from './routes/branches';
 import interestRoutes from './routes/interests';
@@ -25,7 +26,7 @@ import tasknowRoutes from './routes/tasknow';
 import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
 import { errorHandler } from './middleware/error-handler';
 import { globalRateLimiter } from './middleware/rate-limiter';
-import { requireAuth } from './middleware/auth';
+import { requireAuth, optionalAuth } from './middleware/auth';
 import { sendEmail, emailLayout } from './lib/email';
 
 const app = new Hono<{ Bindings: Env }>();
@@ -46,7 +47,7 @@ app.use('*', async (c, next) => {
     origin: origin.includes(',') ? origin.split(',') : origin,
     credentials: true,
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization'],
+    allowHeaders: ['Content-Type', 'Authorization', 'X-Visitor-Id'],
     maxAge: 86400,
   })(c, next);
 });
@@ -109,6 +110,7 @@ app.route('/notifications', notificationRoutes);
 app.route('/billing', billingRoutes);
 app.route('/uploads', uploadRoutes);
 app.route('/admin', adminRoutes);
+app.route('/admin', adminInsightsRoutes);
 app.route('/blog', blogRoutes);
 app.route('/branches', branchRoutes);
 app.route('/interests', interestRoutes);
@@ -141,6 +143,21 @@ app.post('/activity/track', requireAuth, async (c) => {
         userAgent: c.req.header('User-Agent') || null,
         geo: getGeoFromRequest(c),
       });
+      // Τα σφάλματα που είδε ο χρήστης στην οθόνη του πάνε ΚΑΙ στα σφάλματα
+      // του διαχειριστικού (Ασφάλεια › Σφάλματα). Πριν έμεναν θαμμένα στο
+      // ιστορικό του κάθε χρήστη και δεν τα έβλεπε κανείς συγκεντρωτικά.
+      if (type.startsWith('error')) {
+        const { recordClientError } = await import('./lib/error-log');
+        await recordClientError(c.env, c, {
+          kind: type,
+          message: String((meta as Record<string, unknown> | null)?.message || path || 'client error'),
+          path: String((meta as Record<string, unknown> | null)?.page || path || ''),
+          userId: user.id,
+          userRole: user.role,
+          userEmail: user.email,
+          meta,
+        });
+      }
       // Surface the current page on the active session so admin presence
       // panel can show "now on /dashboard/swipe".
       if (path && type === 'page_view') {
@@ -171,6 +188,12 @@ app.post('/activity/visitor-track', async (c) => {
   const type = typeof body.type === 'string' ? body.type.slice(0, 30) : 'page_view';
   const path = typeof body.path === 'string' ? body.path.slice(0, 200) : null;
   const referrer = typeof body.referrer === 'string' ? body.referrer.slice(0, 300) : null;
+  const meta = body.meta && typeof body.meta === 'object' ? body.meta : null;
+  // utm_* από τη διεύθυνση της πρώτης σελίδας (τα στέλνει ο browser μία φορά)
+  const utm = body.utm && typeof body.utm === 'object' ? body.utm : {};
+  const utmSource = typeof utm.source === 'string' ? utm.source.slice(0, 80) : null;
+  const utmMedium = typeof utm.medium === 'string' ? utm.medium.slice(0, 80) : null;
+  const utmCampaign = typeof utm.campaign === 'string' ? utm.campaign.slice(0, 120) : null;
 
   const { getRequestIp, getGeoFromRequest } = await import('./lib/activity');
   const ip = getRequestIp(c);
@@ -186,15 +209,16 @@ app.post('/activity/visitor-track', async (c) => {
         await db
           .prepare(
             `INSERT INTO anonymous_activity_log
-              (id, visitor_id, activity_type, entity_id, ip_address, user_agent,
+              (id, visitor_id, activity_type, entity_id, metadata, ip_address, user_agent,
                country, city, region, timezone, referrer, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .bind(
             id,
             visitorId,
             type,
             path,
+            meta ? JSON.stringify(meta).slice(0, 2000) : null,
             ip,
             ua,
             geo.country,
@@ -207,7 +231,24 @@ app.post('/activity/visitor-track', async (c) => {
           .run();
       } catch {}
 
+      // Τα σφάλματα του επισκέπτη πάνε και στα σφάλματα του διαχειριστικού.
+      if (type.startsWith('error')) {
+        try {
+          const { recordClientError } = await import('./lib/error-log');
+          await recordClientError(c.env, c, {
+            kind: type,
+            message: String((meta as Record<string, unknown> | null)?.message || path || 'client error'),
+            path: String((meta as Record<string, unknown> | null)?.page || path || ''),
+            userId: null,
+            userRole: 'visitor',
+            userEmail: visitorId,
+            meta,
+          });
+        } catch {}
+      }
+
       // Upsert session row
+      let isNewVisitor = false;
       try {
         const existing = await db
           .prepare('SELECT visitor_id FROM anonymous_sessions WHERE visitor_id = ?')
@@ -241,6 +282,7 @@ app.post('/activity/visitor-track', async (c) => {
             )
             .run();
         } else {
+          isNewVisitor = true;
           await db
             .prepare(
               `INSERT INTO anonymous_sessions
@@ -264,13 +306,108 @@ app.post('/activity/visitor-track', async (c) => {
             .run();
         }
       } catch {}
+
+      // Από πού ήρθε — γράφεται ΜΙΑ φορά, στην πρώτη επίσκεψη.
+      if (isNewVisitor) {
+        try {
+          const { classifySource, deviceFromUserAgent, sourceLabel } = await import('./lib/traffic');
+          const source = classifySource(referrer, utmSource);
+          const device = deviceFromUserAgent(ua);
+          await db
+            .prepare(
+              `INSERT OR IGNORE INTO visitor_meta
+                (visitor_id, referrer, utm_source, utm_medium, utm_campaign, source, landing_path, device, first_seen_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            )
+            .bind(visitorId, referrer, utmSource, utmMedium, utmCampaign, source, path, device, now)
+            .run();
+          // «Μπήκε επισκέπτης από Θεσσαλονίκη (Google)» — μόνο σε όποιον
+          // διαχειριστή το έχει ανοιχτό στις ρυθμίσεις του.
+          const { recordAdminEvent } = await import('./lib/admin-events');
+          const where = [geo.city, geo.country].filter(Boolean).join(', ') || 'άγνωστη τοποθεσία';
+          await recordAdminEvent(c.env, {
+            type: 'visitor',
+            severity: 'low',
+            title: `👋 Νέος επισκέπτης από ${where}`,
+            body: `${sourceLabel(source)} · ${device === 'mobile' ? 'κινητό' : device === 'tablet' ? 'tablet' : 'υπολογιστής'} · άνοιξε ${path || '/'}`,
+            url: `/admin/traffic?visitor=${encodeURIComponent(visitorId)}`,
+            data: { visitorId, city: geo.city, country: geo.country, source, device, landing: path },
+          });
+        } catch {}
+      }
     })(),
   );
 
   return c.json({ success: true });
 });
 
-// POST /contact — public contact form submission
+// POST /feedback — «Πείτε μας την εμπειρία σας»: αξιολόγηση της πλατφόρμας.
+// Δέχεται και ανώνυμους. Το βλέπει η ομάδα στο διαχειριστικό (και με email).
+app.post('/feedback', optionalAuth, async (c) => {
+  let body: any;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ success: false, error: { code: 'INVALID_JSON', message: 'Invalid body' } }, 400);
+  }
+  const message = typeof body.message === 'string' ? body.message.trim().slice(0, 2000) : '';
+  const ratingRaw = Number(body.rating);
+  const rating = Number.isInteger(ratingRaw) && ratingRaw >= 1 && ratingRaw <= 5 ? ratingRaw : null;
+  const page = typeof body.page === 'string' ? body.page.trim().slice(0, 300) : null;
+  if (message.length < 3 && rating === null) {
+    return c.json({ success: false, error: { code: 'VALIDATION', message: 'Γράψε δυο λόγια ή διάλεξε αστέρια.' } }, 400);
+  }
+  const user = (c.get as any)('user') as { id: string; role: string } | undefined;
+  const id = `fb_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  const now = new Date().toISOString();
+  try {
+    await c.env.DB.prepare(
+      `INSERT INTO site_feedback (id, user_id, user_role, rating, message, page, user_agent, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+      .bind(id, user?.id || null, user?.role || null, rating, message || '', page, c.req.header('User-Agent') || null, now)
+      .run();
+  } catch (err) {
+    console.error('[feedback] could not persist:', err);
+    return c.json(
+      { success: false, error: { code: 'STORE_FAILED', message: 'Δεν αποθηκεύτηκε. Δοκίμασε ξανά σε λίγο.' } },
+      500,
+    );
+  }
+  c.executionCtx.waitUntil(
+    import('./lib/admin-events').then(({ recordAdminEvent }) =>
+      recordAdminEvent(c.env, {
+        type: 'feedback',
+        severity: rating !== null && rating <= 2 ? 'medium' : 'low',
+        title: `⭐ Αξιολόγηση πλατφόρμας${rating ? ` ${rating}/5` : ''}`,
+        body: `${user ? `${user.role} ${user.id}` : 'Ανώνυμος επισκέπτης'}${page ? ` · ${page}` : ''}: ${message.slice(0, 140) || '(χωρίς κείμενο)'}`,
+        url: '/admin/inbox?tab=feedback',
+        data: { feedbackId: id, userId: user?.id || null, rating, page },
+      }),
+    ),
+  );
+  if (c.env.EMAIL_API_KEY) {
+    const to = c.env.CONTACT_EMAIL || 'info@staffnow.gr';
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const who = user ? `${esc(user.role)} ${esc(user.id)}` : 'ανώνυμος επισκέπτης';
+    const html = emailLayout({
+      title: `Νέα αξιολόγηση της πλατφόρμας${rating ? `: ${'★'.repeat(rating)}` : ''}`,
+      body: `<strong>Από:</strong> ${who}${page ? ` · σελίδα ${esc(page)}` : ''}<br><br>${esc(message).replace(/\n/g, '<br>') || '(χωρίς κείμενο)'}`,
+      ctaText: 'Άνοιγμα διαχειριστικού',
+      ctaUrl: 'https://staffnow.gr/admin/feedback',
+      icon: '⭐',
+      tint: '#fef3c7',
+    });
+    c.executionCtx.waitUntil(
+      sendEmail(
+        { apiKey: c.env.EMAIL_API_KEY, from: c.env.EMAIL_FROM || 'StaffNow <no-reply@staffnow.gr>' },
+        { to, subject: `[StaffNow] Αξιολόγηση πλατφόρμας${rating ? ` ${rating}/5` : ''}`, html },
+      ).catch(() => false),
+    );
+  }
+  return c.json({ success: true, data: { id } }, 201);
+});
+
 app.post('/contact', async (c) => {
   let body: any;
   try {
@@ -312,6 +449,18 @@ app.post('/contact', async (c) => {
       500,
     );
   }
+  c.executionCtx.waitUntil(
+    import('./lib/admin-events').then(({ recordAdminEvent }) =>
+      recordAdminEvent(c.env, {
+        type: 'contact',
+        severity: kind === 'contact' ? 'medium' : 'low',
+        title: kind === 'contact' ? `✉️ Νέο μήνυμα από ${name}` : `📰 Εγγραφή στο newsletter: ${email}`,
+        body: kind === 'contact' ? `${subject}: ${message.slice(0, 140)}` : '',
+        url: '/admin/inbox',
+        data: { contactId: id, email, kind },
+      }),
+    ),
+  );
   // Αντίγραφο στο γραμματοκιβώτιο της ομάδας, ώστε να μη χρειάζεται να
   // κοιτάει κανείς το διαχειριστικό για να μάθει ότι κάποιος έγραψε.
   if (c.env.EMAIL_API_KEY && kind === 'contact') {
@@ -321,7 +470,7 @@ app.post('/contact', async (c) => {
       title: `Νέο μήνυμα επικοινωνίας: ${esc(subject)}`,
       body: `<strong>Από:</strong> ${esc(name)} &lt;${esc(email)}&gt;<br><br>${esc(message).replace(/\n/g, '<br>')}`,
       ctaText: 'Άνοιγμα διαχειριστικού',
-      ctaUrl: 'https://staffnow.gr/admin/messages',
+      ctaUrl: 'https://staffnow.gr/admin/inbox',
       icon: '✉️',
       tint: '#fef3c7',
     });
@@ -789,7 +938,68 @@ app.notFound((c) =>
 /** Πρέπει να ταιριάζει με το πρώτο cron του wrangler.toml. */
 const DAILY_CRON = '15 3 * * *';
 
+/** Κάθε 10 λεπτά: ποιοι επισκέπτες έφυγαν. Πρέπει να ταιριάζει με το wrangler.toml. */
+const VISITOR_CRON = '*/10 * * * *';
+
+/**
+ * «Επισκέπτης από Θεσσαλονίκη έφυγε μετά από 2 λεπτά, 4 σελίδες, χωρίς
+ * εγγραφή». Ο browser δεν μας λέει πότε κλείνει· το συμπεραίνουμε: 5+ λεπτά
+ * χωρίς σημάδι ζωής = έφυγε. Μία ειδοποίηση ανά επισκέπτη.
+ */
+async function visitorLeftSweep(env: Env): Promise<void> {
+  const { recordAdminEvent } = await import('./lib/admin-events');
+  const { sourceLabel } = await import('./lib/traffic');
+  const cutoff = new Date(Date.now() - 5 * 60_000).toISOString();
+  const dayAgo = new Date(Date.now() - 24 * 3_600_000).toISOString();
+  const rows = await env.DB.prepare(
+    `SELECT s.visitor_id, s.first_seen_at, s.last_seen_at, s.page_views, s.city, s.country, s.current_path,
+            m.source, m.landing_path, m.registered_user_id, u.email AS registered_email
+       FROM anonymous_sessions s
+       LEFT JOIN visitor_meta m ON m.visitor_id = s.visitor_id
+       LEFT JOIN users u ON u.id = m.registered_user_id
+      WHERE s.last_seen_at < ? AND s.first_seen_at >= ?
+        AND (m.notified_left_at IS NULL)
+      ORDER BY s.last_seen_at ASC
+      LIMIT 100`,
+  )
+    .bind(cutoff, dayAgo)
+    .all<Record<string, unknown>>();
+  const now = new Date().toISOString();
+  for (const r of rows.results || []) {
+    const visitorId = String(r.visitor_id);
+    // Σημειώνουμε ΠΡΙΝ ειδοποιήσουμε: αν σκάσει κάτι, δεν ξαναστέλνουμε.
+    await env.DB.prepare(
+      `INSERT INTO visitor_meta (visitor_id, first_seen_at, notified_left_at) VALUES (?, ?, ?)
+       ON CONFLICT(visitor_id) DO UPDATE SET notified_left_at = excluded.notified_left_at`,
+    )
+      .bind(visitorId, String(r.first_seen_at), now)
+      .run();
+    const seconds = Math.max(0, Math.round((Date.parse(String(r.last_seen_at)) - Date.parse(String(r.first_seen_at))) / 1000));
+    const dur = seconds < 60 ? `${seconds} δευτ.` : `${Math.round(seconds / 60)} λεπτ.`;
+    const where = [r.city, r.country].filter(Boolean).join(', ') || 'άγνωστη τοποθεσία';
+    const pages = Number(r.page_views || 0);
+    const registered = !!r.registered_user_id;
+    await recordAdminEvent(env, {
+      type: 'visitor_left',
+      severity: 'low',
+      title: registered ? `✅ Επισκέπτης από ${where} έκανε εγγραφή` : `🚪 Επισκέπτης από ${where} έφυγε`,
+      body: `${dur} · ${pages} ${pages === 1 ? 'σελίδα' : 'σελίδες'} · ${sourceLabel(String(r.source || 'direct'))}${registered ? ` · ${String(r.registered_email || '')}` : ' · χωρίς εγγραφή'}${r.current_path ? ` · τελευταία: ${String(r.current_path)}` : ''}`,
+      url: `/admin/traffic?visitor=${encodeURIComponent(visitorId)}`,
+      data: { visitorId, seconds, pages, registered },
+    });
+  }
+  console.log('[cron] visitor-left events:', (rows.results || []).length);
+}
+
 async function scheduled(event: ScheduledEvent, env: Env, _ctx: ExecutionContext) {
+  if (event.cron === VISITOR_CRON) {
+    try {
+      await visitorLeftSweep(env);
+    } catch (err) {
+      console.error('[cron] visitor sweep failed', err);
+    }
+    return;
+  }
   // Ωριαίο: αρχειοθέτηση βαρδιών που έχουν ήδη ξεκινήσει. Απαραίτητο — μια
   // ληγμένη βάρδια που μένει 'published' κρατάει για πάντα θέση στο όριο
   // αγγελιών του πλάνου και κλειδώνει μια δωρεάν επιχείρηση στη μία αγγελία.

@@ -43,7 +43,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
  * No-ops gracefully when the service worker, Push API, VAPID key, or auth token
  * is unavailable (e.g. local dev where the SW is not registered).
  */
-async function subscribeToPush(): Promise<void> {
+export async function subscribeToPush(): Promise<void> {
   if (typeof window === 'undefined') return;
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
   if (!VAPID_PUBLIC_KEY) return;

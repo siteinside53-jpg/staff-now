@@ -9,6 +9,8 @@ export interface ClientConfig {
    */
   onError?: (info: { status: number; message: string; path: string; code?: string }) => void;
   headers?: Record<string, string>;
+  /** Κεφαλίδες που αλλάζουν (π.χ. το ανώνυμο αναγνωριστικό επισκέπτη). */
+  getHeaders?: () => Record<string, string>;
 }
 
 export class ApiClient {
@@ -40,6 +42,7 @@ export class ApiClient {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...this.config.headers,
+      ...(this.config.getHeaders ? this.config.getHeaders() : {}),
       ...options?.headers,
     };
 

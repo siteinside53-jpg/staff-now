@@ -6,20 +6,54 @@ import { useAuth } from '@/lib/auth-context';
 import { useLoginModal } from '@/components/auth/login-modal';
 import { TaskNowMark } from '@/components/tasknow/logo';
 import { StaffNowLogo } from '@/components/staffnow-logo';
+import { useLocale } from '@/i18n/locale-provider';
+import type { Locale } from '@/i18n';
 
-const NAV_LINKS: { href: string; label: string; accent?: boolean }[] = [
-  { href: '/how-it-works', label: 'Πώς λειτουργεί' },
-  { href: '/for-businesses', label: 'Για επιχειρήσεις' },
+const NAV_LINKS: { href: string; labelKey: string; accent?: boolean }[] = [
+  { href: '/how-it-works', labelKey: 'header.howItWorks' },
+  { href: '/for-businesses', labelKey: 'header.forBusinesses' },
   // Οι μικροδουλειές κάθονται ανάμεσα στις δύο πλευρές της αγοράς:
   // και οι επιχειρήσεις και οι εργαζόμενοι ανεβάζουν και αναλαμβάνουν.
-  { href: '/tasknow', label: 'TaskNow', accent: true },
-  { href: '/for-workers', label: 'Για εργαζόμενους' },
-  { href: '/#download-app', label: 'Κατέβασε το App' },
+  { href: '/tasknow', labelKey: 'TaskNow', accent: true },
+  { href: '/for-workers', labelKey: 'header.forWorkers' },
+  { href: '/#download-app', labelKey: 'header.downloadApp' },
 ];
 
 const MOBILE_EXTRA_LINKS = [
-  { href: '/pricing', label: 'Τιμολόγηση' },
+  { href: '/pricing', labelKey: 'header.pricing' },
 ];
+
+const LOCALES: Locale[] = ['el', 'en'];
+
+/** Συμπαγής εναλλαγή γλώσσας «EL | EN». */
+function LanguageToggle({ className = '' }: { className?: string }) {
+  const { locale, setLocale, t } = useLocale();
+  return (
+    <div
+      role="group"
+      aria-label={t('header.language')}
+      className={`inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs font-semibold ${className}`}
+    >
+      {LOCALES.map((l) => (
+        <button
+          key={l}
+          type="button"
+          onClick={() => setLocale(l)}
+          aria-pressed={locale === l}
+          aria-label={l === 'el' ? t('header.switchToGreek') : t('header.switchToEnglish')}
+          lang={l}
+          className={`rounded-md px-2 py-1 uppercase transition-colors ${
+            locale === l
+              ? 'bg-gray-900 text-white'
+              : 'text-gray-500 hover:text-gray-900'
+          }`}
+        >
+          {l}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 // Το σήμα ζει πια σε ΕΝΑ αρχείο (components/staffnow-logo.tsx) — εδώ υπήρχε
 // το ένα από τα επτά αντίγραφά του. Η επανεξαγωγή από κάτω μένει ώστε να μη
@@ -30,6 +64,7 @@ function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isAuthenticated = !!user;
   const loginModal = useLoginModal();
+  const { t } = useLocale();
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur border-b border-gray-100">
@@ -60,7 +95,7 @@ function Header() {
                   </span>
                 </>
               ) : (
-                link.label
+                t(link.labelKey)
               )}
             </Link>
           ))}
@@ -68,19 +103,20 @@ function Header() {
 
         {/* Desktop Actions */}
         <div className="hidden items-center gap-3 lg:flex">
+          <LanguageToggle />
           {isAuthenticated ? (
             <>
               <Link
                 href="/dashboard"
                 className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
               >
-                Πίνακας Ελέγχου
+                {t('header.dashboard')}
               </Link>
               <button
                 onClick={() => logout()}
                 className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
               >
-                Αποσύνδεση
+                {t('header.logout')}
               </button>
             </>
           ) : (
@@ -89,13 +125,13 @@ function Header() {
                 onClick={() => loginModal.open('login')}
                 className="text-sm font-medium text-gray-600 hover:text-gray-900"
               >
-                Σύνδεση
+                {t('header.login')}
               </button>
               <button
                 onClick={() => loginModal.open('register')}
                 className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
               >
-                Ξεκίνα Δωρεάν
+                {t('header.startFree')}
               </button>
             </>
           )}
@@ -105,6 +141,8 @@ function Header() {
         <button
           className="rounded-md p-2 text-gray-500 hover:bg-gray-100 lg:hidden"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label={mobileMenuOpen ? t('header.closeMenu') : t('header.openMenu')}
+          aria-expanded={mobileMenuOpen}
         >
           {mobileMenuOpen ? (
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
@@ -142,25 +180,29 @@ function Header() {
                     </span>
                   </>
                 ) : (
-                  link.label
+                  t(link.labelKey)
                 )}
               </Link>
             ))}
           </nav>
+          <div className="mt-4 flex items-center justify-between border-t pt-4">
+            <span className="text-xs font-medium text-gray-500">{t('header.language')}</span>
+            <LanguageToggle />
+          </div>
           <div className="mt-4 flex flex-col gap-2 border-t pt-4">
             {isAuthenticated ? (
               <>
                 <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)} className="rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white">
-                  Πίνακας Ελέγχου
+                  {t('header.dashboard')}
                 </Link>
                 <button onClick={() => { setMobileMenuOpen(false); logout(); }} className="rounded-md px-3 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50">
-                  Αποσύνδεση
+                  {t('header.logout')}
                 </button>
               </>
             ) : (
               <>
-                <button onClick={() => { setMobileMenuOpen(false); loginModal.open('login'); }} className="rounded-lg border border-gray-300 px-4 py-2.5 text-center text-sm font-medium text-gray-700">Σύνδεση</button>
-                <button onClick={() => { setMobileMenuOpen(false); loginModal.open('register'); }} className="rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white">Ξεκίνα Δωρεάν</button>
+                <button onClick={() => { setMobileMenuOpen(false); loginModal.open('login'); }} className="rounded-lg border border-gray-300 px-4 py-2.5 text-center text-sm font-medium text-gray-700">{t('header.login')}</button>
+                <button onClick={() => { setMobileMenuOpen(false); loginModal.open('register'); }} className="rounded-lg bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white">{t('header.startFree')}</button>
               </>
             )}
           </div>

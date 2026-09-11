@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
-import { t } from '@/i18n';
+import { useT } from '@/i18n/locale-provider';
 import { Avatar } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
@@ -118,6 +118,7 @@ const BOTTOM_NAV: NavItem[] = [
 function Sidebar() {
   const pathname = usePathname();
   const { user, profile, logout } = useAuth();
+  const t = useT();
 
   const role = user?.role || 'worker';
   const displayName =

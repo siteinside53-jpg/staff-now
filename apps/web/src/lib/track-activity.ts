@@ -126,7 +126,30 @@ export function trackPageView(path: string) {
       type: 'page_view',
       path,
       referrer: document.referrer || null,
+      // Από πού ήρθε (utm_*): το θυμόμαστε για όλη την επίσκεψη, γιατί μετά
+      // την πρώτη σελίδα η διεύθυνση δεν το έχει πια.
+      utm: rememberUtm(),
     });
+  }
+}
+
+const UTM_KEY = 'staffnow_utm';
+function rememberUtm(): { source?: string; medium?: string; campaign?: string } | null {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = {
+      source: params.get('utm_source') || undefined,
+      medium: params.get('utm_medium') || undefined,
+      campaign: params.get('utm_campaign') || undefined,
+    };
+    if (fromUrl.source || fromUrl.medium || fromUrl.campaign) {
+      sessionStorage.setItem(UTM_KEY, JSON.stringify(fromUrl));
+      return fromUrl;
+    }
+    const stored = sessionStorage.getItem(UTM_KEY);
+    return stored ? (JSON.parse(stored) as { source?: string; medium?: string; campaign?: string }) : null;
+  } catch {
+    return null;
   }
 }
 
@@ -138,7 +161,8 @@ export function trackAction(type: string, meta?: Record<string, unknown>) {
   } else {
     const visitorId = getOrCreateVisitorId();
     if (!visitorId) return;
-    postVisitor({ visitorId, type, path: lastPath || null });
+    // Και τα στοιχεία του κλικ (τι πάτησε), όπως στους συνδεδεμένους.
+    postVisitor({ visitorId, type, path: lastPath || null, meta: meta || null });
   }
 }
 

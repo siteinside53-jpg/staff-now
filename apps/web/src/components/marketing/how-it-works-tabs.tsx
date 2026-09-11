@@ -1,20 +1,23 @@
 'use client';
 
 import { useState } from 'react';
+import { useT } from '@/i18n/locale-provider';
 
+// Τα κείμενα ζουν στο i18n: howItWorksTabs.{business|worker}.s{1..3}{Title|Desc}
 const businessSteps = [
-  { num: '01', title: 'Δημοσίευσε αγγελία', desc: 'Περιέγραψε τη θέση σε λιγότερο από 1 λεπτό. Ρόλος, τοποθεσία, αμοιβή — τέλος.', icon: '📝' },
-  { num: '02', title: 'Δες προτάσεις σε λεπτά', desc: 'Το AI σου προτείνει τους πιο κατάλληλους υποψηφίους κοντά σου — αξιολογημένους.', icon: '⚡' },
-  { num: '03', title: 'Επέλεξε & Ξεκίνα', desc: 'Στείλε μήνυμα, συμφώνησε και ξεκίνα συνεργασία. Χωρίς γραφειοκρατία.', icon: '🤝' },
+  { num: '01', key: 's1', icon: '📝' },
+  { num: '02', key: 's2', icon: '⚡' },
+  { num: '03', key: 's3', icon: '🤝' },
 ];
 
 const workerSteps = [
-  { num: '01', title: 'Φτιάξε το προφίλ σου', desc: 'Πρόσθεσε εμπειρία, δεξιότητες και τοποθεσία. Γίνε ορατός σε χιλιάδες επιχειρήσεις.', icon: '👤' },
-  { num: '02', title: 'Swipe σε θέσεις', desc: 'Δες θέσεις κοντά σου, κάνε swipe δεξιά στις αγαπημένες. Σαν Tinder — για δουλειά.', icon: '📱' },
-  { num: '03', title: 'Λάβε πρόταση', desc: 'Οι επιχειρήσεις σου στέλνουν μήνυμα. Συμφώνησε και ξεκίνα εργασία.', icon: '🎉' },
+  { num: '01', key: 's1', icon: '👤' },
+  { num: '02', key: 's2', icon: '📱' },
+  { num: '03', key: 's3', icon: '🎉' },
 ];
 
 export function HowItWorksTabs() {
+  const t = useT();
   const [tab, setTab] = useState<'business' | 'worker'>('business');
   const steps = tab === 'business' ? businessSteps : workerSteps;
 
@@ -22,9 +25,9 @@ export function HowItWorksTabs() {
     <section id="how-it-works" className="bg-white py-20 sm:py-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
-          <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">Απλά &amp; Γρήγορα</p>
+          <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">{t('howItWorksTabs.eyebrow')}</p>
           <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
-            Πώς λειτουργεί
+            {t('howItWorksTabs.title')}
           </h2>
         </div>
 
@@ -39,7 +42,7 @@ export function HowItWorksTabs() {
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              Για Επιχειρήσεις
+              {t('howItWorksTabs.tabBusiness')}
             </button>
             <button
               onClick={() => setTab('worker')}
@@ -49,7 +52,7 @@ export function HowItWorksTabs() {
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              Για Εργαζόμενους
+              {t('howItWorksTabs.tabWorker')}
             </button>
           </div>
         </div>
@@ -69,8 +72,8 @@ export function HowItWorksTabs() {
               {i < steps.length - 1 && (
                 <div className="hidden md:block absolute top-8 left-[calc(50%+40px)] w-[calc(100%-80px)] border-t-2 border-dashed border-gray-200" />
               )}
-              <h3 className="text-xl font-bold text-gray-900">{step.title}</h3>
-              <p className="mt-3 text-gray-600 leading-relaxed">{step.desc}</p>
+              <h3 className="text-xl font-bold text-gray-900">{t(`howItWorksTabs.${tab}.${step.key}Title`)}</h3>
+              <p className="mt-3 text-gray-600 leading-relaxed">{t(`howItWorksTabs.${tab}.${step.key}Desc`)}</p>
             </div>
           ))}
         </div>

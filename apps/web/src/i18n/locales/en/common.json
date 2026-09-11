@@ -206,6 +206,487 @@
     "helpCenter": "Help Center",
     "contactUs": "Contact us",
     "faq": "FAQ",
-    "copyright": "StaffNow. All rights reserved."
+    "copyright": "StaffNow. All rights reserved.",
+    "categories": "Industries",
+    "cookieSettings": "Cookie settings"
+  },
+  "header": {
+    "howItWorks": "How it works",
+    "forBusinesses": "For businesses",
+    "forWorkers": "For workers",
+    "downloadApp": "Download the app",
+    "pricing": "Pricing",
+    "dashboard": "Dashboard",
+    "logout": "Log out",
+    "login": "Log in",
+    "startFree": "Start for free",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "language": "Language",
+    "switchToGreek": "Ελληνικά",
+    "switchToEnglish": "English"
+  },
+  "categories": {
+    "tourism_hotels": "Tourism & Hotels",
+    "food_service": "Food & Hospitality",
+    "retail_sales": "Retail & Sales",
+    "logistics_transport": "Logistics & Transport",
+    "health": "Healthcare",
+    "beauty_fitness": "Beauty & Fitness",
+    "it": "IT",
+    "engineering": "Engineering & Science",
+    "office_admin": "Office & Administration",
+    "tech_iek": "Vocational Technicians",
+    "finance": "Accounting",
+    "wholesale_b2b": "B2B Sales",
+    "production_workers": "Production & Trades",
+    "security_cleaning": "Security & Cleaning",
+    "phone_services": "Call Centre",
+    "marketing_advertising": "Marketing & Advertising",
+    "education": "Education",
+    "insurance_realestate": "Insurance & Real Estate",
+    "business_hr": "Management & HR",
+    "design_arts": "Design & Arts",
+    "digital_ecom": "Digital & E-commerce",
+    "agriculture": "Agriculture",
+    "legal": "Legal",
+    "maritime": "Maritime"
+  },
+  "home": {
+    "hero": {
+      "title1": "Find a job or find staff",
+      "title2": "in minutes.",
+      "sub1": "The platform that connects",
+      "subBusinesses": "businesses",
+      "subWith": "with",
+      "subWorkers": "workers",
+      "sub2": "— in every industry.",
+      "subSwipe": "Swipe, match & get started",
+      "sub3": ". No waiting around.",
+      "findStaff": "Find staff",
+      "findJob": "Find a job"
+    },
+    "forBusinesses": {
+      "badge": "For Businesses",
+      "title1": "Find reliable staff",
+      "title2": "in minutes, not weeks",
+      "text": "Short on staff and losing time to job ads? With StaffNow you find rated workers near you — in every industry.",
+      "f1Title": "Direct communication",
+      "f1Text": "As soon as you match, talk straight away via chat or video call — no middlemen.",
+      "f2Title": "AI Matching",
+      "f2Text": "The system finds the most suitable candidates based on role, experience & location.",
+      "f3Title": "Rated workers",
+      "f3Text": "Reviews, ratings & work history. You know who you're hiring.",
+      "cta": "Try it for free"
+    },
+    "forWorkers": {
+      "badge": "For Workers",
+      "title1": "Find the job you deserve",
+      "title2": "Swipe, match, get started",
+      "text": "Forget endless job ads and CVs sent by email. Build a profile, swipe through jobs and find work near you — straight from your phone.",
+      "f1Title": "Swipe & Match",
+      "f1Text": "Like Tinder — for jobs. Swipe right on the roles you're interested in.",
+      "f2Title": "Jobs near you",
+      "f2Text": "Across all of Greece — retail, hospitality, logistics, healthcare & much more. Filter by region.",
+      "f3Title": "Transparent pay",
+      "f3Text": "See the salary BEFORE you apply. No surprises.",
+      "cta": "Sign up for free"
+    },
+    "categories": {
+      "title": "Every industry, one platform",
+      "count": "24 categories",
+      "roles": "250+ specialisms",
+      "tail": "— from tourism to IT, legal and maritime.",
+      "cta": "See all industries & specialisms →"
+    },
+    "app": {
+      "badge": "Coming soon",
+      "title1": "The app",
+      "title2": "is coming",
+      "title2Highlight": "soon",
+      "text1": "Find a job or staff directly",
+      "text2": "from your phone.",
+      "text3": "Swipe, match and get in touch instantly",
+      "text4": "— wherever you are.",
+      "appStoreAria": "App Store — available soon",
+      "googlePlayAria": "Google Play — available soon",
+      "soon": "Soon",
+      "downloadOn": "Download on the",
+      "getItOn": "GET IT ON",
+      "stat1Title": "Free",
+      "stat1Sub": "For workers",
+      "stat2Title": "In minutes",
+      "stat2Sub": "Candidate matching",
+      "stat3Title": "Nationwide",
+      "stat3Sub": "All of Greece",
+      "stat4Title": "Secure",
+      "stat4Sub": "SSL/TLS",
+      "promoAlt": "A business and a worker meet through StaffNow"
+    },
+    "finalCta": {
+      "title": "Get started for free in 30 seconds",
+      "text": "No credit card. No commitments. Just get started.",
+      "secure": "Your data is safe & encrypted"
+    },
+    "recentJobs": "Recent job openings"
+  },
+  "forWorkers": {
+    "title": "For Workers",
+    "subtitle": "Waiters, sales assistants, warehouse staff, bartenders, technicians — find the job that suits you in any industry.",
+    "features": {
+      "freeProfile": {
+        "title": "Free Profile",
+        "description": "Create your profile for free with your experience, skills, languages and availability."
+      },
+      "swipeJobs": {
+        "title": "Swipe Through Jobs",
+        "description": "Swipe right on the jobs you're interested in. Left on the ones that aren't for you."
+      },
+      "smartSuggestions": {
+        "title": "Smart Suggestions",
+        "description": "Our AI analyses your skills and preferences to show you the most relevant jobs."
+      },
+      "instantMessages": {
+        "title": "Instant Messaging",
+        "description": "Chat directly with employers as soon as you match."
+      },
+      "realtimeNotifications": {
+        "title": "Real-Time Notifications",
+        "description": "Get push and email notifications for new matches, messages and interesting jobs."
+      },
+      "multipleLocations": {
+        "title": "Multiple Locations",
+        "description": "Search for jobs across Greece. Islands, mainland — wherever you want to work."
+      },
+      "experienceManagement": {
+        "title": "Manage Your Experience",
+        "description": "Add experience, certifications and skills to stand out in the results."
+      },
+      "reviews": {
+        "title": "Reviews",
+        "description": "Receive reviews from previous employers. Build your reputation on the platform."
+      },
+      "privacy": {
+        "title": "Privacy & Security",
+        "description": "Your personal data is safe. You control what employers see."
+      }
+    },
+    "cta": {
+      "title": "Start Your Search for Free",
+      "text": "Create your profile in under 2 minutes and start receiving offers from businesses.",
+      "register": "Sign Up as a Worker",
+      "howItWorks": "How It Works"
+    }
+  },
+  "forBusinesses": {
+    "title": "For Businesses",
+    "subtitle": "Find reliable staff quickly and easily. Hospitality, retail, logistics, healthcare, construction — the solution for every business in every industry.",
+    "features": {
+      "fastPosting": {
+        "title": "Fast Job Posting",
+        "description": "Post a job in under 2 minutes. Choose the role, location, hours and salary."
+      },
+      "aiMatching": {
+        "title": "AI Matching",
+        "description": "Our AI analyses your needs and recommends the most suitable candidates."
+      },
+      "swipeDiscovery": {
+        "title": "Swipe-Style Discovery",
+        "description": "Swipe right on the candidates you like. A fast, intuitive way to screen."
+      },
+      "directContact": {
+        "title": "Direct Communication",
+        "description": "Talk to candidates directly through the built-in chat. No middlemen."
+      },
+      "jobManagement": {
+        "title": "Job Management",
+        "description": "Create, edit and manage multiple job openings at the same time."
+      },
+      "analytics": {
+        "title": "Detailed Analytics",
+        "description": "Track your job ads, views, matches and applications in real time."
+      },
+      "candidateProfiles": {
+        "title": "Candidate Profiles",
+        "description": "See detailed profiles with experience, skills, reviews and availability before you match."
+      },
+      "filtering": {
+        "title": "Filtering & Search",
+        "description": "Filter candidates by location, role, experience, languages and availability."
+      },
+      "dataSecurity": {
+        "title": "Data Security",
+        "description": "Your data is safe. We use encryption and comply with the GDPR."
+      }
+    },
+    "cta": {
+      "title": "Start Finding Staff Today",
+      "text": "Create a free account and post your first job in under 5 minutes.",
+      "register": "Sign Up as a Business",
+      "plans": "See Plans"
+    }
+  },
+  "howItWorks": {
+    "title": "How It Works",
+    "subtitle": "From sign-up to working together, in 6 simple steps",
+    "steps": {
+      "1": {
+        "title": "Sign Up",
+        "description": "Create a free account as a business or a worker. Signing up takes less than a minute."
+      },
+      "2": {
+        "title": "Complete Your Profile",
+        "description": "Add your skills, experience and preferences. If you're a business, describe your needs and post jobs."
+      },
+      "3": {
+        "title": "Discover Matches",
+        "description": "Our AI analyses your data and suggests the most relevant matches. Swipe right on the profiles you like."
+      },
+      "4": {
+        "title": "Match!",
+        "description": "When both sides show interest, a match is created. You're notified instantly on your phone and computer."
+      },
+      "5": {
+        "title": "Chat",
+        "description": "Start a conversation through the built-in chat. Discuss details, hours, pay and anything else you need."
+      },
+      "6": {
+        "title": "Work Together",
+        "description": "Seal the deal and start working together. Rate your experience to help other users."
+      }
+    },
+    "cta": {
+      "title": "Get Started Now - It's Free",
+      "text": "Create an account and find what you're looking for in minutes.",
+      "register": "Sign Up for Free",
+      "plans": "See Plans"
+    }
+  },
+  "authModal": {
+    "oauthErrors": {
+      "google_2fa": "Your account has two-factor authentication enabled. Please log in with your email and password.",
+      "google_no_email": "Google did not share your email address with us. Please log in with your email and password.",
+      "google_unverified": "Your Google email address is not verified. Please log in with your email and password.",
+      "google_state": "The Google sign-in expired or did not start from here. Please try again.",
+      "generic": "Sign-in with Google was not completed. Please try again or log in with your email."
+    },
+    "errors": {
+      "fillEmailPassword": "Please enter your email and password.",
+      "invalidCredentials": "Invalid email or password.",
+      "enterRecoveryCode": "Please enter a recovery code.",
+      "enterSixDigitCode": "Please enter the 6-digit code.",
+      "codeIncorrect": "The code is incorrect.",
+      "fillAllFields": "Please fill in all fields.",
+      "passwordMin": "Password must be at least 8 characters.",
+      "passwordsMismatch": "Passwords do not match.",
+      "termsRequired": "You must accept the Terms of Service.",
+      "registerFailed": "Registration failed. Please try again."
+    },
+    "accountCreated": "Your account was created successfully!",
+    "close": "Close",
+    "titleLogin": "Get started",
+    "titleRegister": "Create an Account",
+    "legal1": "By clicking",
+    "legalLogin": "Log in",
+    "legalRegister": "Sign up",
+    "legal2": ", you confirm that you accept our",
+    "terms": "Terms of Service",
+    "legal3": ". Learn how we process your data by reading our",
+    "privacy": "Privacy Policy",
+    "legal4": ".",
+    "iAm": "I am a",
+    "roleWorker": "Worker",
+    "roleBusiness": "Business",
+    "googleLogin": "Continue with Google",
+    "googleRegister": "Sign up with Google",
+    "emailLogin": "Log in with Email",
+    "emailRegister": "Sign up with Email",
+    "loginTrouble": "Trouble logging in?",
+    "appComingSoon": "The app is coming soon",
+    "soon": "Soon",
+    "comingOn": "Coming to the",
+    "back": "Back",
+    "emailSubLogin": "Enter your details to continue",
+    "emailSubRegister": "Create a free account in 1 minute",
+    "email": "Email",
+    "emailPlaceholder": "email@example.com",
+    "password": "Password",
+    "forgot": "Forgot?",
+    "passwordPlaceholder": "At least 8 characters",
+    "confirmPassword": "Confirm Password",
+    "confirmPlaceholder": "Repeat your password",
+    "accept1": "I accept the",
+    "accept2": "and the",
+    "loggingIn": "Logging in...",
+    "creating": "Creating...",
+    "submitLogin": "Log in",
+    "submitRegister": "Create account",
+    "twoFactorTitle": "Two-factor authentication",
+    "twoFactorRecoveryHint": "Enter one of the recovery codes you saved.",
+    "twoFactorAppHint": "Open the authenticator app on your phone and enter the 6-digit code.",
+    "recoveryCodeLabel": "Recovery code",
+    "sixDigitLabel": "6-digit code",
+    "checking": "Checking...",
+    "verify": "Verify",
+    "useAppCode": "Use authenticator code",
+    "useRecoveryCode": "Use recovery code",
+    "expiresIn": "Expires in {time}",
+    "expired": "Expired — press “Back”",
+    "noAccount": "Don't have an account?",
+    "register": "Sign up",
+    "hasAccount": "Already have an account?",
+    "login": "Log in"
+  },
+  "cookie": {
+    "aria": "Cookie Consent",
+    "title": "We respect your privacy",
+    "p1": "We and our partners store and/or access information on a device, such as cookies, and process personal data, such as unique identifiers and standard information sent by a device, for personalised advertising and content, advertising and content measurement, audience research and service development.",
+    "p2": "With your permission, we and our partners may use precise geolocation data and identification through device scanning. You may click to consent to our and our partners' processing as described above.",
+    "p3": "Alternatively, you may click to refuse to consent, or access more detailed information and change your preferences before consenting. Please note that some processing of your personal data may not require your consent, but you have the right to object to such processing.",
+    "p4a": "Your preferences will apply to this website only. You can change your preferences or withdraw your consent at any time by returning to this website and clicking the",
+    "cookiePolicy": "Cookie Policy",
+    "or": "or",
+    "privacyPolicy": "Privacy Policy",
+    "p4b": "link at the bottom of the page.",
+    "manage": "Manage preferences",
+    "necessaryTitle": "Necessary",
+    "necessaryDesc": "Cookies that are strictly required for the site to work (login, security, language preference, saving your choices). Without them the platform does not function.",
+    "analyticsTitle": "Statistics / Analytics",
+    "analyticsDesc": "Help us understand how the platform is used (page views, clicks, sessions) so we can improve the experience. Anonymous data — they do not identify you.",
+    "marketingTitle": "Marketing & Advertising",
+    "marketingDesc": "Third-party cookies (Meta, Google) for targeted advertising and remarketing when you visit other sites. You can disable them without affecting functionality.",
+    "moreOptions": "More Options",
+    "reject": "Disagree",
+    "accept": "Agree",
+    "back": "Back",
+    "rejectAll": "Reject all",
+    "saveChoices": "Save preferences",
+    "alwaysOn": "Always on"
+  },
+  "trustBar": {
+    "workers": "Workers",
+    "businesses": "Businesses",
+    "free": "Free",
+    "freeSub": "Sign-up & use",
+    "instant": "Instant",
+    "instantSub": "Chat & video call after you match"
+  },
+  "howItWorksTabs": {
+    "eyebrow": "Simple & Fast",
+    "title": "How it works",
+    "tabBusiness": "For Businesses",
+    "tabWorker": "For Workers",
+    "business": {
+      "s1Title": "Post a job",
+      "s1Desc": "Describe the role in under a minute. Role, location, pay — done.",
+      "s2Title": "Get suggestions in minutes",
+      "s2Desc": "Our AI recommends the most suitable candidates near you — already rated.",
+      "s3Title": "Choose & Get Started",
+      "s3Desc": "Send a message, agree terms and start working together. No red tape."
+    },
+    "worker": {
+      "s1Title": "Build your profile",
+      "s1Desc": "Add your experience, skills and location. Become visible to thousands of businesses.",
+      "s2Title": "Swipe through jobs",
+      "s2Desc": "See jobs near you and swipe right on your favourites. Like Tinder — for work.",
+      "s3Title": "Receive an offer",
+      "s3Desc": "Businesses message you. Agree terms and start work."
+    }
+  },
+  "swipeTeaser": {
+    "badge": "Try it now",
+    "titleJobs": "Swipe through real jobs",
+    "titleWorkers": "Swipe through real profiles",
+    "textJobs": "See what's available near you right now. Swipe right if you like it, left to pass. No sign-up needed — until you want to express interest.",
+    "textWorkers": "See who's available near you right now. Swipe right if they're a fit, left to pass. No sign-up needed — until you want to get in touch.",
+    "tablistAria": "What are you looking for",
+    "tabJobs": "I'm looking for a job",
+    "tabWorkers": "I'm looking for staff",
+    "hint": "Drag the card or use the buttons",
+    "like": "Like",
+    "nope": "Pass",
+    "housing": "Housing",
+    "meals": "Meals",
+    "verified": "Verified",
+    "business": "Business",
+    "worker": "Worker",
+    "greece": "Greece",
+    "experienceOne": "{years} year of experience",
+    "experienceMany": "{years} years of experience",
+    "employment": {
+      "full_time": "Full-time",
+      "part_time": "Part-time",
+      "seasonal": "Seasonal",
+      "contract": "Contract",
+      "temporary": "Temporary"
+    },
+    "availability": {
+      "immediate": "Available immediately",
+      "within_7_days": "Within 7 days",
+      "seasonal": "Seasonal",
+      "part_time": "Part-time",
+      "full_time": "Full-time"
+    },
+    "timeAgo": {
+      "justNow": "just now",
+      "minutes": "{n}′ ago",
+      "hourOne": "{n} hour ago",
+      "hourMany": "{n} hours ago",
+      "dayOne": "{n} day ago",
+      "dayMany": "{n} days ago",
+      "weekOne": "{n} week ago",
+      "weekMany": "{n} weeks ago"
+    },
+    "salary": {
+      "hourly": "€/hour",
+      "daily": "€/day",
+      "monthly": "€/month"
+    },
+    "gate": {
+      "seenJobs": "You've seen {seen} of {total} jobs",
+      "seenWorkers": "You've seen {seen} of {total} profiles",
+      "moreJobs": "{n} more jobs are waiting for you. Sign up to see them all and express interest.",
+      "moreWorkers": "{n} more profiles are waiting for you. Sign up to see them all and get in touch.",
+      "registerJobs": "Sign up to express interest and let businesses find you.",
+      "registerWorkers": "Sign up to contact candidates and post a job.",
+      "cta": "Sign up for free →",
+      "allJobs": "See all jobs",
+      "allWorkers": "See all profiles"
+    }
+  },
+  "liveCounters": {
+    "users": "Registered users",
+    "usersShort": "Users",
+    "matches": "Matches so far",
+    "matchesShort": "Matches",
+    "jobs": "Active job ads",
+    "jobsShort": "Jobs",
+    "businesses": "Registered businesses",
+    "businessesShort": "Businesses"
+  },
+  "urgentShifts": {
+    "eyebrow": "New · Urgent shift",
+    "title1": "Need someone tonight?",
+    "title2": "Not in two weeks.",
+    "text": "One shift, not a job opening. Post the time and the pay — find someone within minutes. No CVs, no commitment.",
+    "noneActive": "There is no active shift right now — this is what they look like",
+    "business": "Business",
+    "today": "TODAY",
+    "expires": "expires {countdown}",
+    "example": "Example",
+    "grossForShift": "gross for the shift",
+    "netAmount": "{net}€ net",
+    "netTail": "take-home (indicative) · declared to ERGANI",
+    "sample": "Sample listing",
+    "declare": "Declare availability",
+    "legal1": "Legal, done the right way.",
+    "legal2": "A shift at a business is",
+    "legal3": "dependent employment",
+    "legal4": "— it is declared to",
+    "legal5": "ERGANI",
+    "legal6": "before it starts, with a digital work card. The “net” figure you see is an",
+    "legal7": "indicative estimate",
+    "legal8": "(employee contributions only, no tax withholding). StaffNow does not replace your accountant.",
+    "postShift": "Post an urgent shift"
   }
 }

@@ -2,6 +2,7 @@ import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { LoginModalProvider } from '@/components/auth/login-modal';
 import { LiveActivityToasts } from '@/components/marketing/live-activity-toasts';
+import { FeedbackWidget } from '@/components/feedback-widget';
 
 export default function MarketingLayout({
   children,
@@ -16,6 +17,7 @@ export default function MarketingLayout({
         <Footer />
       </div>
       <LiveActivityToasts />
+      <FeedbackWidget />
     </LoginModalProvider>
   );
 }

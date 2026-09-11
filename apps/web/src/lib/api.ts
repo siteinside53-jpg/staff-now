@@ -7,6 +7,18 @@ const apiClient = new ApiClient({
     if (typeof window === 'undefined') return null;
     return localStorage.getItem('staffnow_token');
   },
+  // Το ανώνυμο αναγνωριστικό επισκέπτη (αν συμφώνησε στα cookies) ταξιδεύει
+  // μαζί με κάθε κλήση, ώστε στην εγγραφή να δένει το «από πού ήρθε» με τον
+  // νέο λογαριασμό. Μόνο το αναγνωριστικό — τίποτα άλλο.
+  getHeaders: (): Record<string, string> => {
+    if (typeof window === 'undefined') return {};
+    try {
+      const v = localStorage.getItem('staffnow_visitor_id');
+      return v ? { 'X-Visitor-Id': v } : {};
+    } catch {
+      return {};
+    }
+  },
   // Κάθε αποτυχημένη κλήση γράφεται στο ιστορικό του χρήστη, ώστε στον πίνακα
   // διαχειριστή να φαίνεται ΤΙ σφάλμα είδε πριν φύγει. Το ίδιο το σφάλμα
   // συνεχίζει κανονικά τον δρόμο του — δεν αλλάζει καμία συμπεριφορά.

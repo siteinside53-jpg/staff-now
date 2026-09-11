@@ -582,6 +582,19 @@ conversations.post('/:id/report', requireAuth, async (c) => {
      VALUES (?, ?, ?, ?, ?, 'pending', ?)`
   ).bind(generateId(), user.id, otherUserId, reason, body.description || '', now).run();
 
+  c.executionCtx.waitUntil(
+    import('../lib/admin-events').then(({ recordAdminEvent }) =>
+      recordAdminEvent(c.env, {
+        type: 'report',
+        severity: 'high',
+        title: `🚨 Νέα αναφορά χρήστη (${reason})`,
+        body: `${user.email} ανέφερε τον χρήστη ${otherUserId}${(body as { description?: string }).description ? `: ${String((body as { description?: string }).description).slice(0, 140)}` : ''}`,
+        url: '/admin/reports',
+        data: { reporterId: user.id, targetUserId: otherUserId, reason },
+      }),
+    ),
+  );
+
   return success(c, { reported: true });
 });
 

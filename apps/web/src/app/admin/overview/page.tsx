@@ -384,8 +384,8 @@ export default function OverviewPage() {
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm lg:col-span-2">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-base font-bold text-gray-900">⚡ Ζωντανή δραστηριότητα</h3>
-            <Link href="/admin/audit-log" className="text-xs font-semibold text-blue-600 hover:underline">
-              Δες όλα →
+            <Link href="/admin/activity" className="text-xs font-semibold text-blue-600 hover:underline">
+              Όλες οι κινήσεις →
             </Link>
           </div>
           {activity.length === 0 ? (

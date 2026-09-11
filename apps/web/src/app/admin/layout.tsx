@@ -12,6 +12,9 @@ import { adminApi } from '@/components/admin/lib/admin-api';
 
 const PAGE_META: Record<string, { title: string; subtitle?: string }> = {
   '/admin/overview': { title: 'Επισκόπηση', subtitle: 'Πλήρης εικόνα της πλατφόρμας σε πραγματικό χρόνο' },
+  '/admin/activity': { title: 'Όλες οι κινήσεις', subtitle: 'Τι έκανε κάθε χρήστης και κάθε ανώνυμος επισκέπτης — με αναζήτηση και φίλτρα' },
+  '/admin/traffic': { title: 'Επισκεψιμότητα', subtitle: 'Από πού έρχονται, τι βλέπουν, πόσο μένουν — και τι ανέβηκε στα social' },
+  '/admin/inbox': { title: 'Εισερχόμενα', subtitle: 'Φόρμα επικοινωνίας, newsletter και αξιολογήσεις της πλατφόρμας' },
   '/admin/users': { title: 'Χρήστες', subtitle: 'Διαχείριση όλων των χρηστών' },
   '/admin/employers': { title: 'Επιχειρήσεις', subtitle: 'Διαχείριση επιχειρήσεων και συνδρομών' },
   '/admin/workers': { title: 'Εργαζόμενοι', subtitle: 'Διαχείριση εργαζομένων και προφίλ' },
@@ -27,7 +30,7 @@ const PAGE_META: Record<string, { title: string; subtitle?: string }> = {
   '/admin/subscriptions': { title: 'Συνδρομές', subtitle: 'Plans, churn, conversion' },
   '/admin/payments': { title: 'Πληρωμές', subtitle: 'Συναλλαγές και επιστροφές' },
   '/admin/analytics': { title: 'KPIs / Analytics', subtitle: 'Metrics και funnels' },
-  '/admin/notifications': { title: 'Ειδοποιήσεις', subtitle: 'System events feed' },
+  '/admin/notifications': { title: 'Ειδοποιήσεις', subtitle: 'Ό,τι έγινε στην πλατφόρμα — και τι φτάνει στο κινητό σου' },
   '/admin/blog': { title: 'Blog', subtitle: 'Δημιουργία και διαχείριση άρθρων' },
   '/admin/emails': { title: 'Email πελατών', subtitle: 'Όλα τα email που φεύγουν — ορατά μόνο σε διαχειριστή' },
   '/admin/settings': { title: 'Ρυθμίσεις Πλατφόρμας', subtitle: 'Pricing, categories, feature flags' },
