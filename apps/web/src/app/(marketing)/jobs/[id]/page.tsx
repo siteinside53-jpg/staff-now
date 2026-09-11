@@ -44,7 +44,10 @@ function plainDescription(j: PublicJob): string {
 
 export async function generateStaticParams() {
   const jobs = await fetchAllJobs();
-  return jobs.map((j) => ({ id: String(j.id) }));
+  const ids = jobs.map((j) => ({ id: String(j.id) }));
+  // Ίδιος λόγος με το opengraph-image.tsx δίπλα: με μηδέν αγγελίες το χτίσιμο
+  // πρέπει να περνάει. Το «_none» απλώς δείχνει «δεν βρέθηκε».
+  return ids.length > 0 ? ids : [{ id: '_none' }];
 }
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {

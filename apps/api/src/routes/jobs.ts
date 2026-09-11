@@ -462,21 +462,31 @@ jobs.post(
 jobs.get('/:id', requireAuth, async (c) => {
   const jobId = c.req.param('id');
   const db = c.env.DB;
+  const user = c.get('user');
 
   const job = await db
     .prepare(
       `SELECT j.*, bp.company_name, bp.logo_url, bp.verified as business_verified,
-         bp.region as business_region, bp.description as business_description
+         bp.region as business_region, bp.description as business_description,
+         bp.user_id as business_user_id
        FROM job_listings j
        JOIN business_profiles bp ON bp.id = j.business_id
        WHERE j.id = ?`
     )
     .bind(jobId)
-    .first();
+    .first<Record<string, unknown>>();
 
   if (!job) {
     return error(c, 'Η αγγελία δεν βρέθηκε', 404);
   }
+
+  // Πρόχειρα, παυσμένα και αρχειοθετημένα τα βλέπει μόνο η επιχείρηση που τα
+  // έγραψε (και ο διαχειριστής). Για όλους τους άλλους «δεν υπάρχουν».
+  const isOwner = job.business_user_id === user.id;
+  if (!isOwner && user.role !== 'admin' && job.status !== 'published' && job.status !== 'active') {
+    return error(c, 'Η αγγελία δεν βρέθηκε', 404);
+  }
+  delete job.business_user_id;
 
   const roles = await db
     .prepare('SELECT role FROM job_listing_roles WHERE job_listing_id = ?')

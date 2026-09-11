@@ -83,7 +83,12 @@ function shouldShow(): boolean {
   // Respect cookie consent — don't push if user rejected cookies
   try {
     const cookieChoice = localStorage.getItem('staffnow_cookie_consent');
-    if (cookieChoice === 'rejected') return false;
+    if (cookieChoice) {
+      // Αποθηκεύεται ως JSON {necessary, analytics, marketing}. «Απέρριψε όλα»
+      // σημαίνει analytics και marketing false — τότε δεν ρωτάμε για push.
+      const parsed = JSON.parse(cookieChoice) as { analytics?: boolean; marketing?: boolean };
+      if (parsed && parsed.analytics === false && parsed.marketing === false) return false;
+    }
   } catch {}
   // Was this prompt already answered?
   try {

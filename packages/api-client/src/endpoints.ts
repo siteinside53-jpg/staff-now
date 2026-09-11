@@ -18,7 +18,7 @@ export class StaffNowApi {
       this.client.post<any>('/auth/reset-password', body),
     changePassword: (body: { currentPassword: string; password: string; confirmPassword: string }) =>
       this.client.post<any>('/auth/change-password', body),
-    deleteAccount: () => this.client.delete<any>('/auth/me'),
+    deleteAccount: (body?: { password?: string }) => this.client.delete<any>('/auth/me', body),
     sendEmailCode: () => this.client.post<any>('/auth/email/send-code'),
     confirmEmail: (body: { code: string }) => this.client.post<any>('/auth/email/confirm', body),
     sendPhoneCode: (body: { phone: string }) => this.client.post<any>('/auth/phone/send-code', body),

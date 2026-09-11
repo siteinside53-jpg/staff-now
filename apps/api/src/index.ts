@@ -26,6 +26,7 @@ import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
 import { errorHandler } from './middleware/error-handler';
 import { globalRateLimiter } from './middleware/rate-limiter';
 import { requireAuth } from './middleware/auth';
+import { sendEmail, emailLayout } from './lib/email';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -287,30 +288,51 @@ app.post('/contact', async (c) => {
   const db = c.env.DB;
   const now = new Date().toISOString();
   const id = `ct_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  const kind = subject === 'Newsletter signup' ? 'newsletter' : 'contact';
   try {
     await db
       .prepare(
-        `INSERT INTO contact_messages (id, name, email, subject, message, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)`
+        `INSERT INTO contact_messages (id, name, email, subject, message, kind, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
       )
-      .bind(id, name, email, subject, message, now)
+      .bind(id, name, email, subject, message, kind, now)
       .run();
   } catch (err) {
-    // Table might not exist yet; log so it's not lost
-    console.error('[contact] could not persist, logging instead:', { id, name, email, subject, message, err });
+    // Πριν, εδώ γύριζε «επιτυχία» ενώ το μήνυμα είχε χαθεί. Λέμε την αλήθεια
+    // και δίνουμε στον επισκέπτη μια διεύθυνση που δουλεύει.
+    console.error('[contact] could not persist:', { id, email, subject, err });
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'STORE_FAILED',
+          message: 'Το μήνυμα δεν αποθηκεύτηκε. Δοκίμασε ξανά ή γράψε μας απευθείας στο info@staffnow.gr.',
+        },
+      },
+      500,
+    );
+  }
+  // Αντίγραφο στο γραμματοκιβώτιο της ομάδας, ώστε να μη χρειάζεται να
+  // κοιτάει κανείς το διαχειριστικό για να μάθει ότι κάποιος έγραψε.
+  if (c.env.EMAIL_API_KEY && kind === 'contact') {
+    const to = c.env.CONTACT_EMAIL || 'info@staffnow.gr';
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const html = emailLayout({
+      title: `Νέο μήνυμα επικοινωνίας: ${esc(subject)}`,
+      body: `<strong>Από:</strong> ${esc(name)} &lt;${esc(email)}&gt;<br><br>${esc(message).replace(/\n/g, '<br>')}`,
+      ctaText: 'Άνοιγμα διαχειριστικού',
+      ctaUrl: 'https://staffnow.gr/admin/messages',
+      icon: '✉️',
+      tint: '#fef3c7',
+    });
+    c.executionCtx.waitUntil(
+      sendEmail(
+        { apiKey: c.env.EMAIL_API_KEY, from: c.env.EMAIL_FROM || 'StaffNow <no-reply@staffnow.gr>' },
+        { to, subject: `[StaffNow επικοινωνία] ${subject}`, html },
+      ).catch(() => false),
+    );
   }
   return c.json({ success: true, data: { id } }, 201);
-});
-
-// POST /video/create-room — generate a video call room name
-app.post('/video/create-room', requireAuth, async (c) => {
-  const body = await c.req.json<{ conversationId: string }>();
-  const roomName = `staffnow-${(body.conversationId || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 20)}-${Date.now().toString(36)}`;
-
-  return c.json({
-    success: true,
-    data: { roomName },
-  });
 });
 
 // GET /stats/dashboard — aggregated stats for dashboard home
@@ -350,8 +372,10 @@ app.get('/stats/dashboard', requireAuth, async (c) => {
       }});
     }
   } catch (err) {
+    // Πριν γύριζε «επιτυχία» με μηδενικά: ο χρήστης έβλεπε «0 matches, 0
+    // μηνύματα» χωρίς να ξέρει ότι κάτι χάλασε. Τώρα λέει ότι απέτυχε.
     console.error('Stats error:', err);
-    return c.json({ success: true, data: { total_matches: 0, unread_messages: 0, profile_views: 0, pending_interests: 0, active_jobs: 0 }});
+    return c.json({ success: false, error: { code: 'STATS_FAILED', message: 'Δεν φορτώθηκαν τα στατιστικά.' } }, 500);
   }
 });
 

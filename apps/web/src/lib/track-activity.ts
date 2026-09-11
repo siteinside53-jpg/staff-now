@@ -16,7 +16,34 @@ const API_BASE =
   'https://staffnow-api-production.siteinside53.workers.dev';
 
 const VISITOR_KEY = 'staffnow_visitor_id';
+const CONSENT_KEY = 'staffnow_cookie_consent';
 const HEARTBEAT_INTERVAL_MS = 15_000;
+
+/**
+ * Ο ανώνυμος επισκέπτης καταγράφεται ΜΟΝΟ αν είπε «ναι» στα στατιστικά στο
+ * μπάνερ των cookies. Πριν, το μπάνερ αποθήκευε την απάντηση αλλά κανείς δεν
+ * τη διάβαζε — η καταγραφή έτρεχε και πριν και μετά το «Διαφωνώ».
+ *
+ * Οι συνδεδεμένοι χρήστες δεν περνούν από εδώ: η δραστηριότητά τους είναι
+ * μέρος της υπηρεσίας (ταιριάσματα, μηνύματα), όχι στατιστικά επισκεψιμότητας.
+ */
+function analyticsAllowed(): boolean {
+  try {
+    const raw = localStorage.getItem(CONSENT_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw) as { analytics?: boolean };
+    return parsed?.analytics === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Όταν ο επισκέπτης αρνηθεί, σβήνουμε και το αναγνωριστικό που ίσως έμεινε. */
+function forgetVisitorId() {
+  try {
+    localStorage.removeItem(VISITOR_KEY);
+  } catch {}
+}
 
 let lastPath = '';
 let lastSent = 0;
@@ -25,6 +52,10 @@ let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
 function getOrCreateVisitorId(): string | null {
   if (typeof window === 'undefined') return null;
+  if (!analyticsAllowed()) {
+    forgetVisitorId();
+    return null;
+  }
   try {
     let id = localStorage.getItem(VISITOR_KEY);
     if (!id) {
@@ -61,8 +92,24 @@ function postVisitor(body: Record<string, unknown>) {
   }).catch(() => {});
 }
 
+let consentListenerInstalled = false;
+function installConsentListener() {
+  if (consentListenerInstalled || typeof window === 'undefined') return;
+  consentListenerInstalled = true;
+  window.addEventListener('cookieconsent:saved', () => {
+    // Μόλις πει «ναι», μετράμε τη σελίδα στην οποία βρίσκεται ήδη.
+    if (analyticsAllowed() && lastPath) {
+      lastSent = 0;
+      trackPageView(lastPath);
+    } else {
+      forgetVisitorId();
+    }
+  });
+}
+
 export function trackPageView(path: string) {
   if (typeof window === 'undefined') return;
+  installConsentListener();
   const now = Date.now();
   if (path === lastPath && now - lastSent < MIN_INTERVAL_MS) return;
   lastPath = path;

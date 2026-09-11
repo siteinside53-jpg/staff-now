@@ -222,7 +222,7 @@ matches.get('/:id', requireAuth, async (c) => {
   // Worker languages
   const workerLanguages = await db
     .prepare(
-      'SELECT language, level FROM worker_languages WHERE worker_profile_id = ?'
+      'SELECT language, level FROM worker_profile_languages WHERE worker_profile_id = ?'
     )
     .bind(m.worker_profile_id as string)
     .all();

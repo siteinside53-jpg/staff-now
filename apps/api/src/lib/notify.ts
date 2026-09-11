@@ -93,9 +93,73 @@ function heroFor(category: string, title: string): { icon: string; tint: string 
   return { icon: '🔔', tint: '#dbeafe' };
 }
 
+/**
+ * Οι προτιμήσεις ειδοποιήσεων του χρήστη (σελίδα Ρυθμίσεις).
+ *
+ * Πριν, αποθηκεύονταν αλλά δεν τις διάβαζε κανείς: όποιος έκλεινε τα email
+ * για μηνύματα συνέχιζε να τα παίρνει. Τώρα κάθε κανάλι ρωτάει εδώ πριν
+ * στείλει. Αν η γραμμή λείπει, ισχύουν οι προεπιλογές του πίνακα (όλα ανοιχτά
+ * εκτός από το marketing).
+ */
+interface NotifyPrefs {
+  email_matches: number;
+  email_messages: number;
+  email_marketing: number;
+  push_matches: number;
+  push_messages: number;
+}
+
+const DEFAULT_PREFS: NotifyPrefs = {
+  email_matches: 1,
+  email_messages: 1,
+  email_marketing: 0,
+  push_matches: 1,
+  push_messages: 1,
+};
+
+async function loadPrefs(env: Env, userId: string): Promise<NotifyPrefs> {
+  try {
+    const row = await env.DB.prepare(
+      'SELECT email_matches, email_messages, email_marketing, push_matches, push_messages FROM notification_settings WHERE user_id = ?',
+    )
+      .bind(userId)
+      .first<NotifyPrefs>();
+    return row || DEFAULT_PREFS;
+  } catch {
+    return DEFAULT_PREFS; // αν χαλάσει ο πίνακας, δεν σωπαίνουμε τις ειδοποιήσεις
+  }
+}
+
+/**
+ * Σε ποιον διακόπτη των Ρυθμίσεων ανήκει η κατηγορία. Ό,τι δεν ταιριάζει
+ * πουθενά (π.χ. επιβεβαίωση πρόσληψης, χρεώσεις) είναι λειτουργικό και
+ * στέλνεται πάντα.
+ */
+function prefGroup(category: string): 'matches' | 'messages' | 'marketing' | null {
+  if (category.startsWith('msg:') || category === 'msg') return 'messages';
+  if (category === 'match' || category === 'interest' || category === 'new_worker' || category === 'new_job') {
+    return 'matches';
+  }
+  if (category === 'marketing') return 'marketing';
+  return null;
+}
+
+function allowedByPrefs(prefs: NotifyPrefs, channel: 'push' | 'email', category: string): boolean {
+  const group = prefGroup(category);
+  if (!group) return true;
+  if (channel === 'push') {
+    if (group === 'marketing') return false; // δεν στέλνουμε διαφημιστικά push
+    return group === 'messages' ? prefs.push_messages === 1 : prefs.push_matches === 1;
+  }
+  if (group === 'marketing') return prefs.email_marketing === 1;
+  return group === 'messages' ? prefs.email_messages === 1 : prefs.email_matches === 1;
+}
+
 async function dispatchPush(env: Env, input: NotifyInput, path: string): Promise<void> {
   const vapid = vapidFrom(env);
   if (!vapid) return;
+  const prefs = await loadPrefs(env, input.userId);
+  if (!allowedByPrefs(prefs, 'push', input.emailCategory || '')) return;
   const subs = await env.DB.prepare(
     'SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?',
   )
@@ -175,6 +239,8 @@ async function dispatchEmail(env: Env, input: NotifyInput, path: string): Promis
 
   const category = input.emailCategory || '';
   const cooldown = input.emailCooldownMinutes || 0;
+  const prefs = await loadPrefs(env, input.userId);
+  if (!allowedByPrefs(prefs, 'email', category)) return;
   if (await emailInCooldown(env, input.userId, category, cooldown)) return;
 
   const user = await env.DB.prepare('SELECT email FROM users WHERE id = ?')

@@ -47,7 +47,14 @@ export function CookieConsent() {
         setVisible(true);
       }
     }, 300);
-    return () => clearTimeout(timer);
+    // «Ρυθμίσεις cookies» στο υποσέλιδο: ο επισκέπτης μπορεί να αλλάξει γνώμη
+    // όποτε θέλει, όπως υπόσχεται η πολιτική cookies.
+    const reopen = () => setVisible(true);
+    window.addEventListener('cookieconsent:open', reopen);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('cookieconsent:open', reopen);
+    };
   }, []);
 
   // Lock body scroll while modal open

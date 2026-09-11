@@ -18,6 +18,22 @@ interface SubscribeBody {
 }
 
 // POST /push/subscribe — register (or refresh) a browser push subscription.
+const PUSH_HOSTS = [
+  /(^|\.)fcm\.googleapis\.com$/i,            // Chrome, Edge (Android), Brave, Opera, Samsung
+  /(^|\.)push\.services\.mozilla\.com$/i,    // Firefox
+  /(^|\.)notify\.windows\.com$/i,             // Edge (Windows)
+  /(^|\.)push\.apple\.com$/i,                 // Safari
+];
+
+function isKnownPushEndpoint(raw: string): boolean {
+  try {
+    const u = new URL(raw);
+    return u.protocol === 'https:' && PUSH_HOSTS.some((re) => re.test(u.hostname));
+  } catch {
+    return false;
+  }
+}
+
 push.post('/subscribe', requireAuth, async (c) => {
   const user = c.get('user');
   const body = await c.req.json<SubscribeBody>().catch(() => null);
@@ -28,6 +44,11 @@ push.post('/subscribe', requireAuth, async (c) => {
 
   if (!endpoint || !p256dh || !auth) {
     return error(c, 'Λείπουν στοιχεία εγγραφής push', 400);
+  }
+  // Δεχόμαστε ΜΟΝΟ διευθύνσεις των γνωστών υπηρεσιών push των browsers. Αλλιώς
+  // ο server θα έστελνε αιτήματα σε όποια διεύθυνση του έδινε ένας χρήστης.
+  if (!isKnownPushEndpoint(endpoint)) {
+    return error(c, 'Μη έγκυρη διεύθυνση push', 400);
   }
 
   const userAgent = c.req.header('User-Agent') || null;

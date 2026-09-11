@@ -79,8 +79,8 @@ export function TrustBar() {
           </div>
           <div className="hidden sm:block h-8 w-px bg-gray-700" />
           <div className="flex items-center gap-2">
-            <span className="text-2xl font-extrabold text-blue-400">&lt;24ω</span>
-            <span className="text-sm text-gray-400">Μέσος χρόνος πρόσληψης</span>
+            <span className="text-2xl font-extrabold text-blue-400">Άμεσα</span>
+            <span className="text-sm text-gray-400">Chat &amp; βιντεοκλήση μετά το match</span>
           </div>
         </div>
       </div>

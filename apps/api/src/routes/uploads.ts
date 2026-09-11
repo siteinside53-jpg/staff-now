@@ -102,6 +102,17 @@ function publicFileUrl(requestUrl: string, key: string): string {
  * φορολογικά της επιχείρησης). Αυτά ΔΕΝ είναι δημόσια. Απαιτούν υπογραφή που
  * λήγει (βλ. `lib/signed-url.ts`) και δεν αποθηκεύονται πουθενά στον δρόμο.
  */
+/**
+ * Η «κατηγορία» γίνεται φάκελος στην αποθήκη ΚΑΙ αποφασίζει αν το αρχείο είναι
+ * δημόσιο ή προστατευμένο (ο φάκελος verification/ θέλει υπογραφή). Δεν
+ * επιτρέπουμε να τη γράψει ελεύθερα ο χρήστης: μόνο γνωστά ονόματα.
+ */
+const UPLOAD_CATEGORIES = new Set(['general', 'avatar', 'logo', 'cover', 'cv', 'verification', 'chat', 'job', 'tasknow']);
+function safeCategory(raw: unknown): string {
+  const v = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+  return UPLOAD_CATEGORIES.has(v) ? v : 'general';
+}
+
 uploads.get('/f/*', async (c) => {
   const key = decodeURIComponent(c.req.path.replace(/^\/uploads\/f\//, ''));
   if (!key || key.includes('..')) return error(c, 'Μη έγκυρο αρχείο', 400);
@@ -184,7 +195,7 @@ uploads.post('/', requireAuth, async (c) => {
   }
 
   const file = formData.get('file') as File | null;
-  const category = (formData.get('category') as string) || 'general';
+  const category = safeCategory(formData.get('category'));
 
   if (!file) {
     return error(c, 'Δεν βρέθηκε αρχείο', 400);
@@ -296,7 +307,8 @@ uploads.post('/presign', requireAuth, async (c) => {
     category?: string;
   }>();
 
-  const { fileName, mimeType, fileSize, category = 'general' } = body;
+  const { fileName, mimeType, fileSize } = body;
+  const category = safeCategory(body.category);
 
   if (!fileName || !mimeType) {
     return error(c, 'Λείπουν απαιτούμενα πεδία (fileName, mimeType)', 400);

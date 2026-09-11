@@ -997,6 +997,178 @@ function checkMigrationsWired() {
   }
 }
 
+
+// ───────────────────────────────────────────────────────────────────────────
+// 6. Έλεγχοι από τον πλήρη έλεγχο της 11/09/2026
+// ───────────────────────────────────────────────────────────────────────────
+
+/**
+ * Ό,τι εισάγει το TaskNow από το data.ts πρέπει να υπάρχει εκεί.
+ *
+ * Στις 23/08 σβήστηκε το DEFAULT_CATEGORY από το data.ts ενώ η φόρμα
+ * «Ανέβασε μικροδουλειά» το εισήγαγε ακόμη. Ο έλεγχος τύπων δεν μπλοκάρει, το
+ * χτίσιμο έβγαζε μόνο προειδοποίηση, και η φόρμα ξεκινούσε με κατηγορία
+ * undefined → «Λείπουν στοιχεία» σε όποιον δεν άλλαζε κατηγορία με το χέρι.
+ */
+function checkTaskNowImports() {
+  const dir = 'apps/web/src/components/tasknow';
+  let data;
+  try {
+    data = stripComments(read(`${dir}/data.ts`));
+  } catch {
+    return;
+  }
+  const exported = new Set();
+  for (const m of data.matchAll(/^export (?:const|function|type|interface|class|enum) ([A-Za-z_$][\w$]*)/gm)) {
+    exported.add(m[1]);
+  }
+  const missing = [];
+  for (const file of walk(dir)) {
+    if (file.endsWith('/data.ts')) continue;
+    const src = stripComments(read(file));
+    for (const m of src.matchAll(/import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+'\.\/data'/g)) {
+      for (const raw of m[1].split(',')) {
+        const name = raw.trim().replace(/^type\s+/, '').split(/\s+as\s+/)[0].trim();
+        if (name && !exported.has(name)) missing.push(`${name} (${file})`);
+      }
+    }
+  }
+  if (missing.length) {
+    fail(
+      'Το TaskNow εισάγει κάτι που δεν υπάρχει πια στο data.ts',
+      missing.join(', ') + ' — η φόρμα θα ξεκινήσει με κενή τιμή και ο server θα απαντήσει «Λείπουν στοιχεία».'
+    );
+  } else {
+    ok('TaskNow: ό,τι εισάγεται από το data.ts υπάρχει πράγματι εκεί');
+  }
+}
+
+/**
+ * Το ανέβασμα περιμένει τον φύλακα. Πριν, ξεκινούσαν ταυτόχρονα και ένας
+ * κόκκινος φύλακας δεν σταματούσε τίποτα.
+ */
+function checkDeployGated() {
+  for (const wf of ['deploy-api.yml', 'deploy-web.yml']) {
+    let src;
+    try {
+      src = read(`.github/workflows/${wf}`);
+    } catch {
+      fail('Λείπει αρχείο ανεβάσματος', wf);
+      continue;
+    }
+    const hasCheckJob = /^\s{2}check:\s*$/m.test(src) && src.includes('run: pnpm guard');
+    const deployNeedsCheck = /^\s{2}deploy:[\s\S]*?^\s{4}needs:\s*check/m.test(src);
+    if (!hasCheckJob || !deployNeedsCheck) {
+      fail(
+        `Το ανέβασμα (${wf}) δεν περιμένει τον φύλακα`,
+        'Χρειάζεται job «check» που τρέχει «pnpm guard» και «needs: check» στο job «deploy». ' +
+          'Αλλιώς κώδικας που έσπασε κάτι ανεβαίνει έτσι κι αλλιώς.'
+      );
+    } else {
+      ok(`Ανέβασμα (${wf}): περιμένει τον φύλακα πριν ανέβει`);
+    }
+  }
+}
+
+/**
+ * Η φόρμα επικοινωνίας αποθηκεύει πράγματι. Ο πίνακας contact_messages δεν
+ * είχε φτιαχτεί ποτέ και ο server έλεγε «στάλθηκε» ενώ πετούσε το μήνυμα.
+ */
+function checkContactFormReal() {
+  const migrations = walkSql('apps/api/migrations');
+  const hasTable = migrations.some((f) => /CREATE TABLE IF NOT EXISTS contact_messages/.test(read(f)));
+  const src = stripComments(read('apps/api/src/index.ts'));
+  const handler = src.slice(src.indexOf("app.post('/contact'"));
+  const insert = handler.includes('INSERT INTO contact_messages');
+  // Ανάμεσα στο catch της αποθήκευσης και στο τελικό «επιτυχία» πρέπει να
+  // υπάρχει απάντηση σφάλματος — αλλιώς το χαμένο μήνυμα φαίνεται σταλμένο.
+  const catchAt = handler.indexOf('catch (err)');
+  const okAt = handler.indexOf('success: true, data: { id }');
+  const honest = catchAt > 0 && okAt > catchAt && handler.slice(catchAt, okAt).includes('success: false');
+  if (!hasTable || !insert || !honest) {
+    fail(
+      'Η φόρμα επικοινωνίας μπορεί να χάνει μηνύματα',
+      (!hasTable ? 'Λείπει migration που φτιάχνει τον πίνακα contact_messages. ' : '') +
+        (!insert ? 'Ο server δεν γράφει στον πίνακα. ' : '') +
+        (!honest ? 'Όταν αποτύχει η αποθήκευση πρέπει να γυρίζει σφάλμα, όχι «επιτυχία».' : '')
+    );
+  } else {
+    ok('Φόρμα επικοινωνίας: αποθηκεύεται και λέει την αλήθεια αν αποτύχει');
+  }
+}
+
+function walkSql(dir) {
+  try {
+    return readdirSync(join(ROOT, dir)).filter((f) => f.endsWith('.sql')).map((f) => join(dir, f));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Η λίστα «ανακάλυψη εργαζομένων» δεν δίνει email/τηλέφωνο/CV σε επιχείρηση
+ * που δεν έχει ταιριάξει. Πριν, μια δωρεάν εγγραφή έπαιρνε τα στοιχεία όλων.
+ */
+function checkDiscoverStripsContacts() {
+  const src = stripComments(read('apps/api/src/routes/workers.ts'));
+  const start = src.indexOf("workers.get('/discover'");
+  const end = src.indexOf("workers.get('/:id'", start);
+  const block = src.slice(start, end);
+  const strips = ['w.email = undefined', 'w.phone = undefined', 'w.cv_url = undefined', 'w.cv_text = undefined'];
+  const missing = strips.filter((s) => !block.includes(s));
+  if (start < 0 || missing.length) {
+    fail(
+      'Η «ανακάλυψη εργαζομένων» στέλνει στοιχεία επικοινωνίας χωρίς ταίριασμα',
+      `Λείπει: ${missing.join(', ')} στο /workers/discover. Είναι παραβίαση GDPR και δώρο σε όποιον θέλει να μαζέψει τη βάση.`
+    );
+  } else {
+    ok('Εργαζόμενοι: email, τηλέφωνο και CV φεύγουν μόνο σε ταιριασμένη επιχείρηση');
+  }
+}
+
+/** Credits μόνο με πληρωμένη συνεδρία Stripe. Πριν, αρκούσε το όνομα του πακέτου. */
+function checkCreditsNeedPayment() {
+  const src = stripComments(read('apps/api/src/routes/credits.ts'));
+  const start = src.indexOf("credits.post('/purchase'");
+  const block = src.slice(start, src.indexOf('credits.get(', start));
+  const okPay = block.includes("payment_status !== 'paid'") && block.includes('handleCreditPurchase(') && block.includes('metadata?.user_id !== user.id');
+  if (start < 0 || !okPay) {
+    fail(
+      'Τα credits δίνονται χωρίς απόδειξη πληρωμής',
+      'Το /credits/purchase πρέπει να ρωτάει το Stripe (payment_status = paid, ίδιος χρήστης) και να πιστώνει μέσω handleCreditPurchase.'
+    );
+  } else {
+    ok('Credits: πιστώνονται μόνο με πληρωμένη συνεδρία Stripe του ίδιου χρήστη');
+  }
+}
+
+/** Τα κουμπιά «Δοκίμασε δωρεάν» για επιχειρήσεις ανοίγουν τη φόρμα στον σωστό ρόλο. */
+function checkRegisterRoleParam() {
+  const src = stripComments(read('apps/web/src/components/auth/login-modal.tsx'));
+  if (!src.includes("params.get('role')") || !src.includes("params.get('next')")) {
+    fail(
+      'Η φόρμα εγγραφής αγνοεί το ?role= ή το ?next=',
+      'Οι επιχειρήσεις θα ξεκινούν εγγραφή ως «Εργαζόμενος» και το «Κάνε αίτηση» θα χάνει την αγγελία.'
+    );
+  } else {
+    ok('Εγγραφή: το ?role= επιλέγει ρόλο και το ?next= γυρνά τον χρήστη εκεί που ήταν');
+  }
+}
+
+/** Οι ανώνυμοι επισκέπτες καταγράφονται μόνο αν είπαν «ναι» στα cookies. */
+function checkTrackerRespectsConsent() {
+  const src = stripComments(read('apps/web/src/lib/track-activity.ts'));
+  const fn = src.slice(src.indexOf('function getOrCreateVisitorId'), src.indexOf('function postUser'));
+  if (!fn.includes('analyticsAllowed()')) {
+    fail(
+      'Η καταγραφή επισκεπτών αγνοεί τη συγκατάθεση cookies',
+      'Το getOrCreateVisitorId πρέπει να γυρίζει null χωρίς analytics: true στο staffnow_cookie_consent.'
+    );
+  } else {
+    ok('Cookies: ο ανώνυμος επισκέπτης μετριέται μόνο αφού συμφωνήσει');
+  }
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // 5. Το πραγματικό site (μόνο με --live)
 // ───────────────────────────────────────────────────────────────────────────
@@ -1045,6 +1217,13 @@ checkVideoCalls();
 checkBoostVisible();
 checkTaskNowPhoneReal();
 checkLocationGuideNotAuto();
+checkTaskNowImports();
+checkDeployGated();
+checkContactFormReal();
+checkDiscoverStripsContacts();
+checkCreditsNeedPayment();
+checkRegisterRoleParam();
+checkTrackerRespectsConsent();
 if (LIVE) await checkLive();
 
 console.log('');

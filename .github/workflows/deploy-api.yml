@@ -8,9 +8,47 @@ on:
       - 'packages/**'
   workflow_dispatch:
 
+# Ένα ανέβασμα τη φορά: το εξάωρο ξαναχτίσιμο δεν προσπερνάει ένα push που
+# τρέχει ήδη (αλλιώς μπορεί να «κερδίσει» το παλιότερο).
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
+  # ── Πρώτα ο φύλακας, ΜΕΤΑ το ανέβασμα ──────────────────────────────────
+  #
+  # Πριν, το ανέβασμα ξεκινούσε ταυτόχρονα με τον έλεγχο (ci.yml). Αν ο
+  # φύλακας κοκκίνιζε, ο κώδικας ανέβαινε έτσι κι αλλιώς — δηλαδή ο φύλακας
+  # δεν φρουρούσε τίποτα. Τώρα το ανέβασμα περιμένει (needs: check) και
+  # σταματάει αν σπάσει κάτι που δούλευε.
+  check:
+    name: Φύλακας + έλεγχοι πριν το ανέβασμα
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Φύλακας (μη χαλάσει ό,τι δούλευε)
+        run: pnpm guard
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
   deploy:
     name: Deploy API to Cloudflare Workers
+    needs: check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +83,8 @@ jobs:
                    migrations/0057_tasknow.sql \
                    migrations/0058_tasknow_samples.sql \
                    migrations/0059_tasknow_points.sql \
-                   migrations/0060_tasknow_services.sql; do
+                   migrations/0060_tasknow_services.sql \
+                   migrations/0061_contact_messages.sql; do
             echo "→ $f"
             npx wrangler d1 execute staffnow-db-prod \
               --remote --env production --config ./wrangler.toml --file="$f"

@@ -21,10 +21,6 @@ export default function TaskNowDashboardPreview() {
         στον λογαριασμό.{' '}
         <Link href="/tasknow" className="underline hover:text-white">
           δημόσια ροή
-        </Link>{' '}
-        ·{' '}
-        <Link href="/tasknow/preview/admin" className="underline hover:text-white">
-          διαχειριστικό
         </Link>
       </div>
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">

@@ -656,6 +656,21 @@ workers.get('/discover', requireAuth, requireRole('business'), async (c) => {
     const wpId = worker.id as string;
     const roles = rolesMap.get(wpId) ?? [];
     delete (worker as Record<string, unknown>).embedding; // μην στέλνουμε το 768-dim vector
+    // GDPR: ίδιος κανόνας με το GET /workers/:id. Email, τηλέφωνο και CV
+    // φεύγουν από τη λίστα ΜΟΝΟ προς ταιριασμένη επιχείρηση (ή διαχειριστή).
+    // Πριν, μια δωρεάν εγγραφή επιχείρησης έπαιρνε τα στοιχεία επικοινωνίας
+    // ΟΛΩΝ των εργαζομένων με μία κλήση.
+    const w = worker as Record<string, unknown>;
+    const unlocked = user.role === 'admin' || Number(w.is_matched) > 0;
+    w.has_email = !!w.email;
+    w.has_phone = !!w.phone;
+    w.has_cv = !!w.cv_url || !!w.cv_text;
+    if (!unlocked) {
+      w.email = undefined;
+      w.phone = undefined;
+      w.cv_url = undefined;
+      w.cv_text = undefined;
+    }
     const match_score = hasTarget
       ? computeMatchScore({
           workerRoles: roles,

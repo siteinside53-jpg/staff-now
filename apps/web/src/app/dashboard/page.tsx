@@ -24,6 +24,8 @@ export default function DashboardPage() {
   const { user, profile } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  // Αν δεν φορτώσουν τα στατιστικά, το λέμε — δεν δείχνουμε ψεύτικα μηδενικά.
+  const [statsFailed, setStatsFailed] = useState(false);
 
   useEffect(() => {
     async function fetchStats() {
@@ -48,7 +50,8 @@ export default function DashboardPage() {
           throw new Error('no data');
         }
       } catch {
-        setStats({ totalMatches: 0, unreadMessages: 0, profileViews: 0, pendingInterests: 0, activeJobs: 0 });
+        setStats(null);
+        setStatsFailed(true);
       } finally {
         setLoading(false);
       }
@@ -106,7 +109,7 @@ export default function DashboardPage() {
   const statCards = [
     {
       label: 'Matches',
-      value: stats?.totalMatches ?? 0,
+      value: statsFailed ? '—' : (stats?.totalMatches ?? 0),
       href: '/dashboard/matches',
       color: 'bg-blue-500',
       icon: (
@@ -117,7 +120,7 @@ export default function DashboardPage() {
     },
     {
       label: 'Μηνύματα',
-      value: stats?.unreadMessages ?? 0,
+      value: statsFailed ? '—' : (stats?.unreadMessages ?? 0),
       href: '/dashboard/messages',
       color: 'bg-emerald-500',
       icon: (
@@ -128,7 +131,7 @@ export default function DashboardPage() {
     },
     {
       label: 'Αιτήματα',
-      value: stats?.pendingInterests ?? 0,
+      value: statsFailed ? '—' : (stats?.pendingInterests ?? 0),
       href: '/dashboard/interests',
       color: 'bg-amber-500',
       icon: (
@@ -139,7 +142,7 @@ export default function DashboardPage() {
     },
     {
       label: 'Προβολές',
-      value: stats?.profileViews ?? 0,
+      value: statsFailed ? '—' : (stats?.profileViews ?? 0),
       href: '/dashboard/profile',
       color: 'bg-purple-500',
       icon: (
@@ -153,7 +156,7 @@ export default function DashboardPage() {
       ? [
           {
             label: 'Ενεργές Αγγελίες',
-            value: stats?.activeJobs ?? 0,
+            value: statsFailed ? '—' : (stats?.activeJobs ?? 0),
             href: '/dashboard/jobs',
             color: 'bg-amber-500',
             icon: (
@@ -283,6 +286,11 @@ export default function DashboardPage() {
       )}
 
       {/* Stats */}
+      {statsFailed && (
+        <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Τα στατιστικά δεν φορτώθηκαν αυτή τη στιγμή. Ανανέωσε τη σελίδα σε λίγο.
+        </p>
+      )}
       {loading ? (
         <div className="flex justify-center py-12"><Spinner className="h-8 w-8" /></div>
       ) : (

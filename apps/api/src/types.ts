@@ -55,6 +55,8 @@ export interface Env {
   VAPID_SUBJECT: string;
   EMAIL_API_KEY: string;
   EMAIL_FROM: string;
+  /** Πού πάνε τα μηνύματα της φόρμας επικοινωνίας. Προαιρετικό· αλλιώς info@staffnow.gr. */
+  CONTACT_EMAIL?: string;
   /**
    * Twilio για το SMS επιβεβαίωσης κινητού. Προαιρετικά: όσο λείπουν, η σελίδα
    * επαλήθευσης δείχνει τη χειροκίνητη εκδοχή («θα σε πάρουμε τηλέφωνο») και

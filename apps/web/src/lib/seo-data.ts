@@ -44,15 +44,30 @@ export type PublicWorker = {
  * Με output: 'export' τρέχουν στο build. force-cache ώστε το ίδιο URL να
  * γίνεται fetch μία φορά σε όλο το build (dedup).
  */
+/**
+ * Αν ο server δεν απαντήσει την ώρα του χτισίματος, ΣΤΑΜΑΤΑΜΕ με καθαρό
+ * μήνυμα. Πριν, γύριζε σιωπηλά «καμία αγγελία» και το χτίσιμο είτε έσκαγε
+ * με ακατανόητο σφάλμα («missing generateStaticParams») είτε θα ανέβαζε
+ * site χωρίς καμία σελίδα αγγελίας. Το παλιό, δουλεμένο site μένει στη θέση
+ * του, όπως πρέπει.
+ */
+function buildFailed(what: string, detail: string): never {
+  throw new Error(
+    `Το χτίσιμο σταμάτησε: δεν φορτώθηκαν ${what} από τον server (${API_URL}). ${detail} ` +
+      'Το ζωντανό site δεν αλλάζει — δοκίμασε ξανά όταν ο server απαντά.',
+  );
+}
+
 export async function fetchAllJobs(): Promise<PublicJob[]> {
+  let res: Response;
   try {
-    const res = await fetch(`${API_URL}/public/jobs?limit=500`, { cache: 'force-cache' });
-    if (!res.ok) return [];
-    const d = (await res.json()) as { data?: PublicJob[] };
-    return Array.isArray(d?.data) ? d.data : [];
-  } catch {
-    return [];
+    res = await fetch(`${API_URL}/public/jobs?limit=500`, { cache: 'force-cache' });
+  } catch (err) {
+    return buildFailed('οι αγγελίες', `Σφάλμα δικτύου: ${(err as Error)?.message || err}.`);
   }
+  if (!res.ok) return buildFailed('οι αγγελίες', `Απάντηση ${res.status}.`);
+  const d = (await res.json()) as { data?: PublicJob[] };
+  return Array.isArray(d?.data) ? d.data : [];
 }
 
 /**

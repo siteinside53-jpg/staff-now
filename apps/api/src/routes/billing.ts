@@ -142,7 +142,23 @@ billing.post('/webhook', async (c) => {
 // Webhook handlers
 // ---------------------------------------------------------------------
 
-async function fetchStripe<T>(env: Env, path: string, init?: RequestInit): Promise<T> {
+/**
+ * Οι διευθύνσεις επιστροφής από το Stripe πρέπει να είναι δικές μας. Αλλιώς
+ * κάποιος θα έφτιαχνε σύνδεσμο «πλήρωσε στο StaffNow» που καταλήγει αλλού.
+ */
+function safeReturnUrl(env: Env, raw: unknown, fallback: string): string {
+  if (typeof raw !== 'string' || !raw) return fallback;
+  try {
+    const u = new URL(raw);
+    const allowed = (env.CORS_ORIGIN || 'https://staffnow.gr').split(',').map((s) => s.trim());
+    if (allowed.includes(u.origin) || u.hostname === 'localhost') return raw;
+  } catch {
+    /* όχι έγκυρη διεύθυνση */
+  }
+  return fallback;
+}
+
+export async function fetchStripe<T>(env: Env, path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`https://api.stripe.com/v1${path}`, {
     ...init,
     headers: {
@@ -159,6 +175,10 @@ async function handleCheckoutCompleted(env: Env, session: any) {
   const docType: 'invoice' | 'receipt' =
     session.metadata?.document_type === 'invoice' ? 'invoice' : 'receipt';
   if (!userId) return;
+  // Με ασύγχρονους τρόπους πληρωμής (π.χ. τραπεζική εντολή μέσω Stripe) η
+  // συνεδρία «ολοκληρώνεται» πριν μπουν τα χρήματα. Δεν ενεργοποιούμε τίποτα
+  // μέχρι να πληρωθεί· το Stripe θα ξαναστείλει γεγονός όταν πληρωθεί.
+  if (session.payment_status === 'unpaid') return;
 
   // ---- One-off credit purchase (mode='payment') -----------------------
   const packageId: string | undefined = session.metadata?.package_id;
@@ -277,7 +297,7 @@ async function handleCheckoutCompleted(env: Env, session: any) {
  *   3) write a credit_transactions row,
  *   4) issue an invoice / receipt.
  */
-async function handleCreditPurchase(
+export async function handleCreditPurchase(
   env: Env,
   session: any,
   userId: string,
@@ -800,8 +820,8 @@ billing.post('/checkout', requireAuth, async (c) => {
     'line_items[0][price]': priceId,
     'line_items[0][quantity]': '1',
     mode: isLifetime ? 'payment' : 'subscription',
-    success_url: body.successUrl,
-    cancel_url: body.cancelUrl,
+    success_url: safeReturnUrl(c.env, body.successUrl, 'https://staffnow.gr/dashboard/billing?checkout=success'),
+    cancel_url: safeReturnUrl(c.env, body.cancelUrl, 'https://staffnow.gr/dashboard/billing?checkout=cancel'),
     'metadata[user_id]': user.id,
     'metadata[plan_id]': body.planId,
     'metadata[document_type]': documentType,
@@ -884,7 +904,7 @@ billing.post('/portal', requireAuth, async (c) => {
     },
     body: new URLSearchParams({
       customer: userRow.stripe_customer_id,
-      return_url: body.returnUrl || 'https://staffnow.gr/dashboard/billing',
+      return_url: safeReturnUrl(c.env, body.returnUrl, 'https://staffnow.gr/dashboard/billing'),
     }),
   });
   const j = (await r.json()) as { url: string; error?: { message: string } };

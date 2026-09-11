@@ -49,6 +49,8 @@ export function useLoginModal() {
 export function LoginModalProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>('login');
+  const [presetRole, setPresetRole] = useState<'worker' | 'business' | null>(null);
+  const [presetError, setPresetError] = useState<string | null>(null);
 
   const open = useCallback((mode: AuthMode = 'login') => {
     setAuthMode(mode);
@@ -70,6 +72,30 @@ export function LoginModalProvider({ children }: { children: ReactNode }) {
         setAuthMode('register');
         shouldOpen = true;
         params.delete('register');
+      }
+      // ?role=business — τα κουμπιά «Δοκίμασε δωρεάν» για επιχειρήσεις ανοίγουν
+      // τη φόρμα ήδη στον σωστό ρόλο. Πριν αγνοούνταν και όλοι ξεκινούσαν
+      // ως «Εργαζόμενος».
+      const roleParam = params.get('role');
+      if (roleParam === 'business' || roleParam === 'worker') {
+        setPresetRole(roleParam);
+        params.delete('role');
+      }
+      // ?next=/dashboard/... — πού να πάει μετά τη σύνδεση/εγγραφή (μόνο δικές
+      // μας διαδρομές). Το «Κάνε αίτηση» από αγγελία στηρίζεται σε αυτό.
+      const nextParam = params.get('next');
+      if (nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//')) {
+        try { sessionStorage.setItem('staffnow_return_to', nextParam); } catch {}
+        params.delete('next');
+      }
+      // ?error=... — γύρισε από τη σύνδεση Google με πρόβλημα. Το δείχνουμε,
+      // αντί να ξανανοίγει σιωπηλά το ίδιο παράθυρο.
+      const errParam = params.get('error');
+      if (errParam) {
+        setPresetError(errParam);
+        setAuthMode('login');
+        shouldOpen = true;
+        params.delete('error');
       }
       if (shouldOpen) {
         setIsOpen(true);
@@ -98,7 +124,15 @@ export function LoginModalProvider({ children }: { children: ReactNode }) {
   return (
     <LoginModalContext.Provider value={{ isOpen, authMode, open, close, setAuthMode }}>
       {children}
-      {isOpen && <AuthModal onClose={close} authMode={authMode} setAuthMode={setAuthMode} />}
+      {isOpen && (
+        <AuthModal
+          onClose={close}
+          authMode={authMode}
+          setAuthMode={setAuthMode}
+          presetRole={presetRole}
+          presetError={presetError}
+        />
+      )}
     </LoginModalContext.Provider>
   );
 }
@@ -109,17 +143,32 @@ interface AuthModalProps {
   onClose: () => void;
   authMode: AuthMode;
   setAuthMode: (mode: AuthMode) => void;
+  presetRole?: 'worker' | 'business' | null;
+  presetError?: string | null;
 }
 
-function AuthModal({ onClose, authMode, setAuthMode }: AuthModalProps) {
+/** Τι λέμε όταν η σύνδεση Google γυρίσει με κωδικό σφάλματος. */
+const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+  google_2fa: 'Ο λογαριασμός σου έχει διπλή επαλήθευση. Συνδέσου με email και κωδικό.',
+  google_no_email: 'Η Google δεν μας έδωσε το email σου. Συνδέσου με email και κωδικό.',
+  google_unverified: 'Το email σου στη Google δεν είναι επιβεβαιωμένο. Συνδέσου με email και κωδικό.',
+  google_state: 'Η σύνδεση Google έληξε ή δεν ξεκίνησε από εδώ. Δοκίμασε ξανά.',
+};
+
+function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: AuthModalProps) {
   const { login, completeTwoFactor, register } = useAuth();
   const [view, setView] = useState<'main' | 'email' | 'totp'>('main');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<'worker' | 'business'>('worker');
+  const [role, setRole] = useState<'worker' | 'business'>(presetRole || 'worker');
   const [acceptTerms, setAcceptTerms] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState(
+    presetError
+      ? OAUTH_ERROR_MESSAGES[presetError] ||
+          'Η σύνδεση μέσω Google δεν ολοκληρώθηκε. Δοκίμασε ξανά ή συνδέσου με email.'
+      : '',
+  );
   const [loading, setLoading] = useState(false);
 
   // Δεύτερο βήμα σύνδεσης (μόνο για λογαριασμούς με διπλή επαλήθευση)
@@ -146,7 +195,18 @@ function AuthModal({ onClose, authMode, setAuthMode }: AuthModalProps) {
   }, [view, secondsLeft]);
 
   const goToDashboard = (loggedInUser: any) => {
-    window.location.href = loggedInUser?.role === 'admin' ? '/admin' : '/dashboard';
+    if (loggedInUser?.role === 'admin') {
+      window.location.href = '/admin';
+      return;
+    }
+    // Αν ήρθε από συγκεκριμένη σελίδα (π.χ. «Κάνε αίτηση» σε αγγελία), τον
+    // γυρνάμε εκεί — μόνο σε δικές μας διαδρομές.
+    let next: string | null = null;
+    try {
+      next = sessionStorage.getItem('staffnow_return_to');
+      if (next) sessionStorage.removeItem('staffnow_return_to');
+    } catch {}
+    window.location.href = next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard';
   };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -228,9 +288,9 @@ function AuthModal({ onClose, authMode, setAuthMode }: AuthModalProps) {
     }
     setLoading(true);
     try {
-      await register({ email, password, confirmPassword, role, acceptTerms: true });
+      const created = await register({ email, password, confirmPassword, role, acceptTerms: true });
       toast.success('Ο λογαριασμός δημιουργήθηκε επιτυχώς!');
-      window.location.href = '/dashboard';
+      goToDashboard(created);
     } catch (err: any) {
       setErrorMsg(err.message || 'Αποτυχία εγγραφής. Δοκίμασε ξανά.');
     } finally {

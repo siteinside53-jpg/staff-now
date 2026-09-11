@@ -35,7 +35,11 @@ export const alt = 'Αγγελία εργασίας στο StaffNow';
 
 export async function generateStaticParams() {
   const jobs = await fetchAllJobs();
-  return jobs.map((j) => ({ id: String(j.id) }));
+  const ids = jobs.map((j) => ({ id: String(j.id) }));
+  // Με μηδέν αγγελίες το Next αρνείται να χτίσει την εικόνα («missing
+  // generateStaticParams»). Ένα ουδέτερο αναγνωριστικό κρατά το χτίσιμο
+  // ζωντανό· η εικόνα του βγαίνει γενική (StaffNow / Ελλάδα).
+  return ids.length > 0 ? ids : [{ id: '_none' }];
 }
 
 /**

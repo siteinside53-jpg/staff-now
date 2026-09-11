@@ -3,6 +3,7 @@ import type { Env, AuthUser } from '../types';
 import { requireAuth } from '../middleware/auth';
 import { hasFeature } from '../middleware/subscription';
 import { success, error } from '../lib/response';
+import { fetchStripe, handleCreditPurchase } from './billing';
 import { generateId } from '../lib/id';
 
 /** Actions that require a plan with boostedVisibility=true (Pro+ tiers). */
@@ -192,50 +193,35 @@ credits.post('/spend', requireAuth, async (c) => {
 credits.post('/purchase', requireAuth, async (c) => {
   const user = c.get('user');
   const db = c.env.DB;
-  const body = await c.req.json<{ packageId: string; stripeSessionId?: string }>();
+  const body = await c.req.json<{ packageId: string; stripeSessionId?: string }>().catch(() => null);
 
-  const pkg = CREDIT_PACKAGES.find((p) => p.id === body.packageId);
+  const pkg = CREDIT_PACKAGES.find((p) => p.id === body?.packageId);
   if (!pkg) {
     return error(c, 'Άγνωστο πακέτο credits', 400);
   }
 
-  const now = new Date().toISOString();
-
-  // Ensure credits row exists
-  const existing = await db
-    .prepare('SELECT id FROM credits WHERE user_id = ?')
-    .bind(user.id)
-    .first();
-
-  if (!existing) {
-    await db
-      .prepare('INSERT INTO credits (id, user_id, balance, total_purchased, total_spent, created_at, updated_at) VALUES (?, ?, 0, 0, 0, ?, ?)')
-      .bind(generateId('crd'), user.id, now, now)
-      .run();
+  // ΠΟΤΕ credits χωρίς απόδειξη πληρωμής. Πριν, αρκούσε να στείλει κανείς το
+  // όνομα του πακέτου και έπαιρνε τα credits δωρεάν, όσες φορές ήθελε.
+  // Τώρα ρωτάμε το Stripe: η συνεδρία πρέπει να υπάρχει, να είναι πληρωμένη,
+  // να ανήκει σε αυτόν τον χρήστη και σε αυτό το πακέτο. Η πίστωση γίνεται από
+  // την ίδια συνάρτηση με το webhook, που δεν πιστώνει δεύτερη φορά την ίδια
+  // πληρωμή.
+  const sessionId = typeof body?.stripeSessionId === 'string' ? body.stripeSessionId.trim() : '';
+  if (!/^cs_[A-Za-z0-9_]+$/.test(sessionId)) {
+    return error(c, 'Λείπει η απόδειξη πληρωμής', 400);
   }
-
-  // Add credits
-  await db
-    .prepare('UPDATE credits SET balance = balance + ?, total_purchased = total_purchased + ?, updated_at = ? WHERE user_id = ?')
-    .bind(pkg.credits, pkg.credits, now, user.id)
-    .run();
-
-  // Log transaction
-  await db
-    .prepare(
-      'INSERT INTO credit_transactions (id, user_id, amount, type, description, reference_id, reference_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-    )
-    .bind(
-      generateId('ctx'),
-      user.id,
-      pkg.credits,
-      'purchase',
-      `Αγορά ${pkg.credits} credits (${pkg.priceDisplay})`,
-      body.stripeSessionId || null,
-      'stripe_session',
-      now
-    )
-    .run();
+  const session = await fetchStripe<any>(c.env, `/checkout/sessions/${encodeURIComponent(sessionId)}`);
+  if (!session || session.error || session.object !== 'checkout.session') {
+    return error(c, 'Η πληρωμή δεν βρέθηκε', 404);
+  }
+  if (session.payment_status !== 'paid') {
+    return error(c, 'Η πληρωμή δεν έχει ολοκληρωθεί ακόμη', 402);
+  }
+  if (session.metadata?.user_id !== user.id || session.metadata?.package_id !== pkg.id) {
+    return error(c, 'Η πληρωμή δεν αντιστοιχεί σε αυτόν τον λογαριασμό', 403);
+  }
+  const docType: 'invoice' | 'receipt' = session.metadata?.document_type === 'invoice' ? 'invoice' : 'receipt';
+  await handleCreditPurchase(c.env, session, user.id, pkg.id, pkg.credits, docType);
 
   const updated = await db
     .prepare('SELECT balance, total_purchased FROM credits WHERE user_id = ?')

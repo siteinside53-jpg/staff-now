@@ -22,7 +22,6 @@ import {
   matchingTasks,
   myOffers,
   myTasks,
-  resetMock,
   setNotifyPrefs,
   useMockTasks,
   type MockTask,
@@ -869,14 +868,9 @@ export function TaskNowDashboardHub() {
       </div>
 
       <p className="text-center text-xs text-gray-400">
-        Όσα βλέπεις εδώ ζουν μόνο σε αυτόν τον browser.{' '}
         <Link href="/tasknow" className="underline hover:text-gray-600">
-          Δημόσια ροή
-        </Link>{' '}
-        ·{' '}
-        <button type="button" onClick={resetMock} className="underline hover:text-gray-600">
-          καθάρισε τη μακέτα
-        </button>
+          Δες τη δημόσια ροή μικροδουλειών
+        </Link>
       </p>
 
       {(pending || gateOpen) && (

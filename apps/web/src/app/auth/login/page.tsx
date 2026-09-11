@@ -12,7 +12,9 @@ import { useEffect } from 'react';
 export default function LegacyLoginRedirect() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.location.replace('/?login=1');
+      // Κρατάμε το ?error= (π.χ. από τη σύνδεση Google) για να το δείξει το παράθυρο.
+      const err = new URL(window.location.href).searchParams.get('error');
+      window.location.replace(err ? `/?login=1&error=${encodeURIComponent(err)}` : '/?login=1');
     }
   }, []);
 

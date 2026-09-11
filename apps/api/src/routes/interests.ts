@@ -25,7 +25,6 @@ interests.get('/received', requireAuth, async (c) => {
            COALESCE(br.staff_housing, bp.staff_housing) as staff_housing,
            COALESCE(br.meals_provided, bp.meals_provided) as meals_provided,
            COALESCE(br.description, bp.description) as description,
-           u.email as business_email,
            (SELECT COUNT(*) FROM matches WHERE worker_id = ? AND business_id = s.swiper_id AND status = 'active') as is_matched,
            (SELECT COUNT(*) FROM blocks WHERE (blocker_id = ? AND blocked_id = s.swiper_id) OR (blocker_id = s.swiper_id AND blocked_id = ?)) as is_blocked
          FROM swipes s

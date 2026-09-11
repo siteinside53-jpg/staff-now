@@ -3,7 +3,7 @@ import { zValidator } from '@hono/zod-validator';
 import { updateBusinessProfileSchema } from '@staffnow/validation';
 import type { Env, AuthUser } from '../types';
 import { requireAuth, requireRole } from '../middleware/auth';
-import { checkSwipeLimit, checkActiveMatchesLimit } from '../middleware/subscription';
+import { checkActiveMatchesLimit } from '../middleware/subscription';
 import { success, error, paginated } from '../lib/response';
 import { generateId } from '../lib/id';
 import { recordDataChange, computeDiff, getRequestIp, getGeoFromRequest } from '../lib/activity';
@@ -469,7 +469,7 @@ businesses.get('/:id', requireAuth, async (c) => {
 });
 
 // POST /:id/like — worker likes a business
-businesses.post('/:id/like', requireAuth, requireRole('worker'), checkSwipeLimit, async (c) => {
+businesses.post('/:id/like', requireAuth, requireRole('worker'), async (c) => {
   const user = c.get('user');
   const targetId = c.req.param('id');
   const db = c.env.DB;

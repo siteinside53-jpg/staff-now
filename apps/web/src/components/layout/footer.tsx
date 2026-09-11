@@ -92,6 +92,14 @@ function Footer() {
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-gray-200 pt-8 sm:flex-row">
           <p className="text-sm text-gray-400">
             &copy; {currentYear} {t('footer.copyright')}
+            {' · '}
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent('cookieconsent:open'))}
+              className="underline decoration-gray-300 underline-offset-2 hover:text-gray-700"
+            >
+              Ρυθμίσεις cookies
+            </button>
           </p>
 
           {/* Social links */}

@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
+import { getCookie, setCookie } from 'hono/cookie';
 import type { Env, AuthUser } from '../types';
 import { requireAuth } from '../middleware/auth';
 import {
@@ -343,6 +344,24 @@ auth.patch('/me/settings', requireAuth, async (c) => {
 auth.delete('/me', requireAuth, async (c) => {
   const user = c.get('user');
   const db = c.env.DB;
+
+  // Η διαγραφή είναι οριστική. Όποιος έχει κωδικό τον ξαναγράφει εδώ — αλλιώς
+  // ένα ξεχασμένο ανοιχτό tab αρκούσε για να χαθεί ο λογαριασμός.
+  const body = await c.req.json<{ password?: string }>().catch(() => ({}) as { password?: string });
+  const row = await db
+    .prepare('SELECT password_hash FROM users WHERE id = ?')
+    .bind(user.id)
+    .first<{ password_hash: string | null }>();
+  const hasPassword = !!row?.password_hash && row.password_hash.includes(':');
+  if (hasPassword) {
+    if (!body.password) {
+      return error(c, 'PASSWORD_REQUIRED', 'Γράψε τον κωδικό σου για να επιβεβαιώσεις τη διαγραφή.', 400);
+    }
+    const valid = await verifyPassword(body.password, row!.password_hash!, c.env.PASSWORD_SALT);
+    if (!valid) {
+      return error(c, 'INVALID_PASSWORD', 'Λάθος κωδικός.', 401);
+    }
+  }
 
   // Remove rows that reference users(id) WITHOUT ON DELETE CASCADE first, then
   // delete the user (every other table cascades). Batched so it's atomic.
@@ -1309,6 +1328,18 @@ auth.get('/google', (c) => {
   const clientId = c.env.GOOGLE_CLIENT_ID;
   const redirectUri = `https://staffnow-api-production.siteinside53.workers.dev/auth/google/callback`;
 
+  // Τυχαίο κλειδί που ταξιδεύει και μέσα στο state ΚΑΙ σε cookie του server.
+  // Στην επιστροφή πρέπει να ταιριάζουν — αλλιώς κάποιος τρίτος έστησε τη
+  // σύνδεση (και θα έβαζε το θύμα μέσα στον δικό του λογαριασμό).
+  const nonce = generateId('gst');
+  setCookie(c, 'g_oauth_state', nonce, {
+    path: '/auth/google',
+    httpOnly: true,
+    secure: true,
+    sameSite: 'Lax',
+    maxAge: 600,
+  });
+
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
@@ -1316,7 +1347,7 @@ auth.get('/google', (c) => {
     scope: 'openid email profile',
     access_type: 'offline',
     prompt: 'consent',
-    state: role, // pass role in state
+    state: `${role}.${nonce}`,
   });
 
   return c.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
@@ -1326,7 +1357,12 @@ auth.get('/google', (c) => {
 auth.get('/google/callback', async (c) => {
   const code = c.req.query('code');
   // Το `state` έρχεται πίσω από τον browser του επισκέπτη — ποτέ εμπιστοσύνη.
-  const role = safeOAuthRole(c.req.query('state'));
+  const [roleRaw, nonce] = (c.req.query('state') || '').split('.');
+  const role = safeOAuthRole(roleRaw);
+  const cookieNonce = getCookie(c, 'g_oauth_state');
+  if (!nonce || !cookieNonce || nonce !== cookieNonce) {
+    return c.redirect(`https://staffnow.gr/auth/login?error=google_state`);
+  }
 
   if (!code) {
     return c.redirect(`https://staffnow.gr/auth/login?error=google_failed`);
@@ -1362,10 +1398,15 @@ auth.get('/google/callback', async (c) => {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
 
-    const googleUser = await userInfoRes.json() as { id: string; email: string; name: string; picture: string };
+    const googleUser = await userInfoRes.json() as { id: string; email: string; name: string; picture: string; verified_email?: boolean };
 
     if (!googleUser.email) {
       return c.redirect(`https://staffnow.gr/auth/login?error=google_no_email`);
+    }
+    // Μη επιβεβαιωμένο email στη Google = οποιοσδήποτε θα μπορούσε να «είναι»
+    // ο κάτοχος ενός υπάρχοντος λογαριασμού μας με το ίδιο email.
+    if (googleUser.verified_email === false) {
+      return c.redirect(`https://staffnow.gr/auth/login?error=google_unverified`);
     }
 
     const db = c.env.DB;
@@ -1373,9 +1414,16 @@ auth.get('/google/callback', async (c) => {
 
     // Check if user exists
     let user = await db
-      .prepare('SELECT id, email, role, status FROM users WHERE email = ?')
+      .prepare('SELECT id, email, role, status, totp_secret, totp_enabled_at FROM users WHERE email = ?')
       .bind(googleUser.email)
-      .first<{ id: string; email: string; role: string; status: string }>();
+      .first<{ id: string; email: string; role: string; status: string; totp_secret: string | null; totp_enabled_at: string | null }>();
+
+    // Λογαριασμός με διπλή επαλήθευση (π.χ. διαχειριστές): η σύνδεση Google θα
+    // παρέκαμπτε το δεύτερο βήμα. Τον στέλνουμε στη σύνδεση με email+κωδικό,
+    // όπου το δεύτερο βήμα ζητείται κανονικά.
+    if (user && user.totp_secret && user.totp_enabled_at) {
+      return c.redirect(`https://staffnow.gr/auth/login?error=google_2fa`);
+    }
 
     if (!user) {
       // Create new user
@@ -1407,7 +1455,7 @@ auth.get('/google/callback', async (c) => {
           .run();
       }
 
-      user = { id: userId, email: googleUser.email, role, status: 'active' };
+      user = { id: userId, email: googleUser.email, role, status: 'active', totp_secret: null, totp_enabled_at: null };
     }
 
     // Generate JWT

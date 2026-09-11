@@ -30,6 +30,7 @@ export default function SettingsPage() {
   const [savingNotifications, setSavingNotifications] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deletePassword, setDeletePassword] = useState('');
   const [deleting, setDeleting] = useState(false);
 
   const [displayName, setDisplayName] = useState((user as any)?.display_name || '');
@@ -164,11 +165,11 @@ export default function SettingsPage() {
     if (deleteConfirmText !== 'ΔΙΑΓΡΑΦΗ') return;
     setDeleting(true);
     try {
-      await api.auth.deleteAccount();
+      await api.auth.deleteAccount(deletePassword ? { password: deletePassword } : undefined);
       toast.success('Ο λογαριασμός σου διαγράφηκε.');
       logout();
-    } catch {
-      toast.error('Αποτυχία διαγραφής. Δοκίμασε ξανά.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Αποτυχία διαγραφής. Δοκίμασε ξανά.');
     } finally {
       setDeleting(false);
     }
@@ -428,12 +429,24 @@ export default function SettingsPage() {
             onChange={(e) => setDeleteConfirmText(e.target.value)}
             placeholder="ΔΙΑΓΡΑΦΗ"
           />
+          <p className="mt-4 text-sm font-medium text-gray-700">
+            Και ο κωδικός σου (αν συνδέεσαι με Google, άφησέ το κενό):
+          </p>
+          <Input
+            className="mt-2"
+            type="password"
+            autoComplete="current-password"
+            value={deletePassword}
+            onChange={(e) => setDeletePassword(e.target.value)}
+            placeholder="Κωδικός"
+          />
           <div className="mt-6 flex gap-3 justify-end">
             <Button
               variant="outline"
               onClick={() => {
                 setShowDeleteModal(false);
                 setDeleteConfirmText('');
+                setDeletePassword('');
               }}
             >
               Ακύρωση

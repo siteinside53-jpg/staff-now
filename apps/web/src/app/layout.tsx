@@ -22,11 +22,11 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: 'StaffNow – Βρες Προσωπικό & Δουλειά σε Κάθε Κλάδο | Match σε 24 Ώρες',
+    default: 'StaffNow – Βρες Προσωπικό & Δουλειά σε Κάθε Κλάδο | Άμεσο Match',
     template: '%s | StaffNow',
   },
   description:
-    'Πλατφόρμα swipe-style που συνδέει εργοδότες & εργαζόμενους σε όλους τους κλάδους. Δες τον μισθό πριν κάνεις αίτηση. Πρόσληψη σε λιγότερο από 24 ώρες.',
+    'Πλατφόρμα swipe-style που συνδέει εργοδότες & εργαζόμενους σε όλους τους κλάδους. Δες τον μισθό πριν κάνεις αίτηση. Μίλα απευθείας με τον άλλον, χωρίς μεσάζοντες.',
   keywords: [
     // Greek primary
     'εύρεση προσωπικού',
@@ -98,7 +98,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'StaffNow – Βρες Προσωπικό & Δουλειά σε Κάθε Κλάδο',
-    description: 'Swipe-style αντιστοίχιση εργοδοτών & εργαζομένων σε όλους τους κλάδους. Διαφάνεια μισθού & πρόσληψη σε λιγότερο από 24 ώρες.',
+    description: 'Swipe-style αντιστοίχιση εργοδοτών & εργαζομένων σε όλους τους κλάδους. Διαφάνεια μισθού & απευθείας επικοινωνία, χωρίς μεσάζοντες.',
     url: 'https://staffnow.gr',
     siteName: 'StaffNow',
     locale: 'el_GR',
