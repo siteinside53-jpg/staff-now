@@ -158,7 +158,8 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<'worker' | 'business'>(presetRole || 'worker');
+  // 'agency' = γραφείο εύρεσης εργασίας: λογαριασμός επιχείρησης με σφραγίδα «γραφείο».
+  const [role, setRole] = useState<'worker' | 'business' | 'agency'>(presetRole || 'worker');
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [errorMsg, setErrorMsg] = useState(
     presetError
@@ -284,7 +285,14 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
     }
     setLoading(true);
     try {
-      const created = await register({ email, password, confirmPassword, role, acceptTerms: true });
+      const created = await register({
+        email,
+        password,
+        confirmPassword,
+        role: role === 'agency' ? 'business' : role,
+        accountKind: role === 'agency' ? 'agency' : 'company',
+        acceptTerms: true,
+      });
       toast.success(t('authModal.accountCreated'));
       goToDashboard(created);
     } catch (err: any) {
@@ -295,7 +303,7 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
   };
 
   const isLogin = authMode === 'login';
-  const googleRole = authMode === 'register' ? role : 'worker';
+  const googleRole = authMode === 'register' ? (role === 'agency' ? 'business' : role) : 'worker';
 
   return (
     <div
@@ -379,6 +387,18 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
                       }`}
                     >
                       🏢 {t('authModal.roleBusiness')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRole('agency')}
+                      className={`col-span-2 rounded-xl border-2 p-3 text-center text-sm font-bold transition-all ${
+                        role === 'agency'
+                          ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      🤝 {t('authModal.roleAgency')}
+                      <span className="block text-[10px] font-medium text-gray-400">{t('authModal.roleAgencyHint')}</span>
                     </button>
                   </div>
                 </div>
@@ -528,6 +548,18 @@ function AuthModal({ onClose, authMode, setAuthMode, presetRole, presetError }: 
                         }`}
                       >
                         🏢 {t('authModal.roleBusiness')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRole('agency')}
+                        className={`col-span-2 rounded-xl border-2 p-2.5 text-center text-xs font-bold transition-all ${
+                          role === 'agency'
+                            ? 'border-blue-600 bg-blue-50 text-blue-700'
+                            : 'border-gray-200 bg-white text-gray-600'
+                        }`}
+                      >
+                        🤝 {t('authModal.roleAgency')}
+                        <span className="block text-[10px] font-medium text-gray-400">{t('authModal.roleAgencyHint')}</span>
                       </button>
                     </div>
                   </div>

@@ -22,7 +22,7 @@ interface AuthContextType {
    * στήνεται με έναν και μόνο τρόπο.
    */
   completeTwoFactor: (challenge: string, code: string, mode: 'totp' | 'recovery') => Promise<any>;
-  register: (data: { email: string; password: string; confirmPassword: string; role: string; acceptTerms: boolean }) => Promise<void>;
+  register: (data: { email: string; password: string; confirmPassword: string; role: string; acceptTerms: boolean; accountKind?: string }) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -97,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return null;
   };
 
-  const register = async (data: { email: string; password: string; confirmPassword: string; role: string; acceptTerms: boolean }) => {
+  const register = async (data: { email: string; password: string; confirmPassword: string; role: string; acceptTerms: boolean; accountKind?: string }) => {
     const res = await api.auth.register(data);
     if (res.success && res.data) {
       const resData = res.data as any;

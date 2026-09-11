@@ -40,6 +40,8 @@ export const registerSchema = z
     password: passwordSchema,
     confirmPassword: z.string(),
     role: z.enum(["worker", "business"]),
+    /** Επιχείρηση ή γραφείο εύρεσης εργασίας (και τα δύο role = business). */
+    accountKind: z.enum(["company", "agency"]).optional(),
     acceptTerms: z.literal(true, {
       errorMap: () => ({ message: "Πρέπει να αποδεχτείτε τους Όρους Χρήσης" }),
     }),

@@ -6,7 +6,7 @@ export class StaffNowApi {
   constructor(private client: ApiClient) {}
 
   auth = {
-    register: (body: { email: string; password: string; confirmPassword: string; role: string; acceptTerms: boolean }) =>
+    register: (body: { email: string; password: string; confirmPassword: string; role: string; acceptTerms: boolean; accountKind?: string }) =>
       this.client.post<any>('/auth/register', body),
     login: (body: { email: string; password: string }) =>
       this.client.post<any>('/auth/login', body),
@@ -66,6 +66,14 @@ export class StaffNowApi {
     skip: (id: string) => this.client.post<any>(`/businesses/${id}/skip`),
     getVerification: () => this.client.get<any>('/businesses/me/verification'),
     submitVerification: (body: unknown) => this.client.post<any>('/businesses/me/verify', body),
+  };
+
+  /** Γραφεία εύρεσης εργασίας: πελάτες (= branches) με αριθμούς, στοιχεία γραφείου. */
+  agency = {
+    overview: () => this.client.get<any>('/agency/overview'),
+    updateProfile: (body: { agencyName?: string; licenseNo?: string; website?: string; contactPerson?: string }) =>
+      this.client.patch<any>('/agency/profile', body),
+    enable: (body?: { agencyName?: string }) => this.client.post<any>('/agency/enable', body || {}),
   };
 
   branches = {

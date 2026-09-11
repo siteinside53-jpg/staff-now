@@ -39,6 +39,7 @@ auth.post('/register', authRateLimiter, async (c) => {
   }
 
   const { email, password, role } = parsed.data;
+  const isAgency = role === 'business' && parsed.data.accountKind === 'agency';
   const db = c.env.DB;
 
   // Check existing user
@@ -77,6 +78,14 @@ auth.post('/register', authRateLimiter, async (c) => {
       )
       .bind(generateId('bp'), userId, now, now)
       .run();
+    // Γραφείο εύρεσης εργασίας: ίδιος λογαριασμός επιχείρησης + η σφραγίδα
+    // «γραφείο», που ανοίγει τον πίνακα «Πελάτες».
+    if (isAgency) {
+      await db
+        .prepare('INSERT OR IGNORE INTO agency_profiles (user_id, created_at, updated_at) VALUES (?, ?, ?)')
+        .bind(userId, now, now)
+        .run();
+    }
   }
 
   // Generate JWT
@@ -141,7 +150,7 @@ auth.post('/register', authRateLimiter, async (c) => {
       await recordAdminEvent(c.env, {
         type: 'signup',
         severity: 'low',
-        title: `🆕 Νέα εγγραφή: ${role === 'business' ? 'επιχείρηση' : 'εργαζόμενος/η'}`,
+        title: `🆕 Νέα εγγραφή: ${isAgency ? 'γραφείο εύρεσης εργασίας' : role === 'business' ? 'επιχείρηση' : 'εργαζόμενος/η'}`,
         body: `${email}${where ? ` · ${where}` : ''}${origin}`,
         url: `/admin/users?focus=${userId}`,
         data: { userId, email, role, visitorId: visitorId || null },
@@ -337,6 +346,16 @@ auth.get('/me', requireAuth, async (c) => {
     }
   } else if (user.role === 'business') {
     profile = await db.prepare('SELECT * FROM business_profiles WHERE user_id = ?').bind(user.id).first();
+    // Γραφείο εύρεσης εργασίας; Ο πίνακας ελέγχου δείχνει τότε και «Πελάτες».
+    try {
+      const ag = await db.prepare('SELECT agency_name FROM agency_profiles WHERE user_id = ?').bind(user.id).first<{ agency_name: string | null }>();
+      if (profile) {
+        (profile as any).is_agency = ag ? 1 : 0;
+        if (ag?.agency_name && !(profile as any).company_name) (profile as any).company_name = ag.agency_name;
+      }
+    } catch {
+      /* ο πίνακας δεν υπάρχει ακόμη σε αυτό το περιβάλλον */
+    }
     // Merge branch data (name, logo, cover) if missing from profile
     const branch = await db.prepare('SELECT name, logo_url, cover_photo_url, description, business_type, region, city FROM business_branches WHERE user_id = ?').bind(user.id).first<any>();
     if (profile && branch) {

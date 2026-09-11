@@ -259,6 +259,17 @@ export default function DashboardPage() {
         είναι το μόνο σημείο με ενέργεια που έχει προθεσμία. Κρύβεται μόνο του
         όταν δεν εκκρεμεί τίποτα.
       */}
+      {isBusiness && Number((profile as any)?.is_agency) === 1 && (
+        <Link href="/dashboard/clients" className="mb-6 flex items-center gap-3 rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-blue-50 p-4 transition-shadow hover:shadow-md">
+          <div className="text-3xl">🤝</div>
+          <div className="min-w-0 flex-1">
+            <p className="font-bold text-indigo-900">Γραφείο εύρεσης εργασίας</p>
+            <p className="text-xs text-indigo-700">Πελάτες, αγγελίες ανά πελάτη, υποψήφιοι και προσλήψεις — όλα σε μία σελίδα.</p>
+          </div>
+          <span className="flex-shrink-0 text-indigo-700">→</span>
+        </Link>
+      )}
+
       {(isWorker || isBusiness) && <HireActionsCard isWorker={isWorker} />}
 
       {/*

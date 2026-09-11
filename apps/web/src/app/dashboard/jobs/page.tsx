@@ -131,6 +131,18 @@ export default function JobsPage() {
     }
   }, []);
 
+  // ?branch=ID από τη σελίδα «Πελάτες» του γραφείου: ανοίγει η φόρμα με
+  // προεπιλεγμένο τον πελάτη. Διαβάζεται από το window (χωρίς useSearchParams,
+  // που θέλει Suspense στο στατικό χτίσιμο).
+  useEffect(() => {
+    if (typeof window === 'undefined' || branches.length === 0) return;
+    const wanted = new URLSearchParams(window.location.search).get('branch');
+    if (!wanted || !branches.some((b: any) => b.id === wanted)) return;
+    setForm((p) => ({ ...p, branchId: wanted }));
+    setShowForm(true);
+    window.history.replaceState(null, '', '/dashboard/jobs');
+  }, [branches]);
+
   // Auto-fill location from branch
   useEffect(() => {
     if (!form.branchId) return;

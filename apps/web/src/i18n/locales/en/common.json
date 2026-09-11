@@ -535,7 +535,9 @@
     "noAccount": "Don't have an account?",
     "register": "Sign up",
     "hasAccount": "Already have an account?",
-    "login": "Log in"
+    "login": "Log in",
+    "roleAgency": "Recruitment agency",
+    "roleAgencyHint": "Hiring on behalf of client companies"
   },
   "cookie": {
     "aria": "Cookie Consent",
