@@ -57,6 +57,17 @@ export interface Env {
   EMAIL_FROM: string;
   /** Πού πάνε τα μηνύματα της φόρμας επικοινωνίας. Προαιρετικό· αλλιώς info@staffnow.gr. */
   CONTACT_EMAIL?: string;
+  /** Τραπεζικός λογαριασμός για κατάθεση (wrangler.toml). Χωρίς IBAN, η κατάθεση δεν προσφέρεται. */
+  BANK_IBAN?: string;
+  BANK_NAME?: string;
+  BANK_BIC?: string;
+  BANK_BENEFICIARY?: string;
+  /** Στοιχεία για τα παραστατικά. Ό,τι λείπει βγαίνει «—». */
+  COMPANY_LEGAL_NAME?: string;
+  COMPANY_VAT?: string;
+  COMPANY_DOY?: string;
+  COMPANY_ADDRESS?: string;
+  COMPANY_BILLING_EMAIL?: string;
   /**
    * Twilio για το SMS επιβεβαίωσης κινητού. Προαιρετικά: όσο λείπουν, η σελίδα
    * επαλήθευσης δείχνει τη χειροκίνητη εκδοχή («θα σε πάρουμε τηλέφωνο») και

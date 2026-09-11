@@ -606,6 +606,11 @@ export interface RenderInvoiceParams {
   issuedAt: Date;
 }
 
+/**
+ * Στοιχεία της επιχείρησης για τα παραστατικά. Γεμίζουν από τις ρυθμίσεις του
+ * server (wrangler.toml → COMPANY_*), ώστε να μην είναι γραμμένα στον κώδικα.
+ * Ό,τι λείπει βγαίνει «—», ΟΧΙ ψεύτικη τιμή. Βλ. applyBillingEnv().
+ */
 const COMPANY = {
   name: 'StaffNow',
   legalName: 'StaffNow',
@@ -613,7 +618,6 @@ const COMPANY = {
   doy: '—',
   address: '—',
   email: 'billing@staffnow.gr',
-  iban: 'GR16 0110 0000 0000 0000 0000 000', // placeholder — replace when available
 };
 
 function fmtMoney(cents: number, currency = 'EUR'): string {
@@ -719,9 +723,33 @@ export function renderInvoiceHtml(p: RenderInvoiceParams): string {
 </html>`;
 }
 
+/**
+ * Ο λογαριασμός για τραπεζική κατάθεση. Πριν ήταν ΨΕΥΤΙΚΟ IBAN (όλο μηδενικά)
+ * γραμμένο στον κώδικα — και έβγαινε σε πελάτες που ήθελαν να πληρώσουν.
+ * Τώρα έρχεται από τις ρυθμίσεις του server (BANK_*). Αν λείπει το IBAN, η
+ * επιλογή «κατάθεση» απαντά «δεν είναι διαθέσιμη», όχι λάθος νούμερο.
+ */
 export const BANK_ACCOUNT = {
-  beneficiary: 'StaffNow',
-  bank: 'Eurobank',
-  iban: 'GR16 0260 0000 0000 0000 0000 000', // placeholder — replace
-  bic: 'ERBKGRAA',
+  beneficiary: '',
+  bank: '',
+  iban: '',
+  bic: '',
 };
+
+export function bankConfigured(): boolean {
+  return /^GR\d{25}$/.test(BANK_ACCOUNT.iban.replace(/\s+/g, ''));
+}
+
+/** Καλείται σε κάθε αίτημα χρέωσης: περνάει τις ρυθμίσεις του server στα σταθερά. */
+export function applyBillingEnv(env: Env): void {
+  const e = env as unknown as Record<string, string | undefined>;
+  if (e.BANK_IBAN) BANK_ACCOUNT.iban = e.BANK_IBAN.replace(/\s+/g, '').toUpperCase();
+  if (e.BANK_NAME) BANK_ACCOUNT.bank = e.BANK_NAME;
+  if (e.BANK_BIC) BANK_ACCOUNT.bic = e.BANK_BIC;
+  if (e.BANK_BENEFICIARY) BANK_ACCOUNT.beneficiary = e.BANK_BENEFICIARY;
+  if (e.COMPANY_LEGAL_NAME) COMPANY.legalName = e.COMPANY_LEGAL_NAME;
+  if (e.COMPANY_VAT) COMPANY.vat = e.COMPANY_VAT;
+  if (e.COMPANY_DOY) COMPANY.doy = e.COMPANY_DOY;
+  if (e.COMPANY_ADDRESS) COMPANY.address = e.COMPANY_ADDRESS;
+  if (e.COMPANY_BILLING_EMAIL) COMPANY.email = e.COMPANY_BILLING_EMAIL;
+}

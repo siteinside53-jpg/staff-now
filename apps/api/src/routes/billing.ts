@@ -30,10 +30,18 @@ import {
   createManualBankTransfer,
   BILLING_PLANS,
   BANK_ACCOUNT,
+  bankConfigured,
+  applyBillingEnv,
   VAT_RATE_PERCENT,
 } from '../lib/billing';
 
 const billing = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
+
+// Τα στοιχεία τράπεζας/εταιρείας από τις ρυθμίσεις του server, πριν από κάθε αίτημα.
+billing.use('*', async (c, next) => {
+  applyBillingEnv(c.env);
+  await next();
+});
 
 // =====================================================================
 // POST /webhook  (must come BEFORE auth-protected routes since Stripe
@@ -956,6 +964,9 @@ billing.post('/cancel', requireAuth, async (c) => {
 });
 
 billing.post('/manual-transfer', requireAuth, async (c) => {
+  if (!bankConfigured()) {
+    return error(c, 'BANK_NOT_CONFIGURED', 'Η πληρωμή με κατάθεση δεν είναι διαθέσιμη ακόμη. Επίλεξε κάρτα ή γράψε μας στο info@staffnow.gr.', 503);
+  }
   const user = c.get('user');
   const body = await c.req.json<{
     planId: string;

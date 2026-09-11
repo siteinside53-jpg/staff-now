@@ -84,7 +84,7 @@ namespace_id = "1002"
 simple = { limit = 120, period = 60 }
 
 [env.production]
-vars = { ENVIRONMENT = "production", CORS_ORIGIN = "https://staffnow.gr,https://www.staffnow.gr,https://staffnow.pages.dev", API_URL = "https://api.staffnow.gr", VAPID_PUBLIC_KEY = "BNb1lsiiSlXtF3fztALP1F0h9MenWZVqWnWTVQrSUoHuZVkH_-QEE2sXMXg4xs5Xfa4DmFSiO0-rHTCyEBySjMk", VAPID_SUBJECT = "mailto:no-reply@staffnow.gr", EMAIL_FROM = "StaffNow <no-reply@staffnow.gr>" }
+vars = { ENVIRONMENT = "production", CORS_ORIGIN = "https://staffnow.gr,https://www.staffnow.gr,https://staffnow.pages.dev", API_URL = "https://api.staffnow.gr", VAPID_PUBLIC_KEY = "BNb1lsiiSlXtF3fztALP1F0h9MenWZVqWnWTVQrSUoHuZVkH_-QEE2sXMXg4xs5Xfa4DmFSiO0-rHTCyEBySjMk", VAPID_SUBJECT = "mailto:no-reply@staffnow.gr", EMAIL_FROM = "StaffNow <no-reply@staffnow.gr>", BANK_IBAN = "GR8401722480005248086096005", BANK_NAME = "Τράπεζα Πειραιώς", BANK_BIC = "PIRBGRAA", BANK_BENEFICIARY = "StaffNow", COMPANY_LEGAL_NAME = "", COMPANY_VAT = "", COMPANY_DOY = "", COMPANY_ADDRESS = "" }
 
 [[env.production.d1_databases]]
 binding = "DB"
