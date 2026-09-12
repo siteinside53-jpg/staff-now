@@ -3,15 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
 import { api } from '@/lib/api';
-import {
-  AREA_COORDS,
-  MAP_TILE_ATTRIBUTION,
-  MAP_TILE_MAX_ZOOM,
-  MAP_TILE_URL,
-  distanceKm,
-  shortPlaceLabel,
-  type Coords,
-} from './data';
+import { AREA_COORDS, distanceKm, shortPlaceLabel, type Coords } from './data';
+import { addBasemap } from './basemap';
 import { useT } from '@/i18n/locale-provider';
 
 /**
@@ -238,10 +231,7 @@ export function PointPicker({
         [value?.lat ?? start.lat, value?.lon ?? start.lon],
         15,
       );
-      L.tileLayer(MAP_TILE_URL, {
-        attribution: MAP_TILE_ATTRIBUTION,
-        maxZoom: MAP_TILE_MAX_ZOOM,
-      }).addTo(map);
+      await addBasemap(L, map);
 
       const icon = L.divIcon({
         className: '',

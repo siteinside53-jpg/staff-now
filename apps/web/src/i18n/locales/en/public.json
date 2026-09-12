@@ -53,14 +53,11 @@
       }
     },
     "team": {
-      "eyebrow": "Our team",
-      "title": "The people behind StaffNow",
-      "subtitle": "A small but dynamic team, passionate about innovation in the job market.",
+      "eyebrow": "The founder",
+      "title": "The person behind StaffNow",
+      "subtitle": "StaffNow is built by its founder, with one mission: find staff or a job in minutes.",
       "bios": {
-        "eu": "Former staffing industry executive with 15+ years of experience. Envisioned StaffNow to solve the long-standing problem of finding staff.",
-        "el": "Full-stack engineer with a background in AI and machine learning. Former tech lead at a leading Greek startup.",
-        "gi": "Growth marketing and go-to-market strategy specialist. Has helped 3 startups scale to thousands of users.",
-        "ma": "Specialised in operations and customer success. Makes sure every user gets the best possible experience."
+        "eu": "Former staffing industry executive with 15+ years of experience. Envisioned StaffNow to solve the long-standing problem of finding staff."
       }
     },
     "stats": {

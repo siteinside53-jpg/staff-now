@@ -3,14 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
-import {
-  AREA_COORDS,
-  MAP_TILE_ATTRIBUTION,
-  MAP_TILE_MAX_ZOOM,
-  MAP_TILE_URL,
-  type Coords,
-  distanceKm,
-} from './data';
+import { AREA_COORDS, type Coords, distanceKm } from './data';
+import { addBasemap } from './basemap';
 import type { MockTask } from './mock-store';
 import { useT } from '@/i18n/locale-provider';
 
@@ -22,28 +16,18 @@ import { useT } from '@/i18n/locale-provider';
  * πινέζες ήταν ανά ΓΕΙΤΟΝΙΑ, δηλαδή όλες οι δουλειές της Καλαμαριάς κάθονταν
  * στο ίδιο ακριβώς σημείο.
  *
- * ΓΙΑΤΙ OPENSTREETMAP: δωρεάν, χωρίς λογαριασμό και χωρίς κάρτα, οπότε δεν
- * μπλοκάρει το ξεκίνημα σε απόφαση κόστους. Ο πάροχος αλλάζει από ΜΙΑ γραμμή
- * (`TILE_URL`) — αν κάποτε χρειαστεί Mapbox ή Google, δεν ξαναγράφεται τίποτα.
- * Η αναφορά στο υπόμνημα είναι ΥΠΟΧΡΕΩΤΙΚΗ από τους όρους χρήσης· μη τη βγάλεις.
+ * ΓΙΑΤΙ ΔΩΡΕΑΝ ΧΑΡΤΕΣ (OpenFreeMap + OpenStreetMap): χωρίς λογαριασμό και
+ * χωρίς κάρτα, οπότε δεν μπλοκάρει το ξεκίνημα σε απόφαση κόστους. Ο πάροχος
+ * αλλάζει από ΕΝΑ σημείο (data.ts / basemap.ts). Η αναφορά στο υπόμνημα είναι
+ * ΥΠΟΧΡΕΩΤΙΚΗ από τους όρους χρήσης· μη τη βγάλεις.
  *
  * Η ΘΕΣΗ ΤΩΝ ΠΙΝΕΖΩΝ: το ακριβές σημείο δεν φτάνει ποτέ εδώ για τους ξένους —
  * ο server το έχει ήδη μετατοπίσει πριν το στείλει. Ο κύκλος γύρω από την
  * πινέζα δεν είναι διακοσμητικός: λέει «κάπου εδώ γύρω», που είναι η αλήθεια.
  */
 
-/**
- * Ο πάροχος του υποβάθρου. Άλλαξε ΜΟΝΟ αυτές τις δύο γραμμές για άλλον.
- *
- * ΓΙΑΤΙ CARTO ΚΑΙ ΟΧΙ ΣΚΕΤΟ OPENSTREETMAP: το βασικό σχέδιο του OSM είναι
- * φτιαγμένο για να διαβάζεις τον χάρτη — έντονα χρώματα, πολλές λεπτομέρειες,
- * κόκκινοι δρόμοι. Όταν από πάνω μπαίνουν δεκάδες πινέζες με ποσά, γίνεται
- * φασαρία και δεν ξεχωρίζει τίποτα. Το σχέδιο της CARTO είναι ξεπλυμένο
- * επίτηδες, ώστε να ξεχωρίζει ό,τι βάζεις εσύ από πάνω. Τα δεδομένα είναι τα
- * ίδια του OpenStreetMap, γι' αυτό αναφέρονται και οι δύο — υποχρεωτικά.
- */
-const TILE_URL = MAP_TILE_URL;
-const TILE_ATTRIBUTION = MAP_TILE_ATTRIBUTION;
+// Το υπόβαθρο (κλασική εμφάνιση τύπου Google Maps, με εφεδρεία OpenStreetMap)
+// μπαίνει από το basemap.ts — ΕΝΑ σημείο και για τους δύο χάρτες.
 
 type TaskPoint = MockTask & { lat?: number; lon?: number; exactPoint?: boolean };
 
@@ -125,10 +109,7 @@ export function TaskMap({
         scrollWheelZoom: false,
       }).setView([center.lat, center.lon], 13);
 
-      L.tileLayer(TILE_URL, {
-        attribution: TILE_ATTRIBUTION,
-        maxZoom: MAP_TILE_MAX_ZOOM,
-      }).addTo(map);
+      await addBasemap(L, map);
 
       /*
         ΟΜΑΔΟΠΟΙΗΣΗ: όταν δύο πινέζες πέφτουν η μία πάνω στην άλλη, δεν διαβάζεις

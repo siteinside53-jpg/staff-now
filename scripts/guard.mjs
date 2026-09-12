@@ -1186,10 +1186,17 @@ function checkMapTilesNoKey() {
   } else {
     ok('Χάρτης TaskNow: δωρεάν πλακίδια OpenStreetMap, χωρίς κλειδί');
   }
+  const style = (src.match(/MAP_STYLE_URL\s*=\s*'([^']+)'/) || [])[1] || '';
+  if (!/^https:\/\/tiles\.openfreemap\.org\//.test(style)) {
+    fail('Το κύριο υπόβαθρο του χάρτη δεν είναι το δωρεάν OpenFreeMap', `MAP_STYLE_URL = ${style || '(κενό)'}`);
+  }
   for (const f of ['apps/web/src/components/tasknow/task-map.tsx', 'apps/web/src/components/tasknow/point-picker.tsx']) {
     const s = stripComments(read(f));
     if (/subdomains:\s*'abcd'/.test(s) || /maxZoom:\s*20/.test(s)) {
       fail('Ο χάρτης έχει ρυθμίσεις για τον παλιό πάροχο', f + ' — subdomains/maxZoom 20 δεν ταιριάζουν στο OpenStreetMap.');
+    }
+    if (!s.includes('addBasemap(L, map)')) {
+      fail('Ο χάρτης δεν περνά από το κοινό υπόβαθρο', f + ' πρέπει να καλεί addBasemap(L, map) από το basemap.ts');
     }
   }
 }

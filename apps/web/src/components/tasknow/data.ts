@@ -906,6 +906,16 @@ export function shortPlaceLabel(label: string): { main: string; sub: string } {
   OpenStreetMap: δωρεάν, χωρίς λογαριασμό. Δεν έχει subdomains ({s}) ούτε
   retina ({r}) και φτάνει μέχρι zoom 19 — τα options στους χάρτες ταιριάζουν.
 */
+/**
+ * Το κύριο υπόβαθρο: OpenFreeMap «Liberty» — η κλασική εμφάνιση τύπου Google
+ * Maps. Δωρεάν, χωρίς κλειδί (δες components/tasknow/basemap.ts). Τα πλακίδια
+ * του OpenStreetMap από κάτω μένουν ως εφεδρεία.
+ */
+export const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
+
+export const MAP_STYLE_ATTRIBUTION =
+  '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">&copy; OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
+
 export const MAP_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
 export const MAP_TILE_MAX_ZOOM = 19;

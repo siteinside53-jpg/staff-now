@@ -28,11 +28,10 @@ const VALUE_ICONS: Record<(typeof VALUE_KEYS)[number], React.ReactNode> = {
   ),
 };
 
+// ΜΟΝΟ αληθινοί άνθρωποι. Τα τρία επινοημένα μέλη αφαιρέθηκαν (12/09/2026) —
+// κανένα όνομα δεν μπαίνει εδώ αν δεν υπάρχει στ' αλήθεια.
 const TEAM = [
-  { key: 'eu', name: 'Ευγένιος Αφεντουλίδης', role: 'CEO & Co-founder', initials: 'ΕΑ', color: 'bg-blue-100 text-blue-700' },
-  { key: 'el', name: 'Ελένη Κωνσταντίνου', role: 'CTO & Co-founder', initials: 'ΕΚ', color: 'bg-emerald-100 text-emerald-700' },
-  { key: 'gi', name: 'Γιώργος Αλεξίου', role: 'Head of Growth', initials: 'ΓΑ', color: 'bg-amber-100 text-amber-700' },
-  { key: 'ma', name: 'Μαρία Νικολάου', role: 'Head of Operations', initials: 'ΜΝ', color: 'bg-pink-100 text-pink-700' },
+  { key: 'eu', name: 'Ευγένιος Αφεντουλίδης', role: 'Founder', initials: 'ΕΑ', color: 'bg-blue-100 text-blue-700' },
 ] as const;
 
 const STAT_KEYS = ['free', 'ai', 'instant', 'greek'] as const;
@@ -138,7 +137,7 @@ export function AboutContent() {
             <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">{t('about.values.eyebrow')}</p>
             <h2 className="mt-3 text-3xl font-bold text-gray-900 sm:text-4xl">{t('about.values.title')}</h2>
           </div>
-          <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-16 mx-auto grid max-w-sm gap-8">
             {VALUE_KEYS.map((key) => (
               <div
                 key={key}
