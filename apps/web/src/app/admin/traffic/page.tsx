@@ -289,7 +289,7 @@ function VisitorDrawer({ visitorId, onClose }: { visitorId: string; onClose: () 
           <>
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
               <div className="rounded-lg bg-gray-50 p-2"><div className="text-lg font-bold text-gray-900">{s.page_views}</div>σελίδες</div>
-              <div className="rounded-lg bg-gray-50 p-2"><div className="text-lg font-bold text-gray-900">{fmtDuration((Date.parse(s.last_seen_at) - Date.parse(s.first_seen_at)) / 1000)}</div>διάρκεια</div>
+              <div className="rounded-lg bg-gray-50 p-2"><div className="text-lg font-bold text-gray-900">{fmtDuration(Number(s.seconds ?? 0))}</div>διάρκεια{Number(s.visits) > 1 ? ` · ${s.visits} επισκέψεις` : ''}</div>
               <div className="rounded-lg bg-gray-50 p-2"><div className="text-lg font-bold text-gray-900">{s.registered_user_id ? '✓' : '—'}</div>{s.registered_user_id ? s.registered_email : 'χωρίς εγγραφή'}</div>
             </div>
             {s.referrer && <p className="mt-3 truncate text-xs text-gray-500">Ήρθε από: {s.referrer}</p>}

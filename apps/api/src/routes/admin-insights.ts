@@ -165,6 +165,55 @@ insights.get('/activity/types', async (c) => {
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ΕΠΙΣΚΕΨΙΜΟΤΗΤΑ — ανώνυμοι επισκέπτες: από πού, τι είδαν, πόσο έμειναν
+
+/**
+ * Πραγματικός χρόνος παραμονής ανά επισκέπτη.
+ *
+ * Ο πίνακας anonymous_sessions έχει ΜΙΑ γραμμή ανά επισκέπτη για πάντα, οπότε
+ * «τελευταία − πρώτη εμφάνιση» έβγαζε «596 ώρες» για κάποιον που ήρθε δύο
+ * φορές με 25 μέρες διαφορά. Εδώ μετράμε μόνο τα κενά ανάμεσα σε διαδοχικές
+ * κινήσεις που είναι έως 30 λεπτά· μεγαλύτερο κενό = τέλος επίσκεψης και
+ * αρχή καινούριας (visits).
+ */
+const VISIT_GAP_SECONDS = 30 * 60;
+
+async function activeTimeByVisitor(
+  db: D1Database,
+  opts: { visitorIds?: string[]; since?: string },
+): Promise<Map<string, { seconds: number; visits: number }>> {
+  const out = new Map<string, { seconds: number; visits: number }>();
+  const where: string[] = [];
+  const bind: unknown[] = [];
+  if (opts.visitorIds) {
+    if (opts.visitorIds.length === 0) return out;
+    where.push(`visitor_id IN (${opts.visitorIds.map(() => '?').join(',')})`);
+    bind.push(...opts.visitorIds);
+  }
+  if (opts.since) {
+    where.push('created_at >= ?');
+    bind.push(opts.since);
+  }
+  const rows = await db
+    .prepare(
+      `SELECT visitor_id,
+              COALESCE(SUM(CASE WHEN gap IS NOT NULL AND gap <= ${VISIT_GAP_SECONDS} THEN gap ELSE 0 END), 0) AS seconds,
+              SUM(CASE WHEN gap IS NULL OR gap > ${VISIT_GAP_SECONDS} THEN 1 ELSE 0 END) AS visits
+         FROM (
+           SELECT visitor_id,
+                  (julianday(created_at) - julianday(LAG(created_at) OVER (PARTITION BY visitor_id ORDER BY created_at))) * 86400 AS gap
+             FROM anonymous_activity_log
+            ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+         )
+        GROUP BY visitor_id`,
+    )
+    .bind(...bind)
+    .all<{ visitor_id: string; seconds: number; visits: number }>();
+  for (const r of rows.results || []) {
+    out.set(r.visitor_id, { seconds: Math.round(Number(r.seconds || 0)), visits: Number(r.visits || 0) });
+  }
+  return out;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 insights.get('/traffic/stats', async (c) => {
   const db = c.env.DB;
@@ -218,12 +267,17 @@ insights.get('/traffic/stats', async (c) => {
         .bind(since).first<{ n: number }>(),
     ]);
 
+  // Μέση διάρκεια από τον πραγματικό χρόνο παραμονής (όχι πρώτη−τελευταία εμφάνιση).
+  const active = await activeTimeByVisitor(db, { since });
+  const activeVals = [...active.values()].map((v) => v.seconds);
+  const avgActive = activeVals.length ? activeVals.reduce((x, y) => x + y, 0) / activeVals.length : 0;
+
   return success(c, {
     days,
     sessions: Number(totals?.sessions || 0),
     previousSessions: Number(prevTotals?.sessions || 0),
     pageViews: Number(totals?.page_views || 0),
-    avgSeconds: Math.round(Number(totals?.avg_seconds || 0)),
+    avgSeconds: Math.round(avgActive),
     bounceRate: totals?.sessions ? Math.round((Number(totals.bounces || 0) / Number(totals.sessions)) * 100) : 0,
     signups: Number(signups?.n || 0),
     conversions: Number(conversions?.n || 0),
@@ -271,7 +325,12 @@ insights.get('/traffic/visitors', async (c) => {
     .bind(...bind, limit + 1, (page - 1) * limit)
     .all<Record<string, unknown>>();
   const all = rows.results || [];
-  const items = all.slice(0, limit).map((r) => ({ ...r, sourceLabel: sourceLabel(String(r.source)) }));
+  const pageRows = all.slice(0, limit);
+  const active = await activeTimeByVisitor(db, { visitorIds: pageRows.map((r) => String(r.visitor_id)) });
+  const items = pageRows.map((r) => {
+    const t = active.get(String(r.visitor_id));
+    return { ...r, seconds: t ? t.seconds : 0, visits: t ? t.visits : 1, sourceLabel: sourceLabel(String(r.source)) };
+  });
   return success(c, { items, page, limit, hasMore: all.length > limit });
 });
 
@@ -301,10 +360,18 @@ insights.get('/traffic/visitors/:visitorId', async (c) => {
     .all<Record<string, unknown>>();
   // Πόσο έμεινε σε κάθε σελίδα: από την προβολή της μέχρι την επόμενη προβολή
   // (ή το τελευταίο σημάδι ζωής της συνεδρίας).
-  const list: Array<Record<string, unknown>> = (events.results || []).map((e) => ({
-    ...e,
-    metadata: typeof e.metadata === 'string' ? safeJson(e.metadata as string) : e.metadata ?? null,
-  }));
+  const list: Array<Record<string, unknown>> = (events.results || [])
+    .map((e): Record<string, unknown> => ({
+      ...e,
+      metadata: typeof e.metadata === 'string' ? safeJson(e.metadata as string) : e.metadata ?? null,
+    }))
+    // Παλιές εγγραφές «Δεν είστε συνδεδεμένος» από ανώνυμους: δεν ήταν σφάλμα
+    // (ο ανώνυμος απλώς δεν έχει λογαριασμό) — δεν εμφανίζονται πια. Για τους
+    // ανώνυμους το μήνυμα ζει μέσα στο path («/ — Δεν είστε συνδεδεμένος.»).
+    .filter((e) => {
+      if (!String(e.activity_type || '').startsWith('error')) return true;
+      return !/Δεν είστε συνδεδεμένος/.test(String(e.path || ''));
+    });
   const lastSeen = Date.parse(String(session.last_seen_at));
   for (let i = 0; i < list.length; i++) {
     const cur = list[i]!;
@@ -318,10 +385,19 @@ insights.get('/traffic/visitors/:visitorId', async (c) => {
     }
     const start = Date.parse(String(cur.created_at));
     const end = next ?? (Number.isNaN(lastSeen) ? start : lastSeen);
-    (cur as Record<string, unknown>).seconds_on_page = Math.max(0, Math.round((end - start) / 1000));
+    const secs = Math.max(0, Math.round((end - start) / 1000));
+    // Κενό πάνω από 30 λεπτά = έφυγε και ξαναήρθε· δεν «έμεινε» τόσο στη σελίδα.
+    (cur as Record<string, unknown>).seconds_on_page = secs <= VISIT_GAP_SECONDS ? secs : null;
   }
+  const active = (await activeTimeByVisitor(db, { visitorIds: [visitorId] })).get(visitorId);
   return success(c, {
-    session: { ...session, ip_address: maskIp(session.ip_address as string | null), sourceLabel: sourceLabel(String(session.source)) },
+    session: {
+      ...session,
+      ip_address: maskIp(session.ip_address as string | null),
+      sourceLabel: sourceLabel(String(session.source)),
+      seconds: active ? active.seconds : 0,
+      visits: active ? active.visits : 1,
+    },
     events: list,
   });
 });

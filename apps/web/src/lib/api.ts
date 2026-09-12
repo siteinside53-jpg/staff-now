@@ -28,6 +28,13 @@ const apiClient = new ApiClient({
   // διαχειριστή να φαίνεται ΤΙ σφάλμα είδε πριν φύγει. Το ίδιο το σφάλμα
   // συνεχίζει κανονικά τον δρόμο του — δεν αλλάζει καμία συμπεριφορά.
   onError: ({ status, message, path, code }) => {
+    // 401 χωρίς token = ανώνυμος επισκέπτης, όχι σφάλμα. Καταγράφεται μόνο όταν
+    // υπήρχε σύνδεση και χάθηκε (ληγμένο/άκυρο token).
+    if (status === 401) {
+      let hadToken = false;
+      try { hadToken = !!localStorage.getItem('staffnow_token'); } catch { /* χωρίς storage */ }
+      if (!hadToken) return;
+    }
     trackError(status === 401 ? 'auth' : 'api', message, { status, endpoint: path, code });
   },
   onUnauthorized: () => {

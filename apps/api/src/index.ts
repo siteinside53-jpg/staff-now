@@ -190,6 +190,10 @@ app.post('/activity/visitor-track', async (c) => {
 
   const type = typeof body.type === 'string' ? body.type.slice(0, 30) : 'page_view';
   const path = typeof body.path === 'string' ? body.path.slice(0, 200) : null;
+  // Οι ανώνυμες εγγραφές σφάλματος κουβαλούν το μήνυμα μέσα στο path
+  // («/ — Δεν είστε συνδεδεμένος.»). Δεν είναι σελίδα: δεν γίνεται ποτέ
+  // «τρέχουσα» ή «πρώτη» σελίδα του επισκέπτη.
+  const pagePath = type.startsWith('error') ? null : path;
   const referrer = typeof body.referrer === 'string' ? body.referrer.slice(0, 300) : null;
   const meta = body.meta && typeof body.meta === 'object' ? body.meta : null;
   // utm_* από τη διεύθυνση της πρώτης σελίδας (τα στέλνει ο browser μία φορά)
@@ -273,7 +277,7 @@ app.post('/activity/visitor-track', async (c) => {
             )
             .bind(
               now,
-              path,
+              pagePath,
               type === 'page_view' ? 1 : 0,
               geo.country,
               geo.city,
@@ -297,7 +301,7 @@ app.post('/activity/visitor-track', async (c) => {
               visitorId,
               now,
               now,
-              path,
+              pagePath,
               ip,
               ua,
               geo.country,
@@ -322,7 +326,7 @@ app.post('/activity/visitor-track', async (c) => {
                 (visitor_id, referrer, utm_source, utm_medium, utm_campaign, source, landing_path, device, first_seen_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             )
-            .bind(visitorId, referrer, utmSource, utmMedium, utmCampaign, source, path, device, now)
+            .bind(visitorId, referrer, utmSource, utmMedium, utmCampaign, source, pagePath, device, now)
             .run();
           // «Μπήκε επισκέπτης από Θεσσαλονίκη (Google)» — μόνο σε όποιον
           // διαχειριστή το έχει ανοιχτό στις ρυθμίσεις του.
@@ -332,7 +336,7 @@ app.post('/activity/visitor-track', async (c) => {
             type: 'visitor',
             severity: 'low',
             title: `👋 Νέος επισκέπτης από ${where}`,
-            body: `${sourceLabel(source)} · ${device === 'mobile' ? 'κινητό' : device === 'tablet' ? 'tablet' : 'υπολογιστής'} · άνοιξε ${path || '/'}`,
+            body: `${sourceLabel(source)} · ${device === 'mobile' ? 'κινητό' : device === 'tablet' ? 'tablet' : 'υπολογιστής'} · άνοιξε ${pagePath || '/'}`,
             url: `/admin/traffic?visitor=${encodeURIComponent(visitorId)}`,
             data: { visitorId, city: geo.city, country: geo.country, source, device, landing: path },
           });

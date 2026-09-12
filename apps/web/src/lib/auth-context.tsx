@@ -36,6 +36,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refreshUser = useCallback(async () => {
+    // Χωρίς token δεν υπάρχει τι να ρωτήσουμε: ο ανώνυμος επισκέπτης ΔΕΝ είναι
+    // «σφάλμα σύνδεσης» — πριν, κάθε φόρτωση σελίδας έστελνε ένα άσκοπο αίτημα
+    // που γύριζε 401 και γέμιζε το διαχειριστικό με ψεύτικα σφάλματα.
+    if (typeof window !== 'undefined' && !localStorage.getItem('staffnow_token')) {
+      setUser(null);
+      setProfile(null);
+      setSubscription(null);
+      return;
+    }
     try {
       const res = await api.auth.me();
       if (res.success && res.data) {
