@@ -204,32 +204,33 @@ export async function requestMediaAccess(): Promise<{
 /** Τα βήματα που πρέπει να πατήσει ο χρήστης, ένα-ένα. */
 export function mediaFailureSteps(
   failure: MediaFailure,
-  blocked?: BlockedDevice,
-  perms?: PermSnapshot
+  blocked: BlockedDevice | undefined,
+  perms: PermSnapshot | undefined,
+  t: (k: string, p?: Record<string, string | number>) => string
 ): { title: string; steps: string[] } {
   if (failure === 'unsupported') {
     return isIOS()
       ? {
-          title: 'Άνοιξέ το στο Safari',
+          title: t('video.engine.inAppSafariTitle'),
           steps: [
-            'Είσαι μέσα σε άλλη εφαρμογή (π.χ. Facebook ή Instagram) — εκεί η κάμερα είναι κλειδωμένη.',
-            'Πάτα το εικονίδιο «…» πάνω δεξιά.',
-            'Διάλεξε «Άνοιγμα στο Safari» και ξαναδοκίμασε την κλήση.',
+            t('video.engine.inAppSafari1'),
+            t('video.engine.inAppSafari2'),
+            t('video.engine.inAppSafari3'),
           ],
         }
       : {
-          title: 'Άνοιξέ το στο Chrome',
+          title: t('video.engine.inAppChromeTitle'),
           steps: [
-            'Είσαι μέσα σε άλλη εφαρμογή — εκεί η κάμερα είναι κλειδωμένη.',
-            'Πάτα το μενού «⋮» πάνω δεξιά.',
-            'Διάλεξε «Άνοιγμα στο Chrome» και ξαναδοκίμασε την κλήση.',
+            t('video.engine.inAppChrome1'),
+            t('video.engine.inAppChrome2'),
+            t('video.engine.inAppChrome3'),
           ],
         };
   }
   if (failure === 'notfound') {
     return {
-      title: 'Δεν βρέθηκε κάμερα',
-      steps: ['Η συσκευή δεν έχει διαθέσιμη κάμερα ή μικρόφωνο αυτή τη στιγμή.'],
+      title: t('video.engine.noCameraTitle'),
+      steps: [t('video.engine.noCameraStep')],
     };
   }
   if (failure === 'denied') {
@@ -240,21 +241,21 @@ export function mediaFailureSteps(
     if (blockedByOS(perms)) {
       return isIOS()
         ? {
-            title: 'Το iPhone δεν δίνει κάμερα στο Safari',
+            title: t('video.engine.osIosTitle'),
             steps: [
-              'Η ρύθμιση του site είναι εντάξει — το φράγμα είναι στο τηλέφωνο.',
-              'Άνοιξε Ρυθμίσεις → Απόρρητο και ασφάλεια → Κάμερα και βεβαιώσου ότι το Safari είναι ανοιχτό.',
-              'Το ίδιο και για το Μικρόφωνο.',
-              'Γύρνα εδώ και πάτα «Ξαναδοκίμασε».',
+              t('video.engine.osOk'),
+              t('video.engine.osIos2'),
+              t('video.engine.osIos3'),
+              t('video.engine.comeBackRetry'),
             ],
           }
         : {
-            title: 'Το τηλέφωνο δεν δίνει κάμερα στο Chrome',
+            title: t('video.engine.osAndroidTitle'),
             steps: [
-              'Η ρύθμιση του site είναι εντάξει — το φράγμα είναι στο τηλέφωνο.',
-              'Άνοιξε Ρυθμίσεις του τηλεφώνου → Εφαρμογές → Chrome → Άδειες.',
-              'Βάλε Κάμερα και Μικρόφωνο σε «Να επιτρέπεται».',
-              'Γύρνα εδώ και πάτα «Ξαναδοκίμασε».',
+              t('video.engine.osOk'),
+              t('video.engine.osAndroid2'),
+              t('video.engine.osAndroid3'),
+              t('video.engine.comeBackRetry'),
             ],
           };
     }
@@ -263,16 +264,16 @@ export function mediaFailureSteps(
     // διακόπτες: πολύ συχνά ο κόσμος ανοίγει τον έναν και νομίζει ότι τελείωσε.
     const what =
       blocked === 'mic'
-        ? 'το Μικρόφωνο'
+        ? t('video.engine.whatMic')
         : blocked === 'camera'
-          ? 'την Κάμερα'
-          : 'Κάμερα ΚΑΙ Μικρόφωνο';
+          ? t('video.engine.whatCam')
+          : t('video.engine.whatBoth');
     const title =
       blocked === 'mic'
-        ? 'Λείπει η άδεια για το μικρόφωνο'
+        ? t('video.engine.deniedMicTitle')
         : blocked === 'camera'
-          ? 'Λείπει η άδεια για την κάμερα'
-          : 'Λείπει η άδεια για κάμερα και μικρόφωνο';
+          ? t('video.engine.deniedCamTitle')
+          : t('video.engine.deniedBothTitle');
 
     // ΔΥΟ βήματα, όχι πέντε. Ένας τοίχος οδηγιών κάνει τον κόσμο να τα
     // παρατάει· όποιος θέλει τα ψιλά γράμματα τα βρίσκει στον έλεγχο συσκευής.
@@ -280,23 +281,23 @@ export function mediaFailureSteps(
       ? {
           title,
           steps: [
-            `Πάτα «ΑΑ» δίπλα στη διεύθυνση → Ρυθμίσεις ιστότοπου → ${what} → «Να επιτρέπεται».`,
-            'Γύρνα εδώ και πάτα «Ξαναδοκίμασε».',
+            t('video.engine.deniedIos1', { what }),
+            t('video.engine.comeBackRetry'),
           ],
         }
       : {
           title,
           steps: [
-            `Πάτα το εικονίδιο δίπλα στη διεύθυνση → Άδειες → ${what} → «Να επιτρέπεται».`,
-            'Γύρνα εδώ και πάτα «Ξαναδοκίμασε».',
+            t('video.engine.deniedOther1', { what }),
+            t('video.engine.comeBackRetry'),
           ],
         };
   }
   return {
-    title: 'Δεν άνοιξε η κάμερα',
+    title: t('video.engine.otherTitle'),
     steps: [
-      'Κλείσε άλλες εφαρμογές που μπορεί να χρησιμοποιούν την κάμερα.',
-      'Μετά πάτα «Ξαναδοκίμασε».',
+      t('video.engine.other1'),
+      t('video.engine.other2'),
     ],
   };
 }
@@ -306,21 +307,20 @@ export function mediaFailureSteps(
  * Το σκέτο «χρειάζεται άδεια» δεν βοηθάει σε τίποτα: αν ο χρήστης έχει ήδη
  * αρνηθεί μία φορά, ο browser ΔΕΝ ξαναρωτάει και το κουμπί μοιάζει χαλασμένο.
  */
-export function mediaFailureMessage(failure: MediaFailure): string {
+export function mediaFailureMessage(
+  failure: MediaFailure,
+  t: (k: string, p?: Record<string, string | number>) => string
+): string {
   if (failure === 'unsupported') {
-    return isIOS()
-      ? 'Άνοιξε το staffnow.gr στο Safari για να γίνει η κλήση. Μέσα από άλλη εφαρμογή (π.χ. Facebook) η κάμερα δεν επιτρέπεται.'
-      : 'Άνοιξε το staffnow.gr στο Chrome για να γίνει η κλήση. Μέσα από άλλη εφαρμογή η κάμερα δεν επιτρέπεται.';
+    return isIOS() ? t('video.engine.hintInAppIos') : t('video.engine.hintInAppOther');
   }
   if (failure === 'notfound') {
-    return 'Δεν βρέθηκε κάμερα ή μικρόφωνο στη συσκευή.';
+    return t('video.engine.hintNoCamera');
   }
   if (failure === 'denied') {
-    return isIOS()
-      ? 'Η κάμερα είναι κλειστή για το staffnow.gr. Πάτα το «ΑΑ» αριστερά στη γραμμή διεύθυνσης → Ρυθμίσεις ιστότοπου → Κάμερα και Μικρόφωνο → Να επιτρέπεται. Μετά ξαναδοκίμασε.'
-      : 'Η κάμερα είναι κλειστή για το staffnow.gr. Πάτα το λουκέτο δίπλα στη διεύθυνση → Άδειες → Κάμερα και Μικρόφωνο → Να επιτρέπεται. Μετά ξαναδοκίμασε.';
+    return isIOS() ? t('video.engine.hintDeniedIos') : t('video.engine.hintDeniedOther');
   }
-  return 'Δεν άνοιξε η κάμερα. Κλείσε άλλες εφαρμογές που μπορεί να τη χρησιμοποιούν και ξαναδοκίμασε.';
+  return t('video.engine.hintOther');
 }
 
 /** Το αποτέλεσμα μιας προσπάθειας κλήσης. Το `mediaFailure` μπαίνει μόνο όταν
@@ -342,6 +342,8 @@ export interface CallEngineEvents {
   onLocalStream: (stream: MediaStream) => void;
   onRemoteStream: (stream: MediaStream) => void;
   onEnded: (reason: CallEndReason) => void;
+  /** Μετάφραση για τα μηνύματα που παράγει η μηχανή (video.engine.*). */
+  t: (k: string, p?: Record<string, string | number>) => string;
 }
 
 /** Το κομμάτι του API που χρειάζεται η μηχανή. Περνιέται απ' έξω για να μένει
@@ -578,7 +580,7 @@ export class CallEngine {
         blocked: media0.blocked,
         reason: media0.reason,
         perms: media0.perms,
-        message: mediaFailureMessage(media0.failure || 'other'),
+        message: mediaFailureMessage(media0.failure || 'other', this.events.t),
       };
     }
     const media = media0.stream;
@@ -603,18 +605,23 @@ export class CallEngine {
       // ΛΕΜΕ ΤΗΝ ΑΙΤΙΑ. Σκέτο «δεν μπόρεσε» δεν βοηθάει κανέναν: ούτε τον χρήστη
       // να καταλάβει αν φταίει το δίκτυό του, ούτε εμάς να το διορθώσουμε. Ό,τι
       // ξέρουμε (κωδικός ή μήνυμα του server) μπαίνει σε παρένθεση.
-      const why = e?.status ? `κωδικός ${e.status}` : e?.message ? String(e.message).slice(0, 60) : 'χωρίς απάντηση';
+      const t = this.events.t;
+      const why = e?.status
+        ? t('video.engine.whyCode', { code: e.status })
+        : e?.message
+          ? String(e.message).slice(0, 60)
+          : t('video.engine.whyNoResponse');
       return {
         ok: false,
         message: busy
-          ? 'Ο άλλος μιλάει ήδη σε άλλη κλήση.'
-          : `Δεν μπόρεσε να ξεκινήσει η κλήση (${why}).`,
+          ? t('video.engine.busy')
+          : t('video.engine.couldNotStart', { why }),
       };
     }
 
     if (!this.callId) {
       this.finish('failed', false);
-      return { ok: false, message: 'Δεν μπόρεσε να ξεκινήσει η κλήση (ο server δεν έδωσε κωδικό).' };
+      return { ok: false, message: this.events.t('video.engine.noCode') };
     }
 
     this.setStatus('calling');
@@ -643,7 +650,7 @@ export class CallEngine {
         blocked: media0.blocked,
         reason: media0.reason,
         perms: media0.perms,
-        message: mediaFailureMessage(media0.failure || 'other'),
+        message: mediaFailureMessage(media0.failure || 'other', this.events.t),
       };
     }
     const media = media0.stream;
@@ -687,15 +694,15 @@ export class CallEngine {
       if (typeof res?.data?.cursor === 'number') this.cursor = res.data.cursor;
       if (res?.data?.status === 'ended') {
         this.finish((res.data.endReason as CallEndReason) || 'hangup', false);
-        return { ok: false, message: 'Η κλήση τερματίστηκε.' };
+        return { ok: false, message: this.events.t('video.engine.callEnded') };
       }
     } catch {
       this.finish('failed', false);
-      return { ok: false, message: 'Δεν μπόρεσε να συνδεθεί η κλήση.' };
+      return { ok: false, message: this.events.t('video.engine.couldNotConnect') };
     }
     if (!offer) {
       this.finish('failed', false);
-      return { ok: false, message: 'Δεν μπόρεσε να συνδεθεί η κλήση.' };
+      return { ok: false, message: this.events.t('video.engine.couldNotConnect') };
     }
 
     this.pc = await this.buildConnection();
@@ -710,7 +717,7 @@ export class CallEngine {
       await this.api.answer(callId, { answer: JSON.stringify(this.pc.localDescription) });
     } catch {
       this.finish('failed', false);
-      return { ok: false, message: 'Δεν μπόρεσε να συνδεθεί η κλήση.' };
+      return { ok: false, message: this.events.t('video.engine.couldNotConnect') };
     }
 
     this.setStatus('connecting');

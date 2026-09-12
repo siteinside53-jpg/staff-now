@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { API_URL } from '@/lib/config';
 import { Spinner } from '@/components/ui/spinner';
-import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
+import { useT } from '@/i18n/locale-provider';
+import { useLabels } from '@/i18n/labels';
 import { JobPreviewPanel } from './job-preview-panel';
 import { ReviewsList } from './reviews-list';
 
@@ -20,55 +21,53 @@ interface Props {
   conversationId?: string | null;
 }
 
-const BIZ_TYPES: Record<string, string> = {
-  hotel: 'Ξενοδοχείο', restaurant: 'Εστιατόριο', beach_bar: 'Beach Bar',
-  bar: 'Μπαρ', cafe: 'Καφετέρια', villa: 'Βίλα',
-  tourism_company: 'Τουριστική', resort: 'Resort', technical: 'Τεχνική', other: 'Επιχείρηση',
-};
-
-const DAYS_LABELS: Record<string, string> = {
-  mon: 'Δευτέρα', tue: 'Τρίτη', wed: 'Τετάρτη', thu: 'Πέμπτη',
-  fri: 'Παρασκευή', sat: 'Σάββατο', sun: 'Κυριακή',
-};
-
-function formatScheduleDisplay(json: string): string[] {
+function formatScheduleDisplay(
+  json: string,
+  t: (k: string, p?: Record<string, string | number>) => string,
+): string[] {
+  const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
   try {
     const schedule = JSON.parse(json) as Record<string, { open: string; close: string; closed: boolean }>;
-    return Object.keys(DAYS_LABELS).map((key) => {
+    return dayKeys.map((key) => {
       const s = schedule[key];
-      const label = DAYS_LABELS[key];
+      const label = t(`panels.days.${key}`);
       if (!s) return `${label}: -`;
-      if (s.closed) return `${label}: Κλειστά`;
+      if (s.closed) return `${label}: ${t('panels.closed')}`;
       return `${label}: ${s.open} - ${s.close}`;
     });
   } catch { return []; }
 }
 
-const SALARY_TYPE_SUFFIX: Record<string, string> = {
-  hourly: '/ώρα',
-  daily: '/ημέρα',
-  monthly: '/μήνα',
-  fixed: '',
-};
-
-function formatSalary(min: number | null | undefined, max: number | null | undefined, type?: string): string | null {
+function formatSalary(
+  min: number | null | undefined,
+  max: number | null | undefined,
+  type: string | undefined,
+  t: (k: string, p?: Record<string, string | number>) => string,
+): string | null {
   const hasMin = min != null && min !== 0;
   const hasMax = max != null && max !== 0;
   if (!hasMin && !hasMax) return null;
-  const suffix = SALARY_TYPE_SUFFIX[type || 'monthly'] ?? '';
+  const suffixMap: Record<string, string> = {
+    hourly: t('panels.suffix.hourly'),
+    daily: t('panels.suffix.daily'),
+    monthly: t('panels.suffix.monthly'),
+    fixed: '',
+  };
+  const suffix = suffixMap[type || 'monthly'] ?? '';
   if (hasMin && hasMax) return `${min}-${max}€${suffix}`;
-  if (hasMin) return `από ${min}€${suffix}`;
-  return `έως ${max}€${suffix}`;
+  if (hasMin) return t('panels.salaryFrom', { v: `${min}€${suffix}` });
+  return t('panels.salaryUpTo', { v: `${max}€${suffix}` });
 }
 
-const EMP_LABELS: Record<string, string> = {
-  seasonal: 'Σεζόν',
-  full_time: 'Πλήρης',
-  part_time: 'Μερική',
-  freelancer: 'Freelancer',
-};
-
 export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip, conversationId }: Props) {
+  const t = useT();
+  const labels = useLabels();
+  const EMP_LABELS: Record<string, string> = {
+    seasonal: t('panels.empType.seasonal'),
+    full_time: t('panels.empType.full_time'),
+    part_time: t('panels.empType.part_time'),
+    freelancer: t('panels.empType.freelancer'),
+  };
   const [branch, setBranch] = useState<any>(null);
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -128,7 +127,7 @@ export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip, 
                 {b.verified === 1 && (
                   <div className="absolute top-4 left-4 flex items-center gap-1.5 rounded-full bg-white/95 backdrop-blur px-3 py-1.5 shadow-sm">
                     <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white text-[10px] font-bold">✓</span>
-                    <span className="text-xs font-semibold text-emerald-700">Επαληθευμένη επιχείρηση</span>
+                    <span className="text-xs font-semibold text-emerald-700">{t('panels.verifiedBusiness')}</span>
                   </div>
                 )}
               </div>
@@ -149,7 +148,7 @@ export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip, 
 
             {/* ====== HEADER ====== */}
             <div className="px-6 pt-16 pb-5 border-b border-gray-100">
-              <h1 className="text-2xl font-bold text-gray-900">{b.company_name || 'Επιχείρηση'}</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{b.company_name || t('panels.business')}</h1>
 
               {/*
                 Εδώ έγραφε σταθερά «★★★★★ 4.8 · 0 αξιολογήσεις» για κάθε
@@ -165,15 +164,15 @@ export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip, 
                     </span>
                     <span className="font-bold text-gray-900">{Number(b.rating_avg).toFixed(1)}</span>
                     <span className="text-sm text-gray-400">
-                      · {b.rating_count} {Number(b.rating_count) === 1 ? 'αξιολόγηση' : 'αξιολογήσεις'}
+                      · {b.rating_count} {Number(b.rating_count) === 1 ? t('panels.reviewOne') : t('panels.reviewMany')}
                     </span>
                   </>
                 ) : (
-                  <span className="text-sm text-gray-400">Καμία αξιολόγηση ακόμη</span>
+                  <span className="text-sm text-gray-400">{t('panels.noReviews')}</span>
                 )}
                 {Number(b.hire_count) > 0 && (
                   <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
-                    ✅ {b.hire_count} {Number(b.hire_count) === 1 ? 'πρόσληψη' : 'προσλήψεις'} μέσω StaffNow
+                    {t(Number(b.hire_count) === 1 ? 'panels.hiresOne' : 'panels.hiresMany', { n: b.hire_count })}
                   </span>
                 )}
               </div>
@@ -190,7 +189,7 @@ export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip, 
                 )}
                 <span className="flex items-center gap-1.5">
                   <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" /></svg>
-                  {BIZ_TYPES[b.business_type] || 'Επιχείρηση'}
+                  {b.business_type ? labels.businessType(b.business_type) : t('panels.business')}
                 </span>
               </div>
             </div>
@@ -209,12 +208,12 @@ export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip, 
               <div className="px-6 py-5">
                 <h2 className="flex items-center gap-2 text-base font-bold text-gray-900 mb-4">
                   <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
-                  Ανοιχτές θέσεις
+                  {t('panels.openPositions')}
                 </h2>
                 {jobs.length > 0 ? (
                   <div className="space-y-3">
                     {jobs.map((job: any, i: number) => {
-                      const salaryStr = formatSalary(job.salary_min, job.salary_max, job.salary_type);
+                      const salaryStr = formatSalary(job.salary_min, job.salary_max, job.salary_type, t);
                       return (
                         <button
                           key={job.id || i}
@@ -253,7 +252,7 @@ export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip, 
                   </div>
                 ) : (
                   <div className="rounded-xl bg-gray-50 p-6 text-center text-sm text-gray-400">
-                    Δεν υπάρχουν ανοιχτές θέσεις αυτή τη στιγμή
+                    {t('panels.noOpenPositions')}
                   </div>
                 )}
               </div>
@@ -264,47 +263,47 @@ export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip, 
                 <div>
                   <h2 className="flex items-center gap-2 text-base font-bold text-gray-900 mb-3">
                     <svg className="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" /></svg>
-                    Παροχές
+                    {t('panels.perks')}
                   </h2>
                   <div className="flex flex-wrap gap-2">
                     {b.staff_housing === 1 && (
-                      <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">🏠 Διαμονή</span>
+                      <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">{t('panels.housing')}</span>
                     )}
                     {b.meals_provided === 1 && (
-                      <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">🍽️ Σίτιση</span>
+                      <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">{t('panels.meals')}</span>
                     )}
                     {b.transportation_assistance === 1 && (
-                      <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">🚌 Μεταφορά</span>
+                      <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">{t('panels.transport')}</span>
                     )}
                     {b.bonus_provided === 1 && (
-                      <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">💰 Bonus</span>
+                      <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">{t('panels.bonus')}</span>
                     )}
                     {b.insurance_provided === 1 && (
-                      <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">⏰ Ευέλικτο ωράριο</span>
+                      <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">{t('panels.flexible')}</span>
                     )}
                     {b.no_benefits === 1 && (
-                      <span className="flex items-center gap-1.5 rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600">❌ Χωρίς παροχές</span>
+                      <span className="flex items-center gap-1.5 rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600">{t('panels.noPerks')}</span>
                     )}
                     {!b.staff_housing && !b.meals_provided && !b.transportation_assistance && !b.bonus_provided && !b.insurance_provided && !b.no_benefits && (
-                      <span className="text-sm text-gray-400">Δεν δηλώθηκαν παροχές</span>
+                      <span className="text-sm text-gray-400">{t('panels.noPerksDeclared')}</span>
                     )}
                   </div>
                 </div>
 
                 {/* Quick Info */}
                 <div>
-                  <h2 className="text-base font-bold text-gray-900 mb-3">Πληροφορίες</h2>
+                  <h2 className="text-base font-bold text-gray-900 mb-3">{t('panels.info')}</h2>
                   <div className="space-y-3">
                     {b.operating_hours && (() => {
-                      const lines = formatScheduleDisplay(b.operating_hours);
+                      const lines = formatScheduleDisplay(b.operating_hours, t);
                       return lines.length > 0 ? (
                         <div className="flex gap-3">
                           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 flex-shrink-0 mt-0.5"><span className="text-sm">🕐</span></div>
                           <div>
-                            <p className="text-sm font-medium text-gray-900 mb-1">Ωράριο Λειτουργίας</p>
+                            <p className="text-sm font-medium text-gray-900 mb-1">{t('panels.openingHours')}</p>
                             <div className="space-y-0.5">
                               {lines.map((line, i) => (
-                                <p key={i} className={`text-xs ${line.includes('Κλειστά') ? 'text-red-500' : 'text-gray-500'}`}>{line}</p>
+                                <p key={i} className={`text-xs ${line.includes(t('panels.closed')) ? 'text-red-500' : 'text-gray-500'}`}>{line}</p>
                               ))}
                             </div>
                           </div>
@@ -314,25 +313,25 @@ export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip, 
                     {b.phone && (
                       <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100"><span className="text-sm">📞</span></div>
-                        <div><p className="text-sm font-medium text-gray-900">Τηλέφωνο</p><p className="text-xs text-gray-500">{b.phone}</p></div>
+                        <div><p className="text-sm font-medium text-gray-900">{t('panels.phone')}</p><p className="text-xs text-gray-500">{b.phone}</p></div>
                       </div>
                     )}
                     {b.website && (
                       <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100"><span className="text-sm">🌐</span></div>
-                        <div><p className="text-sm font-medium text-gray-900">Website</p><a href={b.website} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">{b.website}</a></div>
+                        <div><p className="text-sm font-medium text-gray-900">{t('panels.website')}</p><a href={b.website} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">{b.website}</a></div>
                       </div>
                     )}
                     {b.google_business_url && (
                       <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100"><span className="text-sm">📍</span></div>
-                        <div><p className="text-sm font-medium text-gray-900">Google Business</p><a href={b.google_business_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">Google Profile</a></div>
+                        <div><p className="text-sm font-medium text-gray-900">{t('panels.googleBusiness')}</p><a href={b.google_business_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">{t('panels.googleProfile')}</a></div>
                       </div>
                     )}
                     {(b.address || b.city) && (
                       <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100"><span className="text-sm">🏠</span></div>
-                        <div><p className="text-sm font-medium text-gray-900">Τοποθεσία</p><p className="text-xs text-gray-500">{[b.address, b.area, b.city, b.postal_code, b.region].filter(Boolean).join(', ')}</p></div>
+                        <div><p className="text-sm font-medium text-gray-900">{t('panels.location')}</p><p className="text-xs text-gray-500">{[b.address, b.area, b.city, b.postal_code, b.region].filter(Boolean).join(', ')}</p></div>
                       </div>
                     )}
                   </div>
@@ -346,11 +345,11 @@ export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip, 
                 <div className="flex gap-3">
                   <button onClick={() => { onSkip?.(); onClose(); }}
                     className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-red-200 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors">
-                    ✕ Πέρασε
+                    {t('panels.skipX')}
                   </button>
                   <button onClick={() => { onLike?.(); onClose(); }}
                     className="flex flex-[1.5] items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-600/20">
-                    ✓ Ενδιαφέρομαι
+                    {t('panels.interestedTick')}
                   </button>
                 </div>
               </div>
@@ -359,19 +358,19 @@ export function BusinessProfilePanel({ businessUserId, onClose, onLike, onSkip, 
                 <div className="flex items-center gap-3">
                   <button onClick={onClose}
                     className="flex-shrink-0 rounded-xl border-2 border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50">
-                    Κλείσιμο
+                    {t('panels.close')}
                   </button>
                   <a href={`/dashboard/messages?id=${conversationId}`}
                     className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-colors">
                     <span className="text-lg">💬</span>
-                    <span>Στείλε μήνυμα</span>
+                    <span>{t('panels.sendMessage')}</span>
                   </a>
                 </div>
               </div>
             ) : (
               <div className="sticky bottom-0 border-t border-gray-200 bg-white px-6 py-4">
                 <button onClick={onClose} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-100 py-3 text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors">
-                  Κλείσιμο
+                  {t('panels.close')}
                 </button>
               </div>
             )}

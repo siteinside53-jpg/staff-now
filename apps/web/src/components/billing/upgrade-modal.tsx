@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { useT } from '@/i18n/locale-provider';
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -32,16 +33,18 @@ interface PlanRow {
 }
 
 /** Feature rows — kept in sync with the public /pricing page. */
-const FEATURE_ROWS: { label: string; key: keyof NonNullable<PlanRow['features']>; format?: (v: any) => string }[] = [
-  { label: 'Αγγελίες', key: 'maxJobListings', format: (v) => (v === null || v === undefined ? 'Απεριόριστες' : `Έως ${v}`) },
-  { label: 'Αναζητήσεις', key: 'maxSwipesPerMonth', format: (v) => (v === null || v === undefined ? 'Απεριόριστες' : `${v}/ημέρα`) },
-  { label: 'AI Top-5 Shortlist', key: 'aiShortlist' },
-  { label: 'AI Hiring Chat', key: 'aiHiringChat' },
-  { label: 'Boost αγγελίας', key: 'boostedVisibility' },
-  { label: 'Verified Badge', key: 'verifiedBadge' },
-  { label: 'Priority support (24h)', key: 'prioritySupport' },
-  { label: 'API access', key: 'apiAccess' },
-];
+function featureRows(t: (k: string, params?: Record<string, any>) => string): { label: string; key: keyof NonNullable<PlanRow['features']>; format?: (v: any) => string }[] {
+  return [
+    { label: t('billingPage.featJobs'), key: 'maxJobListings', format: (v) => (v === null || v === undefined ? t('billingPage.featUnlimitedF') : t('billingPage.featUpTo', { n: v })) },
+    { label: t('billingPage.featSearches'), key: 'maxSwipesPerMonth', format: (v) => (v === null || v === undefined ? t('billingPage.featUnlimitedF') : t('billingPage.featPerDay', { n: v })) },
+    { label: t('billingPage.featAiShortlist'), key: 'aiShortlist' },
+    { label: t('billingPage.featAiChat'), key: 'aiHiringChat' },
+    { label: t('billingPage.featBoost'), key: 'boostedVisibility' },
+    { label: t('billingPage.featVerified'), key: 'verifiedBadge' },
+    { label: t('billingPage.featSupport'), key: 'prioritySupport' },
+    { label: t('billingPage.featApi'), key: 'apiAccess' },
+  ];
+}
 
 interface Props {
   currentPlanId: string | null;
@@ -54,6 +57,8 @@ interface Props {
 }
 
 export function UpgradeModal({ currentPlanId, currentPeriod, onClose, onManualTransfer }: Props) {
+  const t = useT();
+  const FEATURE_ROWS = featureRows(t);
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [period, setPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [docType, setDocType] = useState<'invoice' | 'receipt'>('receipt');
@@ -99,7 +104,7 @@ export function UpgradeModal({ currentPlanId, currentPeriod, onClose, onManualTr
       });
       const j = (await res.json()) as any;
       if (!j.success) {
-        toast.error(j.error?.message || 'Σφάλμα');
+        toast.error(j.error?.message || t('billingPage.error'));
         return;
       }
       if (mode === 'card' && j.data?.url) {
@@ -117,16 +122,16 @@ export function UpgradeModal({ currentPlanId, currentPeriod, onClose, onManualTr
       <div className="max-h-[90vh] w-full max-w-6xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Επιλέξτε πλάνο</h2>
+            <h2 className="text-xl font-bold text-gray-900">{t('billingPage.modalTitle')}</h2>
             <p className="mt-1 text-xs text-gray-500">
-              Οι τιμές είναι καθαρές (χωρίς ΦΠΑ) — προστίθεται ΦΠΑ 24%. Σύγκρινε χαρακτηριστικά πλάνων.
+              {t('billingPage.modalSubtitle')}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="rounded-lg p-2 text-gray-400 hover:bg-gray-100"
-            aria-label="Κλείσιμο"
+            aria-label={t('billingPage.close')}
           >
             ✕
           </button>
@@ -135,20 +140,20 @@ export function UpgradeModal({ currentPlanId, currentPeriod, onClose, onManualTr
         {/* Period + document */}
         <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Toggle
-            label="Συχνότητα"
+            label={t('billingPage.frequency')}
             value={period}
             options={[
-              { v: 'monthly', label: 'Μηνιαία' },
-              { v: 'yearly',  label: 'Ετήσια (έκπτωση 25%)' },
+              { v: 'monthly', label: t('billingPage.monthly') },
+              { v: 'yearly',  label: t('billingPage.yearlyDiscount') },
             ]}
             onChange={(v) => setPeriod(v as any)}
           />
           <Toggle
-            label="Τύπος εγγράφου"
+            label={t('billingPage.docTypeLabel')}
             value={docType}
             options={[
-              { v: 'receipt', label: 'Απόδειξη' },
-              { v: 'invoice', label: 'Τιμολόγιο' },
+              { v: 'receipt', label: t('billingPage.receipt') },
+              { v: 'invoice', label: t('billingPage.invoice') },
             ]}
             onChange={(v) => setDocType(v as any)}
           />
@@ -156,8 +161,7 @@ export function UpgradeModal({ currentPlanId, currentPeriod, onClose, onManualTr
 
         {docType === 'invoice' && (
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-            Για έκδοση τιμολογίου απαιτούνται <strong>επωνυμία και ΑΦΜ</strong>. Συμπληρώστε τα στοιχεία
-            χρέωσης από την προηγούμενη ενότητα πριν προχωρήσετε.
+            {t('billingPage.invoiceNotice')} <strong>{t('billingPage.invoiceNoticeStrong')}</strong>{t('billingPage.invoiceNoticeSuffix')}
           </div>
         )}
 
@@ -182,12 +186,12 @@ export function UpgradeModal({ currentPlanId, currentPeriod, onClose, onManualTr
               >
                 {isPopular && !isCurrent && (
                   <span className="absolute -top-3 left-5 rounded-full bg-amber-500 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-sm">
-                    🌟 Popular
+                    {t('billingPage.popular')}
                   </span>
                 )}
                 {isCurrent && (
                   <span className="absolute -top-3 left-5 rounded-full bg-blue-600 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-sm">
-                    ✓ Τρέχον
+                    {t('billingPage.current')}
                   </span>
                 )}
 
@@ -218,17 +222,17 @@ export function UpgradeModal({ currentPlanId, currentPeriod, onClose, onManualTr
                           <span className="text-3xl font-extrabold text-gray-900">
                             {fmtMoney(monthlyHeadlineCents)}
                           </span>
-                          <span className="ml-1 text-xs font-medium text-gray-500">/ μήνα</span>
+                          <span className="ml-1 text-xs font-medium text-gray-500">{t('billingPage.perMonth')}</span>
                         </p>
                         <p className="mt-1 text-[11px] text-gray-500">
-                          +ΦΠΑ 24% · {fmtMoney(Math.round(monthlyHeadlineCents * 1.24))} με ΦΠΑ
+                          {t('billingPage.plusVat', { amount: fmtMoney(Math.round(monthlyHeadlineCents * 1.24)) })}
                         </p>
                         {period === 'yearly' && yearlyTotalCents > 0 && (
                           <p className="mt-1 text-[11px] text-gray-500">
                             <span className="line-through text-gray-400 mr-1">
-                              {fmtMoney(fullMonthlyCents)}/μήνα
+                              {fmtMoney(fullMonthlyCents)}{t('billingPage.perMonthShort')}
                             </span>
-                            · {fmtMoney(yearlyTotalCents)} συνολικά/έτος
+                            {t('billingPage.totalPerYear', { amount: fmtMoney(yearlyTotalCents) })}
                             {savingsPct > 0 && (
                               <span className="ml-1 font-semibold text-emerald-600">
                                 (−{savingsPct}%)
@@ -283,10 +287,10 @@ export function UpgradeModal({ currentPlanId, currentPeriod, onClose, onManualTr
                     {submitting === p.id + ':card'
                       ? '...'
                       : isCurrent
-                        ? 'Τρέχον πλάνο'
+                        ? t('billingPage.currentPlanButton')
                         : isSamePlan
-                          ? `Αλλαγή σε ${period === 'yearly' ? 'ετήσιο' : 'μηνιαίο'}`
-                          : 'Πληρωμή με κάρτα'}
+                          ? t('billingPage.switchTo', { period: period === 'yearly' ? t('billingPage.yearlyAdj') : t('billingPage.monthlyAdj') })
+                          : t('billingPage.payByCard')}
                   </button>
                   <button
                     type="button"
@@ -294,7 +298,7 @@ export function UpgradeModal({ currentPlanId, currentPeriod, onClose, onManualTr
                     onClick={() => onCheckout(p.id, 'manual')}
                     className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {submitting === p.id + ':manual' ? '...' : 'Κατάθεση τραπέζης'}
+                    {submitting === p.id + ':manual' ? '...' : t('billingPage.bankTransfer')}
                   </button>
                 </div>
               </div>
@@ -303,8 +307,7 @@ export function UpgradeModal({ currentPlanId, currentPeriod, onClose, onManualTr
         </div>
 
         <p className="mt-5 text-[11px] text-gray-400">
-          Με την υποβολή αποδέχεστε τους όρους χρήσης. Η συνδρομή ανανεώνεται αυτόματα — μπορείτε να
-          ακυρώσετε ανά πάσα στιγμή.
+          {t('billingPage.terms')}
         </p>
       </div>
     </div>

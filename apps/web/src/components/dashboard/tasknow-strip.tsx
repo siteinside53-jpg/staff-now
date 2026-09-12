@@ -16,8 +16,10 @@
 import Link from 'next/link';
 import { TaskNowMark } from '@/components/tasknow/logo';
 import { boardStats, isOpen, useMockTasks } from '@/components/tasknow/mock-store';
+import { useT } from '@/i18n/locale-provider';
 
 export function TaskNowStrip() {
+  const t = useT();
   const state = useMockTasks();
   const open = state.tasks.filter(isOpen);
   const stats = boardStats(open);
@@ -31,7 +33,7 @@ export function TaskNowStrip() {
     >
       <TaskNowMark className="h-4 w-4" />
       <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold tabular-nums text-gray-900">
-        {stats.count} μικροδουλειές κοντά σου
+        {t('listings.strip.nearYou', { n: stats.count })}
         {stats.min !== null && stats.max !== null && (
           <span className="font-medium text-gray-600">
             {' '}
@@ -39,7 +41,7 @@ export function TaskNowStrip() {
           </span>
         )}
       </span>
-      <span className="shrink-0 text-[12.5px] font-semibold text-amber-700">Δες →</span>
+      <span className="shrink-0 text-[12.5px] font-semibold text-amber-700">{t('listings.strip.see')}</span>
     </Link>
   );
 }

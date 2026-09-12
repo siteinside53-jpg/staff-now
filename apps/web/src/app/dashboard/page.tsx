@@ -11,6 +11,7 @@ import { AIHiringChat } from '@/components/dashboard/ai-hiring-chat';
 import { HireActionsCard } from '@/components/dashboard/hire-actions-card';
 import { AllListings } from '@/components/dashboard/all-listings';
 import { HirePromptCard } from '@/components/dashboard/hire-prompt-card';
+import { useT } from '@/i18n/locale-provider';
 
 interface DashboardStats {
   totalMatches: number;
@@ -21,6 +22,7 @@ interface DashboardStats {
 }
 
 export default function DashboardPage() {
+  const t = useT();
   const { user, profile } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -70,16 +72,16 @@ export default function DashboardPage() {
   if (isBusiness) {
     quickActions.push({
       href: '/dashboard/jobs?new=1',
-      label: 'Νέα Αγγελία',
-      desc: 'Δημοσίευσε θέση εργασίας',
+      label: t('dashHome.quick.newJob'),
+      desc: t('dashHome.quick.newJobDesc'),
       icon: '➕',
       gradient: 'from-blue-500 to-blue-600',
       halo: 'bg-blue-400',
     });
     quickActions.push({
       href: '/dashboard/jobs',
-      label: 'Boost',
-      desc: 'Ανέβασε αγγελία στην κορυφή',
+      label: t('dashHome.quick.boost'),
+      desc: t('dashHome.quick.boostJobDesc'),
       icon: '🚀',
       gradient: 'from-amber-500 to-orange-600',
       halo: 'bg-amber-400',
@@ -88,8 +90,8 @@ export default function DashboardPage() {
   if (isWorker) {
     quickActions.push({
       href: '/dashboard/boost',
-      label: 'Boost',
-      desc: 'Ανέβα στην κορυφή των υποψηφίων',
+      label: t('dashHome.quick.boost'),
+      desc: t('dashHome.quick.boostWorkerDesc'),
       icon: '🚀',
       gradient: 'from-amber-500 to-orange-600',
       halo: 'bg-amber-400',
@@ -98,8 +100,8 @@ export default function DashboardPage() {
   if ((isBusiness || isWorker) && !isVerified) {
     quickActions.push({
       href: '/dashboard/verification',
-      label: 'Επαλήθευση',
-      desc: 'Πάρε το σήμα «Επαληθευμένο»',
+      label: t('dashHome.quick.verify'),
+      desc: t('dashHome.quick.verifyDesc'),
       icon: '✓',
       gradient: 'from-emerald-500 to-teal-600',
       halo: 'bg-emerald-400',
@@ -108,7 +110,7 @@ export default function DashboardPage() {
 
   const statCards = [
     {
-      label: 'Matches',
+      label: t('dashHome.stats.matches'),
       value: statsFailed ? '—' : (stats?.totalMatches ?? 0),
       href: '/dashboard/matches',
       color: 'bg-blue-500',
@@ -119,7 +121,7 @@ export default function DashboardPage() {
       ),
     },
     {
-      label: 'Μηνύματα',
+      label: t('dashHome.stats.messages'),
       value: statsFailed ? '—' : (stats?.unreadMessages ?? 0),
       href: '/dashboard/messages',
       color: 'bg-emerald-500',
@@ -130,7 +132,7 @@ export default function DashboardPage() {
       ),
     },
     {
-      label: 'Αιτήματα',
+      label: t('dashHome.stats.requests'),
       value: statsFailed ? '—' : (stats?.pendingInterests ?? 0),
       href: '/dashboard/interests',
       color: 'bg-amber-500',
@@ -141,7 +143,7 @@ export default function DashboardPage() {
       ),
     },
     {
-      label: 'Προβολές',
+      label: t('dashHome.stats.views'),
       value: statsFailed ? '—' : (stats?.profileViews ?? 0),
       href: '/dashboard/profile',
       color: 'bg-purple-500',
@@ -155,7 +157,7 @@ export default function DashboardPage() {
     ...(isBusiness
       ? [
           {
-            label: 'Ενεργές Αγγελίες',
+            label: t('dashHome.stats.activeJobs'),
             value: statsFailed ? '—' : (stats?.activeJobs ?? 0),
             href: '/dashboard/jobs',
             color: 'bg-amber-500',
@@ -199,27 +201,27 @@ export default function DashboardPage() {
   // Τι ακριβώς λείπει από το προφίλ — αλλιώς ο χρήστης που έχει συμπληρώσει τα
   // μισά δεν καταλαβαίνει γιατί το βήμα μένει ατίκαρο.
   const missingBits = [
-    !hasFullName && 'ονοματεπώνυμο',
-    !hasLocation && 'πόλη',
-    !hasAtLeastOneRole && 'ειδικότητα',
+    !hasFullName && t('dashHome.missing.name'),
+    !hasLocation && t('dashHome.missing.city'),
+    !hasAtLeastOneRole && t('dashHome.missing.role'),
   ].filter(Boolean) as string[];
   const workerProfileDesc = hasProfile
-    ? 'Συμπλήρωσε το προφίλ σου με εμπειρία, δεξιότητες και τοποθεσία'
-    : `Λείπει: ${missingBits.join(', ')}`;
+    ? t('dashHome.steps.workerProfileDesc')
+    : t('dashHome.missingPrefix', { list: missingBits.join(', ') });
 
   const workerSteps = [
-    { label: 'Δημιουργία Προφίλ', desc: workerProfileDesc, done: hasProfile, href: '/dashboard/profile', icon: '👤' },
-    { label: 'Βρες Εργασία', desc: 'Κάνε swipe σε θέσεις εργασίας που σε ενδιαφέρουν', done: hasSwiped, href: '/dashboard/discover', icon: '🔍' },
-    { label: 'Αναμονή για Match', desc: 'Όταν και η επιχείρηση δείξει ενδιαφέρον, γίνεται match!', done: hasMatches, href: '/dashboard/matches', icon: '🎯' },
-    { label: 'Στείλε Μήνυμα', desc: 'Ξεκίνα συνομιλία με την επιχείρηση και κλείσε τη θέση', done: hasSentMessage, href: '/dashboard/messages', icon: '💬' },
+    { label: t('dashHome.steps.profile'), desc: workerProfileDesc, done: hasProfile, href: '/dashboard/profile', icon: '👤' },
+    { label: t('dashHome.steps.findJob'), desc: t('dashHome.steps.findJobDesc'), done: hasSwiped, href: '/dashboard/discover', icon: '🔍' },
+    { label: t('dashHome.steps.waitMatch'), desc: t('dashHome.steps.waitMatchWorkerDesc'), done: hasMatches, href: '/dashboard/matches', icon: '🎯' },
+    { label: t('dashHome.steps.sendMessage'), desc: t('dashHome.steps.sendMessageWorkerDesc'), done: hasSentMessage, href: '/dashboard/messages', icon: '💬' },
   ];
 
   const businessSteps = [
-    { label: 'Δημιουργία Προφίλ', desc: 'Συμπλήρωσε τα στοιχεία της επιχείρησής σου', done: hasProfile, href: '/dashboard/profile', icon: '🏢' },
-    { label: 'Δημοσίευση Αγγελίας', desc: 'Δημιούργησε και δημοσίευσε τη θέση εργασίας', done: hasJobs, href: '/dashboard/jobs', icon: '📋' },
-    { label: 'Βρες Προσωπικό', desc: 'Κάνε swipe σε υποψήφιους εργαζόμενους', done: hasSwiped, href: '/dashboard/discover', icon: '🔍' },
-    { label: 'Αναμονή για Match', desc: 'Όταν και ο εργαζόμενος δείξει ενδιαφέρον, γίνεται match!', done: hasMatches, href: '/dashboard/matches', icon: '🎯' },
-    { label: 'Στείλε Μήνυμα', desc: 'Επικοινώνησε και κλείσε τη συνεργασία', done: hasSentMessage, href: '/dashboard/messages', icon: '💬' },
+    { label: t('dashHome.steps.profile'), desc: t('dashHome.steps.businessProfileDesc'), done: hasProfile, href: '/dashboard/profile', icon: '🏢' },
+    { label: t('dashHome.steps.postJob'), desc: t('dashHome.steps.postJobDesc'), done: hasJobs, href: '/dashboard/jobs', icon: '📋' },
+    { label: t('dashHome.steps.findStaff'), desc: t('dashHome.steps.findStaffDesc'), done: hasSwiped, href: '/dashboard/discover', icon: '🔍' },
+    { label: t('dashHome.steps.waitMatch'), desc: t('dashHome.steps.waitMatchBusinessDesc'), done: hasMatches, href: '/dashboard/matches', icon: '🎯' },
+    { label: t('dashHome.steps.sendMessage'), desc: t('dashHome.steps.sendMessageBusinessDesc'), done: hasSentMessage, href: '/dashboard/messages', icon: '💬' },
   ];
 
   const steps = isWorker ? workerSteps : businessSteps;
@@ -245,12 +247,16 @@ export default function DashboardPage() {
       {/* Welcome */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
-          Καλώς ήρθες{(profile as any)?.full_name || (profile as any)?.company_name ? `, ${(profile as any)?.full_name || (profile as any)?.company_name}` : ''}! 👋
+          {t('dashHome.welcome', {
+            name: (profile as any)?.full_name || (profile as any)?.company_name
+              ? `, ${(profile as any)?.full_name || (profile as any)?.company_name}`
+              : '',
+          })} 👋
         </h1>
         <p className="mt-1 text-gray-600">
           {completedCount === steps.length
-            ? 'Έχεις ολοκληρώσει όλα τα βήματα! Συνέχισε να ανακαλύπτεις ευκαιρίες.'
-            : `Βήμα ${nextIndex + 1} από ${steps.length} — ${nextStep?.label || ''}`}
+            ? t('dashHome.allDone')
+            : t('dashHome.stepOf', { n: nextIndex + 1, total: steps.length, label: nextStep?.label || '' })}
         </p>
       </div>
 
@@ -263,8 +269,8 @@ export default function DashboardPage() {
         <Link href="/dashboard/clients" className="mb-6 flex items-center gap-3 rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-blue-50 p-4 transition-shadow hover:shadow-md">
           <div className="text-3xl">🤝</div>
           <div className="min-w-0 flex-1">
-            <p className="font-bold text-indigo-900">Γραφείο εύρεσης εργασίας</p>
-            <p className="text-xs text-indigo-700">Πελάτες, αγγελίες ανά πελάτη, υποψήφιοι και προσλήψεις — όλα σε μία σελίδα.</p>
+            <p className="font-bold text-indigo-900">{t('dashHome.agencyTitle')}</p>
+            <p className="text-xs text-indigo-700">{t('dashHome.agencyDesc')}</p>
           </div>
           <span className="flex-shrink-0 text-indigo-700">→</span>
         </Link>
@@ -288,8 +294,8 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3">
             <div className="text-3xl">✨</div>
             <div className="min-w-0 flex-1">
-              <p className="font-bold text-amber-900">Ολοκλήρωσε το προφίλ σου</p>
-              <p className="text-xs text-amber-700">Κέρδισε περισσότερα matches</p>
+              <p className="font-bold text-amber-900">{t('dashHome.completeProfile')}</p>
+              <p className="text-xs text-amber-700">{t('dashHome.completeProfileHint')}</p>
             </div>
             <span className="flex-shrink-0 text-amber-700">→</span>
           </div>
@@ -299,7 +305,7 @@ export default function DashboardPage() {
       {/* Stats */}
       {statsFailed && (
         <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          Τα στατιστικά δεν φορτώθηκαν αυτή τη στιγμή. Ανανέωσε τη σελίδα σε λίγο.
+          {t('dashHome.statsFailed')}
         </p>
       )}
       {loading ? (
@@ -339,8 +345,8 @@ export default function DashboardPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h2 className="text-lg font-bold text-gray-900">📋 Τα βήματά σου</h2>
-                <p className="text-sm text-gray-500">Ακολούθησε τα βήματα για να ξεκινήσεις</p>
+                <h2 className="text-lg font-bold text-gray-900">📋 {t('dashHome.stepsTitle')}</h2>
+                <p className="text-sm text-gray-500">{t('dashHome.stepsHint')}</p>
               </div>
               <div className="flex items-center gap-2">
                 <div className="h-2 w-24 rounded-full bg-gray-200 overflow-hidden">
@@ -380,7 +386,7 @@ export default function DashboardPage() {
                           {step.label}
                         </p>
                         <p className={`text-xs mt-0.5 ${step.done ? 'text-emerald-600' : isNext ? 'text-blue-700' : 'text-gray-400'}`}>
-                          {step.done ? 'Ολοκληρώθηκε ✓' : step.desc}
+                          {step.done ? t('dashHome.done') : step.desc}
                         </p>
                       </div>
 
@@ -430,10 +436,10 @@ export default function DashboardPage() {
               <div className="text-4xl cta-icon">{isWorker ? '🎯' : '🔍'}</div>
               <div className="flex-1">
                 <p className="text-lg font-black">
-                  {isWorker ? 'Βρες Εργασία' : 'Βρες Προσωπικό'}
+                  {isWorker ? t('dashHome.steps.findJob') : t('dashHome.steps.findStaff')}
                 </p>
                 <p className="text-xs text-white/90">
-                  {isWorker ? 'Πάτα εδώ για να δεις θέσεις' : 'Πάτα εδώ για να δεις υποψηφίους'}
+                  {isWorker ? t('dashHome.ctaWorkerHint') : t('dashHome.ctaBusinessHint')}
                 </p>
               </div>
               <span className="text-2xl font-black">→</span>

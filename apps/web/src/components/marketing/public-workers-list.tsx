@@ -6,9 +6,20 @@ import { AuthGatePopup } from './auth-gate-popup';
 import { DetailModal } from './detail-modal';
 import { FilteredListLayout, type FilterGroup, type FilterCategory } from './filtered-list-layout';
 import { BrowseStatBand } from './browse-hero';
-import { WORKER_JOB_ROLE_GROUPS, WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
+import { WORKER_JOB_ROLE_GROUPS } from '@staffnow/config';
 import { buildCityCategories, matchesCitySelection, normText, splitLocation } from '@/lib/location';
 import { API_URL } from '@/lib/config';
+import { useT, useLocale } from '@/i18n/locale-provider';
+import { roleLabelFor } from '@/i18n/labels';
+import { translate, type Locale } from '@/i18n';
+
+/** Ίδιο μικρό fallback-lookup με το public-jobs-list.tsx — δες εκεί γιατί. */
+function roleGroupLabel(locale: Locale, id: string, fallback: string): string {
+  if (locale === 'el') return fallback;
+  const key = `roleGroups.${id}`;
+  const v = translate(locale, key);
+  return v === key ? fallback : v;
+}
 
 type Worker = {
   id: string;
@@ -30,13 +41,19 @@ type Worker = {
   roleKeys: string[];
 };
 
-const AVAILABILITY_LABELS: Record<string, string> = {
-  immediate: 'Άμεσα διαθέσιμος/η',
-  within_7_days: 'Εντός 7 ημερών',
-  seasonal: 'Εποχιακά',
-  part_time: 'Μερική απασχόληση',
-  full_time: 'Πλήρης απασχόληση',
+const AVAILABILITY_KEYS: Record<string, string> = {
+  immediate: 'lists.workers.availImmediate',
+  within_7_days: 'lists.workers.availWithin7',
+  seasonal: 'lists.workers.availSeasonal',
+  part_time: 'lists.workers.availPartTime',
+  full_time: 'lists.workers.availFullTime',
 };
+
+function availabilityLabel(value: string | undefined, t: TFn): string {
+  if (!value) return '';
+  const key = AVAILABILITY_KEYS[value];
+  return key ? t(key) : value;
+}
 
 const PALETTE = [
   'bg-blue-100 text-blue-700',
@@ -65,9 +82,11 @@ function initialsFrom(name: string): string {
   );
 }
 
-function displayName(fullName: string): string {
+type TFn = (key: string, params?: Record<string, string | number>) => string;
+
+function displayName(fullName: string, t: TFn): string {
   const parts = (fullName || '').trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return 'Εργαζόμενος/η';
+  if (parts.length === 0) return t('lists.workers.fallbackRole');
   const first = parts[0] ?? '';
   if (parts.length === 1) return first;
   const last = parts[parts.length - 1] ?? '';
@@ -76,32 +95,34 @@ function displayName(fullName: string): string {
 
 /**
  * Μία και μοναδική πηγή για τα ονόματα των ειδικοτήτων: ο κεντρικός κατάλογος
- * (256 ειδικότητες στα ελληνικά). Παλιότερα υπήρχε εδώ ένα τοπικό λεξικό με 24
- * μόνο εγγραφές, οπότε 57 από τις 70 ειδικότητες που δηλώνουν οι χρήστες
- * εμφανίζονταν αυτούσιες στα αγγλικά (π.χ. «warehouse_worker»).
+ * (256 ειδικότητες, μεταφρασμένες μέσω useLabels/roleLabelFor). Παλιότερα
+ * υπήρχε εδώ ένα τοπικό λεξικό με 24 μόνο εγγραφές, οπότε 57 από τις 70
+ * ειδικότητες που δηλώνουν οι χρήστες εμφανίζονταν αυτούσιες στα αγγλικά.
  */
-function roleLabel(roleKey: string | undefined): string {
-  if (!roleKey) return 'Εργαζόμενος/η';
-  return WORKER_JOB_ROLE_LABELS_EL[roleKey] ?? roleKey;
+function roleLabel(roleKey: string | undefined, locale: Locale, t: TFn): string {
+  if (!roleKey) return t('lists.workers.fallbackRole');
+  return roleLabelFor(locale, roleKey);
 }
 
 const norm = normText;
 
-function expLabel(years: number): string {
-  if (!years || years <= 0) return 'Νέος/α';
-  if (years === 1) return '1 χρόνος εμπειρία';
-  return `${years} χρόνια εμπειρία`;
+function expLabel(years: number, t: TFn): string {
+  if (!years || years <= 0) return t('lists.workers.expNew');
+  if (years === 1) return t('lists.workers.expOneYear');
+  return t('lists.workers.expYears', { n: years });
 }
 
-const EXP_BUCKETS: { value: string; label: string; match: (y: number) => boolean }[] = [
-  { value: 'jr', label: '0-2 έτη', match: (y) => y <= 2 },
-  { value: 'mid', label: '3-5 έτη', match: (y) => y >= 3 && y <= 5 },
-  { value: 'sr', label: '6+ έτη', match: (y) => y >= 6 },
+const EXP_BUCKETS: { value: string; labelKey: string; match: (y: number) => boolean }[] = [
+  { value: 'jr', labelKey: 'lists.workers.expBucketJr', match: (y) => y <= 2 },
+  { value: 'mid', labelKey: 'lists.workers.expBucketMid', match: (y) => y >= 3 && y <= 5 },
+  { value: 'sr', labelKey: 'lists.workers.expBucketSr', match: (y) => y >= 6 },
 ];
 
 const EMPTY_SEL: Record<string, string[]> = { city: [], role: [], exp: [], avail: [] };
 
 export function PublicWorkersList() {
+  const t = useT();
+  const { locale } = useLocale();
   const [items, setItems] = useState<Worker[]>([]);
   const [selected, setSelected] = useState<Worker | null>(null);
   const [gateOpen, setGateOpen] = useState(false);
@@ -123,12 +144,12 @@ export function PublicWorkersList() {
         if (raw.length === 0) { setItems([]); return; } // κανένα fake — μένει άδειο
         setItems(
           raw.map((w: any, i: number) => {
-            const name = displayName(w.full_name || 'Εργαζόμενος');
+            const name = displayName(w.full_name || t('lists.workers.fallbackRole'), t);
             const roleKeys: string[] = Array.isArray(w.roles) ? w.roles.filter(Boolean) : [];
             return {
               id: String(w.user_id ?? `rw_${i}`),
               name,
-              role: roleLabel(roleKeys[0]),
+              role: roleLabel(roleKeys[0], locale, t),
               // Όποιος δεν έχει δηλώσει περιοχή μένει κενός. Παλιότερα έμπαινε
               // «Ελλάδα», που εμφανιζόταν στα φίλτρα σαν να ήταν πόλη και
               // φούσκωνε τον μετρητή «Περιοχές».
@@ -142,7 +163,7 @@ export function PublicWorkersList() {
               initials: initialsFrom(name),
               availability: w.availability || undefined,
               roleKeys,
-              roles: roleKeys.length ? roleKeys.map((rk) => roleLabel(rk)) : undefined,
+              roles: roleKeys.length ? roleKeys.map((rk) => roleLabel(rk, locale, t)) : undefined,
             };
           }),
         );
@@ -157,7 +178,8 @@ export function PublicWorkersList() {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locale]);
 
   // ── Filter groups ──
   // Πόλη → περιοχές, με κανονικοποίηση: «Αθήνα», «Αθήνα », «Αθηνα» και «Athens»
@@ -176,51 +198,51 @@ export function PublicWorkersList() {
       const roleSet = new Set(g.roles);
       return {
         id: g.id,
-        label: g.label,
+        label: roleGroupLabel(locale, g.id, g.label),
         count: items.filter((w) => w.roleKeys.some((k) => roleSet.has(k))).length,
         options: g.roles.map((role) => ({
           value: role,
-          label: roleLabel(role),
+          label: roleLabel(role, locale, t),
           count: counts.get(role) || 0,
         })),
       };
     });
-  }, [items]);
+  }, [items, locale, t]);
 
   const expOptions = useMemo(
     () =>
       EXP_BUCKETS.map((b) => ({
         value: b.value,
-        label: b.label,
+        label: t(b.labelKey),
         count: items.filter((w) => b.match(w.experienceYears)).length,
       })),
-    [items],
+    [items, t],
   );
 
   const availOptions = useMemo(() => {
     const counts = new Map<string, number>();
     for (const w of items) if (w.availability) counts.set(w.availability, (counts.get(w.availability) || 0) + 1);
     return Array.from(counts.entries())
-      .map(([v, c]) => ({ value: v, label: AVAILABILITY_LABELS[v] ?? v, count: c }))
+      .map(([v, c]) => ({ value: v, label: availabilityLabel(v, t), count: c }))
       .sort((a, b) => b.count - a.count);
-  }, [items]);
+  }, [items, t]);
 
   const groups: FilterGroup[] = useMemo(
     () =>
       [
-        { key: 'role', title: 'Ειδικότητες', options: [], categorized: roleCategories },
+        { key: 'role', title: t('lists.workers.specialties'), options: [], categorized: roleCategories },
         {
           key: 'city',
-          title: 'Πόλεις',
+          title: t('lists.cities'),
           options: [],
           categorized: cityCategories,
-          categorizedSearchPlaceholder: 'Αναζήτηση πόλης…',
-          categorizedSelectAllLabel: 'Όλη η πόλη',
+          categorizedSearchPlaceholder: t('lists.citySearchPlaceholder'),
+          categorizedSelectAllLabel: t('lists.wholeCity'),
         },
-        { key: 'exp', title: 'Εμπειρία', options: expOptions },
-        { key: 'avail', title: 'Διαθεσιμότητα', options: availOptions },
+        { key: 'exp', title: t('lists.workers.experienceTitle'), options: expOptions },
+        { key: 'avail', title: t('lists.workers.availabilityTitle'), options: availOptions },
       ].filter((g) => g.options.length > 0 || (g.categorized?.length ?? 0) > 0),
-    [cityCategories, roleCategories, expOptions, availOptions],
+    [cityCategories, roleCategories, expOptions, availOptions, t],
   );
 
   const filtered = useMemo(() => {
@@ -254,11 +276,11 @@ export function PublicWorkersList() {
     const cities = new Set(
       items.map((w) => norm(splitLocation(w.locationRaw).city)).filter(Boolean),
     ).size;
-    if (now > 0) out.push({ label: 'Άμεσα διαθέσιμοι', value: String(now), color: 'text-emerald-600' });
-    if (ver > 0) out.push({ label: 'Επαληθευμένοι', value: String(ver), color: 'text-blue-600' });
-    if (cities > 0) out.push({ label: 'Περιοχές', value: String(cities), color: 'text-purple-600' });
+    if (now > 0) out.push({ label: t('lists.workers.availableNowStat'), value: String(now), color: 'text-emerald-600' });
+    if (ver > 0) out.push({ label: t('lists.workers.verifiedStat'), value: String(ver), color: 'text-blue-600' });
+    if (cities > 0) out.push({ label: t('lists.workers.areasStat'), value: String(cities), color: 'text-purple-600' });
     return out;
-  }, [items]);
+  }, [items, t]);
 
   // Στοίβα avatar: πραγματικές φωτογραφίες από τα πρώτα αποτελέσματα.
   const stack = useMemo(() => filtered.slice(0, 5), [filtered]);
@@ -294,14 +316,14 @@ export function PublicWorkersList() {
         accent="blue"
         search={query}
         onSearch={setQuery}
-        searchPlaceholder="Αναζήτηση ρόλου ή περιοχής…"
+        searchPlaceholder={t('lists.workers.searchPlaceholder')}
         groups={groups}
         selected={sel}
         onToggle={toggle}
         onToggleMany={toggleMany}
         onClear={clearFilters}
         resultCount={filtered.length}
-        resultNoun={['διαθέσιμος εργαζόμενος', 'διαθέσιμοι εργαζόμενοι']}
+        resultNoun={[t('lists.workers.resultOne'), t('lists.workers.resultMany')]}
       >
         {/*
           Ίδια δομή με το δείγμα (χρώμα, τίτλος, υπότιτλος, στοίβα avatar) αλλά
@@ -311,13 +333,13 @@ export function PublicWorkersList() {
         {stack.length > 0 && (
           <div className="mb-4 overflow-hidden rounded-3xl bg-gradient-to-br from-purple-600 via-pink-600 to-red-600 p-5 text-white shadow-lg">
             <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white/90">
-              ⚡ Διαθέσιμοι τώρα
+              ⚡ {t('lists.workers.availableNowBadge')}
             </p>
-            <p className="mt-1 text-lg font-black leading-tight">Εργαζόμενοι που ψάχνουν δουλειά</p>
+            <p className="mt-1 text-lg font-black leading-tight">{t('lists.workers.tagline')}</p>
             <p className="mt-0.5 text-sm text-white/80">
               {filtered.length === 1
-                ? '1 ενεργό προφίλ στο StaffNow'
-                : `${filtered.length} ενεργά προφίλ στο StaffNow`}
+                ? t('lists.workers.activeOne')
+                : t('lists.workers.activeMany', { n: filtered.length })}
             </p>
             <div className="mt-3 flex -space-x-3">
               {stack.map((w) =>
@@ -352,13 +374,13 @@ export function PublicWorkersList() {
 
         {filtered.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center">
-            <p className="text-gray-600 font-medium">Κανένας εργαζόμενος με αυτά τα φίλτρα.</p>
+            <p className="text-gray-600 font-medium">{t('lists.workers.noResults')}</p>
             <button
               type="button"
               onClick={clearFilters}
               className="mt-3 inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
             >
-              Καθαρισμός φίλτρων
+              {t('lists.clearFilters')}
             </button>
           </div>
         ) : (
@@ -369,7 +391,7 @@ export function PublicWorkersList() {
                   type="button"
                   onClick={() => setSelected(w)}
                   className="w-full flex items-center gap-4 rounded-2xl bg-white p-4 sm:p-5 shadow-sm border border-gray-100 hover:border-blue-300 hover:shadow-md transition text-left"
-                  aria-label={`Δες προφίλ ${w.name}`}
+                  aria-label={t('lists.workers.ariaSeeProfile', { name: w.name })}
                 >
                   {w.photo ? (
                     <img
@@ -391,8 +413,8 @@ export function PublicWorkersList() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-bold text-gray-900 truncate">{w.name}</p>
                       {w.verified && (
-                        <span className="text-blue-600 text-xs font-semibold" title="Επαληθευμένος">
-                          ✓ Επαληθευμένος
+                        <span className="text-blue-600 text-xs font-semibold" title={t('lists.workers.verified')}>
+                          ✓ {t('lists.workers.verified')}
                         </span>
                       )}
                     </div>
@@ -400,12 +422,12 @@ export function PublicWorkersList() {
                       <span className="font-semibold">{w.role}</span>
                       {w.city && <> · {w.city}</>}
                     </p>
-                    <p className="text-xs text-gray-500 mt-0.5">{expLabel(w.experienceYears)}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{expLabel(w.experienceYears, t)}</p>
                   </div>
 
                   <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                     <span className="hidden sm:inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white">
-                      Δες προφίλ →
+                      {t('lists.workers.seeProfile')}
                     </span>
                     <span className="sm:hidden text-gray-400 text-2xl leading-none">›</span>
                   </div>
@@ -423,7 +445,7 @@ export function PublicWorkersList() {
             <button
               type="button"
               onClick={() => setSelected(null)}
-              aria-label="Κλείσιμο"
+              aria-label={t('lists.close')}
               className="float-right -mt-1 text-gray-400 hover:text-gray-700 text-2xl leading-none"
             >
               ×
@@ -441,7 +463,7 @@ export function PublicWorkersList() {
                 <h3 id="worker-detail-name" className="text-xl font-bold text-gray-900 flex items-center gap-2 flex-wrap">
                   {selected.name}
                   {selected.verified && (
-                    <span className="text-blue-600 text-xs font-semibold">✓ Επαληθευμένος</span>
+                    <span className="text-blue-600 text-xs font-semibold">✓ {t('lists.workers.verified')}</span>
                   )}
                 </h3>
                 <p className="text-sm text-gray-600 mt-0.5">
@@ -453,34 +475,34 @@ export function PublicWorkersList() {
 
             <dl className="mt-6 grid grid-cols-2 gap-3">
               <div className="rounded-xl bg-gray-50 p-3">
-                <dt className="text-xs text-gray-500">Εμπειρία</dt>
-                <dd className="text-sm font-semibold text-gray-900">{expLabel(selected.experienceYears)}</dd>
+                <dt className="text-xs text-gray-500">{t('lists.workers.experienceTitle')}</dt>
+                <dd className="text-sm font-semibold text-gray-900">{expLabel(selected.experienceYears, t)}</dd>
               </div>
               <div className="rounded-xl bg-gray-50 p-3">
-                <dt className="text-xs text-gray-500">Περιοχή</dt>
+                <dt className="text-xs text-gray-500">{t('lists.workers.areaLabel')}</dt>
                 <dd className="text-sm font-semibold text-gray-900">
-                  {selected.city || <span className="text-gray-400">Δεν έχει δηλωθεί</span>}
+                  {selected.city || <span className="text-gray-400">{t('lists.workers.notDeclared')}</span>}
                 </dd>
               </div>
               {selected.availability && (
                 <div className="rounded-xl bg-gray-50 p-3">
-                  <dt className="text-xs text-gray-500">Διαθεσιμότητα</dt>
+                  <dt className="text-xs text-gray-500">{t('lists.workers.availabilityTitle')}</dt>
                   <dd className="text-sm font-semibold text-gray-900">
-                    {AVAILABILITY_LABELS[selected.availability] ?? selected.availability}
+                    {availabilityLabel(selected.availability, t)}
                   </dd>
                 </div>
               )}
               <div className="rounded-xl bg-gray-50 p-3">
-                <dt className="text-xs text-gray-500">Κατάσταση</dt>
+                <dt className="text-xs text-gray-500">{t('lists.workers.statusLabel')}</dt>
                 <dd className="text-sm font-semibold text-gray-900">
-                  {selected.verified ? 'Επαληθευμένος' : 'Ενεργός'}
+                  {selected.verified ? t('lists.workers.verified') : t('lists.workers.active')}
                 </dd>
               </div>
             </dl>
 
             {selected.roles && selected.roles.length > 0 && (
               <div className="mt-4">
-                <p className="text-xs text-gray-500 mb-1.5">Ειδικότητες</p>
+                <p className="text-xs text-gray-500 mb-1.5">{t('lists.workers.specialties')}</p>
                 <div className="flex flex-wrap gap-2">
                   {selected.roles.map((r) => (
                     <span key={r} className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">{r}</span>
@@ -491,7 +513,7 @@ export function PublicWorkersList() {
 
             <div className="mt-6 rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-center">
               <p className="text-sm text-gray-600">
-                🔒 Στοιχεία επικοινωνίας &amp; πλήρες προφίλ διαθέσιμα μετά την εγγραφή
+                🔒 {t('lists.workers.contactLocked')}
               </p>
             </div>
 
@@ -503,7 +525,7 @@ export function PublicWorkersList() {
               }}
               className="mt-4 w-full rounded-xl bg-blue-600 hover:bg-blue-700 px-5 py-3 text-sm font-semibold text-white shadow transition"
             >
-              Σύνδεση / Εγγραφή για επικοινωνία
+              {t('lists.workers.loginToContact')}
             </button>
 
             {!String(selected.id).startsWith('sample-') && (
@@ -511,7 +533,7 @@ export function PublicWorkersList() {
                 href={`/workers/${selected.id}`}
                 className="mt-2 block text-center text-xs text-gray-500 hover:text-blue-600"
               >
-                Άνοιξε ως ξεχωριστή σελίδα ↗
+                {t('lists.jobs.openSeparatePage')}
               </Link>
             )}
           </div>

@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { usePoll } from '@/lib/use-poll';
+import { useT, useLocale } from '@/i18n/locale-provider';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://staffnow-api-production.siteinside53.workers.dev';
 
@@ -18,6 +19,8 @@ interface Props {
  * Δείχνει τουλάχιστον 1 (ο τρέχων επισκέπτης).
  */
 export function LiveBadge({ className = '' }: Props) {
+  const t = useT();
+  const { locale } = useLocale();
   const [count, setCount] = useState<number | null>(null);
   const [flash, setFlash] = useState(false);
   const prev = useRef<number | null>(null);
@@ -73,9 +76,9 @@ export function LiveBadge({ className = '' }: Props) {
             flash ? 'text-emerald-400' : ''
           }`}
         >
-          {count.toLocaleString('el-GR')}
+          {count.toLocaleString(locale === 'en' ? 'en-GB' : 'el-GR')}
         </span>{' '}
-        {count === 1 ? 'χρήστης online' : 'χρήστες online'}
+        {count === 1 ? t('liveBadge.userOne') : t('liveBadge.userMany')}
       </span>
     </div>
   );

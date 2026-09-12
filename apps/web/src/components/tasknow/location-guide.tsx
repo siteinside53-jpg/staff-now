@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useT } from '@/i18n/locale-provider';
+
+type TFn = ReturnType<typeof useT>;
 
 /**
  * Οδηγός για την άδεια τοποθεσίας.
@@ -34,39 +37,34 @@ function detect(): 'ios' | 'android' | 'mac-safari' | 'chrome' | 'other' {
   return 'other';
 }
 
-function stepsFor(reason: Reason): { title: string; steps: string[]; note?: string } {
+function stepsFor(reason: Reason, t: TFn): { title: string; steps: string[]; note?: string } {
   const dev = detect();
+  const noReask = t('tasknow.guide.noReask');
 
   if (reason === 'timeout') {
     return {
-      title: 'Άργησε να απαντήσει η συσκευή',
-      steps: [
-        'Δοκίμασε ξανά — συνήθως πετυχαίνει με τη δεύτερη.',
-        'Αν είσαι σε κλειστό χώρο, βγες κοντά σε παράθυρο ή άναψε το WiFi.',
-      ],
-      note: 'Αν βιάζεσαι, διάλεξε γειτονιά από τη λίστα — δουλεύει το ίδιο καλά.',
+      title: t('tasknow.guide.timeoutTitle'),
+      steps: [t('tasknow.guide.timeoutStep1'), t('tasknow.guide.timeoutStep2')],
+      note: t('tasknow.guide.timeoutNote'),
     };
   }
 
   if (reason === 'unavailable') {
     if (dev === 'mac-safari' || dev === 'chrome' || dev === 'other') {
       return {
-        title: 'Η τοποθεσία είναι κλειστή στον υπολογιστή',
+        title: t('tasknow.guide.pcTitle'),
         steps: [
-          'Άνοιξε τις Ρυθμίσεις Συστήματος του Mac.',
-          'Πήγαινε «Απόρρητο και ασφάλεια» → «Υπηρεσίες τοποθεσίας».',
-          'Ενεργοποίησέ τες, και βάλε ✓ στον browser που χρησιμοποιείς.',
-          'Γύρνα εδώ και πάτα ξανά «Κοντά μου».',
+          t('tasknow.guide.pcStep1'),
+          t('tasknow.guide.pcStep2'),
+          t('tasknow.guide.pcStep3'),
+          t('tasknow.guide.pcStep4'),
         ],
-        note: 'Είναι ρύθμιση του υπολογιστή, όχι του site — γι\u2019 αυτό δεν βγαίνει ερώτηση.',
+        note: t('tasknow.guide.pcNote'),
       };
     }
     return {
-      title: 'Η συσκευή δεν βρήκε πού είσαι',
-      steps: [
-        'Έλεγξε ότι η τοποθεσία (GPS) είναι ανοιχτή στη συσκευή.',
-        'Δοκίμασε ξανά σε λίγο ή κοντά σε παράθυρο.',
-      ],
+      title: t('tasknow.guide.deviceTitle'),
+      steps: [t('tasknow.guide.deviceStep1'), t('tasknow.guide.deviceStep2')],
     };
   }
 
@@ -74,45 +72,37 @@ function stepsFor(reason: Reason): { title: string; steps: string[]; note?: stri
   switch (dev) {
     case 'ios':
       return {
-        title: 'Το iPhone δεν μας δίνει την τοποθεσία',
+        title: t('tasknow.guide.iosTitle'),
         steps: [
-          'Ρυθμίσεις → Απόρρητο και ασφάλεια → Υπηρεσίες τοποθεσίας → ενεργές.',
-          'Στην ίδια λίστα βρες το Safari → «Κατά τη χρήση της εφαρμογής».',
-          'Ρυθμίσεις → Apps → Safari → Τοποθεσία → «Ερώτηση» ή «Να επιτρέπεται».',
-          'Γύρνα εδώ, ανανέωσε τη σελίδα και πάτα ξανά «Κοντά μου».',
+          t('tasknow.guide.iosStep1'),
+          t('tasknow.guide.iosStep2'),
+          t('tasknow.guide.iosStep3'),
+          t('tasknow.guide.iosStep4'),
         ],
-        note: 'Ο browser δεν ξαναρωτάει από μόνος του αφού έχεις πει «όχι» μία φορά.',
+        note: noReask,
       };
     case 'android':
       return {
-        title: 'Το κινητό δεν μας δίνει την τοποθεσία',
-        steps: [
-          'Πάτα το λουκέτο δίπλα στη διεύθυνση, πάνω στη σελίδα.',
-          'Άνοιξε «Άδειες» ή «Ρυθμίσεις ιστότοπου» → Τοποθεσία.',
-          'Βάλε «Να επιτρέπεται» και ανανέωσε τη σελίδα.',
-        ],
-        note: 'Ο browser δεν ξαναρωτάει από μόνος του αφού έχεις πει «όχι» μία φορά.',
+        title: t('tasknow.guide.androidTitle'),
+        steps: [t('tasknow.guide.androidStep1'), t('tasknow.guide.androidStep2'), t('tasknow.guide.androidStep3')],
+        note: noReask,
       };
     case 'chrome':
       return {
-        title: 'Ο Chrome δεν μας δίνει την τοποθεσία',
-        steps: [
-          'Πάτα το εικονίδιο αριστερά από τη διεύθυνση (λουκέτο ή ρυθμιστικά).',
-          'Βρες «Τοποθεσία» και βάλε «Να επιτρέπεται».',
-          'Ανανέωσε τη σελίδα και πάτα ξανά «Κοντά μου».',
-        ],
-        note: 'Ο browser δεν ξαναρωτάει από μόνος του αφού έχεις πει «όχι» μία φορά.',
+        title: t('tasknow.guide.chromeTitle'),
+        steps: [t('tasknow.guide.chromeStep1'), t('tasknow.guide.chromeStep2'), t('tasknow.guide.chromeStep3')],
+        note: noReask,
       };
     default:
       return {
-        title: 'Το Safari δεν μας δίνει την τοποθεσία',
+        title: t('tasknow.guide.safariTitle'),
         steps: [
-          'Safari → Ρυθμίσεις → Ιστότοποι → Τοποθεσία.',
-          'Βρες το staffnow.gr και βάλε «Να επιτρέπεται».',
-          'Αν δεν εμφανίζεται, έλεγξε και: Ρυθμίσεις Συστήματος → Απόρρητο και ασφάλεια → Υπηρεσίες τοποθεσίας → Safari.',
-          'Ανανέωσε τη σελίδα και πάτα ξανά «Κοντά μου».',
+          t('tasknow.guide.safariStep1'),
+          t('tasknow.guide.safariStep2'),
+          t('tasknow.guide.safariStep3'),
+          t('tasknow.guide.safariStep4'),
         ],
-        note: 'Ο browser δεν ξαναρωτάει από μόνος του αφού έχεις πει «όχι» μία φορά.',
+        note: noReask,
       };
   }
 }
@@ -129,7 +119,8 @@ export function LocationGuide({
   /** «Γράψε τη διεύθυνσή σου» — η διέξοδος που δεν θέλει καμία άδεια. */
   onWriteAddress?: () => void;
 }) {
-  const { title, steps, note } = stepsFor(reason);
+  const t = useT();
+  const { title, steps, note } = stepsFor(reason, t);
   const [checking, setChecking] = useState(false);
 
   // Κλείνει με Esc, όπως κάθε παράθυρο του site.
@@ -160,8 +151,7 @@ export function LocationGuide({
           <div className="min-w-0">
             <h3 className="text-base font-bold leading-tight text-gray-900">{title}</h3>
             <p className="mt-1 text-sm leading-relaxed text-gray-600">
-              Χρειαζόμαστε μόνο να δείξουμε τι υπάρχει κοντά σου. Δεν την αποθηκεύουμε
-              πουθενά.
+              {t('tasknow.guide.intro')}
             </p>
           </div>
         </div>
@@ -196,14 +186,14 @@ export function LocationGuide({
             disabled={checking}
             className="flex-1 rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
           >
-            {checking ? 'Δοκιμάζω…' : 'Το έφτιαξα — δοκίμασε ξανά'}
+            {checking ? t('tasknow.guide.trying') : t('tasknow.guide.fixed')}
           </button>
           <button
             type="button"
             onClick={onClose}
             className="rounded-xl bg-gray-100 px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-200"
           >
-            Θα διαλέξω γειτονιά
+            {t('tasknow.guide.pickArea')}
           </button>
         </div>
 
@@ -222,7 +212,7 @@ export function LocationGuide({
             onClick={onWriteAddress}
             className="mt-3 w-full rounded-xl border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
           >
-            ✍️ Ή γράψε τη διεύθυνσή σου — δουλεύει πάντα
+            {t('tasknow.guide.writeAddress')}
           </button>
         )}
       </div>

@@ -22,6 +22,7 @@ import {
 import { PermissionGuide } from './permission-guide';
 import { Ringtone, primeRingtone } from '@/lib/ringtone';
 import { CallWindow } from './call-window';
+import { useT } from '@/i18n/locale-provider';
 
 /**
  * Το «κέντρο κλήσεων» της εφαρμογής.
@@ -55,21 +56,22 @@ export function useCallCenter() {
 }
 
 /** Τι γράφουμε στη συνομιλία αφού τελειώσει η κλήση. */
-function endMessage(reason: CallEndReason, wasConnected: boolean): string | null {
-  if (wasConnected) return '📞 Η βιντεοκλήση ολοκληρώθηκε';
+function endMessage(reason: CallEndReason, wasConnected: boolean, t: (k: string) => string): string | null {
+  if (wasConnected) return t('video.ended.completed');
   switch (reason) {
     case 'declined':
-      return '📞 Η βιντεοκλήση απορρίφθηκε';
+      return t('video.ended.declined');
     case 'missed':
-      return '📞 Αναπάντητη βιντεοκλήση';
+      return t('video.ended.missed');
     case 'hangup':
-      return '📞 Αναπάντητη βιντεοκλήση';
+      return t('video.ended.missed');
     default:
       return null; // τεχνική αποτυχία — δεν τη γράφουμε στη συνομιλία
   }
 }
 
 export function CallCenter({ children, enabled }: { children: React.ReactNode; enabled: boolean }) {
+  const t = useT();
   const [incoming, setIncoming] = useState<IncomingCall | null>(null);
   const [status, setStatus] = useState<CallStatus>('idle');
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -126,16 +128,16 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
       // οδηγία που μπορεί πραγματικά να ακολουθήσει ο χρήστης. Ένα γενικό
       // «χρειάζεται άδεια» εδώ θα την έσβηνε.
       if (reason === 'failed') {
-        setNotice('Η σύνδεση δεν ήταν εφικτή. Δοκίμασε ξανά.');
+        setNotice(t('video.connectionFailed'));
       }
 
-      const text = endMessage(reason, wasConnected);
+      const text = endMessage(reason, wasConnected, t);
       if (convId && text) {
         api.conversations.sendMessage(convId, { content: text }).catch(() => {});
         window.dispatchEvent(new Event('staffnow:badges-refresh'));
       }
     },
-    [stopRinging]
+    [stopRinging, t]
   );
 
   const buildEngine = useCallback(() => {
@@ -147,10 +149,11 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
       onLocalStream: setLocalStream,
       onRemoteStream: (s) => setRemoteStream(s),
       onEnded: (reason) => teardown(reason),
+      t,
     });
     engineRef.current = engine;
     return engine;
-  }, [teardown]);
+  }, [teardown, t]);
 
   // ── Ο καλών ────────────────────────────────────────────────────────────
   const startCall = useCallback(
@@ -257,7 +260,7 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
           : {
               id: call.id,
               conversationId: call.conversationId,
-              callerName: call.callerName || 'Κάποιος',
+              callerName: call.callerName || t('video.someone'),
               callerAvatar: call.callerAvatar || null,
             }
       );
@@ -265,7 +268,7 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
       // Χαμένο ρώτημα — ξαναρωτάμε στον επόμενο κύκλο. Δεν σβήνουμε την οθόνη
       // εδώ: μια στιγμιαία διακοπή δικτύου δεν σημαίνει ότι έκλεισε η κλήση.
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!enabled || inCall) return;
@@ -351,7 +354,7 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
             className="ring-4 ring-white/30"
           />
           <div className="text-center">
-            <p className="text-sm uppercase tracking-widest text-white/70">Εισερχόμενη κλήση</p>
+            <p className="text-sm uppercase tracking-widest text-white/70">{t('video.incoming')}</p>
             <p className="mt-1 text-3xl font-bold">{incoming.callerName}</p>
           </div>
 
@@ -364,7 +367,7 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
               <span className="flex h-16 w-16 rotate-[135deg] items-center justify-center rounded-full bg-red-600 text-2xl shadow-lg transition-colors hover:bg-red-700">
                 📞
               </span>
-              <span className="text-sm">Απόρριψη</span>
+              <span className="text-sm">{t('video.decline')}</span>
             </button>
 
             <button
@@ -375,7 +378,7 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
               <span className="flex h-16 w-16 animate-pulse items-center justify-center rounded-full bg-emerald-500 text-2xl shadow-lg transition-colors hover:bg-emerald-600">
                 📞
               </span>
-              <span className="text-sm">Απάντηση</span>
+              <span className="text-sm">{t('video.answer')}</span>
             </button>
           </div>
         </div>
@@ -410,7 +413,7 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
             // Η άδεια δόθηκε: συνεχίζουμε την κλήση που ήθελε εξαρχής, αντί να
             // τον αφήσουμε να ψάχνει ξανά το κουμπί.
             if (intent) startCall(intent.conversationId, intent.peerName, intent.peerAvatar);
-            else setNotice('Η κάμερα ξεκλείδωσε. Τώρα μπορείς να καλέσεις.');
+            else setNotice(t('video.cameraUnlocked'));
           }}
         />
       )}
@@ -427,7 +430,7 @@ export function CallCenter({ children, enabled }: { children: React.ReactNode; e
               onClick={() => setNotice(null)}
               className="font-bold text-blue-300"
             >
-              Εντάξει
+              {t('video.ok')}
             </button>
           </div>
         </div>

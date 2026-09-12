@@ -14,6 +14,7 @@ import { WorkerVerification } from '@/components/dashboard/worker-verification';
 import { PhoneVerification } from '@/components/dashboard/phone-verification';
 import { EmailVerification } from '@/components/dashboard/email-verification';
 import { API_URL } from '@/lib/config';
+import { useT, useLocale } from '@/i18n/locale-provider';
 
 type VerificationRequest = {
   id: string;
@@ -24,10 +25,13 @@ type VerificationRequest = {
   created_at: string;
 };
 
-const elDate = (s?: string | null) =>
-  s ? new Date(s.replace(' ', 'T') + (s.endsWith('Z') ? '' : 'Z')).toLocaleDateString('el-GR') : '';
+const fmtDate = (s: string | null | undefined, locale: 'el' | 'en') =>
+  s ? new Date(s.replace(' ', 'T') + (s.endsWith('Z') ? '' : 'Z')).toLocaleDateString(locale === 'en' ? 'en-GB' : 'el-GR') : '';
 
 export default function VerificationPage() {
+  const t = useT();
+  const { locale } = useLocale();
+  const elDate = (s?: string | null) => fmtDate(s, locale);
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -78,7 +82,7 @@ export default function VerificationPage() {
 
   const handleUpload = async (file: File) => {
     if (file.size > 10 * 1024 * 1024) {
-      toast.error('Το αρχείο είναι πάνω από 10MB.');
+      toast.error(t('verificationPage.fileTooBig'));
       return;
     }
     setUploading(true);
@@ -96,12 +100,12 @@ export default function VerificationPage() {
       if (data?.success && data?.data?.url) {
         setDocUrl(data.data.url);
         setDocName(file.name);
-        toast.success('Το δικαιολογητικό ανέβηκε.');
+        toast.success(t('verificationPage.docUploaded'));
       } else {
-        toast.error(data?.error?.message || 'Αποτυχία μεταφόρτωσης.');
+        toast.error(data?.error?.message || t('verificationPage.uploadFailed'));
       }
     } catch {
-      toast.error('Αποτυχία μεταφόρτωσης.');
+      toast.error(t('verificationPage.uploadFailed'));
     } finally {
       setUploading(false);
     }
@@ -109,8 +113,8 @@ export default function VerificationPage() {
 
   const handleSubmit = async () => {
     const cleanVat = vat.replace(/\s/g, '');
-    if (!/^\d{9}$/.test(cleanVat)) return toast.error('Το ΑΦΜ πρέπει να είναι 9 ψηφία.');
-    if (!docUrl) return toast.error('Ανέβασε ένα δικαιολογητικό (TaxisNet ή ΓΕΜΗ).');
+    if (!/^\d{9}$/.test(cleanVat)) return toast.error(t('verificationPage.vatDigits'));
+    if (!docUrl) return toast.error(t('verificationPage.uploadDocFirst'));
 
     setSubmitting(true);
     try {
@@ -120,10 +124,10 @@ export default function VerificationPage() {
         document_url: docUrl,
         notes: notes.trim() || undefined,
       });
-      toast.success('Το αίτημα στάλθηκε για έλεγχο.');
+      toast.success(t('verificationPage.submitted'));
       await load();
     } catch (err: any) {
-      toast.error(err?.message || 'Αποτυχία υποβολής.');
+      toast.error(err?.message || t('verificationPage.submitFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -143,16 +147,16 @@ export default function VerificationPage() {
   if (verified)
     return (
       <div className="mx-auto max-w-2xl">
-        <h1 className="mb-1 text-2xl font-bold text-gray-900">✓ Επαλήθευση</h1>
+        <h1 className="mb-1 text-2xl font-bold text-gray-900">{t('verificationPage.verifiedTitle')}</h1>
         <Card className="mt-4 border-emerald-200 bg-emerald-50">
           <CardContent className="p-6 text-center">
             <div className="text-4xl">✅</div>
-            <p className="mt-2 text-lg font-bold text-emerald-900">Η επιχείρησή σου είναι επαληθευμένη</p>
+            <p className="mt-2 text-lg font-bold text-emerald-900">{t('verificationPage.businessVerified')}</p>
             <p className="mt-1 text-sm text-emerald-800">
-              Το πιστοποιημένο σήμα εμφανίζεται στο προφίλ και στις αγγελίες σου.
+              {t('verificationPage.badgeShown')}
             </p>
             <Link href="/dashboard/profile">
-              <Button variant="outline" className="mt-4">Δες το προφίλ σου</Button>
+              <Button variant="outline" className="mt-4">{t('verificationPage.seeProfile')}</Button>
             </Link>
           </CardContent>
         </Card>
@@ -176,16 +180,16 @@ export default function VerificationPage() {
   if (request?.status === 'pending')
     return (
       <div className="mx-auto max-w-2xl">
-        <h1 className="mb-1 text-2xl font-bold text-gray-900">Επαλήθευση επιχείρησης</h1>
+        <h1 className="mb-1 text-2xl font-bold text-gray-900">{t('verificationPage.title')}</h1>
         <Card className="mt-4 border-amber-200 bg-amber-50">
           <CardContent className="p-6 text-center">
             <div className="text-4xl">📨</div>
-            <p className="mt-2 text-lg font-bold text-amber-900">Το αίτημά σου είναι υπό έλεγχο</p>
+            <p className="mt-2 text-lg font-bold text-amber-900">{t('verificationPage.underReview')}</p>
             <p className="mt-1 text-sm text-amber-800">
-              Υποβλήθηκε στις {elDate(request.created_at)}. Θα δεις το σήμα ✓ στο προφίλ σου μόλις εγκριθεί.
+              {t('verificationPage.submittedOn', { date: elDate(request.created_at) })}
             </p>
             {request.vat_number && (
-              <p className="mt-3 text-xs text-amber-700">ΑΦΜ που δηλώθηκε: {request.vat_number}</p>
+              <p className="mt-3 text-xs text-amber-700">{t('verificationPage.vatDeclared', { vat: request.vat_number })}</p>
             )}
           </CardContent>
         </Card>
@@ -206,30 +210,30 @@ export default function VerificationPage() {
   // ── Φόρμα υποβολής (και επανυποβολή μετά από απόρριψη) ──────────────
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="mb-1 text-2xl font-bold text-gray-900">Επαλήθευση επιχείρησης</h1>
+      <h1 className="mb-1 text-2xl font-bold text-gray-900">{t('verificationPage.title')}</h1>
       <p className="mb-4 text-sm text-gray-600">
-        Πάρε το πιστοποιημένο σήμα ✓ ώστε οι εργαζόμενοι να σε εμπιστεύονται περισσότερο.
+        {t('verificationPage.intro')}
       </p>
 
       {request?.status === 'rejected' && (
         <Card className="mb-4 border-red-200 bg-red-50">
           <CardContent className="p-4">
-            <p className="text-sm font-bold text-red-900">Το προηγούμενο αίτημα απορρίφθηκε</p>
+            <p className="text-sm font-bold text-red-900">{t('verificationPage.rejectedTitle')}</p>
             {request.rejection_reason && (
               <p className="mt-1 text-sm text-red-800">{request.rejection_reason}</p>
             )}
-            <p className="mt-1 text-xs text-red-700">Μπορείς να υποβάλεις ξανά με σωστά στοιχεία.</p>
+            <p className="mt-1 text-xs text-red-700">{t('verificationPage.resubmit')}</p>
           </CardContent>
         </Card>
       )}
 
       <Card className="mb-4 border-blue-200 bg-blue-50">
         <CardContent className="p-4">
-          <p className="text-sm font-bold text-blue-900">Γιατί να το κάνω;</p>
+          <p className="text-sm font-bold text-blue-900">{t('verificationPage.whyTitle')}</p>
           <ul className="mt-2 space-y-1 text-sm text-blue-800">
-            <li>• Πιστοποιημένο σήμα ✓ στο προφίλ και στις αγγελίες σου</li>
-            <li>• Προτεραιότητα στην Ανακάλυψη των εργαζομένων</li>
-            <li>• Περισσότερες απαντήσεις από υποψήφιους</li>
+            <li>{t('verificationPage.why1')}</li>
+            <li>{t('verificationPage.why2')}</li>
+            <li>{t('verificationPage.why3')}</li>
           </ul>
         </CardContent>
       </Card>
@@ -237,7 +241,7 @@ export default function VerificationPage() {
       <Card>
         <CardContent className="space-y-4 p-5">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">ΑΦΜ *</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t('verificationPage.vat')}</label>
             <Input
               inputMode="numeric"
               maxLength={9}
@@ -245,12 +249,12 @@ export default function VerificationPage() {
               value={vat}
               onChange={(e) => setVat(e.target.value.replace(/\D/g, ''))}
             />
-            <p className="mt-1 text-xs text-gray-500">9 ψηφία, χωρίς κενά.</p>
+            <p className="mt-1 text-xs text-gray-500">{t('verificationPage.vatHint')}</p>
           </div>
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              Αριθμός ΓΕΜΗ <span className="font-normal text-gray-400">(προαιρετικά)</span>
+              {t('verificationPage.registry')} <span className="font-normal text-gray-400">{t('verificationPage.optional')}</span>
             </label>
             <Input
               inputMode="numeric"
@@ -261,7 +265,7 @@ export default function VerificationPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Δικαιολογητικό *</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t('verificationPage.document')}</label>
             <input
               type="file"
               accept="image/*,application/pdf"
@@ -273,21 +277,21 @@ export default function VerificationPage() {
               className="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-sm file:font-bold file:text-white disabled:opacity-50"
             />
             <p className="mt-1 text-xs text-gray-500">
-              Βεβαίωση έναρξης από TaxisNet ή πιστοποιητικό ΓΕΜΗ (PDF ή φωτογραφία, έως 10MB).
+              {t('verificationPage.documentHint')}
             </p>
-            {uploading && <p className="mt-2 text-xs text-blue-600">Ανεβαίνει…</p>}
+            {uploading && <p className="mt-2 text-xs text-blue-600">{t('verificationPage.uploading')}</p>}
             {docUrl && !uploading && (
-              <p className="mt-2 text-xs font-medium text-emerald-600">✓ Ανέβηκε: {docName}</p>
+              <p className="mt-2 text-xs font-medium text-emerald-600">{t('verificationPage.uploaded', { name: docName })}</p>
             )}
           </div>
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              Σημειώσεις <span className="font-normal text-gray-400">(προαιρετικά)</span>
+              {t('verificationPage.notes')} <span className="font-normal text-gray-400">{t('verificationPage.optional')}</span>
             </label>
             <Textarea
               rows={3}
-              placeholder="Κάτι επιπλέον που θες να ξέρουμε…"
+              placeholder={t('verificationPage.notesPlaceholder')}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
@@ -299,11 +303,11 @@ export default function VerificationPage() {
             size="lg"
             className="w-full"
           >
-            {submitting ? 'Υποβολή…' : 'Υποβολή για έλεγχο'}
+            {submitting ? t('verificationPage.submitting') : t('verificationPage.submit')}
           </Button>
 
           <p className="text-center text-xs text-gray-500">
-            Τα στοιχεία χρησιμοποιούνται μόνο για τον έλεγχο και δεν εμφανίζονται δημόσια.
+            {t('verificationPage.privacy')}
           </p>
         </CardContent>
       </Card>

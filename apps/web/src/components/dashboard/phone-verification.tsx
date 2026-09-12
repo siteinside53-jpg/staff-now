@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { api } from '@/lib/api';
+import { useT } from '@/i18n/locale-provider';
 
 /**
  * Επαλήθευση κινητού — ΕΝΑ μπλοκ, κοινό για εργαζόμενους και επιχειρήσεις.
@@ -29,6 +30,7 @@ export function PhoneVerification({
   emailConfirmed: boolean;
   onConfirmed?: () => void;
 }) {
+  const t = useT();
   const [phone, setPhone] = useState(initialPhone || '');
   const [code, setCode] = useState('');
   const [sent, setSent] = useState(false);
@@ -43,7 +45,7 @@ export function PhoneVerification({
   if (confirmed) {
     return (
       <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-        <p className="text-sm font-semibold text-emerald-900">✓ Το κινητό σου είναι επιβεβαιωμένο</p>
+        <p className="text-sm font-semibold text-emerald-900">{t('phoneVerification.confirmed')}</p>
         {phone && <p className="mt-1 text-xs text-emerald-800">{phone}</p>}
       </div>
     );
@@ -52,7 +54,7 @@ export function PhoneVerification({
   async function send() {
     const clean = phone.replace(/\s+/g, '');
     if (!/^69\d{8}$/.test(clean)) {
-      setErr('Δώσε κινητό που ξεκινάει με 69 και έχει 10 ψηφία.');
+      setErr(t('phoneVerification.invalidPhone'));
       return;
     }
     setErr(null);
@@ -68,7 +70,7 @@ export function PhoneVerification({
         setSent(true);
       }
     } catch (e: any) {
-      setErr(e?.message || 'Δεν στάλθηκε ο κωδικός. Δοκίμασε ξανά.');
+      setErr(e?.message || t('phoneVerification.codeNotSent'));
     } finally {
       setBusy(false);
     }
@@ -77,7 +79,7 @@ export function PhoneVerification({
   async function confirm() {
     // Ο κωδικός του server είναι ΕΞΑΨΗΦΙΟΣ.
     if (!/^\d{6}$/.test(code.trim())) {
-      setErr('Ο κωδικός είναι 6 ψηφία.');
+      setErr(t('phoneVerification.code6'));
       return;
     }
     setErr(null);
@@ -87,7 +89,7 @@ export function PhoneVerification({
       setConfirmed(true);
       onConfirmed?.();
     } catch (e: any) {
-      setErr(e?.message || 'Λάθος κωδικός.');
+      setErr(e?.message || t('phoneVerification.wrongCode'));
     } finally {
       setBusy(false);
     }
@@ -95,29 +97,28 @@ export function PhoneVerification({
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4">
-      <p className="text-sm font-bold text-gray-900">Επαλήθευση κινητού</p>
+      <p className="text-sm font-bold text-gray-900">{t('phoneVerification.title')}</p>
       <p className="mt-0.5 text-xs text-gray-500">
-        Γίνεται μία φορά. Το κινητό δεν εμφανίζεται σε κανέναν χρήστη.
+        {t('phoneVerification.subtitle')}
       </p>
 
       {!emailConfirmed && (
         <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
-          Επιβεβαίωσε πρώτα το email σου — μετά μπορείς να επαληθεύσεις το κινητό.
+          {t('phoneVerification.emailFirst')}
         </p>
       )}
 
       {saved ? (
         <p className="mt-3 rounded-lg bg-gray-50 px-3 py-2.5 text-xs leading-relaxed text-gray-600">
-          Δεν στέλνουμε ακόμη SMS. Το νούμερο <strong>{phone}</strong> κρατήθηκε στον
-          λογαριασμό σου ως <strong>δηλωμένο</strong> και θα το επιβεβαιώσουμε εμείς. Δεν
-          εμφανίζεται πουθενά ως επαληθευμένο μέχρι να γίνει ο έλεγχος.
+          {t('phoneVerification.savedPrefix')} <strong>{phone}</strong> {t('phoneVerification.savedMiddle')}{' '}
+          <strong>{t('phoneVerification.declared')}</strong> {t('phoneVerification.savedSuffix')}
         </p>
       ) : sent ? (
         <div className="mt-3 space-y-3">
           <label className="block">
-            <span className="text-sm font-medium text-gray-900">Ο κωδικός που έλαβες</span>
+            <span className="text-sm font-medium text-gray-900">{t('phoneVerification.codeLabel')}</span>
             <span className="mt-0.5 block text-xs text-gray-500">
-              Στάλθηκε με SMS στο {phone.replace(/\s+/g, '')}. Ισχύει για 15 λεπτά.
+              {t('phoneVerification.sentTo', { phone: phone.replace(/\s+/g, '') })}
             </span>
             <input
               type="text"
@@ -138,7 +139,7 @@ export function PhoneVerification({
             disabled={busy}
             className="w-full rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {busy ? 'Ελέγχουμε…' : 'Επιβεβαίωση'}
+            {busy ? t('phoneVerification.checking') : t('phoneVerification.confirm')}
           </button>
           <button
             type="button"
@@ -149,7 +150,7 @@ export function PhoneVerification({
             }}
             className="w-full text-center text-xs font-medium text-gray-500 hover:text-gray-700"
           >
-            Άλλαξε αριθμό
+            {t('phoneVerification.changeNumber')}
           </button>
         </div>
       ) : (
@@ -164,7 +165,7 @@ export function PhoneVerification({
               setErr(null);
             }}
             placeholder="69XXXXXXXX"
-            aria-label="Κινητό τηλέφωνο"
+            aria-label={t('phoneVerification.phoneAria')}
             className={inputClass}
           />
 
@@ -176,13 +177,13 @@ export function PhoneVerification({
             disabled={busy || !emailConfirmed}
             className="w-full rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {busy ? 'Στέλνουμε…' : smsAvailable ? 'Στείλε μου κωδικό' : 'Καταχώρησε το κινητό'}
+            {busy ? t('phoneVerification.sending') : smsAvailable ? t('phoneVerification.sendCode') : t('phoneVerification.registerPhone')}
           </button>
 
           {!smsAvailable && (
             <p className="rounded-lg bg-gray-50 px-3 py-2.5 text-xs leading-relaxed text-gray-600">
-              Δεν στέλνουμε ακόμη SMS. Το νούμερο θα κρατηθεί ως <strong>δηλωμένο</strong> και
-              θα το επιβεβαιώσουμε εμείς — δεν μπαίνει σήμα επαλήθευσης πριν τον έλεγχο.
+              {t('phoneVerification.noSmsPrefix')} <strong>{t('phoneVerification.declared')}</strong>{' '}
+              {t('phoneVerification.noSmsSuffix')}
             </p>
           )}
         </div>

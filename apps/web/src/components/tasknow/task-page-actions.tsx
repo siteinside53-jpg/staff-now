@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { OfferModal } from './offer-modal';
 import { ShareTask } from './share-task';
 import { useMockTasks } from './mock-store';
+import { useT } from '@/i18n/locale-provider';
 
 /**
  * Τα κουμπιά της σελίδας μιας μικροδουλειάς.
@@ -23,6 +24,7 @@ export function TaskPageActions({
   budget: number;
   area: string;
 }) {
+  const t = useT();
   const { tasks } = useMockTasks();
   const [offering, setOffering] = useState(false);
 
@@ -36,7 +38,7 @@ export function TaskPageActions({
         {stillOpen ? (
           alreadyOffered ? (
             <span className="rounded-xl bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-700">
-              ✓ Έστειλες προσφορά
+              {t('tasknow.pageActions.sent')}
             </span>
           ) : (
             <button
@@ -44,12 +46,12 @@ export function TaskPageActions({
               onClick={() => setOffering(true)}
               className="rounded-xl bg-amber-500 px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-amber-500/25 transition hover:bg-amber-600"
             >
-              Κάνε προσφορά
+              {t('tasknow.pageActions.makeOffer')}
             </button>
           )
         ) : (
           <span className="rounded-xl bg-gray-100 px-5 py-3 text-sm font-semibold text-gray-600">
-            Δεν δέχεται πια προσφορές
+            {t('tasknow.pageActions.closed')}
           </span>
         )}
 

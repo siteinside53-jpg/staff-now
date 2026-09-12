@@ -9,12 +9,14 @@ import {
   CATEGORY_BY_KEY,
   DEFAULT_AREA,
   DEFAULT_CATEGORY,
-  REQUIRED_LICENCE,
   URGENT_HOURS,
+  categoryLabelFor,
   findBlockedWord,
   isLicensedCategory,
+  licenceLabelFor,
 } from './data';
 import { addTask, useMockTasks, type MockTask } from './mock-store';
+import { useT, useLocale } from '@/i18n/locale-provider';
 
 /**
  * ΜΑΚΕΤΑ — η ροή «ανεβάζω μικροδουλειά».
@@ -43,6 +45,8 @@ export function PostTaskModal({
   /** Ποιος ανεβάζει — γεμάτο μέσα στον λογαριασμό, κενό απ' έξω. */
   poster?: Poster;
 }) {
+  const t = useT();
+  const { locale } = useLocale();
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState(DEFAULT_CATEGORY);
   const [area, setArea] = useState(DEFAULT_AREA);
@@ -61,11 +65,11 @@ export function PostTaskModal({
   const licensed = isLicensedCategory(category);
   const cat = CATEGORY_BY_KEY[category];
   const budgetNumber = Number(budget.replace(',', '.'));
-  const licenceLabel = REQUIRED_LICENCE[category] ?? 'Επαγγελματική άδεια';
+  const licenceLabel = licenceLabelFor(locale, category) || t('tasknow.licence.generic');
 
   async function submit() {
     if (title.trim().length < 10) {
-      setError('Γράψε λίγο πιο αναλυτικά τι θέλεις να γίνει (τουλάχιστον 10 χαρακτήρες).');
+      setError(t('tasknow.post.titleTooShort'));
       return;
     }
     // Ο έλεγχος γίνεται ΕΔΩ, πριν ανέβει τίποτα. Μια αγγελία που μένει ορατή
@@ -74,24 +78,20 @@ export function PostTaskModal({
     // τίτλος και το απαγορευμένο περιεχόμενο μπαίνει από κάτω.
     const blocked = findBlockedWord(`${title} ${description}`, blockedWords);
     if (blocked) {
-      setError(
-        `Δεν μπορούμε να ανεβάσουμε αυτή την αγγελία (βρέθηκε «${blocked}»). Το TaskNow ` +
-          'είναι μόνο για υπηρεσίες — όχι για ερωτικό ή συνοδευτικό περιεχόμενο, ' +
-          'οικονομικές συναλλαγές ή παράνομα. Αν είναι λάθος, άλλαξε τη διατύπωση.',
-      );
+      setError(t('tasknow.post.blocked', { word: blocked }));
       return;
     }
     const value = Number(budget.replace(',', '.'));
     if (!Number.isFinite(value) || value <= 0) {
-      setError('Γράψε πόσα δίνεις, σε ευρώ.');
+      setError(t('tasknow.post.budgetInvalid'));
       return;
     }
     if (value > 100000) {
-      setError('Το ποσό μοιάζει λάθος.');
+      setError(t('tasknow.post.budgetTooBig'));
       return;
     }
     if (when.trim().length < 3) {
-      setError('Πες πότε το θέλεις — έστω χοντρικά.');
+      setError(t('tasknow.post.whenMissing'));
       return;
     }
     setError(null);
@@ -113,16 +113,16 @@ export function PostTaskModal({
       });
       // Δείχνουμε ό,τι ΠΡΑΓΜΑΤΙΚΑ αποθηκεύτηκε, όχι ό,τι νομίζαμε ότι στείλαμε.
       if (saved) setCreated(saved);
-      else setError('Δεν αποθηκεύτηκε. Δοκίμασε ξανά.');
+      else setError(t('tasknow.post.notSaved'));
     } catch (err: any) {
-      setError(err?.message || 'Δεν αποθηκεύτηκε. Δοκίμασε ξανά.');
+      setError(err?.message || t('tasknow.post.notSaved'));
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <Modal open onClose={onClose} title="Ανέβασε μικροδουλειά">
+    <Modal open onClose={onClose} title={t('tasknow.post.title')}>
       {created ? (
         <div className="space-y-4 text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-2xl">
@@ -130,31 +130,33 @@ export function PostTaskModal({
           </div>
           <div>
             <h3 className="text-base font-bold text-gray-900">
-              Έτσι θα ανέβαινε η δουλειά σου
+              {t('tasknow.post.createdTitle')}
             </h3>
             <p className="mt-1.5 text-sm leading-relaxed text-gray-600">
-              «{title.trim()}» στην περιοχή {area}, για {Number(budget.replace(',', '.'))}€.
-              Μπήκε στη ροή και δέχεται προσφορές από επαληθευμένους χρήστες.
+              {t('tasknow.post.createdText', {
+                title: title.trim(),
+                area,
+                budget: Number(budget.replace(',', '.')),
+              })}
             </p>
           </div>
 
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-xs leading-relaxed text-amber-900">
-            Όταν διαλέξεις άτομο, την επιλογή την κάνεις <strong>εσύ, με δική σου
-            ευθύνη</strong>. Το StaffNow σου δείχνει βαθμολογία, ολοκληρωμένες δουλειές
-            και τι έχει επαληθευτεί — δεν εγγυάται την εκτέλεση.
+            {t('tasknow.post.resp1')}
+            <strong>{t('tasknow.post.respStrong')}</strong>
+            {t('tasknow.post.resp2')}
           </div>
 
           {licensed && (
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-left text-xs leading-relaxed text-red-900">
-              Η κατηγορία θέλει <strong>{licenceLabel.toLowerCase()}</strong>. Προσφορά
-              μπορούν να κάνουν μόνο όσοι ανεβάσουν την άδειά τους. Θα τη δεις δίπλα σε
-              κάθε προσφορά — και θα σου πούμε αν είναι ελεγμένη ή απλώς δηλωμένη.
+              {t('tasknow.post.licensedNote1')}
+              <strong>{licenceLabel.toLowerCase()}</strong>
+              {t('tasknow.post.licensedNote2')}
             </div>
           )}
 
           <MockNote>
-            η δουλειά κρατήθηκε μόνο σε αυτόν τον browser. Στη μακέτα προστέθηκαν
-            τρεις δείγμα-προσφορές, για να δεις πώς γίνεται η επιλογή.
+            {t('tasknow.post.mockNote')}
           </MockNote>
 
           {onOpenTask && (
@@ -163,7 +165,7 @@ export function PostTaskModal({
               onClick={() => onOpenTask(created)}
               className="w-full rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-600"
             >
-              Δες τις προσφορές
+              {t('tasknow.post.seeOffers')}
             </button>
           )}
 
@@ -172,42 +174,42 @@ export function PostTaskModal({
             onClick={onClose}
             className="w-full rounded-xl bg-gray-100 px-5 py-3 text-sm font-semibold text-gray-800 transition hover:bg-gray-200"
           >
-            Κλείσιμο
+            {t('tasknow.post.close')}
           </button>
         </div>
       ) : (
         <div className="space-y-4">
           <label className="block">
-            <span className="text-sm font-medium text-gray-900">Τι θέλεις να γίνει;</span>
+            <span className="text-sm font-medium text-gray-900">{t('tasknow.post.whatLabel')}</span>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="π.χ. Να βγάλει κάποιος βόλτα τον σκύλο μου κάθε απόγευμα"
+              placeholder={t('tasknow.post.whatPlaceholder')}
               className={inputClass + ' mt-1.5'}
             />
           </label>
 
           <label className="block">
             <span className="text-sm font-medium text-gray-900">
-              Περιγραφή <span className="font-normal text-gray-400">(προαιρετική)</span>
+              {t('tasknow.post.descLabel')}{' '}
+              <span className="font-normal text-gray-400">{t('tasknow.post.optional')}</span>
             </span>
             <span className="mt-0.5 block text-xs text-gray-500">
-              Λεπτομέρειες που αλλάζουν την προσφορά: όροφος και ασανσέρ, τετραγωνικά,
-              αν χρειάζεται όχημα ή εργαλεία, ποιος δίνει τα υλικά.
+              {t('tasknow.post.descHint')}
             </span>
             <textarea
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="π.χ. Τριθέσιος καναπές, από 2ο όροφο με ασανσέρ σε ισόγειο. Χρειάζονται δύο άτομα και όχημα."
+              placeholder={t('tasknow.post.descPlaceholder')}
               className={inputClass + ' mt-1.5 resize-none'}
             />
           </label>
 
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
-              <span className="text-sm font-medium text-gray-900">Κατηγορία</span>
+              <span className="text-sm font-medium text-gray-900">{t('tasknow.post.categoryLabel')}</span>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
@@ -215,15 +217,15 @@ export function PostTaskModal({
               >
                 {CATEGORIES.map((c) => (
                   <option key={c.key} value={c.key}>
-                    {c.icon} {c.label}
-                    {c.licensed ? ' (θέλει άδεια)' : ''}
+                    {c.icon} {categoryLabelFor(locale, c.key)}
+                    {c.licensed ? t('tasknow.post.licensedOption') : ''}
                   </option>
                 ))}
               </select>
             </label>
 
             <label className="block">
-              <span className="text-sm font-medium text-gray-900">Περιοχή</span>
+              <span className="text-sm font-medium text-gray-900">{t('tasknow.post.areaLabel')}</span>
               <select
                 value={area}
                 onChange={(e) => setArea(e.target.value)}
@@ -242,8 +244,8 @@ export function PostTaskModal({
               που θα σε βρει κάποιος που ψάχνει «τι υπάρχει κοντά μου». */}
           <div>
             <span className="text-sm font-medium text-gray-900">
-              Δείξε πού{' '}
-              <span className="font-normal text-gray-400">(προαιρετικό)</span>
+              {t('tasknow.post.whereLabel')}{' '}
+              <span className="font-normal text-gray-400">{t('tasknow.post.optionalM')}</span>
             </span>
             <div className="mt-1.5">
               <PointPicker area={area} value={point} onChange={setPoint} />
@@ -252,7 +254,7 @@ export function PostTaskModal({
 
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
-              <span className="text-sm font-medium text-gray-900">Πόσα δίνεις</span>
+              <span className="text-sm font-medium text-gray-900">{t('tasknow.post.budgetLabel')}</span>
               <div className="relative mt-1.5">
                 <input
                   type="text"
@@ -269,12 +271,12 @@ export function PostTaskModal({
             </label>
 
             <label className="block">
-              <span className="text-sm font-medium text-gray-900">Πότε</span>
+              <span className="text-sm font-medium text-gray-900">{t('tasknow.post.whenLabel')}</span>
               <input
                 type="text"
                 value={when}
                 onChange={(e) => setWhen(e.target.value)}
-                placeholder="π.χ. Σάββατο πρωί"
+                placeholder={t('tasknow.post.whenPlaceholder')}
                 className={inputClass + ' mt-1.5'}
               />
             </label>
@@ -288,30 +290,29 @@ export function PostTaskModal({
               className="mt-0.5 h-4 w-4 shrink-0 accent-orange-500"
             />
             <span className="text-xs leading-relaxed text-gray-700">
-              <strong>Το θέλω επείγον.</strong> Η αγγελία μένει στην κορυφή της ροής για{' '}
-              {URGENT_HOURS} ώρες. Χρησιμοποίησέ το μόνο όταν πραγματικά βιάζεσαι — αν
-              το βάζουν όλοι, δεν σημαίνει τίποτα.
+              <strong>{t('tasknow.post.urgentStrong')}</strong>
+              {t('tasknow.post.urgentText', { hours: URGENT_HOURS })}
             </span>
           </label>
 
           {/* Ζωντανή προεπισκόπηση: βλέπεις ό,τι θα δει ο κόσμος, όσο γράφεις.
               Είναι το φθηνότερο πράγμα που ανεβάζει την ποιότητα των αγγελιών. */}
           <div>
-            <p className="text-xs font-medium text-gray-500">Έτσι θα το δει ο κόσμος:</p>
+            <p className="text-xs font-medium text-gray-500">{t('tasknow.post.previewTitle')}</p>
             <div className="mt-1.5 rounded-2xl border border-gray-200 bg-white p-4">
               <div className="flex items-start justify-between gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-700">
                   <span aria-hidden="true">{cat?.icon}</span>
-                  {cat?.label}
+                  {cat ? categoryLabelFor(locale, cat.key) : ''}
                 </span>
                 {urgent && (
                   <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-semibold text-orange-600">
-                    Επείγον
+                    {t('tasknow.common.urgent')}
                   </span>
                 )}
               </div>
               <p className="mt-2 text-sm font-semibold leading-snug text-gray-900">
-                {title.trim() || 'Ο τίτλος σου θα φανεί εδώ'}
+                {title.trim() || t('tasknow.post.titlePreview')}
               </p>
               {description.trim() && (
                 <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-gray-600">
@@ -319,7 +320,7 @@ export function PostTaskModal({
                 </p>
               )}
               <p className="mt-1.5 text-xs text-gray-500">
-                📍 {area} · 🕒 {when.trim() || 'πότε;'}
+                📍 {area} · 🕒 {when.trim() || t('tasknow.post.whenPreview')}
               </p>
               <p className="mt-2 text-xl font-bold text-gray-900">
                 {Number.isFinite(budgetNumber) && budgetNumber > 0 ? `${budgetNumber}€` : '—'}
@@ -329,9 +330,8 @@ export function PostTaskModal({
 
           {licensed && (
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs leading-relaxed text-red-900">
-              <strong>Προσοχή:</strong> η εργασία θέλει {licenceLabel.toLowerCase()}.
-              Θα δεχτείς προσφορές μόνο από όσους ανεβάσουν άδεια, και η τελική επιλογή
-              γίνεται με δική σου ευθύνη.
+              <strong>{t('tasknow.post.warnStrong')}</strong>
+              {t('tasknow.post.warnText', { licence: licenceLabel.toLowerCase() })}
             </div>
           )}
 
@@ -343,13 +343,11 @@ export function PostTaskModal({
             disabled={saving}
             className="w-full rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
           >
-            {saving ? 'Ανεβαίνει…' : 'Ανέβασέ το'}
+            {saving ? t('tasknow.post.uploading') : t('tasknow.post.submit')}
           </button>
 
           <p className="text-center text-[11px] leading-relaxed text-gray-500">
-            Δεν επιτρέπονται παράνομες υπηρεσίες ούτε ερωτικό ή συνοδευτικό
-            περιεχόμενο. Οι εργασίες που θέλουν άδεια επιτρέπονται, αλλά μόνο με
-            ανέβασμα άδειας από αυτόν που θα την αναλάβει.
+            {t('tasknow.post.footer')}
           </p>
         </div>
       )}

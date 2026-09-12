@@ -5,8 +5,9 @@ import { Modal } from './modal';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { useLoginModal } from '@/components/auth/login-modal';
-import { CATEGORY_BY_KEY, REQUIRED_LICENCE, isLicensedCategory } from './data';
+import { CATEGORY_BY_KEY, categoryLabelFor, isLicensedCategory, licenceLabelFor } from './data';
 import { addOffer, type MockTask } from './mock-store';
+import { useT, useLocale } from '@/i18n/locale-provider';
 
 /**
  * Η ροή «κάνω προσφορά».
@@ -68,6 +69,8 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
 
     Τώρα βλέπει από την αρχή τι χρειάζεται, με το κουμπί εγγραφής μπροστά του.
   */
+  const t = useT();
+  const { locale } = useLocale();
   const { user, loading: authLoading } = useAuth();
   const loginModal = useLoginModal();
   const [step, setStep] = useState<Step>('phone');
@@ -92,7 +95,7 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
 
   const cat = CATEGORY_BY_KEY[task.category];
   const needsLicence = isLicensedCategory(task.category);
-  const licenceLabel = REQUIRED_LICENCE[task.category] ?? 'Επαγγελματική άδεια';
+  const licenceLabel = licenceLabelFor(locale, task.category) || t('tasknow.licence.generic');
 
   function afterCode() {
     setStep(needsLicence ? 'licence' : 'offer');
@@ -138,7 +141,7 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
   async function sendCode() {
     const clean = phone.replace(/\s+/g, '');
     if (!GREEK_MOBILE.test(clean)) {
-      setError('Γράψε κινητό που ξεκινάει με 69 και έχει 10 ψηφία.');
+      setError(t('tasknow.offer.invalidPhone'));
       return;
     }
     setError(null);
@@ -161,7 +164,7 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
       setSmsAvailable(true);
       setStep('code');
     } catch (err: any) {
-      setError(err?.message || 'Δεν στάλθηκε ο κωδικός. Δοκίμασε ξανά.');
+      setError(err?.message || t('tasknow.offer.codeFail'));
     } finally {
       setBusy(false);
     }
@@ -170,7 +173,7 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
   async function confirmCode() {
     // Ο κωδικός του server είναι ΕΞΑΨΗΦΙΟΣ. Η μακέτα ζητούσε τέσσερα ψηφία.
     if (!/^\d{6}$/.test(code.trim())) {
-      setError('Ο κωδικός είναι 6 ψηφία.');
+      setError(t('tasknow.offer.codeInvalid'));
       return;
     }
     setError(null);
@@ -180,7 +183,7 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
       afterCode();
     } catch (err: any) {
       // Λάθος κωδικός σημαίνει ΛΑΘΟΣ — δεν προχωράμε.
-      setError(err?.message || 'Λάθος κωδικός.');
+      setError(err?.message || t('tasknow.offer.wrongCode'));
     } finally {
       setBusy(false);
     }
@@ -188,7 +191,7 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
 
   function confirmLicence() {
     if (!licenceFile) {
-      setError('Χρειάζεται να ανεβάσεις την άδειά σου για να συνεχίσεις.');
+      setError(t('tasknow.offer.licenceMissing'));
       return;
     }
     setError(null);
@@ -198,11 +201,11 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
   async function submitOffer() {
     const value = Number(amount.replace(',', '.'));
     if (!Number.isFinite(value) || value <= 0) {
-      setError('Γράψε πόσα ζητάς, σε ευρώ.');
+      setError(t('tasknow.offer.amountInvalid'));
       return;
     }
     if (value > 100000) {
-      setError('Το ποσό μοιάζει λάθος.');
+      setError(t('tasknow.offer.amountTooBig'));
       return;
     }
     /*
@@ -214,7 +217,7 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
       κανείς. Το ζητούμενο είναι να φτάνουν προσφορές.
     */
     if (!declared) {
-      setError('Χρειάζεται να δηλώσεις ότι μπορείς νόμιμα να το αναλάβεις.');
+      setError(t('tasknow.offer.declareRequired'));
       return;
     }
     setError(null);
@@ -236,7 +239,7 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
       });
       setStep('done');
     } catch (err: any) {
-      setError(err?.message || 'Η προσφορά δεν στάλθηκε. Δοκίμασε ξανά.');
+      setError(err?.message || t('tasknow.offer.offerFail'));
     } finally {
       setBusy(false);
     }
@@ -244,20 +247,21 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
 
   if (!authLoading && !user) {
     return (
-      <Modal open onClose={onClose} title="Κάνε προσφορά">
+      <Modal open onClose={onClose} title={t('tasknow.offer.title')}>
         <div className="mt-5 space-y-4">
           <div className="rounded-xl bg-gray-50 px-4 py-3">
             <div className="text-sm font-semibold text-gray-900">{task.title}</div>
             <div className="mt-1 text-xs text-gray-500">
-              Προϋπολογισμός {task.budget}€ · {task.area}
+              {t('tasknow.offer.budgetArea', { budget: task.budget, area: task.area })}
             </div>
           </div>
 
           <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
             <span aria-hidden="true" className="text-lg leading-none">👋</span>
             <p className="text-xs leading-relaxed text-amber-900">
-              Για να στείλεις προσφορά χρειάζεσαι λογαριασμό — <strong>δωρεάν</strong>, σε ένα
-              λεπτό. Χωρίς αυτόν δεν μπορεί να σε βρει αυτός που ανέβασε τη δουλειά.
+              {t('tasknow.offer.needAccount1')}
+              <strong>{t('tasknow.offer.needAccountStrong')}</strong>
+              {t('tasknow.offer.needAccount2')}
             </p>
           </div>
 
@@ -269,7 +273,7 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
             }}
             className="w-full rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-600"
           >
-            Δωρεάν εγγραφή
+            {t('tasknow.offer.register')}
           </button>
 
           <button
@@ -280,7 +284,7 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
             }}
             className="w-full text-center text-xs font-medium text-gray-600 hover:text-gray-900"
           >
-            Έχω ήδη λογαριασμό — Σύνδεση
+            {t('tasknow.offer.haveAccount')}
           </button>
         </div>
       </Modal>
@@ -288,20 +292,20 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
   }
 
   return (
-    <Modal open onClose={onClose} title="Κάνε προσφορά">
+    <Modal open onClose={onClose} title={t('tasknow.offer.title')}>
       <div className="rounded-xl bg-gray-50 px-4 py-3">
         <div className="flex items-center gap-1.5 text-xs font-medium text-gray-600">
           <span aria-hidden="true">{cat?.icon}</span>
-          {cat?.label} · {task.area}
+          {cat ? categoryLabelFor(locale, cat.key) : ''} · {task.area}
           {needsLicence && (
             <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">
-              θέλει άδεια
+              {t('tasknow.common.needsLicence')}
             </span>
           )}
         </div>
         <div className="mt-1 text-sm font-semibold text-gray-900">{task.title}</div>
         <div className="mt-1 text-xs text-gray-500">
-          Προϋπολογισμός {task.budget}€ · {task.when}
+          {t('tasknow.offer.budgetWhen', { budget: task.budget, when: task.when })}
         </div>
         {/* Η περιγραφή φαίνεται ΚΑΙ εδώ: χωρίς αυτήν η προσφορά γίνεται στα
             τυφλά και αλλάζει μετά — που είναι η βασική αιτία διαφωνίας. */}
@@ -318,12 +322,13 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
           <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
             <span aria-hidden="true" className="text-lg leading-none">🔒</span>
             <p className="text-xs leading-relaxed text-amber-900">
-              Πριν από την <strong>πρώτη σου προσφορά</strong> επαληθεύουμε το κινητό
-              σου. Γίνεται μία φορά. Για δουλειές πάνω από 200€ ζητάμε και ταυτότητα.
+              {t('tasknow.offer.phoneIntro1')}
+              <strong>{t('tasknow.offer.phoneIntroStrong')}</strong>
+              {t('tasknow.offer.phoneIntro2')}
             </p>
           </div>
 
-          <Field label="Κινητό τηλέφωνο" hint="Θα σου στείλουμε έναν κωδικό με SMS.">
+          <Field label={t('tasknow.offer.phoneLabel')} hint={t('tasknow.offer.phoneHint')}>
             <input
               type="tel"
               inputMode="numeric"
@@ -343,15 +348,15 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
             disabled={busy || loadingStatus}
             className="w-full rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {busy ? 'Στέλνουμε…' : 'Στείλε μου κωδικό'}
+            {busy ? t('tasknow.offer.sending') : t('tasknow.offer.sendCode')}
           </button>
 
           {/* Το λέμε ΠΡΙΝ πατήσει, όχι αφού. */}
           {smsAvailable === false && (
             <p className="rounded-xl bg-gray-50 px-4 py-3 text-xs leading-relaxed text-gray-600">
-              Δεν στέλνουμε ακόμη SMS. Το νούμερο κρατιέται στον λογαριασμό σου ως{' '}
-              <strong>δηλωμένο</strong> και επιβεβαιώνεται από εμάς πριν κλειδώσει η
-              δουλειά. Δεν εμφανίζεται ως επαληθευμένο σε κανέναν.
+              {t('tasknow.offer.noSms1')}
+              <strong>{t('tasknow.offer.noSmsStrong')}</strong>
+              {t('tasknow.offer.noSms2')}
             </p>
           )}
         </div>
@@ -361,8 +366,8 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
       {step === 'code' && (
         <div className="mt-5 space-y-4">
           <Field
-            label="Ο κωδικός που έλαβες"
-            hint={`Στάλθηκε με SMS στο ${phone.replace(/\s+/g, '')}. Ισχύει για 15 λεπτά.`}
+            label={t('tasknow.offer.codeLabel')}
+            hint={t('tasknow.offer.codeHint', { phone: phone.replace(/\s+/g, '') })}
           >
             <input
               type="text"
@@ -383,7 +388,7 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
             disabled={busy}
             className="w-full rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {busy ? 'Ελέγχουμε…' : 'Επιβεβαίωση'}
+            {busy ? t('tasknow.offer.checking') : t('tasknow.offer.confirm')}
           </button>
           <button
             type="button"
@@ -394,7 +399,7 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
             }}
             className="w-full text-xs font-medium text-gray-500 hover:text-gray-900"
           >
-            Άλλαξε αριθμό
+            {t('tasknow.offer.changeNumber')}
           </button>
         </div>
       )}
@@ -405,14 +410,15 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
           <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
             <span aria-hidden="true" className="text-lg leading-none">⚡</span>
             <p className="text-xs leading-relaxed text-red-900">
-              Η δουλειά ανήκει σε κατηγορία που θέλει <strong>επαγγελματική άδεια</strong>.
-              Χωρίς άδεια δεν μπορείς να κάνεις προσφορά.
+              {t('tasknow.offer.licenceIntro1')}
+              <strong>{t('tasknow.offer.licenceIntroStrong')}</strong>
+              {t('tasknow.offer.licenceIntro2')}
             </p>
           </div>
 
           <Field
             label={licenceLabel}
-            hint="Φωτογραφία ή PDF. Θα φαίνεται ως «δηλωμένη» μέχρι να την ελέγξει άνθρωπος."
+            hint={t('tasknow.offer.licenceHint')}
           >
             <input
               type="file"
@@ -428,7 +434,7 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
 
           {licenceFile && (
             <p className="rounded-xl bg-emerald-50 px-4 py-2.5 text-xs font-medium text-emerald-800">
-              ✓ Επιλέχθηκε: {licenceFile}
+              {t('tasknow.offer.licenceSelected', { file: licenceFile })}
             </p>
           )}
 
@@ -439,15 +445,15 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
             onClick={confirmLicence}
             className="w-full rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-600"
           >
-            Συνέχεια
+            {t('tasknow.offer.continue')}
           </button>
 
           {/* Αυτό εξακολουθεί να ισχύει: το αρχείο δεν αποθηκεύεται ακόμη. Το
               λέμε, αντί να αφήσουμε τον χρήστη να νομίζει ότι το στείλαμε. */}
           <p className="rounded-xl bg-gray-50 px-4 py-3 text-xs leading-relaxed text-gray-600">
-            Προς το παρόν κρατάμε μόνο το <strong>όνομα</strong> του αρχείου, όχι το
-            ίδιο το αρχείο. Η άδεια καταγράφεται ως «δηλωμένη» και θα σου τη
-            ζητήσουμε ξανά πριν κλειδώσει η δουλειά.
+            {t('tasknow.offer.licenceKeep1')}
+            <strong>{t('tasknow.offer.licenceKeepStrong')}</strong>
+            {t('tasknow.offer.licenceKeep2')}
           </p>
         </div>
       )}
@@ -465,21 +471,21 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
             */}
             {smsAvailable ? (
               <span className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
-                ✓ Το κινητό σου επαληθεύτηκε
+                {t('tasknow.offer.phoneVerified')}
               </span>
             ) : (
               <span className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
-                Κινητό: δηλωμένο, σε έλεγχο
+                {t('tasknow.offer.phoneDeclared')}
               </span>
             )}
             {licenceFile && (
               <span className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
-                Άδεια: δηλωμένη, σε έλεγχο
+                {t('tasknow.offer.licenceDeclared')}
               </span>
             )}
           </div>
 
-          <Field label="Πόσα ζητάς" hint="Μπορείς να προτείνεις διαφορετικό ποσό από τον προϋπολογισμό.">
+          <Field label={t('tasknow.offer.amountLabel')} hint={t('tasknow.offer.amountHint')}>
             <div className="relative">
               <input
                 type="text"
@@ -495,14 +501,14 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
           </Field>
 
           <Field
-            label="Δυο λόγια (προαιρετικά)"
-            hint="Γιατί να διαλέξει εσένα; Τι έχεις ξανακάνει; Βοηθάει, αλλά δεν είναι υποχρεωτικό."
+            label={t('tasknow.offer.messageLabel')}
+            hint={t('tasknow.offer.messageHint')}
           >
             <textarea
               rows={3}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="π.χ. Μένω δίπλα, έχω κάνει το ίδιο σε 4 σπίτια, μπορώ και σήμερα."
+              placeholder={t('tasknow.offer.messagePlaceholder')}
               className={inputClass + ' resize-none'}
             />
           </Field>
@@ -515,10 +521,9 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
               className="mt-0.5 h-4 w-4 shrink-0 accent-amber-500"
             />
             <span className="text-xs leading-relaxed text-gray-700">
-              Δηλώνω ότι έχω τις νόμιμες προϋποθέσεις να παρέχω αυτή την υπηρεσία
-              {needsLicence && ' — συμπεριλαμβανομένης της άδειας που ανέβασα —'} και ότι
-              θα εκδώσω το προβλεπόμενο παραστατικό. Καταλαβαίνω ότι το StaffNow δεν
-              είναι εργοδότης μου και δεν είναι μέρος της συμφωνίας.
+              {t('tasknow.offer.declare1')}
+              {needsLicence && t('tasknow.offer.declareLicence')}
+              {t('tasknow.offer.declare2')}
             </span>
           </label>
 
@@ -530,7 +535,7 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
             disabled={busy}
             className="w-full rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {busy ? 'Στέλνουμε…' : 'Στείλε την προσφορά'}
+            {busy ? t('tasknow.offer.sending') : t('tasknow.offer.sendOffer')}
           </button>
         </div>
       )}
@@ -542,10 +547,9 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
             ✓
           </div>
           <div>
-            <h3 className="text-base font-bold text-gray-900">Η προσφορά σου στάλθηκε</h3>
+            <h3 className="text-base font-bold text-gray-900">{t('tasknow.offer.sent')}</h3>
             <p className="mt-1.5 text-sm leading-relaxed text-gray-600">
-              {Number(amount.replace(',', '.'))}€ για «{task.title}». Θα τη δει δίπλα στις
-              άλλες, με τη βαθμολογία σου και το τι έχει επαληθευτεί.
+              {t('tasknow.offer.sentText', { amount: Number(amount.replace(',', '.')), title: task.title })}
             </p>
           </div>
 
@@ -553,8 +557,7 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
               βλέπει ο άνθρωπος που ανέβασε τη δουλειά. Το παλιό κείμενο έλεγε
               στον χρήστη ότι η αληθινή του προσφορά ήταν εικονική. */}
           <p className="rounded-xl bg-gray-50 px-4 py-3 text-xs leading-relaxed text-gray-600">
-            Η προσφορά στάλθηκε και τη βλέπει αυτός που ανέβασε τη δουλειά. Θα σε
-            ειδοποιήσουμε αν σε διαλέξει.
+            {t('tasknow.offer.sentNote')}
           </p>
 
           <button
@@ -562,7 +565,7 @@ export function OfferModal({ task, onClose }: { task: MockTask; onClose: () => v
             onClick={onClose}
             className="w-full rounded-xl bg-gray-100 px-5 py-3 text-sm font-semibold text-gray-800 transition hover:bg-gray-200"
           >
-            Κλείσιμο
+            {t('tasknow.modal.close')}
           </button>
         </div>
       )}

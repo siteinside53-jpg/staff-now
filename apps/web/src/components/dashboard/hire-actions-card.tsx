@@ -15,6 +15,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { RatingModal } from '@/components/dashboard/rating-modal';
+import { useT } from '@/i18n/locale-provider';
 
 interface Hire {
   id: string;
@@ -77,6 +78,7 @@ function rememberSeenRating(id: string) {
 }
 
 export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
+  const t = useT();
   const [hires, setHires] = useState<Hire[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [rating, setRating] = useState<{ id: string; name: string } | null>(null);
@@ -101,13 +103,13 @@ export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
     try {
       const res = (await (ans === 'confirm' ? api.hires.confirm(id) : api.hires.decline(id))) as any;
       if (res?.data?.hire) {
-        toast.success(ans === 'confirm' ? 'Επιβεβαιώθηκε!' : 'Καταγράφηκε');
+        toast.success(ans === 'confirm' ? t('hiresCard.toasts.confirmed') : t('hiresCard.toasts.recorded'));
         await load();
       } else {
-        toast.error(res?.error?.message || 'Σφάλμα');
+        toast.error(res?.error?.message || t('hiresCard.toasts.error'));
       }
     } catch (e: any) {
-      toast.error(e?.message || 'Σφάλμα σύνδεσης');
+      toast.error(e?.message || t('hiresCard.toasts.connectionError'));
     }
     setBusy(null);
   };
@@ -130,10 +132,10 @@ export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
   const nameOf = (h: Hire) => (isWorker ? h.business_name : h.worker_name) || '';
   /** Υποκείμενο: «Η επιχείρηση δηλώνει…» */
   const subject = (h: Hire) =>
-    capitalize(nameOf(h) || (isWorker ? 'η επιχείρηση' : 'ο/η εργαζόμενος/η'));
+    capitalize(nameOf(h) || (isWorker ? t('hiresCard.theBusiness') : t('hiresCard.theWorker')));
   /** Αντικείμενο: «…για την επιχείρηση» */
   const object = (h: Hire) =>
-    nameOf(h) || (isWorker ? 'την επιχείρηση' : 'τον/την εργαζόμενο/η');
+    nameOf(h) || (isWorker ? t('hiresCard.theBusinessAcc') : t('hiresCard.theWorkerAcc'));
   /** Για το παράθυρο αξιολόγησης, που θέλει σκέτο όνομα. */
   const other = (h: Hire) => subject(h);
 
@@ -142,13 +144,13 @@ export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
       <div className="mb-8 rounded-2xl border-2 border-blue-200 bg-blue-50/60 p-5">
         <div className="mb-4 flex items-center gap-2">
           <span className="text-xl">🤝</span>
-          <h2 className="text-base font-bold text-gray-900">Χρειάζονται την προσοχή σου</h2>
+          <h2 className="text-base font-bold text-gray-900">{t('hiresCard.title')}</h2>
           <span className="rounded-full bg-blue-600 px-2 py-0.5 text-xs font-bold text-white">{rows.length}</span>
         </div>
 
         <div className="space-y-3">
           {rows.map(({ h, kind }) => {
-            const job = h.job_title ? ` για «${h.job_title}»` : '';
+            const job = h.job_title ? t('hiresCard.forJob', { title: h.job_title }) : '';
             return (
               <div key={h.id} className="rounded-xl border border-gray-200 bg-white p-4">
                 {kind === 'confirm' && (
@@ -164,10 +166,10 @@ export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
                     <p className="text-sm font-semibold text-gray-900">
                       <span className="font-bold">{subject(h)}</span>
                       {job}{' '}
-                      {isWorker ? 'δηλώνει ότι σε προσέλαβε.' : 'δηλώνει ότι τον/την προσέλαβες.'}
+                      {isWorker ? t('hiresCard.declaresHiredYou') : t('hiresCard.declaresYouHired')}
                     </p>
                     <p className="mt-0.5 text-xs text-gray-500">
-                      Μετράει μόνο αν το επιβεβαιώσεις εσύ.
+                      {t('hiresCard.countsIfConfirm')}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button
@@ -175,14 +177,14 @@ export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
                         disabled={busy === h.id}
                         className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
                       >
-                        {isWorker ? '✅ Ναι, ξεκίνησα' : '✅ Ναι, τον/την προσέλαβα'}
+                        {isWorker ? t('hiresCard.yesStarted') : t('hiresCard.yesHired')}
                       </button>
                       <button
                         onClick={() => answer(h.id, 'decline')}
                         disabled={busy === h.id}
                         className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                       >
-                        {isWorker ? 'Όχι, δεν ξεκίνησα' : 'Όχι, δεν έγινε'}
+                        {isWorker ? t('hiresCard.noNotStarted') : t('hiresCard.noDidntHappen')}
                       </button>
                     </div>
                   </>
@@ -191,11 +193,11 @@ export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
                 {kind === 'awaiting' && (
                   <>
                     <p className="text-sm font-semibold text-gray-900">
-                      Δήλωσες πρόσληψη με <span className="font-bold">{object(h)}</span>
+                      {t('hiresCard.youDeclaredWith')} <span className="font-bold">{object(h)}</span>
                       {job}.
                     </p>
                     <p className="mt-0.5 text-xs text-gray-500">
-                      Περιμένουμε την επιβεβαίωσή του/της. Μέχρι τότε δεν μετράει στις θέσεις.
+                      {t('hiresCard.awaiting')}
                     </p>
                   </>
                 )}
@@ -203,16 +205,16 @@ export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
                 {kind === 'rate' && (
                   <>
                     <p className="text-sm font-semibold text-gray-900">
-                      Γράψε αξιολόγηση για {object(h)}{job}.
+                      {t('hiresCard.writeReviewFor', { who: object(h), job })}
                     </p>
                     <p className="mt-0.5 text-xs text-gray-500">
-                      Θα δεις τι σου έγραψε μόλις γράψεις τη δική σου.
+                      {t('hiresCard.seeAfterYours')}
                     </p>
                     <button
                       onClick={() => setRating({ id: h.id, name: other(h) })}
                       className="mt-3 rounded-lg bg-yellow-500 px-4 py-2 text-sm font-bold text-white hover:bg-yellow-600"
                     >
-                      ⭐ Γράψε αξιολόγηση
+                      {t('hiresCard.writeReview')}
                     </button>
                   </>
                 )}
@@ -220,7 +222,7 @@ export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
                 {kind === 'view' && (
                   <>
                     <p className="text-sm font-semibold text-gray-900">
-                      Ήρθε η αξιολόγηση από {object(h)}{job}.
+                      {t('hiresCard.reviewArrived', { who: object(h), job })}
                     </p>
                     <button
                       onClick={() => {
@@ -230,7 +232,7 @@ export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
                       }}
                       className="mt-3 rounded-lg border border-gray-300 px-4 py-2 text-sm font-bold text-gray-800 hover:bg-gray-50"
                     >
-                      ⭐ Δες τις αξιολογήσεις
+                      {t('hiresCard.seeReviews')}
                     </button>
                   </>
                 )}
@@ -238,10 +240,10 @@ export function HireActionsCard({ isWorker }: { isWorker: boolean }) {
                 {kind === 'waiting-them' && (
                   <>
                     <p className="text-sm font-semibold text-gray-900">
-                      Έγραψες την αξιολόγησή σου για {object(h)}{job}.
+                      {t('hiresCard.youWrote', { who: object(h), job })}
                     </p>
                     <p className="mt-0.5 text-xs text-gray-500">
-                      Μόλις γράψει κι εκείνος/η τη δική του/της, θα τη δεις εδώ.
+                      {t('hiresCard.whenTheyWrite')}
                     </p>
                   </>
                 )}

@@ -6,10 +6,26 @@ import { AuthGatePopup } from './auth-gate-popup';
 import { DetailModal } from './detail-modal';
 import { FilteredListLayout, type FilterGroup, type FilterCategory } from './filtered-list-layout';
 import { BrowseStatBand } from './browse-hero';
-import { WORKER_JOB_ROLE_GROUPS, WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
+import { WORKER_JOB_ROLE_GROUPS } from '@staffnow/config';
 import { buildCityCategories, matchesCitySelection, normText, splitLocation } from '@/lib/location';
 import { API_URL } from '@/lib/config';
 import { ShareJob } from '@/components/share-job';
+import { useT, useLocale } from '@/i18n/locale-provider';
+import { roleLabelFor, employmentLabelFor } from '@/i18n/labels';
+import { translate, type Locale } from '@/i18n';
+
+/**
+ * Ετικέτα ομάδας ειδικοτήτων (π.χ. «Τουρισμός - Ξενοδοχεία») στη γλώσσα του
+ * επισκέπτη. Δεν υπάρχει έτοιμο helper στο i18n/labels.ts για ομάδες — μόνο
+ * για μεμονωμένες ειδικότητες — οπότε το ίδιο μικρό fallback-lookup γίνεται
+ * εδώ, πάνω στο namespace `roleGroups` του labels.json.
+ */
+function roleGroupLabel(locale: Locale, id: string, fallback: string): string {
+  if (locale === 'el') return fallback;
+  const key = `roleGroups.${id}`;
+  const v = translate(locale, key);
+  return v === key ? fallback : v;
+}
 
 type Job = {
   id: string;
@@ -37,34 +53,17 @@ type Job = {
   roleKeys: string[];
 };
 
-/**
- * Μία και μοναδική πηγή για τα ονόματα των ειδικοτήτων: ο κεντρικός κατάλογος
- * (256 ειδικότητες στα ελληνικά). Παλιότερα υπήρχε εδώ τοπικό λεξικό με 13 μόνο
- * εγγραφές, οπότε οι υπόλοιπες εμφανίζονταν αυτούσιες στα αγγλικά.
- */
-function jobRoleLabel(key: string): string {
-  return WORKER_JOB_ROLE_LABELS_EL[key] ?? key;
-}
+type TFn = (key: string, params?: Record<string, string | number>) => string;
 
-function employmentLabel(t: string): string {
-  const map: Record<string, string> = {
-    full_time: 'Full-time',
-    part_time: 'Part-time',
-    seasonal: 'Σεζόν',
-    freelance: 'Freelance',
-  };
-  return map[t] ?? t;
-}
-
-function salaryStr(j: Job): string {
+function salaryStr(j: Job, t: TFn): string {
   // Η μονάδα ακολουθεί το salary_type της αγγελίας (ώρα / ημέρα / μήνα)
   const unit =
-    j.salaryType === 'hourly' ? '€/ώρα' :
-    j.salaryType === 'daily' ? '€/ημέρα' :
-    j.salaryType === 'monthly' ? '€/μήνα' : '€';
+    j.salaryType === 'hourly' ? t('lists.jobs.perHour') :
+    j.salaryType === 'daily' ? t('lists.jobs.perDay') :
+    j.salaryType === 'monthly' ? t('lists.jobs.perMonth') : '€';
   if (j.salaryMin && j.salaryMax) return `${j.salaryMin}-${j.salaryMax}${unit}`;
-  if (j.salaryMin) return `Από ${j.salaryMin}${unit}`;
-  if (j.salaryMax) return `Έως ${j.salaryMax}${unit}`;
+  if (j.salaryMin) return t('lists.jobs.salaryFrom', { value: `${j.salaryMin}${unit}` });
+  if (j.salaryMax) return t('lists.jobs.salaryTo', { value: `${j.salaryMax}${unit}` });
   return '—';
 }
 
@@ -97,19 +96,19 @@ function salaryColor(j: Job): string {
   return 'text-gray-900';
 }
 
-function timeAgoGreek(dateStr: string | null): string {
+function timeAgoLabel(dateStr: string | null, locale: Locale): string {
   if (!dateStr) return '';
   const diff = Date.now() - new Date(dateStr).getTime();
   if (Number.isNaN(diff) || diff < 0) return '';
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'μόλις τώρα';
-  if (mins < 60) return `πριν ${mins} λεπτ${mins === 1 ? 'ό' : 'ά'}`;
+  if (mins < 1) return translate(locale, 'lists.jobs.justNow');
+  if (mins < 60) return translate(locale, 'lists.jobs.minutesAgo', { n: mins });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `πριν ${hours} ώρ${hours === 1 ? 'α' : 'ες'}`;
+  if (hours < 24) return translate(locale, 'lists.jobs.hoursAgo', { n: hours });
   const days = Math.floor(hours / 24);
-  if (days < 30) return `πριν ${days} ημέρ${days === 1 ? 'α' : 'ες'}`;
+  if (days < 30) return translate(locale, 'lists.jobs.daysAgo', { n: days });
   const months = Math.floor(days / 30);
-  return `πριν ${months} μήν${months === 1 ? 'α' : 'ες'}`;
+  return translate(locale, 'lists.jobs.monthsAgo', { n: months });
 }
 
 // Κανονικοποίηση κειμένου για αναζήτηση (πεζά + χωρίς τόνους) — κοινή με τα φίλτρα
@@ -118,6 +117,8 @@ const norm = normText;
 const EMPTY_SEL: Record<string, string[]> = { city: [], type: [], role: [], perks: [] };
 
 export function PublicJobsList() {
+  const t = useT();
+  const { locale } = useLocale();
   const [items, setItems] = useState<Job[]>([]);
   const [selected, setSelected] = useState<Job | null>(null);
   const [gateOpen, setGateOpen] = useState(false);
@@ -142,8 +143,8 @@ export function PublicJobsList() {
             const roleKeys: string[] = Array.isArray(j.roles) ? j.roles.filter(Boolean) : [];
             return {
             id: String(j.id ?? `rj_${i}`),
-            title: j.title || 'Θέση εργασίας',
-            company: j.display_company_name || j.company_name || 'Επιχείρηση',
+            title: j.title || t('lists.jobs.fallbackTitle'),
+            company: j.display_company_name || j.company_name || t('lists.jobs.fallbackCompany'),
             // Χωρίς δηλωμένη περιοχή μένει κενό — δεν βάζουμε «Ελλάδα», που
             // θα εμφανιζόταν στα φίλτρα σαν πόλη και θα χάλαγε τις μετρήσεις.
             city: (j.city || j.region || '').trim(),
@@ -155,13 +156,13 @@ export function PublicJobsList() {
             employmentType: j.employment_type || 'full_time',
             housingProvided: !!j.housing_provided,
             mealsProvided: !!j.meals_provided,
-            postedAgo: timeAgoGreek(j.created_at ?? null),
+            postedAgo: timeAgoLabel(j.created_at ?? null, locale),
             createdAtMs: j.created_at ? new Date(j.created_at).getTime() : 0,
             boosted: !!j.is_boosted,
             logo: j.company_logo || null,
             description: typeof j.description === 'string' && j.description.trim() ? j.description.trim() : undefined,
             roleKeys,
-            roles: roleKeys.length ? roleKeys.map((rk) => jobRoleLabel(rk)) : undefined,
+            roles: roleKeys.length ? roleKeys.map((rk) => roleLabelFor(locale, rk)) : undefined,
             };
           }),
         );
@@ -176,7 +177,8 @@ export function PublicJobsList() {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locale]);
 
   // ── Filter groups ──
   // Πόλη → περιοχές, με κανονικοποίηση: «Θεσσαλονίκη», «θεσσαλονικη» και
@@ -190,9 +192,9 @@ export function PublicJobsList() {
     const counts = new Map<string, number>();
     for (const j of items) counts.set(j.employmentType, (counts.get(j.employmentType) || 0) + 1);
     return Array.from(counts.entries())
-      .map(([v, c]) => ({ value: v, label: employmentLabel(v), count: c }))
+      .map(([v, c]) => ({ value: v, label: employmentLabelFor(locale, v), count: c }))
       .sort((a, b) => b.count - a.count);
-  }, [items]);
+  }, [items, locale]);
 
   // Ειδικότητες στις 24 κατηγορίες του κεντρικού καταλόγου (ίδια σειρά με το
   // /categories), όλες γραμμένες στα ελληνικά.
@@ -203,41 +205,41 @@ export function PublicJobsList() {
       const roleSet = new Set(g.roles);
       return {
         id: g.id,
-        label: g.label,
+        label: roleGroupLabel(locale, g.id, g.label),
         count: items.filter((j) => j.roleKeys.some((k) => roleSet.has(k))).length,
         options: g.roles.map((role) => ({
           value: role,
-          label: jobRoleLabel(role),
+          label: roleLabelFor(locale, role),
           count: counts.get(role) || 0,
         })),
       };
     });
-  }, [items]);
+  }, [items, locale]);
 
   const perksOptions = useMemo(
     () => [
-      { value: 'housing', label: '🏠 Στέγη', count: items.filter((j) => j.housingProvided).length },
-      { value: 'meals', label: '🍽️ Φαγητό', count: items.filter((j) => j.mealsProvided).length },
+      { value: 'housing', label: `🏠 ${t('lists.jobs.housing')}`, count: items.filter((j) => j.housingProvided).length },
+      { value: 'meals', label: `🍽️ ${t('lists.jobs.meals')}`, count: items.filter((j) => j.mealsProvided).length },
     ],
-    [items],
+    [items, t],
   );
 
   const groups: FilterGroup[] = useMemo(
     () =>
       [
-        { key: 'role', title: 'Ειδικότητες', options: [], categorized: roleCategories },
+        { key: 'role', title: t('lists.jobs.specialties'), options: [], categorized: roleCategories },
         {
           key: 'city',
-          title: 'Πόλεις',
+          title: t('lists.cities'),
           options: [],
           categorized: cityCategories,
-          categorizedSearchPlaceholder: 'Αναζήτηση πόλης…',
-          categorizedSelectAllLabel: 'Όλη η πόλη',
+          categorizedSearchPlaceholder: t('lists.citySearchPlaceholder'),
+          categorizedSelectAllLabel: t('lists.wholeCity'),
         },
-        { key: 'type', title: 'Τύπος απασχόλησης', options: typeOptions },
-        { key: 'perks', title: 'Παροχές', options: perksOptions },
+        { key: 'type', title: t('lists.jobs.employmentType'), options: typeOptions },
+        { key: 'perks', title: t('lists.jobs.perks'), options: perksOptions },
       ].filter((g) => g.options.length > 0 || (g.categorized?.length ?? 0) > 0),
-    [cityCategories, typeOptions, roleCategories, perksOptions],
+    [cityCategories, typeOptions, roleCategories, perksOptions, t],
   );
 
   const filtered = useMemo(() => {
@@ -287,16 +289,20 @@ export function PublicJobsList() {
     const cities = new Set(
       items.map((j) => norm(splitLocation(j.locationRaw).city)).filter(Boolean),
     ).size;
-    if (fresh > 0) out.push({ label: 'Νέες σήμερα', value: String(fresh), color: 'text-emerald-600' });
+    if (fresh > 0) out.push({ label: t('lists.jobs.newToday'), value: String(fresh), color: 'text-emerald-600' });
     if (monthly.length > 0) {
       const avg =
         monthly.reduce((s, j) => s + (j.salaryMin && j.salaryMax ? (j.salaryMin + j.salaryMax) / 2 : (j.salaryMin ?? j.salaryMax ?? 0)), 0) /
         monthly.length;
-      out.push({ label: 'Μέσος μηνιαίος', value: `${Math.round(avg).toLocaleString('el-GR')}€`, color: 'text-orange-600' });
+      out.push({
+        label: t('lists.jobs.avgMonthly'),
+        value: `${Math.round(avg).toLocaleString(locale === 'en' ? 'en-GB' : 'el-GR')}€`,
+        color: 'text-orange-600',
+      });
     }
-    if (cities > 0) out.push({ label: 'Περιοχές', value: String(cities), color: 'text-cyan-600' });
+    if (cities > 0) out.push({ label: t('lists.jobs.areas'), value: String(cities), color: 'text-cyan-600' });
     return out;
-  }, [items]);
+  }, [items, t, locale]);
 
   // Στοίβα λογοτύπων: πραγματικές επιχειρήσεις από τα πρώτα αποτελέσματα.
   const stack = useMemo(() => filtered.slice(0, 5), [filtered]);
@@ -332,26 +338,26 @@ export function PublicJobsList() {
         accent="emerald"
         search={query}
         onSearch={setQuery}
-        searchPlaceholder="Αναζήτηση ρόλου, εταιρείας ή περιοχής…"
+        searchPlaceholder={t('lists.jobs.searchPlaceholder')}
         groups={groups}
         selected={sel}
         onToggle={toggle}
         onToggleMany={toggleMany}
         onClear={clearFilters}
         resultCount={filtered.length}
-        resultNoun={['διαθέσιμη θέση', 'διαθέσιμες θέσεις']}
+        resultNoun={[t('lists.jobs.resultOne'), t('lists.jobs.resultMany')]}
       >
         {/* Ίδια δομή με το δείγμα, τίμιο κείμενο: μετράμε τις πραγματικές αγγελίες. */}
         {stack.length > 0 && (
           <div className="mb-4 overflow-hidden rounded-3xl bg-gradient-to-br from-orange-500 via-red-500 to-pink-600 p-5 text-white shadow-lg">
             <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white/90">
-              🆕 Ανοιχτές θέσεις
+              🆕 {t('lists.jobs.openPositions')}
             </p>
-            <p className="mt-1 text-lg font-black leading-tight">Επιχειρήσεις που ψάχνουν προσωπικό</p>
+            <p className="mt-1 text-lg font-black leading-tight">{t('lists.jobs.businessesLooking')}</p>
             <p className="mt-0.5 text-sm text-white/80">
               {filtered.length === 1
-                ? '1 ενεργή αγγελία στο StaffNow'
-                : `${filtered.length} ενεργές αγγελίες στο StaffNow`}
+                ? t('lists.jobs.activeOne')
+                : t('lists.jobs.activeMany', { n: filtered.length })}
             </p>
             <div className="mt-3 flex -space-x-3">
               {stack.map((j) =>
@@ -386,13 +392,13 @@ export function PublicJobsList() {
 
         {filtered.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center">
-            <p className="text-gray-600 font-medium">Καμία θέση με αυτά τα φίλτρα.</p>
+            <p className="text-gray-600 font-medium">{t('lists.jobs.noResults')}</p>
             <button
               type="button"
               onClick={clearFilters}
               className="mt-3 inline-flex rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
             >
-              Καθαρισμός φίλτρων
+              {t('lists.clearFilters')}
             </button>
           </div>
         ) : (
@@ -412,7 +418,7 @@ export function PublicJobsList() {
                       ? 'border-2 border-emerald-500/60 shadow-md'
                       : 'border border-gray-100 shadow-sm'
                   }`}
-                  aria-label={`Δες αγγελία ${j.title} στην εταιρεία ${j.company}`}
+                  aria-label={t('lists.jobs.ariaSeeJob', { title: j.title, company: j.company })}
                 >
                   <div className="flex gap-3">
                     {j.logo ? (
@@ -436,12 +442,12 @@ export function PublicJobsList() {
                         <p className="min-w-0 flex-1 truncate font-bold text-gray-900">{j.title}</p>
                         {j.boosted && (
                           <span className="mt-0.5 flex-shrink-0 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                            Προωθημένη
+                            {t('lists.jobs.boosted')}
                           </span>
                         )}
                         {isNew(j) && (
                           <span className="mt-0.5 flex-shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                            Νέο
+                            {t('lists.jobs.new')}
                           </span>
                         )}
                       </div>
@@ -450,17 +456,17 @@ export function PublicJobsList() {
                       <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-gray-500">
                         {j.city && <span>📍 {j.city}</span>}
                         <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold">
-                          {employmentLabel(j.employmentType)}
+                          {employmentLabelFor(locale, j.employmentType)}
                         </span>
                         <span className="text-gray-400">{j.postedAgo}</span>
                       </div>
 
                       <div className="mt-2 flex items-center justify-between gap-2">
                         <span className={`text-base font-extrabold ${salaryColor(j)}`}>
-                          💰 {salaryStr(j)}
+                          💰 {salaryStr(j, t)}
                         </span>
                         <span className="flex-shrink-0 rounded-full bg-emerald-600 px-4 py-1.5 text-xs font-bold text-white">
-                          Δες αγγελία
+                          {t('lists.jobs.seeJob')}
                         </span>
                       </div>
 
@@ -468,12 +474,12 @@ export function PublicJobsList() {
                         <div className="mt-2 flex flex-wrap gap-1">
                           {j.housingProvided && (
                             <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                              🏠 Στέγη
+                              🏠 {t('lists.jobs.housing')}
                             </span>
                           )}
                           {j.mealsProvided && (
                             <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                              🍽️ Φαγητό
+                              🍽️ {t('lists.jobs.meals')}
                             </span>
                           )}
                         </div>
@@ -494,7 +500,7 @@ export function PublicJobsList() {
             <button
               type="button"
               onClick={() => setSelected(null)}
-              aria-label="Κλείσιμο"
+              aria-label={t('lists.close')}
               className="float-right -mt-1 text-gray-400 hover:text-gray-700 text-2xl leading-none"
             >
               ×
@@ -505,7 +511,7 @@ export function PublicJobsList() {
                 <img src={selected.logo} alt="" className="h-20 w-20 flex-shrink-0 rounded-2xl object-cover ring-1 ring-gray-100" />
               ) : (
                 <div className="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 font-bold text-xs text-center px-1 leading-tight">
-                  {employmentLabel(selected.employmentType)}
+                  {employmentLabelFor(locale, selected.employmentType)}
                 </div>
               )}
               <div className="min-w-0">
@@ -519,26 +525,26 @@ export function PublicJobsList() {
 
             <dl className="mt-6 grid grid-cols-2 gap-3">
               <div className="rounded-xl bg-gray-50 p-3">
-                <dt className="text-xs text-gray-500">Μισθός</dt>
-                <dd className="text-sm font-semibold text-gray-900">{salaryStr(selected)}</dd>
+                <dt className="text-xs text-gray-500">{t('lists.jobs.salaryLabel')}</dt>
+                <dd className="text-sm font-semibold text-gray-900">{salaryStr(selected, t)}</dd>
               </div>
               <div className="rounded-xl bg-gray-50 p-3">
-                <dt className="text-xs text-gray-500">Τύπος</dt>
-                <dd className="text-sm font-semibold text-gray-900">{employmentLabel(selected.employmentType)}</dd>
+                <dt className="text-xs text-gray-500">{t('lists.jobs.typeLabel')}</dt>
+                <dd className="text-sm font-semibold text-gray-900">{employmentLabelFor(locale, selected.employmentType)}</dd>
               </div>
               <div className="rounded-xl bg-gray-50 p-3">
-                <dt className="text-xs text-gray-500">Στέγη</dt>
-                <dd className="text-sm font-semibold text-gray-900">{selected.housingProvided ? '🏠 Ναι' : '—'}</dd>
+                <dt className="text-xs text-gray-500">{t('lists.jobs.housing')}</dt>
+                <dd className="text-sm font-semibold text-gray-900">{selected.housingProvided ? `🏠 ${t('lists.jobs.yes')}` : '—'}</dd>
               </div>
               <div className="rounded-xl bg-gray-50 p-3">
-                <dt className="text-xs text-gray-500">Φαγητό</dt>
-                <dd className="text-sm font-semibold text-gray-900">{selected.mealsProvided ? '🍽️ Ναι' : '—'}</dd>
+                <dt className="text-xs text-gray-500">{t('lists.jobs.meals')}</dt>
+                <dd className="text-sm font-semibold text-gray-900">{selected.mealsProvided ? `🍽️ ${t('lists.jobs.yes')}` : '—'}</dd>
               </div>
             </dl>
 
             {selected.roles && selected.roles.length > 0 && (
               <div className="mt-4">
-                <p className="text-xs text-gray-500 mb-1.5">Ειδικότητες</p>
+                <p className="text-xs text-gray-500 mb-1.5">{t('lists.jobs.specialties')}</p>
                 <div className="flex flex-wrap gap-2">
                   {selected.roles.map((r) => (
                     <span key={r} className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">{r}</span>
@@ -549,13 +555,13 @@ export function PublicJobsList() {
 
             {selected.description && (
               <div className="mt-4">
-                <p className="text-xs text-gray-500 mb-1.5">Περιγραφή</p>
+                <p className="text-xs text-gray-500 mb-1.5">{t('lists.jobs.descriptionLabel')}</p>
                 <p className="text-sm text-gray-700 whitespace-pre-line">{selected.description}</p>
               </div>
             )}
 
             <div className="mt-6 rounded-xl border border-dashed border-gray-200 bg-gray-50 p-4 text-center">
-              <p className="text-sm text-gray-600">🔒 Στοιχεία επικοινωνίας διαθέσιμα μετά την εγγραφή</p>
+              <p className="text-sm text-gray-600">🔒 {t('lists.jobs.contactLocked')}</p>
             </div>
 
             <button
@@ -566,7 +572,7 @@ export function PublicJobsList() {
               }}
               className="mt-4 w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-3 text-sm font-semibold text-white shadow transition"
             >
-              Σύνδεση / Εγγραφή για αίτηση
+              {t('lists.jobs.loginToApply')}
             </button>
 
             {/*
@@ -589,7 +595,7 @@ export function PublicJobsList() {
                   href={`/jobs/${selected.id}`}
                   className="mt-2 block text-center text-xs text-gray-500 hover:text-emerald-600"
                 >
-                  Άνοιξε ως ξεχωριστή σελίδα ↗
+                  {t('lists.jobs.openSeparatePage')}
                 </Link>
               </>
             )}

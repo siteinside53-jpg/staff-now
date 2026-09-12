@@ -8,6 +8,7 @@ import {
   type MouseEvent,
 } from 'react';
 import { cn } from '@/lib/utils';
+import { useT } from '@/i18n/locale-provider';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -47,6 +48,7 @@ function Modal({
   size = 'md',
   className,
 }: ModalProps) {
+  const t = useT();
   const overlayRef = useRef<HTMLDivElement>(null);
 
   // Close on Escape
@@ -120,7 +122,7 @@ function Modal({
           type="button"
           onClick={onClose}
           className="absolute right-4 top-4 rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
-          aria-label="Κλείσιμο"
+          aria-label={t('uiKit.close')}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

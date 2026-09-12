@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useT } from '@/i18n/locale-provider';
 
 export default function GoogleCallbackPage() {
+  const t = useT();
   useEffect(() => {
     // Read token from URL hash (#token=xxx) or query param (?token=xxx)
     const hash = window.location.hash.substring(1);
@@ -54,7 +56,7 @@ export default function GoogleCallbackPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center">
         <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
-        <p className="mt-4 text-gray-600">Σύνδεση μέσω Google...</p>
+        <p className="mt-4 text-gray-600">{t('authPages.googleCallback.connecting')}</p>
       </div>
     </div>
   );

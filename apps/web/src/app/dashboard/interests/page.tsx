@@ -11,20 +11,23 @@ import { toast } from 'sonner';
 import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
 import { WorkerProfilePanel } from '@/components/dashboard/worker-profile-panel';
 import { BusinessProfilePanel } from '@/components/dashboard/business-profile-panel';
+import { useT, useLocale } from '@/i18n/locale-provider';
 
-function timeAgo(dateStr?: string): string {
+function timeAgo(dateStr: string | undefined, t: (k: string, p?: Record<string, string | number>) => string, locale: 'el' | 'en'): string {
   if (!dateStr) return '';
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${mins}λ πριν`;
+  if (mins < 60) return t('interestsPage.minsAgo', { n: mins });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}ω πριν`;
+  if (hours < 24) return t('interestsPage.hoursAgo', { n: hours });
   const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}η πριν`;
-  return new Date(dateStr).toLocaleDateString('el-GR', { day: 'numeric', month: 'short' });
+  if (days < 30) return t('interestsPage.daysAgo', { n: days });
+  return new Date(dateStr).toLocaleDateString(locale === 'en' ? 'en-GB' : 'el-GR', { day: 'numeric', month: 'short' });
 }
 
 export default function InterestsPage() {
+  const t = useT();
+  const { locale } = useLocale();
   const { user } = useAuth();
   const [interests, setInterests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,13 +71,13 @@ export default function InterestsPage() {
       const data = await res.json() as any;
 
       if (data.success && data.data?.matched) {
-        toast.success('🎉 Match! Μπορείτε τώρα να ξεκινήσετε συνομιλία!');
+        toast.success(t('interestsPage.toasts.matched'));
         setInterests((prev) => prev.map((i) => i.swiper_id === targetId ? { ...i, is_matched: 1, liked_back: true, conversation_id: data.data.conversationId } : i));
       } else {
-        toast.error(data.error?.message || 'Κάτι πήγε στραβά');
+        toast.error(data.error?.message || t('interestsPage.toasts.generic'));
       }
     } catch {
-      toast.error('Κάτι πήγε στραβά');
+      toast.error(t('interestsPage.toasts.generic'));
     } finally {
       setLiking(null);
     }
@@ -101,9 +104,9 @@ export default function InterestsPage() {
     setInterests((prev) => prev.filter((i) => i.swipe_id !== swipeId));
     try {
       await (api as any).interests.dismiss(swipeId);
-      toast.success('Το αίτημα αφαιρέθηκε', {
+      toast.success(t('interestsPage.toasts.removed'), {
         action: {
-          label: 'Αναίρεση',
+          label: t('interestsPage.toasts.undo'),
           onClick: async () => {
             try {
               await (api as any).interests.undismiss(swipeId);
@@ -111,14 +114,14 @@ export default function InterestsPage() {
                 prev.some((i) => i.swipe_id === swipeId) ? prev : [interest, ...prev],
               );
             } catch {
-              toast.error('Δεν έγινε η αναίρεση');
+              toast.error(t('interestsPage.toasts.undoFailed'));
             }
           },
         },
       });
     } catch {
       setInterests((prev) => (prev.some((i) => i.swipe_id === swipeId) ? prev : [interest, ...prev]));
-      toast.error('Δεν αφαιρέθηκε — δοκίμασε ξανά');
+      toast.error(t('interestsPage.toasts.removeFailed'));
     } finally {
       setDismissing(null);
     }
@@ -129,11 +132,11 @@ export default function InterestsPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">👋 Ποιος Ενδιαφέρθηκε</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('interestsPage.title')}</h1>
         <p className="mt-1 text-gray-600">
           {isWorker
-            ? 'Επιχειρήσεις που σε έκαναν like. Πάτα "Ενδιαφέρομαι" για match!'
-            : 'Εργαζόμενοι που ενδιαφέρθηκαν για τις αγγελίες σου.'}
+            ? t('interestsPage.workerDesc')
+            : t('interestsPage.businessDesc')}
         </p>
         {/*
           Ο ΜΕΤΡΗΤΗΣ ΜΕΤΡΑΕΙ ΑΥΤΟ ΠΟΥ ΦΑΙΝΕΤΑΙ ΑΠΟ ΚΑΤΩ.
@@ -146,15 +149,16 @@ export default function InterestsPage() {
         */}
         {pending.length > 0 && (
           <Badge className="mt-2 bg-blue-100 text-blue-700">
-            {pending.length}{' '}
-            {pending.length === 1 ? 'περιμένει απάντηση' : 'περιμένουν απάντηση'}
+            {pending.length === 1
+              ? t('interestsPage.pendingOne', { n: pending.length })
+              : t('interestsPage.pendingMany', { n: pending.length })}
           </Badge>
         )}
         {interests.length > pending.length && (
           <p className="mt-2 text-sm text-gray-500">
-            Άλλα {interests.length - pending.length} έγιναν ήδη match —{' '}
+            {t('interestsPage.alreadyMatched', { n: interests.length - pending.length })}{' '}
             <a href="/dashboard/matches" className="font-medium text-blue-600 hover:underline">
-              δες τα στα Matches
+              {t('interestsPage.seeInMatches')}
             </a>
             .
           </p>
@@ -163,10 +167,8 @@ export default function InterestsPage() {
 
       {pending.length === 0 ? (
         <EmptyState
-          title="Κανένα αίτημα σε αναμονή"
-          description={isWorker
-            ? 'Εδώ εμφανίζονται όσοι σε διάλεξαν και περιμένουν απάντηση.'
-            : 'Εδώ εμφανίζονται όσοι σε διάλεξαν και περιμένουν απάντηση.'}
+          title={t('interestsPage.emptyTitle')}
+          description={t('interestsPage.emptyDesc')}
         />
       ) : (
         <div className="space-y-4">
@@ -188,15 +190,15 @@ export default function InterestsPage() {
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-gray-900 truncate">{item.company_name || 'Επιχείρηση'}</h3>
-                          {isMatched && <Badge className="bg-emerald-100 text-emerald-700 text-xs">✓ Match</Badge>}
+                          <h3 className="font-bold text-gray-900 truncate">{item.company_name || t('interestsPage.business')}</h3>
+                          {isMatched && <Badge className="bg-emerald-100 text-emerald-700 text-xs">{t('interestsPage.matchBadge')}</Badge>}
                         </div>
                         {item.description && <p className="mt-1 text-sm text-gray-500 line-clamp-1">{item.description}</p>}
                         <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-400">
                           {item.region && <span>📍 {item.region}</span>}
-                          {item.staff_housing === 1 && <span className="text-emerald-600">🏠 Διαμονή</span>}
-                          {item.meals_provided === 1 && <span className="text-emerald-600">🍽️ Σίτιση</span>}
-                          <span>🕐 {timeAgo(item.liked_at)}</span>
+                          {item.staff_housing === 1 && <span className="text-emerald-600">{t('interestsPage.housing')}</span>}
+                          {item.meals_provided === 1 && <span className="text-emerald-600">{t('interestsPage.meals')}</span>}
+                          <span>🕐 {timeAgo(item.liked_at, t, locale)}</span>
                         </div>
                       </div>
                       <div className="flex flex-shrink-0 gap-1.5 sm:gap-2">
@@ -215,8 +217,8 @@ export default function InterestsPage() {
                             <button
                               onClick={() => handleDismiss(item)}
                               disabled={dismissing === item.swipe_id}
-                              title="Δεν με ενδιαφέρει"
-                              aria-label="Δεν με ενδιαφέρει"
+                              title={t('interestsPage.notInterested')}
+                              aria-label={t('interestsPage.notInterested')}
                               className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-gray-500 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                             >
                               {dismissing === item.swipe_id ? '…' : '✕'}
@@ -246,15 +248,15 @@ export default function InterestsPage() {
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-gray-900 truncate">{item.full_name || 'Εργαζόμενος'}</h3>
-                          {isMatched && <Badge className="bg-emerald-100 text-emerald-700 text-xs">✓ Match</Badge>}
+                          <h3 className="font-bold text-gray-900 truncate">{item.full_name || t('interestsPage.worker')}</h3>
+                          {isMatched && <Badge className="bg-emerald-100 text-emerald-700 text-xs">{t('interestsPage.matchBadge')}</Badge>}
                         </div>
                         {item.bio && <p className="mt-1 text-sm text-gray-500 line-clamp-1">{item.bio}</p>}
                         <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-400">
                           {item.city && <span>📍 {item.city}{item.region ? `, ${item.region}` : ''}</span>}
-                          {item.years_of_experience && <span>⭐ {item.years_of_experience} χρόνια</span>}
+                          {item.years_of_experience && <span>{t('interestsPage.years', { n: item.years_of_experience })}</span>}
                           {item.job_title && <span>📋 {item.job_title}</span>}
-                          <span>🕐 {timeAgo(item.liked_at)}</span>
+                          <span>🕐 {timeAgo(item.liked_at, t, locale)}</span>
                         </div>
                       </div>
                       <div className="flex flex-shrink-0 gap-1.5 sm:gap-2">
@@ -273,8 +275,8 @@ export default function InterestsPage() {
                             <button
                               onClick={() => handleDismiss(item)}
                               disabled={dismissing === item.swipe_id}
-                              title="Δεν με ενδιαφέρει"
-                              aria-label="Δεν με ενδιαφέρει"
+                              title={t('interestsPage.notInterested')}
+                              aria-label={t('interestsPage.notInterested')}
                               className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-gray-500 transition hover:border-red-300 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                             >
                               {dismissing === item.swipe_id ? '…' : '✕'}

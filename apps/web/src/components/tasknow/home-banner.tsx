@@ -6,6 +6,7 @@ import { TaskNowLogo, TaskNowMark } from './logo';
 import { isLicensedCategory } from './data';
 import { SHOW_TASKNOW_ON_MARKETING } from './flags';
 import { boardStats, previewTasks, publicOpenTasks, useMockTasks } from './mock-store';
+import { useT } from '@/i18n/locale-provider';
 
 /**
  * ΜΑΚΕΤΑ — το TaskNow μέσα στο υπόλοιπο site.
@@ -28,18 +29,20 @@ import { boardStats, previewTasks, publicOpenTasks, useMockTasks } from './mock-
 
 /** Το σήμα ότι βλέπεις παράδειγμα — μπαίνει πάνω σε κάθε δείγμα αγγελίας. */
 function MockChip({ className = '' }: { className?: string }) {
+  const t = useT();
   return (
     <span
       className={
         'rounded bg-amber-100 px-1 text-[10px] font-bold text-amber-800 ' + className
       }
     >
-      ΜΑΚΕΤΑ
+      {t('tasknow.banner.mock')}
     </span>
   );
 }
 
 export function TaskNowBanner({ variant = 'full' }: { variant?: 'full' | 'strip' }) {
+  const t = useT();
   const state = useMockTasks();
 
   // Όσο οι μικροδουλειές είναι παραδείγματα, δεν στέκονται δίπλα σε αληθινές
@@ -50,7 +53,9 @@ export function TaskNowBanner({ variant = 'full' }: { variant?: 'full' | 'strip'
   const preview = previewTasks(state, 3);
 
   const range =
-    stats.min !== null && stats.max !== null ? `${stats.min}€–${stats.max}€ ανά δουλειά` : null;
+    stats.min !== null && stats.max !== null
+      ? t('tasknow.banner.range', { min: stats.min, max: stats.max })
+      : null;
 
   if (!show) return null;
 
@@ -69,20 +74,21 @@ export function TaskNowBanner({ variant = 'full' }: { variant?: 'full' | 'strip'
 
         <span className="min-w-0 flex-1">
           <span className="block text-[13px] font-bold tabular-nums text-gray-900">
-            {stats.count} μικροδουλειές ανοιχτές τώρα{range ? ` · ${range}` : ''}
+            {t('tasknow.banner.openNow', { count: stats.count })}
+            {range ? ` · ${range}` : ''}
           </span>
           <span className="mt-0.5 block truncate text-[11px] text-gray-600">
             <MockChip className="mr-1.5" />
-            {preview.map((t, i) => (
-              <span key={t.id}>
+            {preview.map((task, i) => (
+              <span key={task.id}>
                 {i > 0 && ' · '}
-                <span className="font-semibold tabular-nums text-gray-800">{t.budget}€</span>{' '}
-                {t.title}
+                <span className="font-semibold tabular-nums text-gray-800">{task.budget}€</span>{' '}
+                {task.title}
               </span>
             ))}
           </span>
           <span className="mt-0.5 block text-[11px] text-gray-500">
-            Δεν βρήκες δουλειά σήμερα; Δες τι υπάρχει στη Θεσσαλονίκη.
+            {t('tasknow.banner.notFound')}
           </span>
         </span>
 
@@ -90,7 +96,7 @@ export function TaskNowBanner({ variant = 'full' }: { variant?: 'full' | 'strip'
           →
         </span>
         <span className="hidden shrink-0 text-sm font-semibold text-amber-700 sm:block">
-          Δες τα όλα →
+          {t('tasknow.banner.seeAll')}
         </span>
       </Link>
     );
@@ -112,17 +118,19 @@ export function TaskNowBanner({ variant = 'full' }: { variant?: 'full' | 'strip'
                 />
               </span>
               <span className="rounded bg-black/30 px-2 py-0.5 text-[11px] font-bold text-white">
-                ΜΑΚΕΤΑ
+                {t('tasknow.banner.mock')}
               </span>
             </div>
 
             <h2 className="mt-3 text-2xl font-bold leading-tight tracking-tight sm:text-3xl lg:text-4xl">
-              Μικροδουλειές στη Θεσσαλονίκη
+              {t('tasknow.banner.title')}
             </h2>
 
             <p className="mt-4 text-sm font-medium tabular-nums text-white/90 sm:text-base">
-              <strong className="text-lg font-bold text-white">{stats.count}</strong> ανοιχτές
-              τώρα{range ? ` · ${range}` : ''} · 📍 Θεσσαλονίκη
+              <strong className="text-lg font-bold text-white">{stats.count}</strong>
+              {t('tasknow.banner.openNowFull')}
+              {range ? ` · ${range}` : ''}
+              {t('tasknow.banner.thessaloniki')}
             </p>
 
             <div className="mt-5 flex flex-wrap gap-3">
@@ -130,47 +138,46 @@ export function TaskNowBanner({ variant = 'full' }: { variant?: 'full' | 'strip'
                 href="/tasknow"
                 className="w-full rounded-xl bg-white px-7 py-3.5 text-center text-sm font-bold text-amber-600 shadow-lg transition hover:bg-amber-50 sm:w-auto"
               >
-                Δες τις μικροδουλειές
+                {t('tasknow.banner.seeTasks')}
               </Link>
               <Link
                 href="/tasknow"
                 className="hidden rounded-xl bg-black/20 px-7 py-3.5 text-sm font-semibold text-white ring-1 ring-white/40 transition hover:bg-black/30 sm:inline-flex"
               >
-                Ανέβασε δουλειά
+                {t('tasknow.banner.postJob')}
               </Link>
             </div>
 
             <p className="mt-4 hidden text-base leading-relaxed text-white/90 sm:block">
-              Βόλτα με σκύλο, μεταφορά, καθάρισμα, θελήματα, μαστορέματα. Ανέβασε τι θέλεις
-              να γίνει και βρες χέρια — ή ανάλαβε μια δουλειά και βγάλε χρήματα.
+              {t('tasknow.banner.blurb')}
             </p>
           </div>
 
           {/* Οι πραγματικές εγγραφές — το μόνο πράγμα που πείθει */}
           <div className="w-full max-w-sm space-y-2.5">
-            {preview.map((t) => (
+            {preview.map((task) => (
               <Link
-                key={t.id}
-                href={`/tasknow?task=${t.id}`}
+                key={task.id}
+                href={`/tasknow?task=${task.id}`}
                 className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl bg-white/95 p-3.5 shadow-lg transition hover:bg-white"
               >
                 <span className="min-w-0">
                   <span className="block truncate text-[13.5px] font-semibold text-gray-900">
-                    {t.title}
+                    {task.title}
                   </span>
                   <span className="mt-0.5 block truncate text-[11px] text-gray-500">
                     <MockChip className="mr-1.5" />
                     {/* Ο περιορισμός της άδειας δεν κρύβεται ούτε στα δείγματα:
                         αλλιώς κάποιος κάνει κλικ νομίζοντας ότι μπορεί. */}
-                    {isLicensedCategory(t.category) && (
+                    {isLicensedCategory(task.category) && (
                       <span className="mr-1.5 rounded bg-red-50 px-1 text-[10px] font-semibold text-red-700">
-                        θέλει άδεια
+                        {t('tasknow.common.needsLicence')}
                       </span>
                     )}
-                    {t.area} · {t.when}
+                    {task.area} · {task.when}
                   </span>
                 </span>
-                <Amount value={t.budget} note={t.budgetNote} size="band" direction />
+                <Amount value={task.budget} note={task.budgetNote} size="band" direction />
               </Link>
             ))}
 
@@ -179,14 +186,14 @@ export function TaskNowBanner({ variant = 'full' }: { variant?: 'full' | 'strip'
                 href="/tasknow"
                 className="block text-center text-sm font-semibold text-white underline"
               >
-                +{open.length - preview.length} ακόμα ανοιχτές →
+                {t('tasknow.banner.more', { n: open.length - preview.length })}
               </Link>
             )}
           </div>
         </div>
 
         <p className="mt-6 text-xs text-white">
-          ΜΑΚΕΤΑ — παραδείγματα, όχι αληθινές αγγελίες.
+          {t('tasknow.banner.mockFooter')}
         </p>
       </div>
     </section>

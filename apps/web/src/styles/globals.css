@@ -81,3 +81,86 @@
   z-index: 0;
   isolation: isolate;
 }
+
+/*
+  ΝΥΧΤΕΡΙΝΗ ΕΚΔΟΣΗ (dark mode).
+
+  Η σελίδα έχει 140+ αρχεία με χρώματα γραμμένα ως κλάσεις (bg-white,
+  text-gray-900 …). Αντί να ξαναγραφτούν όλα με dark: παραλλαγές, το θέμα
+  ορίζεται ΜΙΑ φορά εδώ: όταν το <html> έχει την κλάση `dark`, οι ίδιες
+  κλάσεις παίρνουν τα σκούρα χρώματά τους. Οι σελίδες δεν αλλάζουν καθόλου.
+
+  Παλέτα: φόντο σελίδας #0b1220, κάρτες #111a2e, ανάγλυφα #1e293b/#334155,
+  κείμενο #f1f5f9 → #64748b. Τα έγχρωμα κουτάκια (μπλε/πράσινα/κίτρινα/
+  κόκκινα) γίνονται διάφανες αποχρώσεις με ανοιχτό κείμενο.
+*/
+.dark { color-scheme: dark; }
+.dark body { background-color: #0b1220; color: #e2e8f0; }
+
+/* ── Φόντα ─────────────────────────────────────────────────────────── */
+.dark .bg-white { background-color: #111a2e; }
+.dark .bg-white\/95, .dark .bg-white\/90, .dark .bg-white\/80 { background-color: rgba(11, 18, 32, 0.92); }
+.dark .bg-gray-50, .dark .bg-slate-50 { background-color: #0f172a; }
+.dark .bg-gray-50\/60, .dark .bg-gray-50\/50, .dark .bg-blue-50\/40, .dark .bg-blue-50\/50, .dark .bg-blue-50\/60, .dark .bg-amber-50\/40 { background-color: rgba(30, 41, 59, 0.5); }
+.dark .bg-gray-100, .dark .bg-slate-100 { background-color: #1e293b; }
+.dark .bg-gray-200, .dark .bg-slate-200 { background-color: #334155; }
+.dark .bg-gray-300 { background-color: #475569; }
+.dark .hover\:bg-gray-50:hover, .dark .hover\:bg-gray-100:hover, .dark .hover\:bg-blue-50:hover, .dark .hover\:bg-blue-50\/40:hover { background-color: #1e293b; }
+.dark .hover\:bg-gray-200:hover { background-color: #334155; }
+.dark .bg-blue-50 { background-color: rgba(59, 130, 246, 0.14); }
+.dark .bg-blue-100 { background-color: rgba(59, 130, 246, 0.22); }
+.dark .bg-indigo-50 { background-color: rgba(99, 102, 241, 0.14); }
+.dark .bg-indigo-100 { background-color: rgba(99, 102, 241, 0.22); }
+.dark .bg-emerald-50, .dark .bg-green-50 { background-color: rgba(16, 185, 129, 0.14); }
+.dark .bg-emerald-100, .dark .bg-green-100 { background-color: rgba(16, 185, 129, 0.22); }
+.dark .bg-amber-50, .dark .bg-yellow-50, .dark .bg-orange-50 { background-color: rgba(245, 158, 11, 0.14); }
+.dark .bg-amber-100, .dark .bg-yellow-100, .dark .bg-orange-100 { background-color: rgba(245, 158, 11, 0.22); }
+.dark .bg-red-50, .dark .bg-rose-50 { background-color: rgba(239, 68, 68, 0.14); }
+.dark .bg-red-100, .dark .bg-rose-100 { background-color: rgba(239, 68, 68, 0.22); }
+.dark .bg-purple-50, .dark .bg-pink-50, .dark .bg-fuchsia-50 { background-color: rgba(168, 85, 247, 0.14); }
+.dark .bg-purple-100, .dark .bg-pink-100 { background-color: rgba(168, 85, 247, 0.22); }
+.dark .from-blue-50, .dark .from-indigo-50, .dark .from-amber-100, .dark .from-emerald-50 { --tw-gradient-from: #1e293b var(--tw-gradient-from-position); --tw-gradient-to: rgb(30 41 59 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+.dark .to-blue-50, .dark .to-indigo-50, .dark .to-orange-100, .dark .to-white, .dark .to-gray-50, .dark .via-white { --tw-gradient-to: #111a2e var(--tw-gradient-to-position); }
+.dark .from-white, .dark .from-gray-50 { --tw-gradient-from: #111a2e var(--tw-gradient-from-position); --tw-gradient-to: rgb(17 26 46 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+
+/* ── Κείμενο ───────────────────────────────────────────────────────── */
+.dark .text-gray-900, .dark .text-slate-900, .dark .text-black { color: #f1f5f9; }
+.dark .text-gray-800, .dark .text-slate-800 { color: #e2e8f0; }
+.dark .text-gray-700, .dark .text-slate-700 { color: #cbd5e1; }
+.dark .text-gray-600, .dark .text-slate-600 { color: #a3b1c6; }
+.dark .text-gray-500, .dark .text-slate-500 { color: #94a3b8; }
+.dark .text-gray-400, .dark .text-slate-400 { color: #7c8aa1; }
+.dark .text-gray-300 { color: #64748b; }
+.dark .hover\:text-gray-900:hover, .dark .hover\:text-gray-700:hover, .dark .hover\:text-gray-600:hover { color: #f8fafc; }
+.dark .text-blue-700, .dark .text-blue-800, .dark .text-blue-900 { color: #93c5fd; }
+.dark .text-indigo-700, .dark .text-indigo-800, .dark .text-indigo-900 { color: #a5b4fc; }
+.dark .text-emerald-700, .dark .text-emerald-800, .dark .text-emerald-900, .dark .text-green-700, .dark .text-green-800 { color: #6ee7b7; }
+.dark .text-amber-700, .dark .text-amber-800, .dark .text-amber-900, .dark .text-orange-700, .dark .text-yellow-800 { color: #fcd34d; }
+.dark .text-red-700, .dark .text-red-800, .dark .text-rose-700, .dark .text-rose-800 { color: #fca5a5; }
+.dark .text-purple-700, .dark .text-purple-800, .dark .text-pink-700 { color: #d8b4fe; }
+
+/* ── Περιγράμματα, δαχτυλίδια, διαχωριστικά ────────────────────────── */
+.dark .border-gray-100, .dark .border-gray-200, .dark .border-slate-200, .dark .border-white { border-color: #263248; }
+.dark .border-gray-300 { border-color: #3b4a63; }
+.dark .border-b, .dark .border-t, .dark .border-l, .dark .border-r, .dark .border { border-color: #263248; }
+.dark .border-blue-200, .dark .border-blue-100 { border-color: rgba(59, 130, 246, 0.35); }
+.dark .border-emerald-200, .dark .border-green-200 { border-color: rgba(16, 185, 129, 0.35); }
+.dark .border-amber-200, .dark .border-yellow-200 { border-color: rgba(245, 158, 11, 0.35); }
+.dark .border-red-200, .dark .border-rose-200 { border-color: rgba(239, 68, 68, 0.35); }
+.dark .border-indigo-200 { border-color: rgba(99, 102, 241, 0.35); }
+.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]), .dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]), .dark .divide-y > :not([hidden]) ~ :not([hidden]) { border-color: #263248; }
+.dark .ring-gray-100, .dark .ring-gray-200 { --tw-ring-color: #263248; }
+.dark .ring-white, .dark .ring-white\/40, .dark .ring-white\/95 { --tw-ring-color: #334155; }
+.dark .shadow-sm, .dark .shadow, .dark .shadow-md, .dark .shadow-lg, .dark .shadow-xl, .dark .shadow-2xl { --tw-shadow-color: rgba(0, 0, 0, 0.5); --tw-shadow: var(--tw-shadow-colored); }
+
+/* ── Φόρμες ────────────────────────────────────────────────────────── */
+.dark input:not([type='checkbox']):not([type='radio']):not([type='range']), .dark textarea, .dark select {
+  background-color: #0f172a;
+  color: #f1f5f9;
+  border-color: #3b4a63;
+}
+.dark input::placeholder, .dark textarea::placeholder { color: #64748b; }
+.dark option { background-color: #0f172a; color: #f1f5f9; }
+
+/* ── Σταθερά σκούρα τμήματα (hero, υποσέλιδο) μένουν όπως είναι ─────── */
+.dark .bg-ink { background-color: #060b1f; }

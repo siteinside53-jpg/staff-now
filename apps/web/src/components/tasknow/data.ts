@@ -31,6 +31,16 @@
 const DEMO =
   process.env.NEXT_PUBLIC_TASKNOW_DEMO === '1' || process.env.NODE_ENV === 'development';
 
+/**
+ * Ετικέτες που εξαρτώνται από τη γλώσσα του επισκέπτη (κατηγορίες, άδειες,
+ * καταστάσεις, επίπεδα, αποστάσεις, «πριν πόσο») — τα ελληνικά παραμένουν εδώ
+ * ως πηγή, τα αγγλικά έρχονται από i18n/locales/en/tasknow.json.
+ *
+ * Προεπιλογή `locale = 'el'` ώστε ό,τι δεν έχει μεταφραστεί ακόμη (π.χ. το
+ * διαχειριστικό) να συνεχίσει να δουλεύει ακριβώς όπως πριν.
+ */
+import { translate, type Locale } from '@/i18n';
+
 export type Task = {
   id: string;
   title: string;
@@ -125,6 +135,15 @@ export function isLicensedCategory(key: string): boolean {
   return CATEGORY_BY_KEY[key]?.licensed === true;
 }
 
+/** Ετικέτα κατηγορίας στη γλώσσα του επισκέπτη. */
+export function categoryLabelFor(locale: Locale, key: string): string {
+  const fallback = CATEGORY_BY_KEY[key]?.label ?? key;
+  if (locale === 'el') return fallback;
+  const tKey = `tasknow.categories.${key}`;
+  const v = translate(locale, tKey);
+  return v === tKey ? fallback : v;
+}
+
 /** Ποια άδεια ζητάμε ανά κατηγορία — φαίνεται στη φόρμα της προσφοράς. */
 export const REQUIRED_LICENCE: Record<string, string> = {
   electrical: 'Άδεια ηλεκτρολόγου εγκαταστάτη',
@@ -136,6 +155,15 @@ export const REQUIRED_LICENCE: Record<string, string> = {
 export const CATEGORY_BY_KEY: Record<string, Category> = Object.fromEntries(
   CATEGORIES.map((c) => [c.key, c]),
 );
+
+/** Ετικέτα απαιτούμενης άδειας στη γλώσσα του επισκέπτη. */
+export function licenceLabelFor(locale: Locale, key: string): string {
+  const fallback = REQUIRED_LICENCE[key] ?? '';
+  if (locale === 'el' || !fallback) return fallback;
+  const tKey = `tasknow.licence.${key}`;
+  const v = translate(locale, tKey);
+  return v === tKey ? fallback : v;
+}
 
 /** Οι περιοχές της μακέτας — μόνο Θεσσαλονίκη, όπως συμφωνήθηκε για την αρχή. */
 /**
@@ -567,6 +595,15 @@ export const MY_TASK_STATUS_LABEL: Record<MyTaskStatus, string> = {
   cancelled: 'Ακυρώθηκε',
 };
 
+/** Ετικέτα κατάστασης «οι δουλειές μου» στη γλώσσα του επισκέπτη. */
+export function myStatusLabelFor(locale: Locale, status: MyTaskStatus): string {
+  const fallback = MY_TASK_STATUS_LABEL[status];
+  if (locale === 'el') return fallback;
+  const tKey = `tasknow.myStatus.${status}`;
+  const v = translate(locale, tKey);
+  return v === tKey ? fallback : v;
+}
+
 export const MY_TASK_STATUS_CLASS: Record<MyTaskStatus, string> = {
   open: 'bg-amber-50 text-amber-700',
   assigned: 'bg-blue-50 text-blue-700',
@@ -644,8 +681,9 @@ export function distanceLabel(
   km: number | null,
   source: CenterSource,
   centerLabel: string,
+  locale: Locale = 'el',
 ): string {
-  if (km === null) return 'Εξ αποστάσεως';
+  if (km === null) return translate(locale, 'tasknow.common.remote');
   /*
     Το «geo» δεν σημαίνει πια μόνο GPS: μπορεί ο χρήστης να έγραψε ο ίδιος τη
     διεύθυνσή του, επειδή ο browser του αρνείται την τοποθεσία. Εδώ ήταν
@@ -654,14 +692,19 @@ export function distanceLabel(
     Το `centerLabel` είναι ήδη «σένα» όταν η θέση ήρθε από το GPS, οπότε η ίδια
     γραμμή καλύπτει σωστά και τις δύο περιπτώσεις.
   */
-  const from = source === 'default' ? 'από το κέντρο' : `από ${centerLabel}`;
+  const from =
+    source === 'default'
+      ? translate(locale, 'tasknow.dist.fromCenter')
+      : translate(locale, 'tasknow.dist.from', { label: centerLabel });
   // Κάτω από 150 μέτρα δεν τυπώνουμε αριθμό: το «0 μ.» δεν λέει τίποτα.
-  if (km < 0.15) return `εδώ κοντά ${from}`;
-  return `${formatKm(km)} ${from}`;
+  if (km < 0.15) return translate(locale, 'tasknow.dist.nearby', { from });
+  return `${formatKm(km, locale)} ${from}`;
 }
 
-export function formatKm(km: number): string {
-  return km < 1 ? `${Math.round(km * 1000)} μ.` : `${km.toFixed(1).replace('.', ',')} χλμ`;
+export function formatKm(km: number, locale: Locale = 'el'): string {
+  if (km < 1) return translate(locale, 'tasknow.dist.meters', { n: Math.round(km * 1000) });
+  const n = locale === 'el' ? km.toFixed(1).replace('.', ',') : km.toFixed(1);
+  return translate(locale, 'tasknow.dist.km', { n });
 }
 
 // ── Επίπεδα και φήμη ────────────────────────────────────────────────────────
@@ -740,6 +783,20 @@ export function nextLevel(current: Level): Level | null {
   return i >= 0 && i < LEVELS.length - 1 ? LEVELS[i + 1]! : null;
 }
 
+/** Όνομα και περιγραφή επιπέδου στη γλώσσα του επισκέπτη. */
+export function levelLabelFor(locale: Locale, level: Level): string {
+  if (locale === 'el') return level.label;
+  const tKey = `tasknow.levels.${level.key}.label`;
+  const v = translate(locale, tKey);
+  return v === tKey ? level.label : v;
+}
+export function levelPerkFor(locale: Locale, level: Level): string {
+  if (locale === 'el') return level.perk;
+  const tKey = `tasknow.levels.${level.key}.perk`;
+  const v = translate(locale, tKey);
+  return v === tKey ? level.perk : v;
+}
+
 // ── Λέξεις που κόβουν το ανέβασμα ───────────────────────────────────────────
 // ΓΙΑΤΙ ΣΤΟ ΑΝΕΒΑΣΜΑ ΚΑΙ ΟΧΙ ΜΕΤΑ: μια αγγελία για «συνοδεία» που μένει
 // ορατή δύο ώρες μέχρι να τη δει διαχειριστής, έχει ήδη κάνει τη ζημιά. Ο
@@ -785,20 +842,24 @@ export const URGENT_HOURS = 6;
 /** Πόσο καιρό μετράει μια αγγελία ως «Νέο» — ίδια σύμβαση με τις αγγελίες. */
 export const NEW_MINUTES = 48 * 60;
 
-export function formatPostedAgo(minutes: number): string {
-  if (minutes < 1) return 'μόλις τώρα';
-  if (minutes < 60) return `πριν ${Math.round(minutes)} λεπτά`;
-  if (minutes < 120) return 'πριν 1 ώρα';
-  if (minutes < 1440) return `πριν ${Math.round(minutes / 60)} ώρες`;
-  if (minutes < 2880) return 'χθες';
-  return `πριν ${Math.round(minutes / 1440)} μέρες`;
+export function formatPostedAgo(minutes: number, locale: Locale = 'el'): string {
+  if (minutes < 1) return translate(locale, 'tasknow.ago.justNow');
+  if (minutes < 60) return translate(locale, 'tasknow.ago.minutes', { n: Math.round(minutes) });
+  if (minutes < 120) return translate(locale, 'tasknow.ago.oneHour');
+  if (minutes < 1440) return translate(locale, 'tasknow.ago.hours', { n: Math.round(minutes / 60) });
+  if (minutes < 2880) return translate(locale, 'tasknow.ago.yesterday');
+  return translate(locale, 'tasknow.ago.days', { n: Math.round(minutes / 1440) });
 }
 
 /** Πώς γράφεται ποιος ανέβασε τη δουλειά. */
-export function posterLabel(name?: string, role?: 'worker' | 'business'): string {
+export function posterLabel(name?: string, role?: 'worker' | 'business', locale: Locale = 'el'): string {
   if (!name) return '';
   if (!role) return name;
-  return `${name} · ${role === 'business' ? 'επιχείρηση' : 'εργαζόμενος'}`;
+  const roleLabel = translate(
+    locale,
+    role === 'business' ? 'tasknow.poster.business' : 'tasknow.poster.worker',
+  );
+  return `${name} · ${roleLabel}`;
 }
 
 /*
@@ -839,9 +900,15 @@ export function shortPlaceLabel(label: string): { main: string; sub: string } {
 
   Αλλάζοντας ΑΥΤΕΣ τις δύο γραμμές αλλάζουν και οι δύο χάρτες. Η αναφορά στο
   υπόμνημα είναι ΥΠΟΧΡΕΩΤΙΚΗ από τους όρους χρήσης — μη τη βγάλεις.
+
+  09/2025+: η CARTO σταμάτησε να σερβίρει τα δωρεάν πλακίδια χωρίς κλειδί —
+  ο χάρτης γέμιζε με «API KEY REQUIRED». Γυρίσαμε στον επίσημο server του
+  OpenStreetMap: δωρεάν, χωρίς λογαριασμό. Δεν έχει subdomains ({s}) ούτε
+  retina ({r}) και φτάνει μέχρι zoom 19 — τα options στους χάρτες ταιριάζουν.
 */
-export const MAP_TILE_URL =
-  'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+export const MAP_TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+export const MAP_TILE_MAX_ZOOM = 19;
 
 export const MAP_TILE_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>';
+  '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors';

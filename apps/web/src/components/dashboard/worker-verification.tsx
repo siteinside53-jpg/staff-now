@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import { API_URL } from '@/lib/config';
+import { useT, useLocale } from '@/i18n/locale-provider';
 
 type VerificationRequest = {
   id: string;
@@ -19,20 +20,11 @@ type VerificationRequest = {
 
 type DocKind = 'id' | 'passport' | 'license';
 
-const DOC_KINDS: { id: DocKind; label: string; icon: string }[] = [
-  { id: 'id', label: 'Ταυτότητα', icon: '🪪' },
-  { id: 'passport', label: 'Διαβατήριο', icon: '📘' },
-  { id: 'license', label: 'Δίπλωμα οδήγησης', icon: '🚗' },
-];
-
 /** Στο διαβατήριο όλα τα στοιχεία είναι στη σελίδα με τη φωτογραφία. */
 const backRequired = (kind: DocKind) => kind !== 'passport';
 
-const frontLabel = (kind: DocKind) =>
-  kind === 'passport' ? 'Σελίδα με τη φωτογραφία *' : 'Μπροστινή όψη *';
-
-const elDate = (s?: string | null) =>
-  s ? new Date(s.replace(' ', 'T') + (s.endsWith('Z') ? '' : 'Z')).toLocaleDateString('el-GR') : '';
+const fmtDate = (s: string | null | undefined, locale: 'el' | 'en') =>
+  s ? new Date(s.replace(' ', 'T') + (s.endsWith('Z') ? '' : 'Z')).toLocaleDateString(locale === 'en' ? 'en-GB' : 'el-GR') : '';
 
 /** Κεφαλίδα βήματος με αριθμό ή ✓ όταν έχει ολοκληρωθεί. */
 function StepHead({ n, done, title, desc }: { n: number; done: boolean; title: string; desc: string }) {
@@ -72,6 +64,7 @@ function UploadBox({
   busy: boolean;
   onPick: (file: File) => void;
 }) {
+  const t = useT();
   const isImage = !!url && !/\.pdf(\?|$)/i.test(url);
   return (
     <div>
@@ -86,7 +79,7 @@ function UploadBox({
         } ${busy ? 'pointer-events-none opacity-50' : ''}`}
       >
         <span className="text-lg">{url ? '✓' : '📎'}</span>
-        <span>{url ? 'Άλλαξε αρχείο' : 'Επιλογή αρχείου'}</span>
+        <span>{url ? t('workerVerification.changeFile') : t('workerVerification.chooseFile')}</span>
         <input
           type="file"
           accept="image/*,application/pdf"
@@ -100,7 +93,7 @@ function UploadBox({
         />
       </label>
       <p className="mt-1 text-xs text-gray-500">{hint}</p>
-      {busy && <p className="mt-2 text-xs text-blue-600">Ανεβαίνει…</p>}
+      {busy && <p className="mt-2 text-xs text-blue-600">{t('workerVerification.uploading')}</p>}
       {url && !busy && (
         <div className="mt-2 flex items-center gap-2">
           {isImage ? (
@@ -117,6 +110,16 @@ function UploadBox({
 }
 
 export function WorkerVerification() {
+  const t = useT();
+  const { locale } = useLocale();
+  const elDate = (s?: string | null) => fmtDate(s, locale);
+  const DOC_KINDS: { id: DocKind; label: string; icon: string }[] = [
+    { id: 'id', label: t('workerVerification.docId'), icon: '🪪' },
+    { id: 'passport', label: t('workerVerification.docPassport'), icon: '📘' },
+    { id: 'license', label: t('workerVerification.docLicense'), icon: '🚗' },
+  ];
+  const frontLabel = (kind: DocKind) =>
+    kind === 'passport' ? t('workerVerification.passportPage') : t('workerVerification.frontSide');
   const [loading, setLoading] = useState(true);
   const [verified, setVerified] = useState(false);
   const [request, setRequest] = useState<VerificationRequest | null>(null);
@@ -191,31 +194,31 @@ export function WorkerVerification() {
     try {
       await (api as any).auth.sendEmailCode();
       setCodeSent(true);
-      toast.success(`Στείλαμε 6ψήφιο κωδικό στο ${email}.`);
+      toast.success(t('workerVerification.codeSentTo', { to: email }));
     } catch (err: any) {
-      toast.error(err?.message || 'Δεν στάλθηκε ο κωδικός.');
+      toast.error(err?.message || t('workerVerification.codeNotSent'));
     } finally {
       setSendingCode(false);
     }
   };
 
   const confirmCode = async () => {
-    if (code.length !== 6) return toast.error('Ο κωδικός είναι 6 ψηφία.');
+    if (code.length !== 6) return toast.error(t('workerVerification.code6'));
     setConfirming(true);
     try {
       await (api as any).auth.confirmEmail({ code });
       setEmailConfirmed(true);
       setCode('');
-      toast.success('Το email επιβεβαιώθηκε.');
+      toast.success(t('workerVerification.emailConfirmed'));
     } catch (err: any) {
-      toast.error(err?.message || 'Λάθος κωδικός.');
+      toast.error(err?.message || t('workerVerification.wrongCode'));
     } finally {
       setConfirming(false);
     }
   };
 
   const sendPhoneCode = async () => {
-    if (!/^69\d{8}$/.test(phone)) return toast.error('Δώσε έγκυρο κινητό (10 ψηφία, ξεκινά με 69).');
+    if (!/^69\d{8}$/.test(phone)) return toast.error(t('workerVerification.invalidPhone'));
     setSendingPhoneCode(true);
     try {
       const res = (await (api as any).auth.sendPhoneCode({ phone })) as any;
@@ -225,37 +228,37 @@ export function WorkerVerification() {
         // Ο πάροχος SMS δεν είναι ρυθμισμένος: το νούμερο αποθηκεύτηκε και θα
         // επιβεβαιωθεί τηλεφωνικά. Δεν προσποιούμαστε ότι στείλαμε κωδικό.
         setSmsAvailable(false);
-        toast.success('Το κινητό αποθηκεύτηκε.');
+        toast.success(t('workerVerification.phoneSaved'));
       } else {
         setSmsAvailable(true);
         setPhoneCodeSent(true);
         setResendIn(60);
-        toast.success(`Στείλαμε 6ψήφιο κωδικό στο ${phone}.`);
+        toast.success(t('workerVerification.codeSentTo', { to: phone }));
       }
     } catch (err: any) {
-      toast.error(err?.message || 'Δεν στάλθηκε ο κωδικός.');
+      toast.error(err?.message || t('workerVerification.codeNotSent'));
     } finally {
       setSendingPhoneCode(false);
     }
   };
 
   const confirmPhoneCode = async () => {
-    if (phoneCode.length !== 6) return toast.error('Ο κωδικός είναι 6 ψηφία.');
+    if (phoneCode.length !== 6) return toast.error(t('workerVerification.code6'));
     setConfirmingPhone(true);
     try {
       await (api as any).auth.confirmPhone({ code: phoneCode });
       setPhoneConfirmed(true);
       setPhoneCode('');
-      toast.success('Το κινητό επιβεβαιώθηκε.');
+      toast.success(t('workerVerification.phoneConfirmed'));
     } catch (err: any) {
-      toast.error(err?.message || 'Λάθος κωδικός.');
+      toast.error(err?.message || t('workerVerification.wrongCode'));
     } finally {
       setConfirmingPhone(false);
     }
   };
 
   const handleUpload = async (file: File, side: 'front' | 'back') => {
-    if (file.size > 10 * 1024 * 1024) return toast.error('Το αρχείο είναι πάνω από 10MB.');
+    if (file.size > 10 * 1024 * 1024) return toast.error(t('workerVerification.fileTooBig'));
     setUploading(side);
     try {
       const fd = new FormData();
@@ -276,21 +279,21 @@ export function WorkerVerification() {
           setBackUrl(data.data.url);
           setBackName(file.name);
         }
-        toast.success('Η φωτογραφία ανέβηκε.');
+        toast.success(t('workerVerification.photoUploaded'));
       } else {
-        toast.error(data?.error?.message || 'Αποτυχία μεταφόρτωσης.');
+        toast.error(data?.error?.message || t('workerVerification.uploadFailed'));
       }
     } catch {
-      toast.error('Αποτυχία μεταφόρτωσης.');
+      toast.error(t('workerVerification.uploadFailed'));
     } finally {
       setUploading(null);
     }
   };
 
   const handleSubmit = async () => {
-    if (!docKind) return toast.error('Διάλεξε τύπο εγγράφου.');
-    if (!frontUrl) return toast.error('Ανέβασε τη μπροστινή όψη.');
-    if (backRequired(docKind) && !backUrl) return toast.error('Ανέβασε και την πίσω όψη.');
+    if (!docKind) return toast.error(t('workerVerification.chooseDocType'));
+    if (!frontUrl) return toast.error(t('workerVerification.uploadFront'));
+    if (backRequired(docKind) && !backUrl) return toast.error(t('workerVerification.uploadBack'));
 
     setSubmitting(true);
     try {
@@ -299,10 +302,10 @@ export function WorkerVerification() {
         document_url: frontUrl,
         document_back_url: backUrl || undefined,
       });
-      toast.success('Το αίτημα στάλθηκε για έλεγχο.');
+      toast.success(t('workerVerification.submitted'));
       await load();
     } catch (err: any) {
-      toast.error(err?.message || 'Αποτυχία υποβολής.');
+      toast.error(err?.message || t('workerVerification.submitFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -319,16 +322,16 @@ export function WorkerVerification() {
   if (verified)
     return (
       <div className="mx-auto max-w-2xl">
-        <h1 className="mb-1 text-2xl font-bold text-gray-900">✓ Επαλήθευση</h1>
+        <h1 className="mb-1 text-2xl font-bold text-gray-900">{t('workerVerification.verifiedTitle')}</h1>
         <Card className="mt-4 border-emerald-200 bg-emerald-50">
           <CardContent className="p-6 text-center">
             <div className="text-4xl">✅</div>
-            <p className="mt-2 text-lg font-bold text-emerald-900">Ο λογαριασμός σου είναι επαληθευμένος</p>
+            <p className="mt-2 text-lg font-bold text-emerald-900">{t('workerVerification.accountVerified')}</p>
             <p className="mt-1 text-sm text-emerald-800">
-              Το σήμα ✓ εμφανίζεται στο προφίλ σου και ανεβαίνεις ψηλότερα στην αναζήτηση των επιχειρήσεων.
+              {t('workerVerification.verifiedDesc')}
             </p>
             <Link href="/dashboard/profile">
-              <Button variant="outline" className="mt-4">Δες το προφίλ σου</Button>
+              <Button variant="outline" className="mt-4">{t('workerVerification.seeProfile')}</Button>
             </Link>
           </CardContent>
         </Card>
@@ -343,17 +346,17 @@ export function WorkerVerification() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="mb-1 text-2xl font-bold text-gray-900">Επαλήθευση λογαριασμού</h1>
+      <h1 className="mb-1 text-2xl font-bold text-gray-900">{t('workerVerification.title')}</h1>
       <p className="mb-4 text-sm text-gray-600">
-        Πάρε το σήμα ✓ — οι επιχειρήσεις εμπιστεύονται πολύ περισσότερο τα επαληθευμένα προφίλ.
+        {t('workerVerification.intro')}
       </p>
 
       {request?.status === 'rejected' && (
         <Card className="mb-4 border-red-200 bg-red-50">
           <CardContent className="p-4">
-            <p className="text-sm font-bold text-red-900">Το προηγούμενο αίτημα απορρίφθηκε</p>
+            <p className="text-sm font-bold text-red-900">{t('workerVerification.rejectedTitle')}</p>
             {request.rejection_reason && <p className="mt-1 text-sm text-red-800">{request.rejection_reason}</p>}
-            <p className="mt-1 text-xs text-red-700">Μπορείς να υποβάλεις ξανά με σωστά στοιχεία.</p>
+            <p className="mt-1 text-xs text-red-700">{t('workerVerification.resubmit')}</p>
           </CardContent>
         </Card>
       )}
@@ -364,15 +367,15 @@ export function WorkerVerification() {
           <StepHead
             n={1}
             done={emailConfirmed}
-            title="Επαλήθευση email"
-            desc={emailConfirmed ? `Το ${email} επιβεβαιώθηκε.` : `Στέλνουμε 6ψήφιο κωδικό στο ${email}.`}
+            title={t('workerVerification.step1Title')}
+            desc={emailConfirmed ? t('workerVerification.step1Done', { email }) : t('workerVerification.step1Desc', { email })}
           />
 
           {!emailConfirmed && (
             <div className="pl-11">
               {!codeSent ? (
                 <Button onClick={sendCode} disabled={sendingCode} variant="outline">
-                  {sendingCode ? 'Αποστολή…' : 'Στείλε μου κωδικό'}
+                  {sendingCode ? t('workerVerification.sending') : t('workerVerification.sendCode')}
                 </Button>
               ) : (
                 <div className="flex flex-wrap items-center gap-2">
@@ -385,7 +388,7 @@ export function WorkerVerification() {
                     className="w-32 text-center text-lg font-bold tracking-[0.3em]"
                   />
                   <Button onClick={confirmCode} disabled={confirming}>
-                    {confirming ? 'Έλεγχος…' : 'Επιβεβαίωση'}
+                    {confirming ? t('workerVerification.checking') : t('workerVerification.confirm')}
                   </Button>
                   <button
                     type="button"
@@ -393,11 +396,11 @@ export function WorkerVerification() {
                     disabled={sendingCode}
                     className="text-xs font-medium text-blue-600 hover:underline disabled:opacity-50"
                   >
-                    Ξαναστείλε
+                    {t('workerVerification.resend')}
                   </button>
                 </div>
               )}
-              <p className="mt-2 text-xs text-gray-500">Ο κωδικός ισχύει για 15 λεπτά.</p>
+              <p className="mt-2 text-xs text-gray-500">{t('workerVerification.codeValid')}</p>
             </div>
           )}
         </CardContent>
@@ -409,15 +412,15 @@ export function WorkerVerification() {
           <StepHead
             n={2}
             done={phoneStepDone}
-            title="Κινητό τηλέφωνο (προαιρετικό)"
+            title={t('workerVerification.step2Title')}
             desc={
               phoneConfirmed
-                ? `Το ${phone} επιβεβαιώθηκε με SMS.`
+                ? t('workerVerification.step2ConfirmedSms', { phone })
                 : phoneStepDone
-                  ? `Το ${phone} καταχωρήθηκε.`
+                  ? t('workerVerification.step2Saved', { phone })
                   : smsAvailable
-                    ? 'Στέλνουμε 6ψήφιο κωδικό με SMS στο κινητό σου.'
-                    : 'Βοηθάει να σε βρουν πιο γρήγορα οι επιχειρήσεις. Δεν χρειάζεται για την επαλήθευση.'
+                    ? t('workerVerification.step2Sms')
+                    : t('workerVerification.step2Optional')
             }
           />
 
@@ -425,7 +428,7 @@ export function WorkerVerification() {
             <div className="space-y-3 pl-11">
               <div className="flex flex-wrap items-end gap-2">
                 <div className="min-w-[10rem] flex-1">
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Κινητό τηλέφωνο</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('workerVerification.mobilePhone')}</label>
                   <Input
                     inputMode="tel"
                     maxLength={10}
@@ -437,7 +440,7 @@ export function WorkerVerification() {
                 </div>
                 {!phoneCodeSent && (
                   <Button onClick={sendPhoneCode} disabled={sendingPhoneCode} variant="outline">
-                    {sendingPhoneCode ? 'Αποστολή…' : smsAvailable ? 'Στείλε μου κωδικό' : 'Αποθήκευση'}
+                    {sendingPhoneCode ? t('workerVerification.sending') : smsAvailable ? t('workerVerification.sendCode') : t('workerVerification.save')}
                   </Button>
                 )}
               </div>
@@ -454,7 +457,7 @@ export function WorkerVerification() {
                       className="w-32 text-center text-lg font-bold tracking-[0.3em]"
                     />
                     <Button onClick={confirmPhoneCode} disabled={confirmingPhone}>
-                      {confirmingPhone ? 'Έλεγχος…' : 'Επιβεβαίωση'}
+                      {confirmingPhone ? t('workerVerification.checking') : t('workerVerification.confirm')}
                     </Button>
                     <button
                       type="button"
@@ -462,21 +465,21 @@ export function WorkerVerification() {
                       disabled={sendingPhoneCode || resendIn > 0}
                       className="text-xs font-medium text-blue-600 hover:underline disabled:opacity-50"
                     >
-                      {resendIn > 0 ? `Ξαναστείλε σε ${resendIn}″` : 'Ξαναστείλε'}
+                      {resendIn > 0 ? t('workerVerification.resendIn', { s: resendIn }) : t('workerVerification.resend')}
                     </button>
                   </div>
-                  <p className="text-xs text-gray-500">Ο κωδικός ισχύει για 15 λεπτά.</p>
+                  <p className="text-xs text-gray-500">{t('workerVerification.codeValid')}</p>
                 </>
               )}
 
               {!smsAvailable && phoneSaved && (
                 <p className="text-xs text-gray-600">
-                  📞 Μπορεί να σε καλέσουμε για επιβεβαίωση. Δεν καθυστερεί την έγκριση της αίτησής σου.
+                  {t('workerVerification.mayCall')}
                 </p>
               )}
 
               <p className="text-xs text-gray-500">
-                Δεν εμφανίζεται δημόσια. Χρησιμοποιείται μόνο για τον έλεγχο και για επικοινωνία μετά από match.
+                {t('workerVerification.phonePrivacy')}
               </p>
             </div>
           )}
@@ -489,22 +492,22 @@ export function WorkerVerification() {
           <StepHead
             n={3}
             done={false}
-            title="Έγγραφο ταυτοποίησης"
+            title={t('workerVerification.step3Title')}
             desc={
               idPending
-                ? `Υποβλήθηκε στις ${elDate(request?.created_at)} — είναι υπό έλεγχο από την ομάδα μας.`
-                : 'Διάλεξε τι θα ανεβάσεις και βγάλε καθαρές φωτογραφίες.'
+                ? t('workerVerification.step3Pending', { date: elDate(request?.created_at) })
+                : t('workerVerification.step3Desc')
             }
           />
 
           {idPending ? (
             <div className="pl-11 text-sm text-amber-800">
-              📨 Θα δεις το σήμα ✓ στο προφίλ σου μόλις εγκριθεί. Δεν χρειάζεται να κάνεις κάτι άλλο.
+              {t('workerVerification.pendingNote')}
             </div>
           ) : (
             <div className="space-y-4 pl-11">
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">Τύπος εγγράφου *</label>
+                <label className="mb-2 block text-sm font-medium text-gray-700">{t('workerVerification.docType')}</label>
                 <div className="grid grid-cols-3 gap-2">
                   {DOC_KINDS.map((k) => (
                     <button
@@ -528,18 +531,18 @@ export function WorkerVerification() {
                 <>
                   <UploadBox
                     label={frontLabel(docKind)}
-                    hint="Καθαρή φωτογραφία, να διαβάζονται όλα τα στοιχεία (εικόνα ή PDF, έως 10MB)."
+                    hint={t('workerVerification.frontHint')}
                     url={frontUrl}
                     name={frontName}
                     busy={uploading === 'front'}
                     onPick={(f) => handleUpload(f, 'front')}
                   />
                   <UploadBox
-                    label={backRequired(docKind) ? 'Πίσω όψη *' : 'Πίσω όψη (προαιρετικό)'}
+                    label={backRequired(docKind) ? t('workerVerification.backRequired') : t('workerVerification.backOptional')}
                     hint={
                       backRequired(docKind)
-                        ? 'Η πίσω όψη έχει στοιχεία που χρειαζόμαστε για τον έλεγχο.'
-                        : 'Το διαβατήριο δεν τη χρειάζεται — ανέβασέ την μόνο αν θέλεις.'
+                        ? t('workerVerification.backHintRequired')
+                        : t('workerVerification.backHintOptional')
                     }
                     url={backUrl}
                     name={backName}
@@ -557,17 +560,17 @@ export function WorkerVerification() {
                 size="lg"
                 className="w-full"
               >
-                {submitting ? 'Υποβολή…' : 'Υποβολή για έλεγχο'}
+                {submitting ? t('workerVerification.submitting') : t('workerVerification.submit')}
               </Button>
               {/* Χωρίς εξήγηση ο χρήστης βλέπει σκέτο γκρι κουμπί και δεν ξέρει
                   τι του λείπει. */}
               {!docsReady && (
                 <p className="text-center text-xs text-amber-700">
                   {!docKind
-                    ? 'Διάλεξε πρώτα τι έγγραφο θα ανεβάσεις.'
+                    ? t('workerVerification.chooseDocFirst')
                     : backRequired(docKind)
-                      ? 'Ανέβασε και τις δύο όψεις για να συνεχίσεις.'
-                      : 'Ανέβασε τη σελίδα με τη φωτογραφία για να συνεχίσεις.'}
+                      ? t('workerVerification.uploadBothSides')
+                      : t('workerVerification.uploadPhotoPage')}
                 </p>
               )}
             </div>
@@ -576,7 +579,7 @@ export function WorkerVerification() {
       </Card>
 
       <p className="mt-4 text-center text-xs text-gray-500">
-        Τα έγγραφα χρησιμοποιούνται μόνο για τον έλεγχο ταυτοπροσωπίας και δεν εμφανίζονται ποτέ δημόσια.
+        {t('workerVerification.privacy')}
       </p>
     </div>
   );

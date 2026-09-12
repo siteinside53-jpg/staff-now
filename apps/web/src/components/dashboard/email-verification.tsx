@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { api } from '@/lib/api';
+import { useT } from '@/i18n/locale-provider';
 
 /**
  * Επαλήθευση email — ξεχωριστό μπλοκ, δίπλα σε αυτό του κινητού.
@@ -23,6 +24,7 @@ export function EmailVerification({
   emailConfirmed: boolean;
   onConfirmed?: () => void;
 }) {
+  const t = useT();
   const [code, setCode] = useState('');
   const [sent, setSent] = useState(false);
   const [confirmed, setConfirmed] = useState(emailConfirmed);
@@ -35,7 +37,7 @@ export function EmailVerification({
   if (confirmed) {
     return (
       <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-        <p className="text-sm font-semibold text-emerald-900">✓ Το email σου είναι επιβεβαιωμένο</p>
+        <p className="text-sm font-semibold text-emerald-900">{t('emailVerification.confirmed')}</p>
         {email && <p className="mt-1 text-xs text-emerald-800">{email}</p>}
       </div>
     );
@@ -48,7 +50,7 @@ export function EmailVerification({
       await (api as any).auth.sendEmailCode();
       setSent(true);
     } catch (e: any) {
-      setErr(e?.message || 'Δεν στάλθηκε το email. Δοκίμασε ξανά.');
+      setErr(e?.message || t('emailVerification.notSent'));
     } finally {
       setBusy(false);
     }
@@ -56,7 +58,7 @@ export function EmailVerification({
 
   async function confirm() {
     if (!/^\d{6}$/.test(code.trim())) {
-      setErr('Ο κωδικός είναι 6 ψηφία.');
+      setErr(t('emailVerification.code6'));
       return;
     }
     setErr(null);
@@ -66,7 +68,7 @@ export function EmailVerification({
       setConfirmed(true);
       onConfirmed?.();
     } catch (e: any) {
-      setErr(e?.message || 'Λάθος κωδικός.');
+      setErr(e?.message || t('emailVerification.wrongCode'));
     } finally {
       setBusy(false);
     }
@@ -74,18 +76,18 @@ export function EmailVerification({
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4">
-      <p className="text-sm font-bold text-gray-900">Επαλήθευση email</p>
+      <p className="text-sm font-bold text-gray-900">{t('emailVerification.title')}</p>
       <p className="mt-0.5 text-xs text-gray-500">
-        Χρειάζεται πριν από την επαλήθευση κινητού. Γίνεται μία φορά.
+        {t('emailVerification.subtitle')}
       </p>
       {email && <p className="mt-1.5 text-xs font-medium text-gray-700">{email}</p>}
 
       {sent ? (
         <div className="mt-3 space-y-3">
           <label className="block">
-            <span className="text-sm font-medium text-gray-900">Ο κωδικός που έλαβες</span>
+            <span className="text-sm font-medium text-gray-900">{t('emailVerification.codeLabel')}</span>
             <span className="mt-0.5 block text-xs text-gray-500">
-              Στάλθηκε στο {email}. Κοίτα και τα ανεπιθύμητα.
+              {t('emailVerification.sentTo', { email })}
             </span>
             <input
               type="text"
@@ -94,7 +96,7 @@ export function EmailVerification({
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
               placeholder="123456"
-              aria-label="Κωδικός email"
+              aria-label={t('emailVerification.codeAria')}
               className={`mt-1.5 ${inputClass} text-center text-lg tracking-[0.4em]`}
             />
           </label>
@@ -107,7 +109,7 @@ export function EmailVerification({
             disabled={busy}
             className="w-full rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {busy ? 'Ελέγχουμε…' : 'Επιβεβαίωση email'}
+            {busy ? t('emailVerification.checking') : t('emailVerification.confirm')}
           </button>
           <button
             type="button"
@@ -115,7 +117,7 @@ export function EmailVerification({
             disabled={busy}
             className="w-full text-center text-xs font-medium text-gray-500 hover:text-gray-700 disabled:opacity-60"
           >
-            Ξαναστείλε τον κωδικό
+            {t('emailVerification.resend')}
           </button>
         </div>
       ) : (
@@ -127,7 +129,7 @@ export function EmailVerification({
             disabled={busy}
             className="w-full rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {busy ? 'Στέλνουμε…' : 'Στείλε μου κωδικό στο email'}
+            {busy ? t('emailVerification.sending') : t('emailVerification.sendCode')}
           </button>
         </div>
       )}

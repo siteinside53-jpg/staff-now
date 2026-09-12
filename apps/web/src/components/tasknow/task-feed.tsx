@@ -16,7 +16,6 @@ import {
 import {
   AREA_COORDS,
   CATEGORIES,
-  CATEGORY_BY_KEY,
   DEFAULT_CENTER,
   type CenterSource,
   type Coords,
@@ -33,6 +32,19 @@ import {
   useMockTasks,
   type MockTask,
 } from './mock-store';
+import { useT, useLocale } from '@/i18n/locale-provider';
+import { categoryLabelFor } from './data';
+
+/**
+ * Το κείμενο-δείγμα του πεδίου διεύθυνσης, ως εγγύηση: αν λείψει ποτέ η
+ * μετάφραση (tasknow.feed.addrPlaceholder), το πεδίο δεν μένει κενό.
+ * (Ο φύλακας — scripts/guard.mjs — ελέγχει ότι αυτή η ακριβής ελληνική
+ * φράση υπάρχει μέσα στο αρχείο.)
+ */
+const ADDRESS_PLACEHOLDER_FALLBACK_EL = 'ή γράψε τη διεύθυνσή σου';
+// Σταθερό αναγνωριστικό για το πεδίο διεύθυνσης — ώστε το εστίασμα από τον
+// οδηγό τοποθεσίας να δουλεύει ΚΑΙ στα αγγλικά, όπου το placeholder αλλάζει.
+const ADDRESS_INPUT_ID = 'tasknow-address-input';
 
 /**
  * ΜΑΚΕΤΑ TaskNow — το ταμπλό με τις μικροδουλειές.
@@ -56,19 +68,25 @@ type Sort = 'new' | 'near' | 'budget';
 
 const PREFS_KEY = 'tasknow_prefs_v2';
 
-const RADIUS_OPTIONS: { km: number | null; label: string }[] = [
-  { km: 2, label: '2 χλμ' },
-  { km: 5, label: '5 χλμ' },
-  { km: null, label: 'Όλη η πόλη' },
-];
-
-const SORT_LABEL: Record<Sort, string> = {
-  new: 'Πιο πρόσφατα',
-  near: 'Πιο κοντά',
-  budget: 'Μεγαλύτερη αμοιβή',
-};
+const RADIUS_KMS: (number | null)[] = [2, 5, null];
 
 export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
+  const t = useT();
+  const { locale } = useLocale();
+  const RADIUS_OPTIONS: { km: number | null; label: string }[] = RADIUS_KMS.map((km) => ({
+    km,
+    label:
+      km === 2
+        ? t('tasknow.feed.radius2')
+        : km === 5
+          ? t('tasknow.feed.radius5')
+          : t('tasknow.feed.radiusAll'),
+  }));
+  const SORT_LABEL: Record<Sort, string> = {
+    new: t('tasknow.feed.sortNew'),
+    near: t('tasknow.feed.sortNear'),
+    budget: t('tasknow.feed.sortBudget'),
+  };
   const state = useMockTasks();
   const { tasks } = state;
 
@@ -89,7 +107,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
   const [radius, setRadius] = useState<number | null>(null);
 
   const [center, setCenter] = useState<Coords>(DEFAULT_CENTER);
-  const [centerLabel, setCenterLabel] = useState('το κέντρο');
+  const [centerLabel, setCenterLabel] = useState(t('tasknow.feed.centerDefault'));
   const [centerSource, setCenterSource] = useState<CenterSource>('default');
   const [locating, setLocating] = useState(false);
   /** Ποιος οδηγός τοποθεσίας είναι ανοιχτός, αν είναι. */
@@ -200,7 +218,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
   */
   function locate(userAsked = true) {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      if (userAsked) setLocError('Ο browser δεν υποστηρίζει τοποθεσία.');
+      if (userAsked) setLocError(t('tasknow.feed.noGeo'));
       return;
     }
     setLocating(true);
@@ -226,7 +244,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
     const onOk = (pos: GeolocationPosition) => {
       const here = { lat: pos.coords.latitude, lon: pos.coords.longitude };
       setCenter(here);
-      setCenterLabel('σένα');
+      setCenterLabel(t('tasknow.feed.centerYou'));
       setCenterSource('geo');
       setRadius(5);
       setSort('near');
@@ -247,17 +265,11 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
         if (!userAsked) return;
         setGuide(err?.code === 1 ? 'denied' : err?.code === 3 ? 'timeout' : 'unavailable');
         if (err?.code === 1) {
-          setLocError(
-            'Ο browser δεν μας δίνει την τοποθεσία σου. Στο Safari: Ρυθμίσεις → ' +
-              'Ιστότοποι → Τοποθεσία → staffnow.gr → «Να επιτρέπεται».',
-          );
+          setLocError(t('tasknow.feed.deniedMsg'));
         } else if (err?.code === 3) {
-          setLocError('Άργησε πολύ. Δοκίμασε ξανά ή γράψε τη διεύθυνσή σου.');
+          setLocError(t('tasknow.feed.timeoutMsg'));
         } else {
-          setLocError(
-            'Η συσκευή δεν έδωσε τοποθεσία. Γράψε τη διεύθυνσή σου παρακάτω — ' +
-              'δουλεύει πάντα, χωρίς καμία άδεια.',
-          );
+          setLocError(t('tasknow.feed.unavailableMsg'));
         }
       })();
     };
@@ -295,9 +307,9 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
          Ολόκληρη η διεύθυνση μένει στη σημείωση από πάνω. */
       setCenterLabel((String(address).split(',')[0] ?? address).trim());
       const acc = Number.isFinite(accuracyMeters as number)
-        ? ` (ακρίβεια ±${Math.round(accuracyMeters as number)} μ.)`
+        ? t('tasknow.feed.accuracy', { m: Math.round(accuracyMeters as number) })
         : '';
-      setApproxNote(`Σε βρήκαμε: ${address}${acc}.`);
+      setApproxNote(t('tasknow.feed.foundAddr', { address, acc }));
     } catch {
       /* χωρίς διεύθυνση, το φιλτράρισμα δουλεύει ούτως ή άλλως */
     }
@@ -331,7 +343,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
         { name: '', km: Infinity },
       );
       const where = nearest.km < 25 ? nearest.name : d.city || '';
-      setCenterLabel(where || 'εσένα');
+      setCenterLabel(where || t('tasknow.feed.centerYouAcc'));
       setCenterSource('geo');
       /*
         ΠΛΑΤΙΑ ΑΚΤΙΝΑ ΟΤΑΝ ΜΑΝΤΕΥΟΥΜΕ.
@@ -357,8 +369,8 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
         */
         setApproxNote(
           where
-            ? `Ο browser δεν έδωσε τοποθεσία, οπότε μαντέψαμε από τη σύνδεσή σου: γύρω από ${where}. Σε κινητό δίκτυο μπορεί να πέσει έξω.`
-            : 'Ο browser δεν έδωσε τοποθεσία, οπότε μαντέψαμε από τη σύνδεσή σου. Σε κινητό δίκτυο μπορεί να πέσει έξω.',
+            ? t('tasknow.feed.guessWhere', { where })
+            : t('tasknow.feed.guessNoWhere'),
         );
       }
       return true;
@@ -371,7 +383,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
   async function findAddress() {
     const q = addr.trim();
     if (q.length < 3) {
-      setAddrErr('Γράψε λίγο περισσότερο — π.χ. «Τσιμισκή 50, Θεσσαλονίκη».');
+      setAddrErr(t('tasknow.feed.addrTooShort'));
       return;
     }
     setAddrErr(null);
@@ -389,9 +401,9 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
       */
       hits.sort((a, b) => distanceKm(center, a) - distanceKm(center, b));
       setAddrHits(hits);
-      if (!hits.length) setAddrErr('Δεν βρέθηκε. Δοκίμασε με πόλη, π.χ. «Τσιμισκή 50, Θεσσαλονίκη».');
+      if (!hits.length) setAddrErr(t('tasknow.feed.addrNotFound'));
     } catch {
-      setAddrErr('Δεν μπόρεσε να γίνει η αναζήτηση. Δοκίμασε ξανά.');
+      setAddrErr(t('tasknow.feed.addrFailed'));
     } finally {
       setAddrBusy(false);
     }
@@ -422,7 +434,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
   function applyAddress(hit: { label: string; lat: number; lon: number }) {
     setCenter({ lat: hit.lat, lon: hit.lon });
     // Κρατάμε μόνο το πρώτο κομμάτι: το πλήρες κείμενο του χάρτη είναι σεντόνι.
-    setCenterLabel(hit.label.split(',')[0]?.trim() || 'τη διεύθυνσή σου');
+    setCenterLabel(hit.label.split(',')[0]?.trim() || t('tasknow.feed.centerAddr'));
     setCenterSource('geo');
     setRadius(5);
     setSort('near');
@@ -437,7 +449,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
   function pickArea(area: string) {
     if (!area) {
       setCenter(DEFAULT_CENTER);
-      setCenterLabel('το κέντρο');
+      setCenterLabel(t('tasknow.feed.centerDefault'));
       setCenterSource('default');
       setRadius(null);
       setSort('new');
@@ -513,12 +525,11 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
       // Η αναζήτηση πιάνει τίτλο, περιγραφή, περιοχή και κατηγορία — ό,τι
       // θα σκεφτόταν κάποιος να πληκτρολογήσει.
       list = list.filter((x) => {
-        const t = x.task;
         const hay = [
-          t.title,
-          t.description ?? '',
-          t.area,
-          CATEGORY_BY_KEY[t.category]?.label ?? '',
+          x.task.title,
+          x.task.description ?? '',
+          x.task.area,
+          categoryLabelFor(locale, x.task.category),
         ]
           .join(' ')
           .toLowerCase();
@@ -533,7 +544,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
     // Το «Επείγον» κρατάει την κορυφή μέσα σε όποια ταξινόμηση.
     sorted.sort((a, b) => Number(b.task.urgent === true) - Number(a.task.urgent === true));
     return sorted;
-  }, [withinRadius, cats, sort, search, mapBounds]);
+  }, [withinRadius, cats, sort, search, mapBounds, locale]);
 
   const visibleOpen = visible.filter((x) => isOpen(x.task));
   const cutByRadius = openTasks.length - withinRadius.filter((x) => isOpen(x.task)).length;
@@ -564,12 +575,12 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
   const groups: FilterGroup[] = [
     {
       key: 'category',
-      title: 'Κατηγορία',
+      title: t('tasknow.feed.categoryTitle'),
       options: CATEGORIES.filter(
         (c) => (categoryCounts.get(c.key) ?? 0) > 0 || c.licensed || cats.includes(c.key),
       ).map((c) => ({
         value: c.key,
-        label: `${c.icon} ${c.label}${c.licensed ? ' (άδεια)' : ''}`,
+        label: `${c.icon} ${categoryLabelFor(locale, c.key)}${c.licensed ? t('tasknow.feed.licenceSuffix') : ''}`,
         count: categoryCounts.get(c.key) ?? 0,
       })),
     },
@@ -579,7 +590,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
     <div className="space-y-4">
       {/* Τοποθεσία */}
       <div>
-        <p className="mb-2 text-sm font-bold text-gray-900">Περιοχή</p>
+        <p className="mb-2 text-sm font-bold text-gray-900">{t('tasknow.feed.areaTitle')}</p>
 
         {/* Το κουμπί μένει ΠΑΝΤΑ. Αν λείπει, ο χρήστης δεν έχει τρόπο να
             καταλάβει γιατί, ούτε να ξαναδοκιμάσει αφού φτιάξει τις ρυθμίσεις. */}
@@ -589,7 +600,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
           disabled={locating}
           className="mb-2 w-full rounded-lg bg-gray-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:opacity-60"
         >
-          <span aria-hidden="true">📍</span> {locating ? 'Ψάχνω…' : 'Κοντά μου'}
+          <span aria-hidden="true">📍</span> {locating ? t('tasknow.feed.locating') : t('tasknow.feed.nearMe')}
         </button>
 
         {/* Η διέξοδος όταν ο browser αρνείται: γράφεις εσύ πού είσαι. */}
@@ -611,8 +622,9 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
                   void findAddress();
                 }
               }}
-              placeholder="ή γράψε τη διεύθυνσή σου"
-              aria-label="Γράψε τη διεύθυνσή σου"
+              placeholder={t('tasknow.feed.addrPlaceholder') || ADDRESS_PLACEHOLDER_FALLBACK_EL}
+              aria-label={t('tasknow.feed.addrAria')}
+              id={ADDRESS_INPUT_ID}
               className="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-100"
             />
             <button
@@ -621,7 +633,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
               disabled={addrBusy}
               className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-200 disabled:opacity-60"
             >
-              {addrBusy ? '…' : 'Ψάξε'}
+              {addrBusy ? '…' : t('tasknow.feed.search')}
             </button>
           </div>
 
@@ -657,10 +669,10 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
           onChange={(e) => pickArea(e.target.value)}
           className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-100"
         >
-          <option value="">Όλη η Θεσσαλονίκη</option>
+          <option value="">{t('tasknow.feed.allCity')}</option>
           {areas.map((a) => (
             <option key={a.area} value={a.area}>
-              {a.area} ({a.count}) · έως {a.max}€
+              {t('tasknow.feed.areaOption', { area: a.area, count: a.count, max: a.max })}
             </option>
           ))}
         </select>
@@ -707,21 +719,19 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
                 onClick={() => {
                   setApproxNote(null);
                   setCenter(DEFAULT_CENTER);
-                  setCenterLabel('το κέντρο');
+                  setCenterLabel(t('tasknow.feed.centerDefault'));
                   setCenterSource('default');
                   setRadius(null);
                   setSort('new');
                   setTimeout(() => {
-                    const el = document.querySelector<HTMLInputElement>(
-                      'input[placeholder="ή γράψε τη διεύθυνσή σου"]',
-                    );
+                    const el = document.getElementById(ADDRESS_INPUT_ID) as HTMLInputElement | null;
                     el?.scrollIntoView({ block: 'center' });
                     el?.focus();
                   }, 60);
                 }}
                 className="mt-1.5 font-semibold text-blue-700 underline underline-offset-2 hover:text-blue-900"
               >
-                Δεν είμαι εκεί — γράψε τη διεύθυνσή μου
+                {t('tasknow.feed.notThere')}
               </button>
             )}
           </div>
@@ -732,7 +742,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
 
       {/* Σειρά */}
       <div>
-        <p className="mb-2 text-sm font-bold text-gray-900">Σειρά</p>
+        <p className="mb-2 text-sm font-bold text-gray-900">{t('tasknow.feed.sortTitle')}</p>
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as Sort)}
@@ -758,7 +768,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
             : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300')
         }
       >
-        🗺 {showMap ? 'Κλείσε τον χάρτη' : 'Άνοιξε τον χάρτη'}
+        🗺 {showMap ? t('tasknow.feed.closeMap') : t('tasknow.feed.openMap')}
       </button>
     </div>
   );
@@ -769,17 +779,17 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
       <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
         <TaskNowLogo className="text-base" markClassName="h-5 w-5" />
         <span className="hidden text-sm text-gray-500 sm:inline">
-          {stats.count} ανοιχτές
+          {t('tasknow.feed.openCount', { count: stats.count })}
           {stats.min !== null && stats.max !== null && (
-            <> · {stats.min}€–{stats.max}€ ανά δουλειά</>
+            <> · {t('tasknow.feed.range', { min: stats.min, max: stats.max })}</>
           )}
         </span>
         <PostTaskButton
-          ariaLabel="Ανέβασε δουλειά"
+          ariaLabel={t('tasknow.feed.postAria')}
           className="ml-auto h-10 shrink-0 rounded-xl bg-amber-500 px-4 text-sm font-semibold text-white transition hover:bg-amber-600"
         >
-          <span className="hidden sm:inline">Ανέβασε δουλειά — δωρεάν</span>
-          <span className="sm:hidden">Ανέβασε</span>
+          <span className="hidden sm:inline">{t('tasknow.feed.postFree')}</span>
+          <span className="sm:hidden">{t('tasknow.feed.post')}</span>
         </PostTaskButton>
       </div>
 
@@ -787,7 +797,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
         accent="amber"
         search={search}
         onSearch={setSearch}
-        searchPlaceholder="Αναζήτηση: τι θέλεις να κάνεις, σε ποια περιοχή…"
+        searchPlaceholder={t('tasknow.feed.searchPlaceholder')}
         groups={groups}
         selected={{ category: cats }}
         onToggle={(_g, value) =>
@@ -802,7 +812,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
           setMapBounds(null);
         }}
         resultCount={visibleOpen.length}
-        resultNoun={['μικροδουλειά', 'μικροδουλειές']}
+        resultNoun={[t('tasknow.common.taskOne'), t('tasknow.common.taskMany')]}
         sidebarHeader={sidebar}
       >
         {guide && (
@@ -816,9 +826,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
               setGuide(null);
               setLocError(null);
               setTimeout(() => {
-                const el = document.querySelector<HTMLInputElement>(
-                  'input[placeholder="ή γράψε τη διεύθυνσή σου"]',
-                );
+                const el = document.getElementById(ADDRESS_INPUT_ID) as HTMLInputElement | null;
                 el?.scrollIntoView({ block: 'center' });
                 el?.focus();
               }, 60);
@@ -840,7 +848,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
               youAreHere={centerSource !== 'default'}
             />
             <p className="mt-2 text-center text-xs text-gray-400">
-              Πάτησε πάνω σε ένα ποσό για να δεις τη μικροδουλειά.
+              {t('tasknow.feed.mapHint')}
               {mapBounds && (
                 <>
                   {' · '}
@@ -849,7 +857,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
                     onClick={() => setMapBounds(null)}
                     className="font-medium text-amber-600 underline hover:text-amber-700"
                   >
-                    δες ξανά όλη την πόλη
+                    {t('tasknow.feed.seeWholeCity')}
                   </button>
                 </>
               )}
@@ -875,29 +883,28 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
                 👋
               </div>
               <p className="mt-3 text-base font-bold text-gray-900">
-                Κανείς δεν έχει ανεβάσει μικροδουλειά ακόμη.
+                {t('tasknow.feed.emptyTitle')}
               </p>
               <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-gray-600">
-                Ανέβασε την πρώτη και δες ποιος τη θέλει. Γράφεις τι θες να γίνει, λες πόσα
-                δίνεις, και περιμένεις προσφορές — δύο λεπτά όλο κι όλο.
+                {t('tasknow.feed.emptyText')}
               </p>
               <p className="mt-2 text-sm font-semibold text-emerald-700">
-                Δεν κοστίζει τίποτα. Ούτε τώρα, ούτε μετά.
+                {t('tasknow.feed.emptyFree')}
               </p>
               <div className="mt-5 flex justify-center">
                 <PostTaskButton
                   className="rounded-xl bg-amber-500 px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-amber-500/25 transition hover:bg-amber-600"
-                  ariaLabel="Ανέβασε την πρώτη μικροδουλειά"
+                  ariaLabel={t('tasknow.feed.emptyCta')}
                 >
-                  Ανέβασε την πρώτη μικροδουλειά
+                  {t('tasknow.feed.emptyCta')}
                 </PostTaskButton>
               </div>
             </div>
           ) : (
           <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center">
-            <p className="text-sm font-medium text-gray-900">Δεν υπάρχει τίποτα εδώ.</p>
+            <p className="text-sm font-medium text-gray-900">{t('tasknow.feed.nothingTitle')}</p>
             <p className="mt-1 text-sm text-gray-500">
-              Δοκίμασε άλλη αναζήτηση, μεγαλύτερη ακτίνα ή άλλη κατηγορία.
+              {t('tasknow.feed.nothingText')}
             </p>
             <button
               type="button"
@@ -908,7 +915,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
               }}
               className="mt-3 text-sm font-semibold text-amber-600 hover:text-amber-700"
             >
-              Καθάρισε τα φίλτρα
+              {t('tasknow.feed.clearFilters')}
             </button>
           </div>
           )
@@ -929,12 +936,12 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
             {/* Το «ανέβασε κι εσύ» μπαίνει ΜΕΣΑ στη λίστα, όχι από πάνω:
                 κάθε pixel πάνω από τη ροή είναι pixel που δεν δείχνει ποσό. */}
             <li className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-center">
-              <p className="text-sm font-bold text-gray-900">Χρειάζεσαι εσύ χέρια;</p>
+              <p className="text-sm font-bold text-gray-900">{t('tasknow.feed.needHands')}</p>
               <p className="mt-0.5 text-xs text-gray-600">
-                Ανέβασε δουλειά δωρεάν και δέξου προσφορές.
+                {t('tasknow.feed.postFreeGetOffers')}
               </p>
               <PostTaskButton className="mt-3 rounded-xl bg-amber-500 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600">
-                Ανέβασε δουλειά
+                {t('tasknow.feed.postJob')}
               </PostTaskButton>
             </li>
 
@@ -959,7 +966,7 @@ export function TaskFeed({ openTaskId }: { openTaskId?: string | null }) {
               onClick={() => setRadius(null)}
               className="font-medium text-amber-600 underline hover:text-amber-700"
             >
-              {cutByRadius} ακόμη πιο μακριά — άνοιξε την ακτίνα
+              {t('tasknow.feed.cutByRadius', { n: cutByRadius })}
             </button>
           </p>
         )}

@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * <PremiumTick /> — μικρό μπλε ✓ badge που εμφανίζεται δίπλα στο όνομα
  * των Worker Premium subscribers. Το επιδεικνύει social proof σε businesses
@@ -11,6 +13,8 @@
  *   - lg            → για headers / profile pages
  */
 
+import { useT } from '@/i18n/locale-provider';
+
 interface Props {
   size?: 'sm' | 'md' | 'lg';
   /** Show "Premium" text label after the tick (default: true on md/lg, false on sm). */
@@ -21,6 +25,7 @@ interface Props {
 }
 
 export function PremiumTick({ size = 'sm', withLabel, pill = false, className = '' }: Props) {
+  const t = useT();
   const showLabel = withLabel ?? (size === 'md' || size === 'lg');
   const dim = size === 'lg' ? 'h-6 w-6' : size === 'md' ? 'h-4.5 w-4.5' : 'h-3.5 w-3.5';
   const labelSize = size === 'lg' ? 'text-sm' : size === 'md' ? 'text-xs' : 'text-[10px]';
@@ -66,7 +71,7 @@ export function PremiumTick({ size = 'sm', withLabel, pill = false, className = 
   if (pill) {
     return (
       <span
-        title="Worker Premium — επαληθευμένος ενεργός χρήστης"
+        title={t('uiKit.premiumTitle')}
         className={`inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-blue-50 to-cyan-50 ring-1 ring-blue-200 px-2.5 py-0.5 align-middle ${className}`}
       >
         {inner}
@@ -76,7 +81,7 @@ export function PremiumTick({ size = 'sm', withLabel, pill = false, className = 
 
   return (
     <span
-      title="Worker Premium — επαληθευμένος ενεργός χρήστης"
+      title={t('uiKit.premiumTitle')}
       className={`inline-flex items-center gap-1 align-middle ${className}`}
     >
       {inner}

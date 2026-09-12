@@ -14,14 +14,11 @@ import { BusinessProfilePanel } from '@/components/dashboard/business-profile-pa
 import { JobDetailPanel } from '@/components/dashboard/job-detail-panel';
 import { FilteredListLayout, type FilterGroup, type FilterCategory } from '@/components/marketing/filtered-list-layout';
 import { normText, splitLocation, buildCityCategories } from '@/lib/location';
-import { WORKER_JOB_ROLE_LABELS_EL, WORKER_JOB_ROLE_GROUPS } from '@staffnow/config';
+import { WORKER_JOB_ROLE_GROUPS } from '@staffnow/config';
+import { useT, useLocale } from '@/i18n/locale-provider';
+import { useLabels } from '@/i18n/labels';
 import { durationLabel, expiresLabel, netOf, whenLabel } from '@/lib/shift-display';
 import { TaskNowStrip } from '@/components/dashboard/tasknow-strip';
-
-// Ελληνικό label ειδικότητας (fallback στο raw id αν λείπει)
-function roleLabel(r: string): string {
-  return WORKER_JOB_ROLE_LABELS_EL[r] || r;
-}
 
 interface DiscoverProfile {
   id: string;
@@ -65,16 +62,16 @@ interface DiscoverProfile {
   shiftStartUtc?: string;
 }
 
-function timeAgo(dateStr?: string): string {
+function timeAgo(dateStr: string | undefined, t: (k: string, p?: Record<string, string | number>) => string, locale: 'el' | 'en'): string {
   if (!dateStr) return '';
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${mins} λεπτά πριν`;
+  if (mins < 60) return t('discoverPage.timeAgo.mins', { n: mins });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} ώρ${hours === 1 ? 'α' : 'ες'} πριν`;
+  if (hours < 24) return t(hours === 1 ? 'discoverPage.timeAgo.hourOne' : 'discoverPage.timeAgo.hourMany', { n: hours });
   const days = Math.floor(hours / 24);
-  if (days < 30) return `${days} ημέρ${days === 1 ? 'α' : 'ες'} πριν`;
-  return new Date(dateStr).toLocaleDateString('el-GR', { day: 'numeric', month: 'short' });
+  if (days < 30) return t(days === 1 ? 'discoverPage.timeAgo.dayOne' : 'discoverPage.timeAgo.dayMany', { n: days });
+  return new Date(dateStr).toLocaleDateString(locale === 'en' ? 'en-GB' : 'el-GR', { day: 'numeric', month: 'short' });
 }
 
 /*
@@ -83,27 +80,22 @@ function timeAgo(dateStr?: string): string {
   εμφανιζόταν ως «70€/μήνα». Επίσης δείχνουμε και όταν υπάρχει
   μόνο κατώτατο ή μόνο ανώτατο ποσό.
 */
-function salaryText(min?: number | null, max?: number | null, type?: string | null): string | undefined {
+function salaryText(
+  min: number | null | undefined,
+  max: number | null | undefined,
+  type: string | null | undefined,
+  t: (k: string, p?: Record<string, string | number>) => string,
+): string | undefined {
   const lo = Number(min) > 0 ? Number(min) : null;
   const hi = Number(max) > 0 ? Number(max) : null;
   if (!lo && !hi) return undefined;
   const unit =
-    type === 'hourly' ? '€/ώρα' :
-    type === 'daily' ? '€/ημέρα' :
-    type === 'monthly' ? '€/μήνα' : '€';
+    type === 'hourly' ? t('discoverPage.salary.perHour') :
+    type === 'daily' ? t('discoverPage.salary.perDay') :
+    type === 'monthly' ? t('discoverPage.salary.perMonth') : '€';
   if (lo && hi) return `${lo}-${hi}${unit}`;
-  if (lo) return `Από ${lo}${unit}`;
-  return `Έως ${hi}${unit}`;
-}
-
-const EMPLOYMENT_LABELS: Record<string, string> = {
-  full_time: 'Full-time',
-  part_time: 'Part-time',
-  seasonal: 'Σεζόν',
-  freelance: 'Freelance',
-};
-function employmentLabel(t?: string): string {
-  return t ? EMPLOYMENT_LABELS[t] ?? t : '';
+  if (lo) return t('discoverPage.salary.from', { v: `${lo}${unit}` });
+  return t('discoverPage.salary.upTo', { v: `${hi}${unit}` });
 }
 
 /*
@@ -131,6 +123,9 @@ async function fetchAllPages(
 }
 
 export default function DiscoverPage() {
+  const t = useT();
+  const { locale } = useLocale();
+  const labels = useLabels();
   const { user, profile } = useAuth();
   const [candidates, setCandidates] = useState<DiscoverProfile[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -188,21 +183,21 @@ export default function DiscoverPage() {
         count: distinct,
         options: g.roles.map((role) => ({
           value: role,
-          label: roleLabel(role),
+          label: labels.role(role),
           count: roleCounts.get(role) || 0,
         })),
       };
     });
-  }, [candidates]);
+  }, [candidates, labels]);
 
   // Τύπος απασχόλησης (μόνο για θέσεις — δηλ. στην όψη εργαζομένου)
   const listTypeOptions = useMemo(() => {
     const counts = new Map<string, number>();
     for (const c of candidates) if (c.employmentType) counts.set(c.employmentType, (counts.get(c.employmentType) || 0) + 1);
     return Array.from(counts.entries())
-      .map(([v, n]) => ({ value: v, label: employmentLabel(v), count: n }))
+      .map(([v, n]) => ({ value: v, label: labels.employment(v), count: n }))
       .sort((a, b) => b.count - a.count);
-  }, [candidates]);
+  }, [candidates, labels]);
 
   // Μισθός — κλιμάκια ελάχιστου μηνιαίου (€+)
   const listSalaryOptions = useMemo(() => {
@@ -210,39 +205,39 @@ export default function DiscoverPage() {
     return brackets
       .map((min) => ({
         value: String(min),
-        label: `${min.toLocaleString('el-GR')}€+`,
+        label: `${min.toLocaleString(locale === 'en' ? 'en-GB' : 'el-GR')}€+`,
         count: candidates.filter((c) => (c.salaryMin ?? 0) >= min).length,
       }))
       .filter((o) => o.count > 0);
-  }, [candidates]);
+  }, [candidates, locale]);
 
   // Παροχές (στέγη / φαγητό)
   const listPerksOptions = useMemo(() => {
     const housing = candidates.filter((c) => c.housingProvided).length;
     const meals = candidates.filter((c) => c.mealsProvided).length;
     return [
-      ...(housing > 0 ? [{ value: 'housing', label: '🏠 Στέγη', count: housing }] : []),
-      ...(meals > 0 ? [{ value: 'meals', label: '🍽️ Φαγητό', count: meals }] : []),
+      ...(housing > 0 ? [{ value: 'housing', label: t('discoverPage.filters.housing'), count: housing }] : []),
+      ...(meals > 0 ? [{ value: 'meals', label: t('discoverPage.filters.meals'), count: meals }] : []),
     ];
-  }, [candidates]);
+  }, [candidates, t]);
 
   const listGroups: FilterGroup[] = useMemo(
     () =>
       [
-        { key: 'role', title: 'Ειδικότητες', options: [], categorized: listRoleCategories },
+        { key: 'role', title: t('discoverPage.filters.roles'), options: [], categorized: listRoleCategories },
         {
           key: 'location',
-          title: 'Πόλεις',
+          title: t('discoverPage.filters.cities'),
           options: [],
           categorized: listCityCategories,
-          categorizedSearchPlaceholder: 'Αναζήτηση πόλης…',
-          categorizedSelectAllLabel: 'Όλη η πόλη',
+          categorizedSearchPlaceholder: t('discoverPage.filters.citySearch'),
+          categorizedSelectAllLabel: t('discoverPage.filters.wholeCity'),
         },
-        { key: 'type', title: 'Τύπος απασχόλησης', options: listTypeOptions },
-        { key: 'salary', title: 'Μισθός', options: listSalaryOptions },
-        { key: 'perks', title: 'Παροχές', options: listPerksOptions },
+        { key: 'type', title: t('discoverPage.filters.type'), options: listTypeOptions },
+        { key: 'salary', title: t('discoverPage.filters.salary'), options: listSalaryOptions },
+        { key: 'perks', title: t('discoverPage.filters.perks'), options: listPerksOptions },
       ].filter((g) => g.options.length > 0 || (g.categorized?.length ?? 0) > 0),
-    [listCityCategories, listTypeOptions, listRoleCategories, listSalaryOptions, listPerksOptions],
+    [listCityCategories, listTypeOptions, listRoleCategories, listSalaryOptions, listPerksOptions, t],
   );
 
   const filteredCandidates = useMemo(() => {
@@ -364,7 +359,7 @@ export default function DiscoverPage() {
         const mapped = items
         .map((j: any) => ({
           id: j.id,
-          name: j.title || 'Θέση εργασίας',
+          name: j.title || t('discoverPage.jobFallback'),
           companyName: j.display_company_name || j.company_name,
           companyLogo: j.company_logo || undefined,
           coverPhoto: j.company_cover_photo || undefined,
@@ -384,7 +379,7 @@ export default function DiscoverPage() {
           region: j.display_region || j.region || undefined,
           salaryMin: j.salary_min || undefined,
           tags: j.roles || [j.employment_type].filter(Boolean),
-          salary: salaryText(j.salary_min, j.salary_max, j.salary_type),
+          salary: salaryText(j.salary_min, j.salary_max, j.salary_type, t),
           verified: false,
           type: 'job' as const,
           listingKind: (j.listing_kind === 'shift' ? 'shift' : 'job') as 'job' | 'shift',
@@ -404,7 +399,7 @@ export default function DiscoverPage() {
         const mapped = rawWorkers
         .map((w: any) => ({
           id: w.user_id || w.id,
-          name: w.full_name || 'Χωρίς όνομα',
+          name: w.full_name || t('discoverPage.noName'),
           photoUrl: w.photo_url || undefined,
           swipeStatus: w.swipe_status || null,
           isMatched: w.is_matched > 0,
@@ -413,8 +408,8 @@ export default function DiscoverPage() {
           salaryMin: w.expected_monthly_salary || undefined,
           bio: w.bio,
           tags: w.roles || [],
-          salary: w.expected_monthly_salary ? `${w.expected_monthly_salary}€/μήνα` : undefined,
-          experience: w.years_of_experience ? `${w.years_of_experience} χρόνια` : undefined,
+          salary: w.expected_monthly_salary ? t('discoverPage.perMonthShort', { v: w.expected_monthly_salary }) : undefined,
+          experience: w.years_of_experience ? t('discoverPage.years', { n: w.years_of_experience }) : undefined,
           verified: w.verified === 1,
           isPremium: w.is_premium === 1,
           isBoosted: w.is_boosted === 1,
@@ -428,11 +423,11 @@ export default function DiscoverPage() {
       setCurrentIndex(0);
     } catch (err) {
       console.error('Discover error:', err);
-      toast.error('Αποτυχία φόρτωσης. Δοκίμασε ξανά.');
+      toast.error(t('discoverPage.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [isWorker]);
+  }, [isWorker, t]);
 
   useEffect(() => {
     fetchCandidates();
@@ -472,8 +467,8 @@ export default function DiscoverPage() {
     try {
       if (type === 'job') await api.jobs.favorite(id);
       else await api.workers.favorite(id);
-      toast.success('Αποθηκεύτηκε!');
-    } catch { toast.error('Σφάλμα αποθήκευσης'); }
+      toast.success(t('discoverPage.toasts.saved'));
+    } catch { toast.error(t('discoverPage.toasts.saveError')); }
   };
 
   const cancelInterest = async (swipeId: string) => {
@@ -485,9 +480,9 @@ export default function DiscoverPage() {
       const data = await res.json() as any;
       if (data.success) {
         setInterests((prev) => prev.filter((i: any) => i.id !== swipeId));
-        toast.success('Το αίτημα ακυρώθηκε');
-      } else toast.error('Σφάλμα');
-    } catch { toast.error('Σφάλμα'); }
+        toast.success(t('discoverPage.toasts.cancelled'));
+      } else toast.error(t('discoverPage.toasts.error'));
+    } catch { toast.error(t('discoverPage.toasts.error')); }
   };
 
   const shareItem = (name: string, url?: string) => {
@@ -496,7 +491,7 @@ export default function DiscoverPage() {
       navigator.share({ title: name, url: shareUrl }).catch(() => {});
     } else {
       navigator.clipboard.writeText(shareUrl);
-      toast.success('Το link αντιγράφηκε!');
+      toast.success(t('discoverPage.toasts.linkCopied'));
     }
   };
 
@@ -519,16 +514,16 @@ export default function DiscoverPage() {
         const res = (isWorker ? await api.jobs.like(c.id) : await api.workers.like(c.id)) as any;
         toast.success(
           res?.data?.matched
-            ? '🎉 Match! Μπορείτε τώρα να ξεκινήσετε συνομιλία!'
-            : '✓ Ενδιαφέρον καταχωρήθηκε!',
+            ? t('discoverPage.toasts.matched')
+            : t('discoverPage.toasts.interestSent'),
         );
       }
       drop();
     } catch (err: any) {
       if (err?.status === 409 || err?.code === 'CONFLICT') {
-        toast.info('Έχεις ήδη δείξει ενδιαφέρον.');
+        toast.info(t('discoverPage.toasts.alreadyInterested'));
       } else {
-        toast.error(err?.message || 'Κάτι πήγε στραβά. Δοκίμασε ξανά.');
+        toast.error(err?.message || t('discoverPage.toasts.generic'));
       }
       drop();
     } finally {
@@ -560,13 +555,13 @@ export default function DiscoverPage() {
         const res = (isWorker ? await api.jobs.like(id) : await api.workers.like(id)) as any;
         toast.success(
           res?.data?.matched
-            ? '🎉 Match! Μπορείτε τώρα να ξεκινήσετε συνομιλία!'
-            : '✓ Ενδιαφέρον καταχωρήθηκε!',
+            ? t('discoverPage.toasts.matched')
+            : t('discoverPage.toasts.interestSent'),
         );
       }
     } catch (err: any) {
-      if (err?.status === 409 || err?.code === 'CONFLICT') toast.info('Έχεις ήδη δείξει ενδιαφέρον.');
-      else toast.error(err?.message || 'Κάτι πήγε στραβά. Δοκίμασε ξανά.');
+      if (err?.status === 409 || err?.code === 'CONFLICT') toast.info(t('discoverPage.toasts.alreadyInterested'));
+      else toast.error(err?.message || t('discoverPage.toasts.generic'));
     } finally {
       setActionLoading(false);
     }
@@ -587,16 +582,16 @@ export default function DiscoverPage() {
         if (isWorker) {
           const res = await api.jobs.like(currentCandidate.id) as any;
           if (res?.data?.matched) {
-            toast.success('🎉 Match! Μπορείτε τώρα να ξεκινήσετε συνομιλία!');
+            toast.success(t('discoverPage.toasts.matched'));
           } else {
-            toast.success('✓ Ενδιαφέρον καταχωρήθηκε!');
+            toast.success(t('discoverPage.toasts.interestSent'));
           }
         } else {
           const res = await api.workers.like(currentCandidate.id) as any;
           if (res?.data?.matched) {
-            toast.success('🎉 Match! Μπορείτε τώρα να ξεκινήσετε συνομιλία!');
+            toast.success(t('discoverPage.toasts.matched'));
           } else {
-            toast.success('✓ Ενδιαφέρον καταχωρήθηκε!');
+            toast.success(t('discoverPage.toasts.interestSent'));
           }
         }
       }
@@ -604,9 +599,9 @@ export default function DiscoverPage() {
     } catch (err: any) {
       console.error('Action error:', err);
       if (err?.status === 409 || err?.code === 'CONFLICT') {
-        toast.info('Έχεις ήδη δείξει ενδιαφέρον. Πάμε στο επόμενο!');
+        toast.info(t('discoverPage.toasts.alreadyInterestedNext'));
       } else {
-        toast.error(err?.message || 'Κάτι πήγε στραβά. Δοκίμασε ξανά.');
+        toast.error(err?.message || t('discoverPage.toasts.generic'));
       }
       moveNext();
     } finally {
@@ -625,10 +620,10 @@ export default function DiscoverPage() {
   const noCandidates = candidates.length === 0 || !currentCandidate;
 
   const TABS = [
-    { key: 'discover' as const, icon: '🔍', label: 'Εύρεση' },
-    { key: 'saved' as const, icon: '🔖', label: 'Αποθηκευμένα' },
-    { key: 'interest' as const, icon: '👋', label: 'Αιτήματα' },
-    { key: 'matched' as const, icon: '✨', label: 'Matched' },
+    { key: 'discover' as const, icon: '🔍', labelKey: 'discoverPage.tabs.discover' },
+    { key: 'saved' as const, icon: '🔖', labelKey: 'discoverPage.tabs.saved' },
+    { key: 'interest' as const, icon: '👋', labelKey: 'discoverPage.tabs.requests' },
+    { key: 'matched' as const, icon: '✨', labelKey: 'discoverPage.tabs.matched' },
   ];
   /*
     Ίδιο ύφος με τα Matches και τις Συνομιλίες: στρογγυλά «χάπια» με εικονίδιο.
@@ -637,17 +632,17 @@ export default function DiscoverPage() {
   */
   const renderTabs = (vertical: boolean) => (
     <div className={vertical ? 'flex flex-col gap-1' : 'flex gap-1 overflow-x-auto rounded-full bg-gray-100 p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'}>
-      {TABS.map((t) => (
+      {TABS.map((tab) => (
         <button
-          key={t.key}
-          onClick={() => setDiscoverTab(t.key)}
+          key={tab.key}
+          onClick={() => setDiscoverTab(tab.key)}
           className={
             vertical
-              ? `text-left rounded-lg px-3 py-2 text-sm font-medium transition-all ${discoverTab === t.key ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`
-              : `flex-shrink-0 whitespace-nowrap rounded-full px-3 py-2 text-xs font-bold transition-all ${discoverTab === t.key ? 'bg-white text-gray-900 shadow' : 'text-gray-500 hover:text-gray-700'}`
+              ? `text-left rounded-lg px-3 py-2 text-sm font-medium transition-all ${discoverTab === tab.key ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`
+              : `flex-shrink-0 whitespace-nowrap rounded-full px-3 py-2 text-xs font-bold transition-all ${discoverTab === tab.key ? 'bg-white text-gray-900 shadow' : 'text-gray-500 hover:text-gray-700'}`
           }
         >
-          <span className="mr-1">{t.icon}</span>{t.label}
+          <span className="mr-1">{tab.icon}</span>{t(tab.labelKey)}
         </button>
       ))}
     </div>
@@ -663,7 +658,7 @@ export default function DiscoverPage() {
   return (
     <div>
       <div className={`mb-3 lg:mb-4 items-center justify-between ${mobileSwipeFocus ? 'hidden lg:flex' : 'flex'}`}>
-        <h1 className="text-2xl font-bold text-gray-900">Εύρεση</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('discoverPage.title')}</h1>
         {discoverTab === 'discover' && !noCandidates && <span className="text-sm text-gray-500">{currentIndex + 1} / {candidates.length}</span>}
       </div>
 
@@ -697,10 +692,10 @@ export default function DiscoverPage() {
       {discoverTab === 'saved' && (
         <div className="space-y-3">
           {savedJobs.length === 0 ? (
-            <EmptyState title="Δεν έχεις αποθηκευμένα" description="Πάτα 🔖 σε μια αγγελία ή προφίλ για αποθήκευση" />
+            <EmptyState title={t('discoverPage.saved.emptyTitle')} description={t('discoverPage.saved.emptyDesc')} />
           ) : savedJobs.map((j: any) => {
             const isJob = !!j.title;
-            const name = j.title || j.full_name || 'Αποθηκευμένο';
+            const name = j.title || j.full_name || t('discoverPage.saved.fallbackName');
             const sub = j.display_company_name || j.company_name || j.city || '';
             const itemId = j.id || j.user_id;
             const logo = j.company_logo || j.photo_url;
@@ -731,7 +726,7 @@ export default function DiscoverPage() {
                     <div className="mt-1 flex gap-2 text-xs text-gray-400">
                       {j.city && <span>📍 {j.city}{j.region ? `, ${j.region}` : ''}</span>}
                       {j.salary_min && <span>💰 {j.salary_min}€</span>}
-                      {j.expected_monthly_salary && <span>💰 {j.expected_monthly_salary}€/μήνα</span>}
+                      {j.expected_monthly_salary && <span>💰 {t('discoverPage.perMonthShort', { v: j.expected_monthly_salary })}</span>}
                     </div>
                   </button>
                   {/* Action buttons */}
@@ -741,9 +736,9 @@ export default function DiscoverPage() {
                       try {
                         if (isJob) await api.jobs.like(itemId);
                         else await api.workers.like(j.user_id);
-                        toast.success('✓ Ενδιαφέρον καταχωρήθηκε!');
-                      } catch { toast.error('Ήδη δηλώθηκε ή σφάλμα'); }
-                    }} title="Ενδιαφέρον" className="rounded-lg border border-gray-200 p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50">
+                        toast.success(t('discoverPage.toasts.interestSent'));
+                      } catch { toast.error(t('discoverPage.toasts.alreadyOrError')); }
+                    }} title={t('discoverPage.saved.interest')} className="rounded-lg border border-gray-200 p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50">
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M10.05 4.575a1.575 1.575 0 1 0-3.15 0v3m3.15-3v-1.5a1.575 1.575 0 0 1 3.15 0v1.5m-3.15 0 .075 5.925m3.075.75V4.575m0 0a1.575 1.575 0 0 1 3.15 0V15M6.9 7.575a1.575 1.575 0 1 0-3.15 0v8.175a6.75 6.75 0 0 0 6.75 6.75h2.018a5.25 5.25 0 0 0 3.712-1.538l1.732-1.732a5.25 5.25 0 0 0 1.538-3.712l.003-2.024a.668.668 0 0 1 .198-.471 1.575 1.575 0 1 0-2.228-2.228 3.818 3.818 0 0 0-1.12 2.687M6.9 7.575V12m6.27 4.318A4.49 4.49 0 0 1 16.35 15m.002 0h-.002" /></svg>
                     </button>
                     {/* Remove from saved */}
@@ -752,9 +747,9 @@ export default function DiscoverPage() {
                         if (isJob) await api.jobs.unfavorite(itemId);
                         else await api.workers.unfavorite(j.user_id);
                         setSavedJobs((prev) => prev.filter((x: any) => x.fav_id !== j.fav_id));
-                        toast.success('Αφαιρέθηκε');
-                      } catch { toast.error('Σφάλμα'); }
-                    }} title="Αφαίρεση" className="rounded-lg border border-gray-200 p-2 text-gray-400 hover:text-red-600 hover:bg-red-50">
+                        toast.success(t('discoverPage.toasts.removed'));
+                      } catch { toast.error(t('discoverPage.toasts.error')); }
+                    }} title={t('discoverPage.saved.remove')} className="rounded-lg border border-gray-200 p-2 text-gray-400 hover:text-red-600 hover:bg-red-50">
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   </div>
@@ -769,9 +764,9 @@ export default function DiscoverPage() {
       {discoverTab === 'interest' && (
         <div className="space-y-3">
           {interests.length === 0 ? (
-            <EmptyState title="Δεν υπάρχουν αιτήματα" description="Τα αιτήματα ενδιαφέροντος που στέλνεις χωρίς απάντηση εμφανίζονται εδώ" />
+            <EmptyState title={t('discoverPage.requests.emptyTitle')} description={t('discoverPage.requests.emptyDesc')} />
           ) : interests.map((item: any) => {
-            const name = item.job_title || item.company_name || item.worker_name || 'Χωρίς όνομα';
+            const name = item.job_title || item.company_name || item.worker_name || t('discoverPage.noName');
             const sub = item.company_name && item.job_title ? item.company_name : item.city || '';
             const avatar = item.logo_url || item.photo_url;
             return (
@@ -789,14 +784,14 @@ export default function DiscoverPage() {
                       <p className="text-sm font-semibold text-gray-900">{name}</p>
                       {sub && <p className="text-xs text-gray-500">{sub}</p>}
                       <p className="text-xs text-gray-400">
-                        {item.created_at ? new Date(item.created_at).toLocaleDateString('el-GR', { day: 'numeric', month: 'short' }) : ''}
+                        {item.created_at ? new Date(item.created_at).toLocaleDateString(locale === 'en' ? 'en-GB' : 'el-GR', { day: 'numeric', month: 'short' }) : ''}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="rounded-full bg-amber-50 border border-amber-200 px-2.5 py-1 text-xs font-medium text-amber-700">Αναμονή</span>
+                      <span className="rounded-full bg-amber-50 border border-amber-200 px-2.5 py-1 text-xs font-medium text-amber-700">{t('discoverPage.requests.pending')}</span>
                       <button onClick={() => cancelInterest(item.id)}
                         className="rounded-full bg-red-50 border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-100">
-                        Ακύρωση
+                        {t('discoverPage.requests.cancel')}
                       </button>
                     </div>
                   </div>
@@ -811,9 +806,9 @@ export default function DiscoverPage() {
       {discoverTab === 'matched' && (
         <div className="space-y-3">
           {matches.length === 0 ? (
-            <EmptyState title="Δεν έχεις matches" description="Κάνε like για νέα matches!" />
+            <EmptyState title={t('discoverPage.matched.emptyTitle')} description={t('discoverPage.matched.emptyDesc')} />
           ) : matches.map((m: any) => {
-            const name = isWorker ? (m.business_name || 'Επιχείρηση') : (m.worker_name || 'Εργαζόμενος');
+            const name = isWorker ? (m.business_name || t('discoverPage.matched.business')) : (m.worker_name || t('discoverPage.matched.worker'));
             const avatar = isWorker ? m.business_logo : m.worker_avatar;
             return (
               <Card key={m.id} className="hover:shadow-md transition-shadow">
@@ -850,15 +845,11 @@ export default function DiscoverPage() {
       {discoverTab === 'discover' && noCandidates && (
         <div>
           <EmptyState
-            title="Δεν υπάρχουν άλλα προφίλ"
-            description={
-              isWorker
-                ? 'Δεν βρέθηκαν νέες θέσεις εργασίας αυτή τη στιγμή. Δοκίμασε ξανά αργότερα!'
-                : 'Δεν βρέθηκαν νέοι υποψήφιοι αυτή τη στιγμή. Δοκίμασε ξανά αργότερα!'
-            }
+            title={t('discoverPage.noMore.title')}
+            description={isWorker ? t('discoverPage.noMore.workerDesc') : t('discoverPage.noMore.businessDesc')}
           />
           <div className="mt-6 text-center">
-            <Button onClick={fetchCandidates}>Ανανέωση</Button>
+            <Button onClick={fetchCandidates}>{t('discoverPage.noMore.refresh')}</Button>
           </div>
         </div>
       )}
@@ -871,13 +862,13 @@ export default function DiscoverPage() {
               onClick={() => setDiscoverView('swipe')}
               className={`px-5 py-1.5 rounded-full transition-all ${discoverView === 'swipe' ? 'bg-white text-gray-900 shadow' : 'text-gray-500 hover:text-gray-700'}`}
             >
-              🎴 Swipe
+              {t('discoverPage.view.swipe')}
             </button>
             <button
               onClick={() => setDiscoverView('list')}
               className={`px-5 py-1.5 rounded-full transition-all ${discoverView === 'list' ? 'bg-white text-gray-900 shadow' : 'text-gray-500 hover:text-gray-700'}`}
             >
-              📋 Λίστα
+              {t('discoverPage.view.list')}
             </button>
           </div>
           {/* Ο μετρητής «2 / 8» — στο Swipe ο τίτλος κρύβεται, οπότε έρχεται εδώ */}
@@ -897,24 +888,24 @@ export default function DiscoverPage() {
             sidebarHeader={<div className="hidden lg:block">{renderTabs(true)}</div>}
             search={listQuery}
             onSearch={setListQuery}
-            searchPlaceholder={isWorker ? 'Αναζήτηση θέσης ή εταιρείας…' : 'Αναζήτηση εργαζομένου ή ρόλου…'}
+            searchPlaceholder={isWorker ? t('discoverPage.list.searchJobs') : t('discoverPage.list.searchWorkers')}
             groups={listGroups}
             selected={listSel}
             onToggle={toggleListFilter}
             onToggleMany={toggleManyListFilter}
             onClear={clearListFilters}
             resultCount={filteredCandidates.length}
-            resultNoun={isWorker ? ['θέση', 'θέσεις'] : ['εργαζόμενος', 'εργαζόμενοι']}
+            resultNoun={isWorker ? [t('discoverPage.list.nounJobOne'), t('discoverPage.list.nounJobMany')] : [t('discoverPage.list.nounWorkerOne'), t('discoverPage.list.nounWorkerMany')]}
           >
           {filteredCandidates.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-10 text-center">
-              <p className="text-gray-600 font-medium">Κανένα αποτέλεσμα με αυτά τα φίλτρα.</p>
+              <p className="text-gray-600 font-medium">{t('discoverPage.list.noResults')}</p>
               <button
                 type="button"
                 onClick={clearListFilters}
                 className="mt-3 inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
               >
-                Καθαρισμός φίλτρων
+                {t('discoverPage.list.clearFilters')}
               </button>
             </div>
           ) : (
@@ -923,7 +914,7 @@ export default function DiscoverPage() {
               const photo = c.photoUrl || c.companyLogo || c.coverPhoto;
               // Προτεραιότητα στο ντετερμινιστικό match του server· fallback στο AI score.
               const score = typeof c.matchPercent === 'number' ? c.matchPercent : aiMatchScores[c.id];
-              const specialties = (c.tags || []).filter(Boolean).map(roleLabel);
+              const specialties = (c.tags || []).filter(Boolean).map((r) => labels.role(r));
               const isShift = c.listingKind === 'shift';
               const countdown = isShift ? expiresLabel(c.shiftStartUtc, new Date(nowTick)) : null;
               const shiftNet = isShift ? netOf(c.salaryMin) : null;
@@ -979,14 +970,14 @@ export default function DiscoverPage() {
                         {c.verified && (
                           <span
                             className="inline-flex items-center rounded-full bg-blue-500/10 px-1.5 text-[10px] font-bold text-blue-600"
-                            title="Επαληθευμένος"
+                            title={t('discoverPage.list.verified')}
                           >
                             ✓
                           </span>
                         )}
                         {c.isPremium && (
                           <span className="inline-flex items-center rounded-full bg-amber-100 px-1.5 text-[10px] font-bold text-amber-700">
-                            ⭐ Premium
+                            {t('discoverPage.card.premiumBadge')}
                           </span>
                         )}
                         {isShift && (
@@ -1002,7 +993,7 @@ export default function DiscoverPage() {
                         */}
                         {countdown && (
                           <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700 ring-1 ring-red-200 sm:hidden">
-                            ⏳ λήγει {countdown}
+                            {t('discoverPage.list.expires', { when: countdown })}
                           </span>
                         )}
                         {/* Στο κινητό η δεξιά στήλη κρύβεται, οπότε το ποσοστό έρχεται εδώ */}
@@ -1046,8 +1037,8 @@ export default function DiscoverPage() {
                           </p>
                           {c.salaryMin && (
                             <p className="mt-0.5 text-xs font-semibold text-emerald-600 leading-snug">
-                              💰 {c.salaryMin}€ μικτά
-                              {shiftNet ? ` · ≈ ${shiftNet}€ καθαρά (ενδεικτικά)` : ''}
+                              {t('discoverPage.list.gross', { v: c.salaryMin })}
+                              {shiftNet ? ` · ${t('discoverPage.list.netApprox', { v: shiftNet })}` : ''}
                             </p>
                           )}
                         </>
@@ -1065,9 +1056,9 @@ export default function DiscoverPage() {
                       {countdown && (
                         <span
                           className="hidden sm:inline-flex items-center rounded-full bg-red-50 px-2.5 py-0.5 text-[11px] font-bold text-red-700 ring-1 ring-red-200"
-                          title="Χρόνος μέχρι την έναρξη της βάρδιας"
+                          title={t('discoverPage.list.expiresTitle')}
                         >
-                          ⏳ λήγει {countdown}
+                          {t('discoverPage.list.expires', { when: countdown })}
                         </span>
                       )}
                       {typeof score === 'number' && score > 0 && (
@@ -1079,7 +1070,7 @@ export default function DiscoverPage() {
                                 ? 'bg-blue-500'
                                 : 'bg-gray-500'
                           }`}
-                          title="Ταίριασμα βάσει ειδικότητας, περιοχής & χαρακτηριστικών"
+                          title={t('discoverPage.list.matchTitle')}
                         >
                           🎯 {score}%
                         </span>
@@ -1099,7 +1090,7 @@ export default function DiscoverPage() {
                       type="button"
                       onClick={() => listAction(c, 'skip')}
                       disabled={actionLoading}
-                      aria-label="Πέρασε"
+                      aria-label={t('discoverPage.list.skip')}
                       className="inline-flex h-10 w-12 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition-transform active:scale-90 disabled:opacity-50"
                     >
                       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -1112,7 +1103,7 @@ export default function DiscoverPage() {
                       disabled={actionLoading || c.swipeStatus === 'like'}
                       className="flex-1 rounded-full bg-emerald-600 py-2.5 text-sm font-bold text-white transition-transform active:scale-95 disabled:bg-gray-300"
                     >
-                      {c.swipeStatus === 'like' ? '✓ Δηλώθηκε' : '✓ Ενδιαφέρον'}
+                      {c.swipeStatus === 'like' ? t('discoverPage.list.declared') : t('discoverPage.list.interest')}
                     </button>
                   </div>
                   </div>
@@ -1122,14 +1113,14 @@ export default function DiscoverPage() {
           </ul>
           )}
           {filteredCandidates.length > 0 && totalListPages > 1 && (
-            <nav className="mt-6 flex items-center justify-center gap-1.5" aria-label="Σελιδοποίηση">
+            <nav className="mt-6 flex items-center justify-center gap-1.5" aria-label={t('discoverPage.list.pagination')}>
               <button
                 type="button"
                 onClick={() => setListPage((p) => Math.max(1, p - 1))}
                 disabled={listPage <= 1}
                 className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                ← Προηγ.
+                {t('discoverPage.list.prev')}
               </button>
               {Array.from({ length: totalListPages }, (_, i) => i + 1)
                 .filter((n) => n === 1 || n === totalListPages || Math.abs(n - listPage) <= 1)
@@ -1163,7 +1154,7 @@ export default function DiscoverPage() {
                 disabled={listPage >= totalListPages}
                 className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Επόμ. →
+                {t('discoverPage.list.next')}
               </button>
             </nav>
           )}
@@ -1356,14 +1347,14 @@ export default function DiscoverPage() {
               )}
               {countdown && (
                 <span className="rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-sm">
-                  ⏳ λήγει {countdown}
+                  {t('discoverPage.list.expires', { when: countdown })}
                 </span>
               )}
               {currentCandidate.isBoosted && (
-                <span className="rounded-full bg-amber-500/90 px-2.5 py-1 text-[11px] font-bold text-white shadow">🚀 Boosted</span>
+                <span className="rounded-full bg-amber-500/90 px-2.5 py-1 text-[11px] font-bold text-white shadow">{t('discoverPage.card.boosted')}</span>
               )}
               {currentCandidate.verified && (
-                <span className="rounded-full bg-emerald-500/90 px-2.5 py-1 text-[11px] font-bold text-white shadow">✓ Verified</span>
+                <span className="rounded-full bg-emerald-500/90 px-2.5 py-1 text-[11px] font-bold text-white shadow">{t('discoverPage.card.verified')}</span>
               )}
               {/*
                 «Άμεσα» = ο ίδιος ο εργαζόμενος έχει δηλώσει στο προφίλ του ότι
@@ -1374,9 +1365,9 @@ export default function DiscoverPage() {
               {!isJobCard && currentCandidate.availability === 'immediate' && (
                 <span
                   className="inline-flex animate-pulse items-center gap-1 rounded-full bg-red-500 px-3 py-1 text-[11px] font-bold text-white shadow-lg"
-                  title="Δήλωσε ότι είναι διαθέσιμος άμεσα"
+                  title={t('discoverPage.card.immediateTitle')}
                 >
-                  🔥 Άμεσα
+                  {t('discoverPage.card.immediate')}
                 </span>
               )}
             </div>
@@ -1384,7 +1375,7 @@ export default function DiscoverPage() {
             {/* Κάτω αριστερά: πόσο πρόσφατη είναι η αγγελία */}
             {isJobCard && !isShift && currentCandidate.createdAt && (
               <span className="absolute bottom-4 left-4 z-10 rounded-full bg-black/40 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
-                🕐 {timeAgo(currentCandidate.createdAt)}
+                🕐 {timeAgo(currentCandidate.createdAt, t, locale)}
               </span>
             )}
 
@@ -1396,7 +1387,7 @@ export default function DiscoverPage() {
             */}
             {!isJobCard && (currentCandidate.viewsToday ?? 0) > 0 && (
               <span className="absolute bottom-4 left-4 z-10 inline-flex items-center gap-1 rounded-full bg-black/40 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
-                👁️ {currentCandidate.viewsToday} σήμερα
+                {t('discoverPage.card.viewsToday', { n: currentCandidate.viewsToday ?? 0 })}
               </span>
             )}
 
@@ -1406,7 +1397,7 @@ export default function DiscoverPage() {
                 className={`absolute bottom-4 right-4 z-10 rounded-full px-3 py-1 text-[11px] font-bold text-white shadow-lg backdrop-blur-sm ${
                   score >= 80 ? 'bg-emerald-500/90' : score >= 60 ? 'bg-blue-500/90' : 'bg-black/45'
                 }`}
-                title="Ταίριασμα βάσει ειδικότητας, περιοχής & χαρακτηριστικών"
+                title={t('discoverPage.list.matchTitle')}
               >
                 🎯 {score}%
               </span>
@@ -1452,10 +1443,10 @@ export default function DiscoverPage() {
                 </p>
                 {currentCandidate.salaryMin && (
                   <p className="mt-1 text-xl font-bold text-emerald-600">
-                    💰 {currentCandidate.salaryMin}€ μικτά
+                    {t('discoverPage.list.gross', { v: currentCandidate.salaryMin })}
                     {shiftNet && (
                       <span className="ml-1 text-xs font-semibold text-emerald-700/70">
-                        ≈ {shiftNet}€ καθαρά (ενδεικτικά)
+                        {t('discoverPage.list.netApprox', { v: shiftNet })}
                       </span>
                     )}
                   </p>
@@ -1480,14 +1471,14 @@ export default function DiscoverPage() {
             <div className="flex flex-wrap gap-1.5 pt-3">
               {(currentCandidate.tags || []).slice(0, 4).map((tag) => (
                 <span key={tag} className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
-                  {roleLabel(tag)}
+                  {labels.role(tag)}
                 </span>
               ))}
               {currentCandidate.housingProvided && (
-                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">🏠 Διαμονή</span>
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">{t('discoverPage.card.housing')}</span>
               )}
               {currentCandidate.mealsProvided && (
-                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">🍽️ Σίτιση</span>
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">{t('discoverPage.card.meals')}</span>
               )}
             </div>
 
@@ -1501,7 +1492,7 @@ export default function DiscoverPage() {
                       ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                       : 'bg-gray-100 text-gray-500 border border-gray-200'
                 }`}>
-                  {currentCandidate.isMatched ? '🤝 Match — Μπορείτε να συνομιλήσετε' : currentCandidate.swipeStatus === 'like' ? '✓ Δήλωσα ενδιαφέρον' : '👁️ Προβλήθηκε'}
+                  {currentCandidate.isMatched ? t('discoverPage.card.matchedStatus') : currentCandidate.swipeStatus === 'like' ? t('discoverPage.card.likedStatus') : t('discoverPage.card.viewedStatus')}
                 </span>
               </div>
             )}
@@ -1513,7 +1504,7 @@ export default function DiscoverPage() {
                 href="/dashboard/messages"
                 className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white hover:bg-blue-700"
               >
-                💬 Άνοιξε Chat
+                {t('discoverPage.card.openChat')}
               </a>
             )}
           </div>
@@ -1528,8 +1519,8 @@ export default function DiscoverPage() {
               data-no-drag
               onClick={(e) => { e.stopPropagation(); handleAction('skip'); }}
               disabled={actionLoading}
-              aria-label="Πέρασε"
-              title="Πέρασε"
+              aria-label={t('discoverPage.list.skip')}
+              title={t('discoverPage.list.skip')}
               className="h-14 w-14 inline-flex items-center justify-center rounded-full bg-white shadow-lg ring-1 ring-gray-200 text-rose-500 hover:text-white hover:bg-rose-500 hover:ring-rose-500 active:scale-90 transition-all disabled:opacity-50"
             >
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -1546,8 +1537,8 @@ export default function DiscoverPage() {
                 setSavedBounce(true);
                 setTimeout(() => setSavedBounce(false), 600);
               }}
-              aria-label="Αποθήκευση"
-              title="Αποθήκευση"
+              aria-label={t('discoverPage.card.save')}
+              title={t('discoverPage.card.save')}
               className={`h-12 w-12 inline-flex items-center justify-center rounded-full bg-white text-blue-600 shadow-lg ring-1 ring-gray-200 hover:bg-blue-600 hover:text-white hover:ring-blue-600 active:scale-90 transition-all ${savedBounce ? 'animate-savedBounce' : ''}`}
             >
               <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
@@ -1560,8 +1551,8 @@ export default function DiscoverPage() {
               data-no-drag
               onClick={(e) => { e.stopPropagation(); handleAction('like'); }}
               disabled={actionLoading || currentCandidate.swipeStatus === 'like'}
-              aria-label="Ενδιαφέρομαι"
-              title="Ενδιαφέρομαι"
+              aria-label={t('discoverPage.card.like')}
+              title={t('discoverPage.card.like')}
               className={`h-16 w-16 inline-flex items-center justify-center rounded-full text-white shadow-xl active:scale-90 transition-all ${
                 currentCandidate.swipeStatus === 'like'
                   ? 'bg-gray-300 cursor-not-allowed'
@@ -1581,7 +1572,7 @@ export default function DiscoverPage() {
           γραμμές στα μικρά κινητά κι έσπρωχνε τα κουμπιά πίσω από την κάτω μπάρα.
         */}
         <p className="mt-2 text-center text-[11px] text-gray-400">
-          👆 Πάτα για προφίλ · 👈 Πέρασε · Ενδιαφέρομαι 👉
+          {t('discoverPage.card.hint')}
         </p>
       </div>
         );

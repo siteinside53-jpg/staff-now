@@ -15,6 +15,10 @@
  * προσκαλεί σύγκριση 10€ με 200€, και τα δύο δεν είναι το ίδιο πράγμα.
  */
 
+'use client';
+
+import { useT } from '@/i18n/locale-provider';
+
 const SIZES = {
   row: { value: 'text-[26px] sm:text-[30px]', euro: 'text-base', note: 'text-[10px]' },
   band: { value: 'text-[22px]', euro: 'text-sm', note: 'text-[10px]' },
@@ -38,11 +42,12 @@ export function Amount({
   /** Ξεθωριασμένο, για γραμμές που ο χρήστης πρέπει να προσπερνά. */
   muted?: boolean;
 }) {
+  const t = useT();
   const s = SIZES[size];
   return (
     <div className="text-right">
       {direction && (
-        <div className={s.note + ' leading-none text-gray-400'}>δίνει</div>
+        <div className={s.note + ' leading-none text-gray-400'}>{t('tasknow.common.gives')}</div>
       )}
       <div
         className={
@@ -55,7 +60,7 @@ export function Amount({
         <span className={'font-bold text-gray-400 ' + s.euro}>€</span>
       </div>
       <div className={'mt-1 leading-tight text-gray-500 ' + s.note}>
-        {note ?? 'για όλη τη δουλειά'}
+        {note ?? t('tasknow.common.forWholeJob')}
       </div>
     </div>
   );
@@ -80,10 +85,11 @@ export function AmountText({
   size?: keyof typeof SIZES;
   direction?: boolean;
 }) {
+  const t = useT();
   const s = SIZES[size];
   return (
     <div className="text-right">
-      {direction && <div className={s.note + ' leading-none text-gray-400'}>δίνει</div>}
+      {direction && <div className={s.note + ' leading-none text-gray-400'}>{t('tasknow.common.gives')}</div>}
       <div
         className={
           'mt-0.5 font-extrabold leading-none tracking-tight tabular-nums text-gray-900 ' +

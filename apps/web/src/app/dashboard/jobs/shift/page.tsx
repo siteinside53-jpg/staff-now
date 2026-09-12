@@ -12,6 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Spinner } from '@/components/ui/spinner';
 import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
 import { netOf, shiftHours } from '@/lib/shift-display';
+import { useT } from '@/i18n/locale-provider';
+import { useLabels } from '@/i18n/labels';
 
 const sel =
   'flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500';
@@ -28,6 +30,8 @@ function athensDate(offsetDays = 0): string {
 }
 
 export default function ShiftPage() {
+  const t = useT();
+  const labels = useLabels();
   const { user } = useAuth();
   const router = useRouter();
   const [branches, setBranches] = useState<any[]>([]);
@@ -75,13 +79,13 @@ export default function ShiftPage() {
   const net = useMemo(() => netOf(parseFloat(pay)), [pay]);
 
   const handleCreate = async () => {
-    if (!title.trim()) return toast.error('Συμπλήρωσε τίτλο (π.χ. «Σερβιτόρος για απόψε»)');
-    if (!branchId && branches.length > 0) return toast.error('Επέλεξε επιχείρηση');
-    if (!city.trim()) return toast.error('Η πόλη είναι υποχρεωτική');
-    if (roles.length === 0) return toast.error('Επέλεξε τουλάχιστον μία ειδικότητα');
-    if (!date) return toast.error('Επέλεξε ημερομηνία βάρδιας');
-    if (!hours) return toast.error('Η ώρα λήξης δεν μπορεί να είναι ίδια με την έναρξη');
-    if (!pay || parseFloat(pay) <= 0) return toast.error('Συμπλήρωσε την αμοιβή της βάρδιας');
+    if (!title.trim()) return toast.error(t('jobsPage.shiftErrTitle'));
+    if (!branchId && branches.length > 0) return toast.error(t('jobsPage.errBranch'));
+    if (!city.trim()) return toast.error(t('jobsPage.errCity'));
+    if (roles.length === 0) return toast.error(t('jobsPage.shiftErrRole'));
+    if (!date) return toast.error(t('jobsPage.shiftErrDate'));
+    if (!hours) return toast.error(t('jobsPage.shiftErrHours'));
+    if (!pay || parseFloat(pay) <= 0) return toast.error(t('jobsPage.shiftErrPay'));
 
     setSaving(true);
     try {
@@ -104,16 +108,16 @@ export default function ShiftPage() {
         salary_gross: true,
         no_benefits: true,
       } as any);
-      toast.success('🚨 Η έκτακτη βάρδια δημοσιεύτηκε! Ειδοποιήθηκαν οι εργαζόμενοι.');
+      toast.success(t('jobsPage.shiftPublished'));
       router.push('/dashboard/jobs');
     } catch (err: any) {
       if (err?.code === 'JOB_LIMIT_REACHED') {
-        toast.error(err.message || 'Έφτασες το όριο αγγελιών — αναβάθμισε το πλάνο σου.', {
-          action: { label: 'Αναβάθμιση', onClick: () => (window.location.href = '/pricing') },
+        toast.error(err.message || t('jobsPage.limitReached'), {
+          action: { label: t('jobsPage.upgrade'), onClick: () => (window.location.href = '/pricing') },
           duration: 8000,
         });
       } else {
-        toast.error(err?.message || 'Αποτυχία δημιουργίας.');
+        toast.error(err?.message || t('jobsPage.createFailed'));
       }
     } finally {
       setSaving(false);
@@ -123,8 +127,8 @@ export default function ShiftPage() {
   if (user?.role === 'worker')
     return (
       <div>
-        <h1 className="mb-4 text-2xl font-bold text-gray-900">Έκτακτη βάρδια</h1>
-        <p className="text-gray-600">Σελίδα μόνο για επιχειρήσεις.</p>
+        <h1 className="mb-4 text-2xl font-bold text-gray-900">{t('jobsPage.shiftTitle')}</h1>
+        <p className="text-gray-600">{t('jobsPage.businessOnly')}</p>
       </div>
     );
 
@@ -144,16 +148,16 @@ export default function ShiftPage() {
         <button
           onClick={() => router.push('/dashboard/jobs')}
           className="rounded-lg border border-gray-300 p-2 hover:bg-gray-50"
-          aria-label="Πίσω"
+          aria-label={t('jobsPage.backAria')}
         >
           <svg className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
           </svg>
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">🚨 Έκτακτη βάρδια</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('jobsPage.shiftHeading')}</h1>
           <p className="mt-0.5 text-sm text-gray-500">
-            Για μία βάρδια ή λίγες μέρες — οι εργαζόμενοι ειδοποιούνται αμέσως και δηλώνουν διαθεσιμότητα.
+            {t('jobsPage.shiftSubtitle')}
           </p>
         </div>
       </div>
@@ -162,9 +166,9 @@ export default function ShiftPage() {
         {branches.length > 0 && (
           <Card>
             <CardContent className="p-5">
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Για ποια επιχείρηση; *</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.forWhichBusiness')}</label>
               <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className={sel}>
-                <option value="">Επέλεξε επιχείρηση</option>
+                <option value="">{t('jobsPage.chooseBusiness')}</option>
                 {branches.map((b: any) => (
                   <option key={b.id} value={b.id}>
                     {b.name}
@@ -179,17 +183,17 @@ export default function ShiftPage() {
         <Card>
           <CardContent className="space-y-4 p-5">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Τίτλος *</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.shiftTitleLabel')}</label>
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="π.χ. Σερβιτόρος για απόψε"
+                placeholder={t('jobsPage.shiftTitlePlaceholder')}
                 maxLength={200}
               />
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Ειδικότητα *</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.shiftRole')}</label>
               {/* Λίστα, όχι chips: οι ειδικότητες είναι >100 και η φόρμα πρέπει
                   να μένει σύντομη — μια βάρδια ανεβαίνει βιαστικά. */}
               <select
@@ -197,10 +201,10 @@ export default function ShiftPage() {
                 onChange={(e) => setRoles(e.target.value ? [e.target.value] : [])}
                 className={sel}
               >
-                <option value="">Επέλεξε ειδικότητα…</option>
-                {Object.entries(WORKER_JOB_ROLE_LABELS_EL).map(([key, label]) => (
+                <option value="">{t('jobsPage.chooseRole')}</option>
+                {Object.keys(WORKER_JOB_ROLE_LABELS_EL).map((key) => (
                   <option key={key} value={key}>
-                    {label as string}
+                    {labels.role(key)}
                   </option>
                 ))}
               </select>
@@ -208,12 +212,12 @@ export default function ShiftPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">Πόλη *</label>
-                <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="π.χ. Αθήνα" />
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.city')}</label>
+                <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder={t('jobsPage.shiftCityPlaceholder')} />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">Περιοχή</label>
-                <Input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="π.χ. Γλυφάδα" />
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.region')}</label>
+                <Input value={region} onChange={(e) => setRegion(e.target.value)} placeholder={t('jobsPage.shiftRegionPlaceholder')} />
               </div>
             </div>
           </CardContent>
@@ -222,11 +226,11 @@ export default function ShiftPage() {
         <Card>
           <CardContent className="space-y-4 p-5">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Πότε; *</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.when')}</label>
               <div className="mb-2 flex gap-2">
                 {[
-                  ['Σήμερα', today],
-                  ['Αύριο', tomorrow],
+                  [t('jobsPage.today'), today],
+                  [t('jobsPage.tomorrow'), tomorrow],
                 ].map(([label, value]) => (
                   <button
                     key={value}
@@ -247,38 +251,38 @@ export default function ShiftPage() {
 
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">Από *</label>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.from')}</label>
                 <Input type="time" value={from} onChange={(e) => setFrom(e.target.value)} />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">Έως *</label>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.to')}</label>
                 <Input type="time" value={to} onChange={(e) => setTo(e.target.value)} />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">Διάρκεια</label>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.duration')}</label>
                 <div className="flex h-10 items-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm font-semibold text-gray-700">
-                  {hours ? `${hours} ώρες` : '—'}
+                  {hours ? t('jobsPage.hoursCount', { count: hours }) : '—'}
                 </div>
               </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">Πόσες ημέρες;</label>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.howManyDays')}</label>
                 <select value={days} onChange={(e) => setDays(e.target.value)} className={sel}>
                   {[1, 2, 3, 4, 5, 6, 7].map((n) => (
                     <option key={n} value={String(n)}>
-                      {n === 1 ? 'Μία βάρδια' : `${n} ημέρες`}
+                      {n === 1 ? t('jobsPage.oneShift') : t('jobsPage.daysCount', { count: n })}
                     </option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-700">Πόσα άτομα;</label>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.howManyPeople')}</label>
                 <select value={positions} onChange={(e) => setPositions(e.target.value)} className={sel}>
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                     <option key={n} value={String(n)}>
-                      {n === 1 ? '1 άτομο' : `${n} άτομα`}
+                      {n === 1 ? t('jobsPage.onePerson') : t('jobsPage.peopleCount', { count: n })}
                     </option>
                   ))}
                 </select>
@@ -290,14 +294,14 @@ export default function ShiftPage() {
         <Card>
           <CardContent className="space-y-4 p-5">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Αμοιβή ανά βάρδια (μικτά) *</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.payPerShift')}</label>
               <div className="relative">
                 <Input
                   type="number"
                   min="1"
                   value={pay}
                   onChange={(e) => setPay(e.target.value)}
-                  placeholder="π.χ. 70"
+                  placeholder={t('jobsPage.payPlaceholder')}
                   className="pr-10"
                 />
                 <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
@@ -306,20 +310,20 @@ export default function ShiftPage() {
               </div>
               {net !== null && (
                 <p className="mt-2 text-sm text-emerald-700">
-                  ≈ <strong>{net}€ καθαρά</strong> (ενδεικτικά) · δηλώνεται στην ΕΡΓΑΝΗ
+                  ≈ <strong>{t('jobsPage.netEstimate', { net })}</strong> {t('jobsPage.netEstimateSuffix')}
                 </p>
               )}
               <p className="mt-1 text-xs text-gray-500">
-                Η εκτίμηση αφαιρεί μόνο τις εισφορές εργαζομένου (ΕΦΚΑ), όχι παρακράτηση φόρου.
+                {t('jobsPage.netHint')}
               </p>
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Σημείωση (προαιρετικό)</label>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.note')}</label>
               <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="π.χ. Αντικατάσταση λόγω ασθένειας. Απαραίτητη εμπειρία σε μπαρ."
+                placeholder={t('jobsPage.notePlaceholder')}
                 maxLength={300}
                 rows={3}
               />
@@ -330,15 +334,15 @@ export default function ShiftPage() {
 
         <div className="flex gap-3">
           <Button onClick={handleCreate} disabled={saving} className="bg-red-600 hover:bg-red-700">
-            {saving ? 'Δημοσίευση…' : '🚨 Δημοσίευση βάρδιας'}
+            {saving ? t('jobsPage.publishingShift') : t('jobsPage.publishShift')}
           </Button>
           <Button variant="outline" onClick={() => router.push('/dashboard/jobs')} disabled={saving}>
-            Ακύρωση
+            {t('jobsPage.cancel')}
           </Button>
         </div>
 
         <p className="pb-6 text-xs text-gray-500">
-          Η έκτακτη βάρδια μετράει κανονικά στο όριο αγγελιών του πλάνου σου και αρχειοθετείται αυτόματα μόλις ξεκινήσει.
+          {t('jobsPage.shiftFootnote')}
         </p>
       </div>
     </div>

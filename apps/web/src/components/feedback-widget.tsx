@@ -12,8 +12,10 @@ import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { toast } from 'sonner';
 import { API_URL } from '@/lib/config';
+import { useT } from '@/i18n/locale-provider';
 
 export function FeedbackWidget() {
+  const t = useT();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [rating, setRating] = useState(0);
@@ -27,7 +29,7 @@ export function FeedbackWidget() {
 
   const submit = async () => {
     if (!rating && message.trim().length < 3) {
-      toast.error('Διάλεξε αστέρια ή γράψε δυο λόγια.');
+      toast.error(t('feedbackWidget.validationError'));
       return;
     }
     setSending(true);
@@ -39,7 +41,7 @@ export function FeedbackWidget() {
         body: JSON.stringify({ rating: rating || null, message: message.trim(), page: pathname }),
       });
       const j = (await res.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string } };
-      if (!res.ok || !j.success) throw new Error(j.error?.message || 'Δεν στάλθηκε');
+      if (!res.ok || !j.success) throw new Error(j.error?.message || t('feedbackWidget.sendError'));
       setDone(true);
       setTimeout(() => {
         setOpen(false);
@@ -48,7 +50,7 @@ export function FeedbackWidget() {
         setMessage('');
       }, 1800);
     } catch (err: any) {
-      toast.error(err?.message || 'Δεν στάλθηκε. Δοκίμασε ξανά.');
+      toast.error(err?.message || t('feedbackWidget.sendErrorRetry'));
     } finally {
       setSending(false);
     }
@@ -59,10 +61,12 @@ export function FeedbackWidget() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-20 left-4 z-40 inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white/95 px-3 py-2 text-xs font-semibold text-gray-700 shadow-lg backdrop-blur transition hover:bg-gray-50 lg:bottom-5"
-        aria-label="Πες μας τη γνώμη σου για το StaffNow"
+        // Στον πίνακα ελέγχου η πλαϊνή στήλη (256px) κρατά την κάτω αριστερή
+        // γωνία («Αποσύνδεση», διακόπτης νύχτας) — το κουμπί μετακινείται δεξιά της.
+        className={`fixed bottom-20 left-4 z-40 inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white/95 px-3 py-2 text-xs font-semibold text-gray-700 shadow-lg backdrop-blur transition hover:bg-gray-50 lg:bottom-5 ${pathname.startsWith('/dashboard') ? 'lg:left-[272px]' : ''}`}
+        aria-label={t('feedbackWidget.openAria')}
       >
-        💬 <span className="hidden sm:inline">Η γνώμη σου</span>
+        💬 <span className="hidden sm:inline">{t('feedbackWidget.openButton')}</span>
       </button>
 
       {open && (
@@ -77,13 +81,13 @@ export function FeedbackWidget() {
             {done ? (
               <div className="py-6 text-center">
                 <p className="text-3xl">🙏</p>
-                <p className="mt-2 font-bold text-gray-900">Ευχαριστούμε!</p>
-                <p className="text-sm text-gray-500">Το διαβάζουμε όλο.</p>
+                <p className="mt-2 font-bold text-gray-900">{t('feedbackWidget.thanks')}</p>
+                <p className="text-sm text-gray-500">{t('feedbackWidget.readAll')}</p>
               </div>
             ) : (
               <>
-                <h2 id="feedback-title" className="text-lg font-bold text-gray-900">Πείτε μας την εμπειρία σας</h2>
-                <p className="mt-1 text-sm text-gray-500">Πώς σου φαίνεται το StaffNow; Τι να φτιάξουμε;</p>
+                <h2 id="feedback-title" className="text-lg font-bold text-gray-900">{t('feedbackWidget.title')}</h2>
+                <p className="mt-1 text-sm text-gray-500">{t('feedbackWidget.subtitle')}</p>
                 <div className="mt-4 flex items-center gap-1" onMouseLeave={() => setHover(0)}>
                   {[1, 2, 3, 4, 5].map((n) => (
                     <button
@@ -92,7 +96,7 @@ export function FeedbackWidget() {
                       onClick={() => setRating(n)}
                       onMouseEnter={() => setHover(n)}
                       className={`text-3xl transition ${(hover || rating) >= n ? 'text-yellow-400' : 'text-gray-300'}`}
-                      aria-label={`${n} από 5`}
+                      aria-label={t('feedbackWidget.starAria', { n })}
                     >
                       ★
                     </button>
@@ -102,12 +106,12 @@ export function FeedbackWidget() {
                   value={message}
                   onChange={(e) => setMessage(e.target.value.slice(0, 2000))}
                   rows={4}
-                  placeholder="Δυο λόγια (προαιρετικό)…"
+                  placeholder={t('feedbackWidget.placeholder')}
                   className="mt-3 w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
                 />
                 <div className="mt-4 flex justify-end gap-2">
                   <button type="button" onClick={() => setOpen(false)} className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100">
-                    Άκυρο
+                    {t('feedbackWidget.cancel')}
                   </button>
                   <button
                     type="button"
@@ -115,7 +119,7 @@ export function FeedbackWidget() {
                     disabled={sending}
                     className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
                   >
-                    {sending ? 'Αποστολή…' : 'Αποστολή'}
+                    {sending ? t('feedbackWidget.sending') : t('feedbackWidget.send')}
                   </button>
                 </div>
               </>

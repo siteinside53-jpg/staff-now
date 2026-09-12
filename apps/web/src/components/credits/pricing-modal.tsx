@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useCredits } from './credits-context';
+import { useT } from '@/i18n/locale-provider';
 
 interface Props {
   open: boolean;
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function PricingModal({ open, onClose, trigger }: Props) {
+  const t = useT();
   const { balance, packages, buyPackage } = useCredits();
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -22,10 +24,10 @@ export function PricingModal({ open, onClose, trigger }: Props) {
     try {
       const result = await buyPackage(packageId);
       if (result.ok) {
-        toast.success(result.message || 'Credits αγοράστηκαν! 🎉');
+        toast.success(result.message || t('creditsUi.purchased'));
         onClose();
       } else {
-        toast.error(result.message || 'Αποτυχία αγοράς');
+        toast.error(result.message || t('creditsUi.purchaseFailed'));
       }
     } finally {
       setLoading(null);
@@ -52,13 +54,13 @@ export function PricingModal({ open, onClose, trigger }: Props) {
                 💎
               </div>
               <h2 className="text-xl font-extrabold text-gray-900">
-                {trigger ? 'Χρειάζεσαι credits' : 'Αγορά Credits'}
+                {trigger ? t('creditsUi.needCredits') : t('creditsUi.buyCredits')}
               </h2>
               {trigger && (
                 <p className="mt-1 text-sm text-gray-600">
-                  Η ενέργεια <span className="font-bold text-gray-900">"{trigger.label}"</span> κοστίζει{' '}
-                  <span className="font-bold text-amber-600">{trigger.cost} credits</span>.
-                  Έχεις{' '}
+                  {t('creditsUi.actionCostsPrefix')} <span className="font-bold text-gray-900">"{trigger.label}"</span> {t('creditsUi.actionCostsMiddle')}{' '}
+                  <span className="font-bold text-amber-600">{t('creditsUi.creditsCount', { count: trigger.cost })}</span>.
+                  {' '}{t('creditsUi.youHave')}{' '}
                   <span className={`font-bold ${balance >= trigger.cost ? 'text-emerald-600' : 'text-red-600'}`}>
                     {balance}
                   </span>.
@@ -66,7 +68,7 @@ export function PricingModal({ open, onClose, trigger }: Props) {
               )}
               {!trigger && (
                 <p className="mt-1 text-sm text-gray-500">
-                  Τρέχον υπόλοιπο:{' '}
+                  {t('creditsUi.currentBalance')}{' '}
                   <span className="font-bold text-gray-900">{balance} 💎</span>
                 </p>
               )}
@@ -93,12 +95,12 @@ export function PricingModal({ open, onClose, trigger }: Props) {
                     {/* Popular/Best badge */}
                     {isPopular && (
                       <span className="absolute -top-2.5 left-4 rounded-full bg-blue-600 px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm">
-                        Δημοφιλές
+                        {t('creditsUi.popular')}
                       </span>
                     )}
                     {isBest && (
                       <span className="absolute -top-2.5 left-4 rounded-full bg-amber-500 px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm">
-                        Καλύτερη αξία
+                        {t('creditsUi.bestValue')}
                       </span>
                     )}
 
@@ -110,7 +112,7 @@ export function PricingModal({ open, onClose, trigger }: Props) {
                       </div>
                       <div className="text-left">
                         <p className="font-bold text-gray-900">{pkg.credits} credits</p>
-                        <p className="text-xs text-gray-500">{pkg.perCredit} / credit</p>
+                        <p className="text-xs text-gray-500">{t('creditsUi.perCredit', { price: pkg.perCredit })}</p>
                       </div>
                     </div>
 
@@ -136,7 +138,7 @@ export function PricingModal({ open, onClose, trigger }: Props) {
             {/* Footer */}
             <div className="mt-6 text-center">
               <p className="text-[10px] text-gray-400">
-                Ασφαλής πληρωμή μέσω Stripe · Δεν αποθηκεύουμε δεδομένα κάρτας · Χωρίς συνδρομή
+                {t('creditsUi.footer')}
               </p>
             </div>
           </div>

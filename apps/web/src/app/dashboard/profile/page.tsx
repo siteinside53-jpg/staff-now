@@ -16,9 +16,10 @@ import { WorkerProfilePanel } from '@/components/dashboard/worker-profile-panel'
 import { BusinessProfilePanel } from '@/components/dashboard/business-profile-panel';
 import { LANGUAGES_COMMON } from '@staffnow/config';
 import { RolePicker } from '@/components/ui/role-picker';
+import { useT } from '@/i18n/locale-provider';
 
 // Authed call προς το API για τα CV endpoints (δεν είναι στο api-client).
-async function cvApi<T = any>(method: string, path: string, body?: unknown): Promise<T> {
+async function cvApi<T = any>(method: string, path: string, body?: unknown, fallbackError = 'Κάτι πήγε στραβά. Δοκίμασε ξανά.'): Promise<T> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('staffnow_token') : null;
   const res = await fetch(`${API_URL}${path}`, {
     method,
@@ -30,7 +31,7 @@ async function cvApi<T = any>(method: string, path: string, body?: unknown): Pro
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok || (json && json.success === false)) {
-    throw new Error(json?.error?.message || 'Κάτι πήγε στραβά. Δοκίμασε ξανά.');
+    throw new Error(json?.error?.message || fallbackError);
   }
   return (json?.data ?? json) as T;
 }
@@ -54,6 +55,7 @@ interface WorkerForm {
 }
 
 export default function ProfilePage() {
+  const t = useT();
   const { user, profile, refreshUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -139,17 +141,17 @@ export default function ProfilePage() {
         if (category === 'avatar') {
           setPhotoUrl(data.data.url);
           await api.workers.updateProfile({ photoUrl: data.data.url });
-          toast.success('Η φωτογραφία ανέβηκε!');
+          toast.success(t('profilePage.photoUploaded'));
         } else {
           setCvUrl(data.data.url);
           await api.workers.updateProfile({ cvUrl: data.data.url });
-          toast.success('Το βιογραφικό ανέβηκε!');
+          toast.success(t('profilePage.cvUploaded'));
         }
       } else {
-        toast.error(data.error?.message || 'Αποτυχία upload');
+        toast.error(data.error?.message || t('profilePage.uploadFailed'));
       }
     } catch (err: any) {
-      toast.error(err?.message || 'Σφάλμα σύνδεσης κατά το upload');
+      toast.error(err?.message || t('profilePage.uploadConnError'));
     } finally {
       setUploading(null);
     }
@@ -166,11 +168,11 @@ export default function ProfilePage() {
   async function generateCv() {
     setCvBusy('gen');
     try {
-      const d = await cvApi<{ cv?: string }>('POST', '/workers/ai/cv-generate');
+      const d = await cvApi<{ cv?: string }>('POST', '/workers/ai/cv-generate', undefined, t('profilePage.genericError'));
       setCvText(d?.cv || '');
-      toast.success('Το CV δημιουργήθηκε με AI! ✨');
+      toast.success(t('profilePage.cvGenerated'));
     } catch (e: any) {
-      toast.error(e?.message || 'Αποτυχία δημιουργίας CV');
+      toast.error(e?.message || t('profilePage.cvGenerateFailed'));
     } finally {
       setCvBusy(null);
     }
@@ -180,10 +182,10 @@ export default function ProfilePage() {
     if (!cvText.trim()) return;
     setCvBusy('save');
     try {
-      await cvApi('PUT', '/workers/me/cv', { cv: cvText });
-      toast.success('Οι αλλαγές αποθηκεύτηκαν');
+      await cvApi('PUT', '/workers/me/cv', { cv: cvText }, t('profilePage.genericError'));
+      toast.success(t('profilePage.changesSaved'));
     } catch (e: any) {
-      toast.error(e?.message || 'Αποτυχία αποθήκευσης');
+      toast.error(e?.message || t('profilePage.saveFailed'));
     } finally {
       setCvBusy(null);
     }
@@ -191,19 +193,19 @@ export default function ProfilePage() {
 
   async function saveCvAsPdf() {
     if (!cvText.trim()) {
-      toast.error('Δημιούργησε ή γράψε πρώτα ένα CV.');
+      toast.error(t('profilePage.cvWriteFirst'));
       return;
     }
     setCvBusy('pdf');
     try {
-      await cvApi('PUT', '/workers/me/cv', { cv: cvText }); // sync τελευταίο κείμενο
-      const d = await cvApi<{ url?: string }>('POST', '/workers/me/cv/save-as-pdf');
+      await cvApi('PUT', '/workers/me/cv', { cv: cvText }, t('profilePage.genericError')); // sync τελευταίο κείμενο
+      const d = await cvApi<{ url?: string }>('POST', '/workers/me/cv/save-as-pdf', undefined, t('profilePage.genericError'));
       if (d?.url) {
         setCvUrl(d.url);
-        toast.success('Το PDF αποθηκεύτηκε στο προφίλ σου! 📄');
+        toast.success(t('profilePage.pdfSaved'));
       }
     } catch (e: any) {
-      toast.error(e?.message || 'Αποτυχία δημιουργίας PDF');
+      toast.error(e?.message || t('profilePage.pdfFailed'));
     } finally {
       setCvBusy(null);
     }
@@ -223,14 +225,14 @@ export default function ProfilePage() {
       if (wf.compensationType === 'hourly' && wf.expectedHourlyRate) body.expectedHourlyRate = parseFloat(wf.expectedHourlyRate);
       if (wf.compensationType === 'monthly' && wf.expectedMonthlySalary) body.expectedMonthlySalary = parseFloat(wf.expectedMonthlySalary);
       const res = await api.workers.updateProfile(body) as any;
-      if (res.success) { setCompleteness(res.data?.profile?.profile_completeness || completeness); await refreshUser(); toast.success('Το προφίλ ενημερώθηκε!'); }
-    } catch { toast.error('Αποτυχία αποθήκευσης.'); } finally { setSaving(false); }
+      if (res.success) { setCompleteness(res.data?.profile?.profile_completeness || completeness); await refreshUser(); toast.success(t('profilePage.profileUpdated')); }
+    } catch { toast.error(t('profilePage.saveFailedDot')); } finally { setSaving(false); }
   };
 
   const addSkill = () => {
     const s = skillInput.trim();
     if (!s) return;
-    if (wf.skills.length >= 10) { toast.error('Μέχρι 10 ειδικότητες'); return; }
+    if (wf.skills.length >= 10) { toast.error(t('profilePage.maxSkills')); return; }
     if (wf.skills.includes(s)) { setSkillInput(''); return; }
     setWf((p) => ({ ...p, skills: [...p.skills, s] }));
     setSkillInput('');
@@ -240,7 +242,7 @@ export default function ProfilePage() {
     setWf((p) => ({ ...p, skills: p.skills.filter((x) => x !== s) }));
   };
 
-  const saveBiz = async () => { setSaving(true); try { await api.businesses.updateProfile(bizForm); await refreshUser(); toast.success('Ενημερώθηκε!'); } catch { toast.error('Σφάλμα.'); } finally { setSaving(false); } };
+  const saveBiz = async () => { setSaving(true); try { await api.businesses.updateProfile(bizForm); await refreshUser(); toast.success(t('profilePage.updated')); } catch { toast.error(t('profilePage.error')); } finally { setSaving(false); } };
 
   if (loading) return <div className="flex justify-center py-20"><Spinner className="h-8 w-8" /></div>;
 
@@ -250,7 +252,7 @@ export default function ProfilePage() {
   }
 
   // ===================== WORKER =====================
-  const sLabel = completeness >= 80 ? 'Εξαιρετικό' : completeness >= 60 ? 'Δυνατό' : completeness >= 40 ? 'Βασικό' : 'Αδύναμο';
+  const sLabel = completeness >= 80 ? t('profilePage.scoreExcellent') : completeness >= 60 ? t('profilePage.scoreStrong') : completeness >= 40 ? t('profilePage.scoreBasic') : t('profilePage.scoreWeak');
   const sColor = completeness >= 80 ? 'text-emerald-600' : completeness >= 60 ? 'text-blue-600' : completeness >= 40 ? 'text-amber-600' : 'text-red-600';
   const bColor = completeness >= 80 ? 'bg-emerald-500' : completeness >= 60 ? 'bg-blue-500' : completeness >= 40 ? 'bg-amber-500' : 'bg-red-500';
   const sel = "flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500";
@@ -258,20 +260,20 @@ export default function ProfilePage() {
   return (
     <div className="max-w-3xl">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Προφίλ Εργαζομένου</h1>
-        <p className="mt-1 text-gray-600">Συμπλήρωσε όλα τα στοιχεία για καλύτερα ταιριάσματα.</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t('profilePage.title')}</h1>
+        <p className="mt-1 text-gray-600">{t('profilePage.subtitle')}</p>
       </div>
 
       {/* IMPROVEMENT SUGGESTIONS */}
       {(() => {
         const suggestions: { icon: string; text: string }[] = [];
-        if (!photoUrl) suggestions.push({ icon: '📸', text: 'Βάλε μια φωτογραφία' });
-        if (!wf.bio || wf.bio.length < 30) suggestions.push({ icon: '✍️', text: 'Γράψε σύντομη βιογραφία' });
-        if (wf.roles.length === 0) suggestions.push({ icon: '🎯', text: 'Επέλεξε ρόλους' });
-        if (wf.skills.length === 0) suggestions.push({ icon: '⭐', text: 'Πρόσθεσε ειδικότητες' });
-        if (!cvUrl) suggestions.push({ icon: '📄', text: 'Ανέβασε CV' });
-        if (!wf.expectedHourlyRate && !wf.expectedMonthlySalary) suggestions.push({ icon: '💰', text: 'Δήλωσε επιθυμητή αμοιβή' });
-        if (wf.languages.length === 0) suggestions.push({ icon: '🌍', text: 'Πρόσθεσε γλώσσες' });
+        if (!photoUrl) suggestions.push({ icon: '📸', text: t('profilePage.suggestPhoto') });
+        if (!wf.bio || wf.bio.length < 30) suggestions.push({ icon: '✍️', text: t('profilePage.suggestBio') });
+        if (wf.roles.length === 0) suggestions.push({ icon: '🎯', text: t('profilePage.suggestRoles') });
+        if (wf.skills.length === 0) suggestions.push({ icon: '⭐', text: t('profilePage.suggestSkills') });
+        if (!cvUrl) suggestions.push({ icon: '📄', text: t('profilePage.suggestCv') });
+        if (!wf.expectedHourlyRate && !wf.expectedMonthlySalary) suggestions.push({ icon: '💰', text: t('profilePage.suggestPay') });
+        if (wf.languages.length === 0) suggestions.push({ icon: '🌍', text: t('profilePage.suggestLanguages') });
         if (suggestions.length === 0 || completeness >= 100) return null;
         return (
           <Card className="mb-6 border-amber-200 bg-amber-50/50">
@@ -279,7 +281,7 @@ export default function ProfilePage() {
               <div className="flex items-start gap-3">
                 <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 text-xl">💡</div>
                 <div className="flex-1">
-                  <h3 className="text-sm font-bold text-amber-900 mb-2">Βελτίωσε το προφίλ σου</h3>
+                  <h3 className="text-sm font-bold text-amber-900 mb-2">{t('profilePage.improveTitle')}</h3>
                   <div className="flex flex-wrap gap-2">
                     {suggestions.slice(0, 6).map((s) => (
                       <span key={s.text} className="inline-flex items-center gap-1.5 rounded-full bg-white border border-amber-200 px-3 py-1 text-xs font-medium text-amber-800">
@@ -303,7 +305,7 @@ export default function ProfilePage() {
             <label className="cursor-pointer group">
               <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'avatar'); }} />
               {photoUrl ? (
-                <img src={photoUrl} alt="Avatar" className="h-20 w-20 rounded-full object-cover border-2 border-gray-200 group-hover:border-blue-400 transition-colors" />
+                <img src={photoUrl} alt={t('profilePage.avatarAlt')} className="h-20 w-20 rounded-full object-cover border-2 border-gray-200 group-hover:border-blue-400 transition-colors" />
               ) : (
                 <div className="flex h-20 w-20 items-center justify-center rounded-full bg-blue-100 text-2xl font-bold text-blue-600 group-hover:bg-blue-200 transition-colors">
                   {wf.fullName ? wf.fullName.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase() : '?'}
@@ -320,8 +322,8 @@ export default function ProfilePage() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-gray-900 truncate">{wf.fullName || 'Ονοματεπώνυμο'}</h2>
-              {verified && <Badge className="bg-emerald-100 text-emerald-700 text-xs">✓ Verified</Badge>}
+              <h2 className="text-lg font-bold text-gray-900 truncate">{wf.fullName || t('profilePage.fullNamePlaceholderShort')}</h2>
+              {verified && <Badge className="bg-emerald-100 text-emerald-700 text-xs">{t('profilePage.verifiedBadge')}</Badge>}
             </div>
           </div>
         </div>
@@ -333,7 +335,7 @@ export default function ProfilePage() {
         */}
         <div className="mt-4">
           <div className="mb-1 flex items-center justify-between gap-2 text-sm">
-            <span className="text-gray-500">Πληρότητα προφίλ</span>
+            <span className="text-gray-500">{t('profilePage.completeness')}</span>
             <span className={`whitespace-nowrap font-semibold ${sColor}`}>{completeness}% — {sLabel}</span>
           </div>
           <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100"><div className={`h-2 rounded-full transition-all ${bColor}`} style={{ width: `${completeness}%` }} /></div>
@@ -342,98 +344,98 @@ export default function ProfilePage() {
       </CardContent></Card>
 
       {/* BASIC */}
-      <Card className="mb-6"><CardHeader><h2 className="text-lg font-semibold text-gray-900">📝 Βασικά Στοιχεία</h2></CardHeader>
+      <Card className="mb-6"><CardHeader><h2 className="text-lg font-semibold text-gray-900">{t('profilePage.basicTitle')}</h2></CardHeader>
         <CardContent className="space-y-4">
-          <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Ονοματεπώνυμο</label><Input value={wf.fullName} onChange={(e) => wc('fullName', e.target.value)} placeholder="π.χ. Γιώργος Παπαδόπουλος" /></div>
-          <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Σύντομη περιγραφή</label><Textarea value={wf.bio} onChange={(e) => wc('bio', e.target.value)} rows={3} placeholder="Περίγραψε τον εαυτό σου..." /><p className="mt-1 text-xs text-gray-400">{wf.bio.length}/1000</p></div>
+          <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('profilePage.fullName')}</label><Input value={wf.fullName} onChange={(e) => wc('fullName', e.target.value)} placeholder={t('profilePage.fullNamePlaceholder')} /></div>
+          <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('profilePage.bio')}</label><Textarea value={wf.bio} onChange={(e) => wc('bio', e.target.value)} rows={3} placeholder={t('profilePage.bioPlaceholder')} /><p className="mt-1 text-xs text-gray-400">{wf.bio.length}/1000</p></div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Πόλη</label><Input value={wf.city} onChange={(e) => wc('city', e.target.value)} placeholder="π.χ. Μύκονος" /></div>
-            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Περιοχή</label>
-              <Input value={wf.region} onChange={(e) => wc('region', e.target.value)} placeholder="π.χ. Καλαμαριά" /></div>
+            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('profilePage.city')}</label><Input value={wf.city} onChange={(e) => wc('city', e.target.value)} placeholder={t('profilePage.cityPlaceholder')} /></div>
+            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('profilePage.region')}</label>
+              <Input value={wf.region} onChange={(e) => wc('region', e.target.value)} placeholder={t('profilePage.regionPlaceholder')} /></div>
           </div>
         </CardContent></Card>
 
       {/* PREFERENCES */}
-      <Card className="mb-6"><CardHeader><h2 className="text-lg font-semibold text-gray-900">💼 Εργασιακές Προτιμήσεις</h2></CardHeader>
+      <Card className="mb-6"><CardHeader><h2 className="text-lg font-semibold text-gray-900">{t('profilePage.prefsTitle')}</h2></CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Διαθεσιμότητα</label>
+            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('profilePage.availability')}</label>
               <select value={wf.availability} onChange={(e) => wc('availability', e.target.value)} className={sel}>
-                <option value="">Επέλεξε</option><option value="immediate">Άμεση</option><option value="within_7_days">Εντός 7 ημερών</option><option value="seasonal">Εποχιακή</option><option value="part_time">Μερικής</option><option value="full_time">Πλήρης</option>
+                <option value="">{t('profilePage.choose')}</option><option value="immediate">{t('profilePage.availImmediate')}</option><option value="within_7_days">{t('profilePage.availWithin7')}</option><option value="seasonal">{t('profilePage.availSeasonal')}</option><option value="part_time">{t('profilePage.availPartTime')}</option><option value="full_time">{t('profilePage.availFullTime')}</option>
               </select></div>
-            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Τύπος Απασχόλησης</label>
+            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('profilePage.employmentType')}</label>
               <select value={wf.employmentType} onChange={(e) => wc('employmentType', e.target.value)} className={sel}>
-                <option value="">Επέλεξε</option><option value="seasonal">☀️ Σεζόν</option><option value="full_time">📅 Πλήρης</option><option value="part_time">⏰ Μερική</option><option value="freelancer">💼 Freelancer</option>
+                <option value="">{t('profilePage.choose')}</option><option value="seasonal">{t('profilePage.empSeasonal')}</option><option value="full_time">{t('profilePage.empFullTime')}</option><option value="part_time">{t('profilePage.empPartTime')}</option><option value="freelancer">{t('profilePage.empFreelancer')}</option>
               </select></div>
           </div>
-          <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Χρόνια Εμπειρίας</label>
+          <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('profilePage.yearsExperience')}</label>
             <Input type="number" min="0" max="50" value={wf.yearsOfExperience} onChange={(e) => wc('yearsOfExperience', e.target.value)} placeholder="0" /></div>
           <label className="flex items-center gap-3 cursor-pointer">
             <div onClick={() => wc('willingToRelocate', !wf.willingToRelocate)} className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors cursor-pointer ${wf.willingToRelocate ? 'bg-blue-600' : 'bg-gray-300'}`}>
               <div className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${wf.willingToRelocate ? 'translate-x-5' : ''}`} /></div>
-            <span className="text-sm font-medium text-gray-700">Διαθέσιμος/η για μετακόμιση</span>
+            <span className="text-sm font-medium text-gray-700">{t('profilePage.willingToRelocate')}</span>
           </label>
         </CardContent></Card>
 
       {/* COMPENSATION */}
-      <Card className="mb-6"><CardHeader><h2 className="text-lg font-semibold text-gray-900">💰 Αμοιβή</h2></CardHeader>
+      <Card className="mb-6"><CardHeader><h2 className="text-lg font-semibold text-gray-900">{t('profilePage.compensationTitle')}</h2></CardHeader>
         <CardContent className="space-y-4">
           <div className="flex rounded-lg border border-gray-200 overflow-hidden">
-            <button onClick={() => wc('compensationType', 'monthly')} className={`flex-1 py-2.5 text-sm font-medium transition-colors ${wf.compensationType === 'monthly' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}>Μηνιαίος Μισθός</button>
-            <button onClick={() => wc('compensationType', 'hourly')} className={`flex-1 py-2.5 text-sm font-medium transition-colors ${wf.compensationType === 'hourly' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}>Ωριαία Αμοιβή</button>
+            <button onClick={() => wc('compensationType', 'monthly')} className={`flex-1 py-2.5 text-sm font-medium transition-colors ${wf.compensationType === 'monthly' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}>{t('profilePage.monthlySalary')}</button>
+            <button onClick={() => wc('compensationType', 'hourly')} className={`flex-1 py-2.5 text-sm font-medium transition-colors ${wf.compensationType === 'hourly' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}>{t('profilePage.hourlyRate')}</button>
           </div>
           {wf.compensationType === 'monthly' ? (
-            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Επιθυμητός μηνιαίος μισθός (€)</label><Input type="number" min="0" value={wf.expectedMonthlySalary} onChange={(e) => wc('expectedMonthlySalary', e.target.value)} placeholder="π.χ. 1500" /></div>
+            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('profilePage.expectedMonthly')}</label><Input type="number" min="0" value={wf.expectedMonthlySalary} onChange={(e) => wc('expectedMonthlySalary', e.target.value)} placeholder={t('profilePage.expectedMonthlyPlaceholder')} /></div>
           ) : (
-            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Επιθυμητό ωρομίσθιο (€/ώρα)</label><Input type="number" min="0" step="0.5" value={wf.expectedHourlyRate} onChange={(e) => wc('expectedHourlyRate', e.target.value)} placeholder="π.χ. 10" /></div>
+            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('profilePage.expectedHourly')}</label><Input type="number" min="0" step="0.5" value={wf.expectedHourlyRate} onChange={(e) => wc('expectedHourlyRate', e.target.value)} placeholder={t('profilePage.expectedHourlyPlaceholder')} /></div>
           )}
         </CardContent></Card>
 
       {/* ROLES */}
-      <Card className="mb-6"><CardHeader><div className="flex items-center justify-between"><h2 className="text-lg font-semibold text-gray-900">🏷️ Ρόλοι Εργασίας</h2><span className="text-xs text-gray-400">{wf.roles.length}/5</span></div></CardHeader>
+      <Card className="mb-6"><CardHeader><div className="flex items-center justify-between"><h2 className="text-lg font-semibold text-gray-900">{t('profilePage.rolesTitle')}</h2><span className="text-xs text-gray-400">{wf.roles.length}/5</span></div></CardHeader>
         <CardContent>
-          <p className="text-xs text-gray-500 mb-3">Επίλεξε έως 5 ειδικότητες που σε αντιπροσωπεύουν.</p>
+          <p className="text-xs text-gray-500 mb-3">{t('profilePage.rolesHint')}</p>
           <RolePicker
             value={wf.roles}
             onChange={(next) => {
-              if (next.length > 5) { toast.error('Μέχρι 5 ρόλοι'); return; }
+              if (next.length > 5) { toast.error(t('profilePage.maxRoles')); return; }
               wc('roles', next);
             }}
             max={5}
-            triggerLabel="+ Προσθήκη ρόλου"
+            triggerLabel={t('profilePage.addRole')}
           />
         </CardContent></Card>
 
       {/* SKILLS (free-form tags) */}
-      <Card className="mb-6"><CardHeader><div className="flex items-center justify-between"><h2 className="text-lg font-semibold text-gray-900">⭐ Ειδικότητες / Δεξιότητες</h2><span className="text-xs text-gray-400">{wf.skills.length}/10</span></div></CardHeader>
+      <Card className="mb-6"><CardHeader><div className="flex items-center justify-between"><h2 className="text-lg font-semibold text-gray-900">{t('profilePage.skillsTitle')}</h2><span className="text-xs text-gray-400">{wf.skills.length}/10</span></div></CardHeader>
         <CardContent>
-          <p className="text-xs text-gray-500 mb-3">Πρόσθεσε συγκεκριμένες ικανότητες (π.χ. "Μοντάρισμα", "Latte art", "Γυψοσανίδα"). Φαίνονται στους εργοδότες ως tags.</p>
+          <p className="text-xs text-gray-500 mb-3">{t('profilePage.skillsHint')}</p>
           <div className="flex gap-2 mb-3">
             <Input
               value={skillInput}
               onChange={(e) => setSkillInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSkill(); } }}
-              placeholder="π.χ. Μοντάρισμα"
+              placeholder={t('profilePage.skillPlaceholder')}
               className="flex-1"
             />
-            <Button onClick={addSkill} disabled={!skillInput.trim() || wf.skills.length >= 10} type="button">+ Προσθήκη</Button>
+            <Button onClick={addSkill} disabled={!skillInput.trim() || wf.skills.length >= 10} type="button">{t('profilePage.add')}</Button>
           </div>
           {wf.skills.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {wf.skills.map((s) => (
                 <span key={s} className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 border border-blue-200 px-3 py-1.5 text-sm font-medium text-blue-700">
                   {s}
-                  <button type="button" onClick={() => removeSkill(s)} className="text-blue-400 hover:text-red-500" aria-label={`Αφαίρεση ${s}`}>✕</button>
+                  <button type="button" onClick={() => removeSkill(s)} className="text-blue-400 hover:text-red-500" aria-label={t('profilePage.removeSkill', { skill: s })}>✕</button>
                 </span>
               ))}
             </div>
           ) : (
-            <p className="text-xs text-gray-400">Δεν έχεις προσθέσει ειδικότητες ακόμα.</p>
+            <p className="text-xs text-gray-400">{t('profilePage.noSkills')}</p>
           )}
         </CardContent></Card>
 
       {/* LANGUAGES */}
-      <Card className="mb-6"><CardHeader><h2 className="text-lg font-semibold text-gray-900">🌍 Γλώσσες</h2></CardHeader>
+      <Card className="mb-6"><CardHeader><h2 className="text-lg font-semibold text-gray-900">{t('profilePage.languagesTitle')}</h2></CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {LANGUAGES_COMMON.map((l) => { const on = wf.languages.includes(l); return (
@@ -447,14 +449,14 @@ export default function ProfilePage() {
         </CardContent></Card>
 
       {/* CV UPLOAD */}
-      <Card className="mb-6"><CardHeader><h2 className="text-lg font-semibold text-gray-900">📄 Βιογραφικό (CV)</h2></CardHeader>
+      <Card className="mb-6"><CardHeader><h2 className="text-lg font-semibold text-gray-900">{t('profilePage.cvTitle')}</h2></CardHeader>
         <CardContent>
           {/* ── AI CV Generator ── */}
           <div className="mb-5 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <p className="text-sm font-semibold text-gray-900">✨ Δημιουργία CV με AI</p>
-                <p className="text-xs text-gray-500">Φτιάχνει αυτόματα βιογραφικό από τα στοιχεία του προφίλ σου.</p>
+                <p className="text-sm font-semibold text-gray-900">{t('profilePage.aiCvTitle')}</p>
+                <p className="text-xs text-gray-500">{t('profilePage.aiCvHint')}</p>
               </div>
               <button
                 type="button"
@@ -462,7 +464,7 @@ export default function ProfilePage() {
                 disabled={cvBusy === 'gen'}
                 className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:opacity-60"
               >
-                {cvBusy === 'gen' ? 'Δημιουργία…' : cvText ? '🔄 Αναδημιουργία' : '✨ Δημιουργία'}
+                {cvBusy === 'gen' ? t('profilePage.generating') : cvText ? t('profilePage.regenerate') : t('profilePage.generate')}
               </button>
             </div>
 
@@ -473,7 +475,7 @@ export default function ProfilePage() {
                   onChange={(e) => setCvText(e.target.value)}
                   rows={10}
                   className="w-full text-sm"
-                  placeholder="Το CV σου…"
+                  placeholder={t('profilePage.cvPlaceholder')}
                 />
                 <div className="mt-2 flex flex-wrap gap-2">
                   <button
@@ -482,7 +484,7 @@ export default function ProfilePage() {
                     disabled={cvBusy === 'save'}
                     className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
                   >
-                    {cvBusy === 'save' ? 'Αποθήκευση…' : '💾 Αποθήκευση αλλαγών'}
+                    {cvBusy === 'save' ? t('profilePage.saving') : t('profilePage.saveChanges')}
                   </button>
                   <button
                     type="button"
@@ -490,7 +492,7 @@ export default function ProfilePage() {
                     disabled={cvBusy === 'pdf'}
                     className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow hover:bg-emerald-700 disabled:opacity-60"
                   >
-                    {cvBusy === 'pdf' ? 'Δημιουργία PDF…' : '📄 Αποθήκευση ως PDF στο προφίλ'}
+                    {cvBusy === 'pdf' ? t('profilePage.creatingPdf') : t('profilePage.saveAsPdf')}
                   </button>
                 </div>
               </div>
@@ -504,30 +506,30 @@ export default function ProfilePage() {
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Βιογραφικό ανεβασμένο</p>
-                  <a href={cvUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">Προβολή PDF</a>
+                  <p className="text-sm font-medium text-gray-900">{t('profilePage.cvUploadedLabel')}</p>
+                  <a href={cvUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">{t('profilePage.viewPdf')}</a>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <label className="cursor-pointer text-xs font-medium text-blue-600 hover:text-blue-700">
                   <input type="file" accept="application/pdf" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, 'cv'); }} />
-                  Αντικατάσταση
+                  {t('profilePage.replace')}
                 </label>
                 <button
                   type="button"
                   onClick={async () => {
-                    if (!confirm('Σίγουρα θέλεις να διαγράψεις το βιογραφικό σου;')) return;
+                    if (!confirm(t('profilePage.confirmDeleteCv'))) return;
                     try {
                       await (api.workers as any).deleteCvFile();
                       setCvUrl(null);
-                      toast.success('Το βιογραφικό διαγράφηκε');
+                      toast.success(t('profilePage.cvDeleted'));
                     } catch {
-                      toast.error('Αποτυχία διαγραφής');
+                      toast.error(t('profilePage.deleteFailed'));
                     }
                   }}
                   className="text-xs font-medium text-red-600 hover:text-red-700"
                 >
-                  🗑️ Διαγραφή
+                  {t('profilePage.delete')}
                 </button>
               </div>
             </div>
@@ -539,8 +541,8 @@ export default function ProfilePage() {
               ) : (
                 <>
                   <svg className="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" /></svg>
-                  <p className="mt-3 text-sm font-medium text-gray-700">Ανέβασε το βιογραφικό σου</p>
-                  <p className="mt-1 text-xs text-gray-400">PDF μέχρι 10MB</p>
+                  <p className="mt-3 text-sm font-medium text-gray-700">{t('profilePage.uploadCv')}</p>
+                  <p className="mt-1 text-xs text-gray-400">{t('profilePage.pdfLimit')}</p>
                 </>
               )}
             </label>
@@ -548,12 +550,12 @@ export default function ProfilePage() {
         </CardContent></Card>
 
       {/* VISIBILITY */}
-      <Card className="mb-6"><CardHeader><h2 className="text-lg font-semibold text-gray-900">👁️ Ορατότητα</h2></CardHeader>
+      <Card className="mb-6"><CardHeader><h2 className="text-lg font-semibold text-gray-900">{t('profilePage.visibilityTitle')}</h2></CardHeader>
         <CardContent>
           <label className="flex items-center gap-3 cursor-pointer">
             <div onClick={() => wc('isVisible', !wf.isVisible)} className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors cursor-pointer ${wf.isVisible ? 'bg-blue-600' : 'bg-gray-300'}`}>
               <div className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${wf.isVisible ? 'translate-x-5' : ''}`} /></div>
-            <div><span className="text-sm font-medium text-gray-700">Εμφάνιση στην Ανακάλυψη</span><p className="text-xs text-gray-400">Αν απενεργοποιηθεί, οι επιχειρήσεις δεν θα σε βλέπουν</p></div>
+            <div><span className="text-sm font-medium text-gray-700">{t('profilePage.showInDiscover')}</span><p className="text-xs text-gray-400">{t('profilePage.showInDiscoverHint')}</p></div>
           </label>
         </CardContent></Card>
 
@@ -566,10 +568,10 @@ export default function ProfilePage() {
       */}
       <div className="sticky bottom-0 bg-gray-50/95 backdrop-blur border-t border-gray-200 -mx-4 px-4 py-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 flex gap-2 sm:gap-3">
         <Button onClick={saveWorker} disabled={saving} className="flex-1 whitespace-nowrap sm:flex-none" size="lg">
-          {saving ? 'Αποθήκευση...' : <>💾 Αποθήκευση<span className="hidden sm:inline"> Αλλαγών</span></>}
+          {saving ? t('profilePage.savingDots') : <>{t('profilePage.save')}<span className="hidden sm:inline">{t('profilePage.saveSuffix')}</span></>}
         </Button>
         <Button onClick={() => setShowPreview(true)} variant="outline" className="flex-1 whitespace-nowrap sm:flex-none" size="lg">
-          👁️ Προβολή<span className="hidden sm:inline"> Προφίλ</span>
+          {t('profilePage.preview')}<span className="hidden sm:inline">{t('profilePage.previewSuffix')}</span>
         </Button>
       </div>
 

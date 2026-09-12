@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { API_URL } from '@/lib/config';
+import { useT, useLocale } from '@/i18n/locale-provider';
 
 /**
  * Το χρωματιστό «καπέλο» των σελίδων /find-job και /find-staff, στο στιλ του
@@ -40,20 +41,31 @@ export function BrowseHero({
   accent,
   metric,
   icon,
-  noun,
-  headline,
-  subtitle,
+  nounOneKey,
+  nounManyKey,
+  headlineKey,
+  subtitleKey,
 }: {
   accent: keyof typeof ACCENT;
   /** Ποιο πραγματικό μέγεθος δείχνει ο μεγάλος αριθμός */
   metric: 'jobs' | 'workers';
   icon: string;
-  /** π.χ. ['θέση εργασίας', 'θέσεις εργασίας'] */
-  noun: [string, string];
-  /** Τίτλος όταν δεν έχουμε ακόμα αριθμούς */
-  headline: string;
-  subtitle: string;
+  /**
+   * Κλειδιά i18n αντί για έτοιμο κείμενο: το BrowseHero καλείται και από
+   * server components (σελίδες με `export const metadata`), που δεν έχουν
+   * πρόσβαση σε useT() — η μετάφραση γίνεται εδώ μέσα, στο client component.
+   */
+  nounOneKey: string;
+  nounManyKey: string;
+  headlineKey: string;
+  subtitleKey: string;
 }) {
+  const t = useT();
+  const noun: [string, string] = [t(nounOneKey), t(nounManyKey)];
+  const headline = t(headlineKey);
+  const subtitle = t(subtitleKey);
+  const { locale } = useLocale();
+  const dateLocale = locale === 'en' ? 'en-GB' : 'el-GR';
   const a = ACCENT[accent];
   const [stats, setStats] = useState<Stats | null>(null);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
@@ -103,7 +115,7 @@ export function BrowseHero({
       <div className="px-5 py-6 sm:px-8 sm:py-8">
         <h1 className="text-2xl font-black leading-tight sm:text-3xl lg:text-4xl">
           {count > 0
-            ? `${icon} ${count.toLocaleString('el-GR')} ${count === 1 ? noun[0] : noun[1]}`
+            ? `${icon} ${count.toLocaleString(dateLocale)} ${count === 1 ? noun[0] : noun[1]}`
             : `${icon} ${headline}`}
         </h1>
         <p className="mt-1.5 text-sm text-white/85 sm:text-base">{subtitle}</p>
@@ -115,8 +127,8 @@ export function BrowseHero({
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-300" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-green-300" />
               </span>
-              <span className="font-bold tabular-nums">{online.toLocaleString('el-GR')}</span>
-              online τώρα
+              <span className="font-bold tabular-nums">{online.toLocaleString(dateLocale)}</span>
+              {t('browseHero.onlineNow')}
             </span>
           </div>
         )}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useT } from '@/i18n/locale-provider';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://staffnow-api-production.siteinside53.workers.dev';
 
@@ -23,17 +24,18 @@ const DEV_DEMO_ITEMS =
       ]
     : [];
 
-function timeAgo(dateStr: string): string {
+function timeAgo(dateStr: string, t: (key: string, params?: Record<string, string | number>) => string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'μόλις τώρα';
-  if (mins < 60) return `πριν ${mins} λεπτά`;
+  if (mins < 1) return t('marquee.justNow');
+  if (mins < 60) return t('marquee.minutesAgo', { n: mins });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `πριν ${hours} ώρες`;
-  return `πριν ${Math.floor(hours / 24)} μέρες`;
+  if (hours < 24) return t('marquee.hoursAgo', { n: hours });
+  return t('marquee.daysAgo', { n: Math.floor(hours / 24) });
 }
 
 export function ActivityMarquee() {
+  const t = useT();
   // Production: ξεκινά άδειο, δείχνει μόνο πραγματικά activities.
   // Dev: ξεκινά με demo ώστε το localhost να δείχνει κίνηση όπως το staffnow.gr.
   const [items, setItems] = useState<string[]>(DEV_DEMO_ITEMS);
@@ -49,7 +51,7 @@ export function ActivityMarquee() {
         if (!Array.isArray(activities) || activities.length === 0) return;
 
         const realItems = activities.map((a: any) => {
-          const time = a.createdAt ? timeAgo(a.createdAt) : '';
+          const time = a.createdAt ? timeAgo(a.createdAt, t) : '';
           const location = a.location ? ` · ${a.location}` : '';
           if (a.type === 'signup') {
             return `🟢 ${a.text}${location} · ${time}`;

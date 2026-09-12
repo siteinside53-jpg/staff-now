@@ -14,6 +14,7 @@
 
 import Link from 'next/link';
 import { useState, useMemo, useEffect } from 'react';
+import { useT } from '@/i18n/locale-provider';
 
 const CHECK = (
   <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -26,91 +27,21 @@ const LOCK = (
   </svg>
 );
 
-interface Plan {
+interface PlanDef {
   id: string;
-  nameEl: string;
-  description: string;
   monthly: number;
   yearly: number;
   /** Κανονική τιμή όταν το plan προσφέρεται δωρεάν στο launch (καθαρή, χωρίς ΦΠΑ). */
   normallyMonthly?: number;
   badge?: 'popular' | 'enterprise';
-  cta: string;
-  features: { label: string; on: boolean }[];
+  featureCount: number;
 }
 
-const PLANS: Plan[] = [
-  {
-    id: 'free',
-    nameEl: 'Δωρεάν',
-    description: 'Δοκίμασε πώς δουλεύει χωρίς δέσμευση.',
-    monthly: 0,
-    yearly: 0,
-    normallyMonthly: 19,
-    cta: 'Ξεκίνα δωρεάν',
-    features: [
-      { label: '1 ενεργή αγγελία', on: true },
-      { label: '5 αναζητήσεις/ημέρα', on: true },
-      { label: 'Chat με matched workers', on: true },
-      { label: 'AI Top-5 Shortlist', on: false },
-      { label: 'AI Hiring Chat', on: false },
-      { label: 'Boost αγγελίας', on: false },
-      { label: 'Verified Badge', on: false },
-    ],
-  },
-  {
-    id: 'business_basic',
-    nameEl: 'Starter',
-    description: 'Για μικρές επιχειρήσεις σε 1 σημείο.',
-    monthly: 29,
-    yearly: 261,
-    cta: 'Ξεκίνα Starter',
-    features: [
-      { label: 'Έως 3 αγγελίες', on: true },
-      { label: 'Απεριόριστες αναζητήσεις', on: true },
-      { label: 'AI Top-5 Shortlist', on: true },
-      { label: 'Email υποστήριξη', on: true },
-      { label: 'AI Hiring Chat', on: false },
-      { label: 'Boost αγγελίας', on: false },
-      { label: 'Verified Badge', on: false },
-    ],
-  },
-  {
-    id: 'business_pro',
-    nameEl: 'Pro',
-    description: 'Για μεσαία ξενοδοχεία & εστιατόρια. Sweet spot.',
-    monthly: 79,
-    yearly: 711,
-    badge: 'popular',
-    cta: 'Ξεκίνα Pro',
-    features: [
-      { label: 'Έως 10 αγγελίες', on: true },
-      { label: 'Απεριόριστες αναζητήσεις', on: true },
-      { label: 'AI Top-5 Shortlist', on: true },
-      { label: 'AI Hiring Chat', on: true },
-      { label: 'Boost αγγελίας', on: true },
-      { label: 'Verified Badge', on: true },
-      { label: 'Priority support (24h)', on: true },
-    ],
-  },
-  {
-    id: 'business_elite',
-    nameEl: 'Elite',
-    description: 'Για αλυσίδες & restaurant groups με πολλαπλά υποκαταστήματα.',
-    monthly: 149,
-    yearly: 1341,
-    badge: 'enterprise',
-    cta: 'Επικοινωνία',
-    features: [
-      { label: 'Απεριόριστες αγγελίες', on: true },
-      { label: 'Απεριόριστα matches', on: true },
-      { label: 'AI Top-5 Shortlist', on: true },
-      { label: 'AI Hiring Chat', on: true },
-      { label: 'Boost αγγελίας', on: true },
-      { label: 'Verified Badge', on: true },
-      { label: 'API access', on: true },
-    ],
-  },
+const PLAN_DEFS: PlanDef[] = [
+  { id: 'free', monthly: 0, yearly: 0, normallyMonthly: 19, featureCount: 7 },
+  { id: 'business_basic', monthly: 29, yearly: 261, featureCount: 7 },
+  { id: 'business_pro', monthly: 79, yearly: 711, badge: 'popular', featureCount: 7 },
+  { id: 'business_elite', monthly: 149, yearly: 1341, badge: 'enterprise', featureCount: 7 },
 ];
 
 function fmtMoney(n: number): string {
@@ -126,6 +57,7 @@ function fmtGross(net: number): string {
 }
 
 export default function PricingPage() {
+  const t = useT();
   const [period, setPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [foundingSpots, setFoundingSpots] = useState<{
     total: number;
@@ -145,20 +77,30 @@ export default function PricingPage() {
       .catch(() => {});
   }, []);
 
+  const plans = PLAN_DEFS.map((p) => ({
+    ...p,
+    name: t(`pricing.plans.${p.id}.name`),
+    description: t(`pricing.plans.${p.id}.description`),
+    cta: p.id === 'free' ? t('pricing.plans.free.cta') : t(`pricing.plans.${p.id}.cta`),
+    features: Array.from({ length: p.featureCount }, (_, i) => ({
+      label: t(`pricing.plans.${p.id}.features.${i}`),
+      on: Boolean(FEATURE_ON[p.id]?.[i]),
+    })),
+  }));
+
   return (
     <div className="py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* HEADER */}
         <div className="mx-auto max-w-2xl text-center">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 ring-1 ring-blue-200 px-4 py-1.5 text-sm font-semibold text-blue-700">
-            🎯 Πλάνα για κάθε μέγεθος επιχείρησης
+            {t('pricing.header.badge')}
           </span>
           <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl">
-            Διαφανείς τιμές. Χωρίς εκπλήξεις.
+            {t('pricing.header.title')}
           </h1>
           <p className="mt-4 text-lg leading-relaxed text-gray-600">
-            Πληρώνεις μόνο για αυτό που χρησιμοποιείς. Χωρίς setup fees, χωρίς per-job χρεώσεις,
-            χωρίς δέσμευση. Ακυρώνεις όποτε θες.
+            {t('pricing.header.subtitle')}
           </p>
         </div>
 
@@ -169,16 +111,14 @@ export default function PricingPage() {
               <span className="text-2xl">🏆</span>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-amber-900">
-                  Founding Members — Πρώτοι {foundingSpots?.total ?? 100} πελάτες
+                  {t('pricing.founding.title', { total: foundingSpots?.total ?? 100 })}
                   {foundingSpots && (
                     <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-600/10 px-2 py-0.5 text-[11px] font-bold text-amber-800">
-                      🔥 Έμειναν {foundingSpots.remaining} θέσεις
+                      {t('pricing.founding.spotsLeft', { remaining: foundingSpots.remaining })}
                     </span>
                   )}
                 </p>
-                <p className="text-xs text-amber-800">
-                  Pro plan για πάντα στα <strong>39€/μήνα</strong> (αντί 79€). Lifetime grandfathered.
-                </p>
+                <p className="text-xs text-amber-800" dangerouslySetInnerHTML={{ __html: t('pricing.founding.subtitle') }} />
                 {foundingSpots && (
                   <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-amber-200/60">
                     <div
@@ -194,7 +134,7 @@ export default function PricingPage() {
                 href="/?register=1&founding=1"
                 className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700"
               >
-                Πάρε τη θέση σου
+                {t('pricing.founding.cta')}
               </Link>
             </div>
           </div>
@@ -203,10 +143,10 @@ export default function PricingPage() {
           <div className="mt-8 mx-auto max-w-3xl">
             <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-center">
               <p className="text-sm font-semibold text-gray-700">
-                ✅ Η προσφορά Founding Members ολοκληρώθηκε — και οι 100 θέσεις γέμισαν!
+                {t('pricing.foundingDone.title')}
               </p>
               <p className="mt-1 text-xs text-gray-500">
-                Ευχαριστούμε όλους τους πρώτους. Η κανονική τιμή Pro 79€/μήνα ισχύει παρακάτω.
+                {t('pricing.foundingDone.subtitle')}
               </p>
             </div>
           </div>
@@ -222,7 +162,7 @@ export default function PricingPage() {
                 period === 'monthly' ? 'bg-white text-gray-900 shadow' : 'text-gray-600'
               }`}
             >
-              Μηνιαία
+              {t('pricing.toggle.monthly')}
             </button>
             <button
               type="button"
@@ -231,9 +171,9 @@ export default function PricingPage() {
                 period === 'yearly' ? 'bg-white text-gray-900 shadow' : 'text-gray-600'
               }`}
             >
-              Ετήσια
+              {t('pricing.toggle.yearly')}
               <span className="ml-1.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-700">
-                −25%
+                {t('pricing.toggle.discount')}
               </span>
             </button>
           </div>
@@ -241,56 +181,49 @@ export default function PricingPage() {
 
         {/* PLAN CARDS */}
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {PLANS.map((p) => (
-            <PlanCard key={p.id} plan={p} period={period} />
+          {plans.map((p) => (
+            <PlanCard key={p.id} plan={p} period={period} t={t} />
           ))}
         </div>
 
         <p className="mt-4 text-center text-xs text-gray-500">
-          Οι τιμές επιχειρήσεων είναι καθαρές — προστίθεται ΦΠΑ 24%.
+          {t('pricing.vatNote')}
         </p>
 
         {/* ROI */}
-        <RoiSection />
+        <RoiSection t={t} />
 
         {/* COMPARISON */}
-        <ComparisonTable period={period} />
+        <ComparisonTable period={period} plans={plans} t={t} />
 
         {/* WORKERS — Free + Premium */}
         <div className="mt-16 mx-auto max-w-5xl">
           <div className="text-center mb-8">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 ring-1 ring-emerald-200 px-4 py-1.5 text-sm font-semibold text-emerald-700">
-              👤 Για εργαζόμενους
+              {t('pricing.worker.badge')}
             </span>
             <h2 className="mt-3 text-2xl font-extrabold text-gray-900 sm:text-3xl">
-              Δωρεάν για όλους — Premium αν θες extra
+              {t('pricing.worker.title')}
             </h2>
-            <p className="mx-auto mt-3 max-w-2xl text-sm text-gray-600 sm:text-base">
-              Η βασική χρήση είναι 100% δωρεάν για πάντα. Με το <strong>Worker Premium</strong> (εφάπαξ 4,99€)
-              παίρνεις προτεραιότητα και AI εργαλεία για να ξεχωρίζεις στους εργοδότες.
-            </p>
+            <p
+              className="mx-auto mt-3 max-w-2xl text-sm text-gray-600 sm:text-base"
+              dangerouslySetInnerHTML={{ __html: t('pricing.worker.subtitle') }}
+            />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             {/* WORKER FREE */}
             <div className="relative flex flex-col rounded-2xl border border-emerald-200 bg-white p-6 shadow-sm">
               <div className="mb-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">Δωρεάν</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">{t('pricing.worker.free.badge')}</p>
                 <div className="mt-2 flex items-baseline gap-1">
                   <span className="text-4xl font-extrabold text-gray-900">0€</span>
-                  <span className="text-gray-500">/πάντα</span>
+                  <span className="text-gray-500">{t('pricing.worker.free.perForever')}</span>
                 </div>
-                <p className="mt-2 text-sm text-gray-600">Ό,τι χρειάζεσαι για να βρεις δουλειά. Χωρίς κόστος, χωρίς δέσμευση.</p>
+                <p className="mt-2 text-sm text-gray-600">{t('pricing.worker.free.description')}</p>
               </div>
               <ul className="mb-6 flex-1 space-y-2.5">
-                {[
-                  'Πλήρες προφίλ με φωτογραφία & bio',
-                  'Επιλογή 5 ειδικοτήτων από 250+',
-                  'Ανέβασμα CV σε PDF',
-                  'Swipe & match σε αγγελίες',
-                  'Chat με matched εργοδότες',
-                  'Push notifications για νέες ευκαιρίες',
-                ].map((f) => (
+                {Array.from({ length: 6 }, (_, i) => t(`pricing.worker.free.features.${i}`)).map((f) => (
                   <li key={f} className="flex items-start gap-2.5">
                     {CHECK}
                     <span className="text-sm text-gray-700">{f}</span>
@@ -301,35 +234,26 @@ export default function PricingPage() {
                 href="/?register=1"
                 className="flex items-center justify-center rounded-xl border-2 border-emerald-600 bg-white py-3 text-sm font-bold text-emerald-700 hover:bg-emerald-50 transition-colors"
               >
-                Ξεκίνα δωρεάν
+                {t('pricing.worker.free.cta')}
               </Link>
             </div>
 
             {/* WORKER PREMIUM */}
             <div className="relative flex flex-col rounded-2xl border-2 border-blue-500 bg-gradient-to-br from-blue-50 to-cyan-50 p-6 shadow-xl shadow-blue-500/10">
               <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-blue-600 to-cyan-600 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-md">
-                ✓ Premium
+                {t('pricing.worker.premium.ribbon')}
               </span>
               <div className="mb-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-blue-700">Worker Premium</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-blue-700">{t('pricing.worker.premium.badge')}</p>
                 <div className="mt-2 flex items-baseline gap-1">
                   <span className="text-4xl font-extrabold text-gray-900">4,99€</span>
-                  <span className="text-gray-500">εφάπαξ</span>
+                  <span className="text-gray-500">{t('pricing.worker.premium.priceUnit')}</span>
                 </div>
-                <p className="mt-1 text-xs text-emerald-700"><strong>Πληρώνεις μία φορά</strong> · για πάντα, χωρίς συνδρομή</p>
-                <p className="mt-2 text-sm text-gray-700">Ξεχώρισε από τους χιλιάδες υποψηφίους — προτεραιότητα + AI εργαλεία.</p>
+                <p className="mt-1 text-xs text-emerald-700" dangerouslySetInnerHTML={{ __html: t('pricing.worker.premium.note') }} />
+                <p className="mt-2 text-sm text-gray-700">{t('pricing.worker.premium.description')}</p>
               </div>
               <ul className="mb-6 flex-1 space-y-2.5">
-                {[
-                  'Όλα τα δωρεάν χαρακτηριστικά',
-                  'Μπλε ✓ Premium badge στο προφίλ',
-                  'Πρώτη εμφάνιση στις λίστες ανακάλυψης',
-                  'AI CV Generator — δημιουργία CV',
-                  'AI Profile Optimizer — βελτίωση προφίλ',
-                  'Απεριόριστα boosts σε Discover & αγγελίες',
-                  'Advanced filters & read receipts',
-                  'Unlimited likes — χωρίς ημερήσιο όριο',
-                ].map((f) => (
+                {Array.from({ length: 8 }, (_, i) => t(`pricing.worker.premium.features.${i}`)).map((f) => (
                   <li key={f} className="flex items-start gap-2.5">
                     {CHECK}
                     <span className="text-sm text-gray-700">{f}</span>
@@ -340,10 +264,10 @@ export default function PricingPage() {
                 href="/?register=1&plan=worker_premium"
                 className="flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 py-3 text-sm font-bold text-white shadow-lg shadow-blue-600/25 transition-colors"
               >
-                Ξεκλείδωσε για πάντα
+                {t('pricing.worker.premium.cta')}
               </Link>
               <p className="mt-2 text-center text-[11px] text-gray-500">
-                Εφάπαξ πληρωμή · Καμία μηνιαία χρέωση
+                {t('pricing.worker.premium.footnote')}
               </p>
             </div>
           </div>
@@ -351,20 +275,18 @@ export default function PricingPage() {
 
         {/* FAQ */}
         <div className="mt-16 mx-auto max-w-3xl">
-          <h2 className="mb-6 text-center text-2xl font-bold text-gray-900">Συχνές ερωτήσεις</h2>
+          <h2 className="mb-6 text-center text-2xl font-bold text-gray-900">{t('pricing.faqTitle')}</h2>
           <div className="space-y-3">
-            <Faq q="Μπορώ να αλλάξω πλάνο οποιαδήποτε στιγμή;" a="Ναι. Upgrade άμεσο, downgrade στο τέλος του τρέχοντος κύκλου. Όλα ρυθμίζονται από τη σελίδα χρέωσης." />
-            <Faq q="Εκδίδετε τιμολόγιο ή απόδειξη;" a="Και τα δύο. Επιλέγεις από τις ρυθμίσεις χρέωσης. Για τιμολόγιο χρειαζόμαστε επωνυμία, ΑΦΜ και ΔΟΥ." />
-            <Faq q="Παύση συνδρομής για χειμερινούς μήνες;" a="Μπορείς να ακυρώσεις οποιαδήποτε στιγμή από τη σελίδα χρέωσης και να ξαναενεργοποιήσεις όταν ανοίξεις. Το προφίλ, οι αγγελίες και το ιστορικό σου μένουν." />
-            <Faq q="Οι εργαζόμενοι πληρώνουν;" a="Ποτέ. Η πλατφόρμα είναι 100% δωρεάν για εργαζόμενους — δημιουργία προφίλ, αναζήτηση, μηνύματα. Όλα δωρεάν." />
-            <Faq q="Υπάρχει yearly contract dragging;" a="Όχι. Στο annual πληρώνεις εμπρός με 25% έκπτωση. Cancel anytime, χωρίς penalties." />
+            {Array.from({ length: 5 }, (_, i) => (
+              <Faq key={i} q={t(`pricing.faq.${i}.q`)} a={t(`pricing.faq.${i}.a`)} />
+            ))}
           </div>
         </div>
 
         <div className="mt-12 text-center text-sm text-gray-500">
-          Άλλες ερωτήσεις;{' '}
+          {t('pricing.otherQuestions')}{' '}
           <Link href="/contact" className="font-semibold text-blue-600 hover:underline">
-            Επικοινώνησε μαζί μας
+            {t('pricing.contactCta')}
           </Link>
         </div>
       </div>
@@ -372,9 +294,30 @@ export default function PricingPage() {
   );
 }
 
+// ====================== feature availability (unchanged across languages) ======================
+
+const FEATURE_ON: Record<string, boolean[]> = {
+  free: [true, true, true, false, false, false, false],
+  business_basic: [true, true, true, true, false, false, false],
+  business_pro: [true, true, true, true, true, true, true],
+  business_elite: [true, true, true, true, true, true, true],
+};
+
 // ====================== sub-components ======================
 
-function PlanCard({ plan, period }: { plan: Plan; period: 'monthly' | 'yearly' }) {
+interface PlanView {
+  id: string;
+  name: string;
+  description: string;
+  cta: string;
+  monthly: number;
+  yearly: number;
+  normallyMonthly?: number;
+  badge?: 'popular' | 'enterprise';
+  features: { label: string; on: boolean }[];
+}
+
+function PlanCard({ plan, period, t }: { plan: PlanView; period: 'monthly' | 'yearly'; t: (k: string, p?: any) => string }) {
   const showMonthly = period === 'monthly' ? plan.monthly : Math.round(plan.yearly / 12);
   const yearlyTotal = plan.yearly;
 
@@ -390,17 +333,17 @@ function PlanCard({ plan, period }: { plan: Plan; period: 'monthly' | 'yearly' }
     <div className={`relative flex flex-col rounded-2xl bg-white p-6 ${cardCls}`}>
       {isPopular && (
         <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-blue-600 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-md">
-          ⭐ Πιο δημοφιλές
+          {t('pricing.badges.popular')}
         </span>
       )}
       {isEnterprise && (
         <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-purple-600 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-md">
-          Enterprise
+          {t('pricing.badges.enterprise')}
         </span>
       )}
 
       <div className="mb-4">
-        <p className="text-xs font-bold uppercase tracking-wider text-gray-400">{plan.nameEl}</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-gray-400">{plan.name}</p>
         {plan.monthly === 0 ? (
           <>
             <div className="mt-2 flex items-baseline gap-2">
@@ -409,11 +352,11 @@ function PlanCard({ plan, period }: { plan: Plan; period: 'monthly' | 'yearly' }
                   {plan.normallyMonthly}€
                 </span>
               )}
-              <span className="text-4xl font-extrabold text-emerald-600">Δωρεάν</span>
+              <span className="text-4xl font-extrabold text-emerald-600">{t('pricing.plans.free.name')}</span>
             </div>
             {plan.normallyMonthly && (
               <p className="mt-1 text-xs font-semibold text-emerald-700">
-                🚀 Launch offer — δωρεάν μέχρι την επίσημη έναρξη
+                {t('pricing.plan.launchOffer')}
               </p>
             )}
           </>
@@ -421,15 +364,14 @@ function PlanCard({ plan, period }: { plan: Plan; period: 'monthly' | 'yearly' }
           <>
             <div className="mt-2 flex items-baseline gap-1">
               <span className="text-4xl font-extrabold text-gray-900">{fmtMoney(showMonthly)}</span>
-              <span className="text-gray-500">/μήνα</span>
+              <span className="text-gray-500">{t('pricing.plan.perMonth')}</span>
             </div>
             <p className="mt-1 text-xs text-gray-500">
-              +ΦΠΑ 24% · {fmtGross(showMonthly)} με ΦΠΑ
+              {t('pricing.plan.vatIncluded', { gross: fmtGross(showMonthly) })}
             </p>
             {period === 'yearly' && (
               <p className="mt-1 text-xs text-emerald-700">
-                <strong>{fmtMoney(yearlyTotal)}/έτος</strong> · εξοικονομείς{' '}
-                {plan.monthly * 12 - yearlyTotal}€
+                <strong>{fmtMoney(yearlyTotal)}{t('pricing.plan.perYear')}</strong> · {t('pricing.plan.savingsLabel', { amount: plan.monthly * 12 - yearlyTotal })}
               </p>
             )}
           </>
@@ -462,13 +404,13 @@ function PlanCard({ plan, period }: { plan: Plan; period: 'monthly' | 'yearly' }
   );
 }
 
-function RoiSection() {
+function RoiSection({ t }: { t: (k: string, p?: any) => string }) {
   const [hires, setHires] = useState(2);
   const [period, setPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const proPriceMonthly = 79;
   const proPriceYearly = 711;
   const cost = period === 'monthly' ? proPriceMonthly : proPriceYearly;
-  const periodLabel = period === 'monthly' ? 'τον μήνα' : 'τον χρόνο';
+  const periodLabel = period === 'monthly' ? t('pricing.roi.periodMonthly') : t('pricing.roi.periodYearly');
   const savedPerHire = 600;
   const monthlySaved = hires * savedPerHire;
   const yearlySaved = hires * savedPerHire * 12;
@@ -478,15 +420,15 @@ function RoiSection() {
   return (
     <div className="mt-16 mx-auto max-w-4xl">
       <div className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 shadow-sm">
-        <p className="text-xs font-bold uppercase tracking-wider text-gray-500">🧮 ROI Calculator</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-gray-500">{t('pricing.roi.badge')}</p>
         <h3 className="mt-1 text-xl font-bold text-gray-900">
-          Πόσα γλιτώνεις πραγματικά με το StaffNow Pro
+          {t('pricing.roi.title')}
         </h3>
 
         <div className="mt-5 grid gap-5 sm:grid-cols-2">
           <div>
             <label className="text-xs font-semibold text-gray-600">
-              Πόσες προσλήψεις {periodLabel};
+              {t('pricing.roi.hiresLabel', { period: periodLabel })}
             </label>
             <input
               type="range"
@@ -497,7 +439,7 @@ function RoiSection() {
               className="mt-2 w-full accent-blue-600"
             />
             <p className="mt-1 text-2xl font-extrabold text-blue-700">
-              {hires} {hires === 1 ? 'πρόσληψη' : 'προσλήψεις'}
+              {hires} {hires === 1 ? t('pricing.roi.hiresSingular') : t('pricing.roi.hiresPlural')}
             </p>
             <div className="mt-3 inline-flex rounded-lg bg-gray-100 p-1 text-xs">
               {(['monthly', 'yearly'] as const).map((p) => (
@@ -509,52 +451,53 @@ function RoiSection() {
                     period === p ? 'bg-white text-gray-900 shadow' : 'text-gray-600'
                   }`}
                 >
-                  {p === 'monthly' ? 'Μηνιαία' : 'Ετήσια'}
+                  {p === 'monthly' ? t('pricing.toggle.monthly') : t('pricing.toggle.yearly')}
                 </button>
               ))}
             </div>
           </div>
 
           <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-blue-50 p-5">
-            <p className="text-xs text-gray-600">Επένδυση</p>
+            <p className="text-xs text-gray-600">{t('pricing.roi.investment')}</p>
             <p className="text-xl font-bold text-gray-900">
-              {cost}€ <span className="text-xs font-medium text-gray-500">/ {period === 'monthly' ? 'μήνα' : 'έτος'}</span>
+              {cost}€ <span className="text-xs font-medium text-gray-500">/ {period === 'monthly' ? t('pricing.roi.perMonth') : t('pricing.roi.perYear')}</span>
             </p>
-            <p className="mt-3 text-xs text-gray-600">Εξοικονόμηση παραγωγικότητας*</p>
+            <p className="mt-3 text-xs text-gray-600">{t('pricing.roi.savings')}</p>
             <p className="text-2xl font-extrabold text-emerald-700">{saved}€</p>
-            <p className="mt-3 text-xs text-gray-600">ROI</p>
+            <p className="mt-3 text-xs text-gray-600">{t('pricing.roi.roiLabel')}</p>
             <p className="text-3xl font-extrabold text-blue-700">{roi}x</p>
           </div>
         </div>
 
         <p className="mt-4 text-[11px] text-gray-400">
-          *Συντηρητική εκτίμηση: κάθε επιπλέον εβδομάδα κενής θέσης κοστίζει ~200€ σε χαμένη
-          παραγωγικότητα + βάρος στο υπόλοιπο προσωπικό. Με μέσο time-to-hire 2 εβδομάδες αντί 5,
-          εξοικονομείς ~600€ ανά πρόσληψη.
+          {t('pricing.roi.footnote')}
         </p>
       </div>
     </div>
   );
 }
 
-function ComparisonTable({ period }: { period: 'monthly' | 'yearly' }) {
+function ComparisonTable({ period, plans, t }: { period: 'monthly' | 'yearly'; plans: PlanView[]; t: (k: string, p?: any) => string }) {
+  const valueRow = (rowIdx: number): string[] =>
+    Array.from({ length: 4 }, (_, col) => t(`pricing.comparison.values.${rowIdx}.${col}`));
+
   const rows: Array<[string, (string | boolean)[]]> = [
-    ['Ενεργές αγγελίες', ['1', '3', '10', 'Απεριόριστες']],
-    ['Αναζητήσεις', ['5/ημέρα', 'Απεριόριστες', 'Απεριόριστες', 'Απεριόριστες']],
-    ['Active matches', ['—', '30', '100', 'Απεριόριστα']],
-    ['AI Top-5 Shortlist', [false, true, true, true]],
-    ['AI Hiring Chat', [false, false, true, true]],
-    ['Boost αγγελίας', [false, false, true, true]],
-    ['Verified Badge', [false, false, true, true]],
-    ['Featured στο Discover', [false, false, true, true]],
-    ['Email υποστήριξη', [false, true, true, true]],
-    ['Priority support (24h)', [false, false, true, true]],
-    ['API access', [false, false, false, true]],
-    ['Dedicated Account Manager', [false, false, false, true]],
+    [t('pricing.comparison.rows.0'), valueRow(0)],
+    [t('pricing.comparison.rows.1'), valueRow(1)],
+    [t('pricing.comparison.rows.2'), valueRow(2)],
+    [t('pricing.comparison.rows.3'), [false, true, true, true]],
+    [t('pricing.comparison.rows.4'), [false, false, true, true]],
+    [t('pricing.comparison.rows.5'), [false, false, true, true]],
+    [t('pricing.comparison.rows.6'), [false, false, true, true]],
+    [t('pricing.comparison.rows.7'), [false, false, true, true]],
+    [t('pricing.comparison.rows.8'), [false, true, true, true]],
+    [t('pricing.comparison.rows.9'), [false, false, true, true]],
+    [t('pricing.comparison.rows.10'), [false, false, false, true]],
+    [t('pricing.comparison.rows.11'), [false, false, false, true]],
   ];
 
-  const priceLabel = (p: Plan) =>
-    p.monthly === 0 ? 'Δωρεάν' : `${period === 'monthly' ? p.monthly : Math.round(p.yearly / 12)}€/μ +ΦΠΑ`;
+  const priceLabel = (p: PlanView) =>
+    p.monthly === 0 ? t('pricing.comparison.priceFree') : t('pricing.comparison.pricePerMonthVat', { price: period === 'monthly' ? p.monthly : Math.round(p.yearly / 12) });
 
   const renderCell = (c: string | boolean) =>
     typeof c === 'boolean' ? (
@@ -565,7 +508,7 @@ function ComparisonTable({ period }: { period: 'monthly' | 'yearly' }) {
 
   return (
     <div className="mt-16 mx-auto max-w-5xl">
-      <h2 className="text-center text-2xl font-bold text-gray-900">Αναλυτική σύγκριση πλάνων</h2>
+      <h2 className="text-center text-2xl font-bold text-gray-900">{t('pricing.comparison.title')}</h2>
 
       {/* Desktop / tablet: full table */}
       <div className="mt-6 hidden overflow-hidden rounded-2xl border border-gray-200 bg-white sm:block">
@@ -573,9 +516,9 @@ function ComparisonTable({ period }: { period: 'monthly' | 'yearly' }) {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-gray-500"></th>
-              {PLANS.map((p) => (
+              {plans.map((p) => (
                 <th key={p.id} className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider text-gray-700">
-                  <div>{p.nameEl}</div>
+                  <div>{p.name}</div>
                   <div className="mt-0.5 text-sm font-extrabold text-gray-900 normal-case">{priceLabel(p)}</div>
                 </th>
               ))}
@@ -600,12 +543,12 @@ function ComparisonTable({ period }: { period: 'monthly' | 'yearly' }) {
           <div key={label} className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
             <p className="border-b border-gray-100 bg-gray-50 px-4 py-2.5 text-sm font-bold text-gray-800">{label}</p>
             <div className="grid grid-cols-2 divide-x divide-y divide-gray-100">
-              {PLANS.map((p, i) => (
+              {plans.map((p, i) => (
                 <div key={p.id} className="flex items-center justify-between gap-2 px-4 py-2.5">
                   <span className="text-xs font-semibold text-gray-500">
-                    {p.nameEl} <span className="text-gray-400">· {priceLabel(p)}</span>
+                    {p.name} <span className="text-gray-400">· {priceLabel(p)}</span>
                   </span>
-                  <span className="text-sm font-medium">{renderCell(cells[i])}</span>
+                  <span className="text-sm font-medium">{renderCell(cells[i] ?? '—')}</span>
                 </div>
               ))}
             </div>

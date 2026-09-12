@@ -21,6 +21,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { API_URL } from '@/lib/config';
 import { StaffNowLogo } from '@/components/staffnow-logo';
+import { useT } from '@/i18n/locale-provider';
 
 const STORAGE_KEY = 'staffnow_push_optin';
 const DELAY_MS = 5000;
@@ -106,6 +107,7 @@ function shouldShow(): boolean {
 }
 
 export function PushOptIn() {
+  const t = useT();
   const { user } = useAuth();
   const [visible, setVisible] = useState(false);
 
@@ -162,18 +164,18 @@ export function PushOptIn() {
   // Δυναμικό μήνυμα ανάλογα με τον ρόλο
   let message: string;
   if (user?.role === 'worker') {
-    message = 'Θέλεις να βλέπεις πρώτος/η τις νέες θέσεις εργασίας;';
+    message = t('pushOptin.messageWorker');
   } else if (user?.role === 'business') {
-    message = 'Θέλεις να βλέπεις πρώτος/η τους νέους εργαζόμενους;';
+    message = t('pushOptin.messageBusiness');
   } else {
-    message = 'Θέλεις να ενημερώνεσαι για νέες ευκαιρίες στην πλατφόρμα;';
+    message = t('pushOptin.messageGuest');
   }
 
   return (
     <div
       role="dialog"
       aria-live="polite"
-      aria-label="Ενεργοποίηση ειδοποιήσεων"
+      aria-label={t('pushOptin.dialogAria')}
       className="fixed left-1/2 top-4 z-[90] -translate-x-1/2 px-4 pointer-events-none"
     >
       <div className="flex items-center gap-3 rounded-2xl bg-white shadow-xl border border-gray-200 ring-1 ring-black/5 px-4 py-3 pointer-events-auto max-w-md animate-[slideDown_0.3s_ease-out]">
@@ -185,14 +187,14 @@ export function PushOptIn() {
             onClick={handleNo}
             className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
           >
-            Όχι
+            {t('pushOptin.no')}
           </button>
           <button
             type="button"
             onClick={handleYes}
             className="rounded-lg bg-blue-600 hover:bg-blue-700 px-4 py-1.5 text-sm font-semibold text-white transition-colors shadow-sm"
           >
-            Ναι
+            {t('pushOptin.yes')}
           </button>
         </div>
       </div>

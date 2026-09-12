@@ -12,7 +12,10 @@ import {
   CATEGORIES,
   CATEGORY_BY_KEY,
   DEFAULT_CENTER,
+  categoryLabelFor,
   levelFor,
+  levelLabelFor,
+  levelPerkFor,
   nextLevel,
 } from './data';
 import { TaskNowLogo } from './logo';
@@ -26,6 +29,7 @@ import {
   useMockTasks,
   type MockTask,
 } from './mock-store';
+import { useT, useLocale } from '@/i18n/locale-provider';
 
 /**
  * ΜΑΚΕΤΑ — η ενότητα TaskNow μέσα στον πίνακα ελέγχου του χρήστη.
@@ -84,6 +88,8 @@ function Stat({
 }
 
 export function TaskNowDashboardHub() {
+  const t = useT();
+  const { locale } = useLocale();
   const state = useMockTasks();
 
   /**
@@ -229,17 +235,17 @@ export function TaskNowDashboardHub() {
         <div>
           <TaskNowLogo className="text-xl" markClassName="h-6 w-6" />
           <p className="mt-1 text-sm text-gray-500">
-            Μικροδουλειές: ανέβασε μία ή ανάλαβε μία.{' '}
+            {t('tasknow.hub.tagline')}
             {/* Η πιο συχνή σιωπηλή ερώτηση. Αν δεν απαντηθεί εδώ, ο κόσμος
                 υποθέτει προμήθεια και δεν προχωράει. */}
-            <span className="font-semibold text-emerald-700">Εντελώς δωρεάν.</span>
+            <span className="font-semibold text-emerald-700">{t('tasknow.hub.free')}</span>
           </p>
         </div>
 
         {accepted && (
           <div className="flex items-center gap-2">
             <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
-              ✓ Έχεις αποδεχτεί τους όρους
+              {t('tasknow.hub.acceptedTerms')}
             </span>
             <button
               type="button"
@@ -249,7 +255,7 @@ export function TaskNowDashboardHub() {
               }}
               className="text-xs font-medium text-gray-400 underline hover:text-gray-600"
             >
-              δες τους ξανά
+              {t('tasknow.hub.seeAgain')}
             </button>
           </div>
         )}
@@ -259,16 +265,15 @@ export function TaskNowDashboardHub() {
       {checked && !accepted && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-5 py-4">
           <p className="text-sm leading-relaxed text-amber-900">
-            <strong className="font-bold">Πριν ξεκινήσεις.</strong> Για να ανεβάσεις
-            μικροδουλειά ή να κάνεις προσφορά, χρειάζεται να δεις μία φορά τι αναλαμβάνει
-            και τι δεν αναλαμβάνει το StaffNow.
+            <strong className="font-bold">{t('tasknow.hub.beforeStrong')}</strong>
+            {t('tasknow.hub.beforeText')}
           </p>
           <button
             type="button"
             onClick={() => setGateOpen(true)}
             className="shrink-0 rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600"
           >
-            Δες τους όρους
+            {t('tasknow.hub.seeTerms')}
           </button>
         </div>
       )}
@@ -276,9 +281,9 @@ export function TaskNowDashboardHub() {
       {/* Πρώτα βήματα — σβήνει μόνο του όταν γίνουν */}
       {accepted && !onboardingDone && (
         <div className="rounded-2xl border border-gray-200 bg-white p-5">
-          <h3 className="text-sm font-bold text-gray-900">Δοκίμασέ το σε δύο βήματα</h3>
+          <h3 className="text-sm font-bold text-gray-900">{t('tasknow.hub.tryTitle')}</h3>
           <p className="mt-1 text-xs text-gray-500">
-            Ο πιο γρήγορος τρόπος να καταλάβεις πώς δουλεύει είναι να το κάνεις.
+            {t('tasknow.hub.tryText')}
           </p>
 
           <ol className="mt-4 space-y-3">
@@ -298,10 +303,10 @@ export function TaskNowDashboardHub() {
                     (postedOne ? 'text-gray-400 line-through' : 'text-gray-900')
                   }
                 >
-                  Ανέβασε μια μικροδουλειά
+                  {t('tasknow.hub.step1')}
                 </p>
                 <p className="mt-0.5 text-xs leading-relaxed text-gray-600">
-                  Ό,τι θέλεις να γίνει: μια μεταφορά, ένα καθάρισμα, ένα θέλημα. Δύο λεπτά.
+                  {t('tasknow.hub.step1Text')}
                 </p>
                 {!postedOne && (
                   <button
@@ -309,7 +314,7 @@ export function TaskNowDashboardHub() {
                     onClick={() => start('post')}
                     className="mt-2 rounded-lg bg-amber-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-amber-600"
                   >
-                    Ανέβασέ την τώρα
+                    {t('tasknow.hub.step1Cta')}
                   </button>
                 )}
               </div>
@@ -335,11 +340,10 @@ export function TaskNowDashboardHub() {
                     (sawOffers ? 'text-gray-400 line-through' : 'text-gray-900')
                   }
                 >
-                  Δες τις προσφορές που έρχονται
+                  {t('tasknow.hub.step2')}
                 </p>
                 <p className="mt-0.5 text-xs leading-relaxed text-gray-600">
-                  Θα δεις βαθμολογία, επίπεδο, τι έχει επαληθευτεί και τι άδειες έχει ο
-                  καθένας — και διαλέγεις εσύ.
+                  {t('tasknow.hub.step2Text')}
                 </p>
                 {postedOne && !sawOffers && firstMine && (
                   <button
@@ -347,7 +351,7 @@ export function TaskNowDashboardHub() {
                     onClick={() => openMine(firstMine)}
                     className="mt-2 rounded-lg bg-gray-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-gray-800"
                   >
-                    Δες τις προσφορές
+                    {t('tasknow.hub.step2Cta')}
                   </button>
                 )}
               </div>
@@ -361,7 +365,7 @@ export function TaskNowDashboardHub() {
         <div className="rounded-2xl border border-gray-200 bg-white">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-5 py-3">
             <h3 className="text-sm font-bold text-gray-900">
-              Τρέχουν τώρα{' '}
+              {t('tasknow.hub.liveNow')}{' '}
               <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-amber-800">
                 {liveTasks.length}
               </span>
@@ -370,7 +374,7 @@ export function TaskNowDashboardHub() {
               href="/tasknow"
               className="text-sm font-semibold text-amber-700 hover:text-amber-800"
             >
-              Δες τη ροή →
+              {t('tasknow.hub.seeFeed')}
             </Link>
           </div>
 
@@ -411,9 +415,9 @@ export function TaskNowDashboardHub() {
             +
           </span>
           <span className="min-w-0">
-            <span className="block text-lg font-bold leading-tight">Ανέβασε μικροδουλειά</span>
+            <span className="block text-lg font-bold leading-tight">{t('tasknow.hub.postTitle')}</span>
             <span className="mt-0.5 block text-sm leading-snug text-white/90">
-              Γράψε τι θέλεις να γίνει και δέξου προσφορές
+              {t('tasknow.hub.postText')}
             </span>
           </span>
         </button>
@@ -430,9 +434,9 @@ export function TaskNowDashboardHub() {
             🔎
           </span>
           <span className="min-w-0">
-            <span className="block text-lg font-bold leading-tight">Βρες μικροδουλειά</span>
+            <span className="block text-lg font-bold leading-tight">{t('tasknow.hub.findTitle')}</span>
             <span className="mt-0.5 block text-sm leading-snug text-white/90">
-              Δες τι υπάρχει κοντά σου και κάνε προσφορά
+              {t('tasknow.hub.findText')}
             </span>
           </span>
         </button>
@@ -454,25 +458,28 @@ export function TaskNowDashboardHub() {
               'flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-2xl text-2xl leading-none ring-1 ring-inset ring-black/5 ' +
               level.className
             }
-            title={level.label}
+            title={levelLabelFor(locale, level)}
           >
             <span aria-hidden="true">{level.icon}</span>
-            <span className="text-[9px] font-bold uppercase tracking-wide">{level.label}</span>
+            <span className="text-[9px] font-bold uppercase tracking-wide">{levelLabelFor(locale, level)}</span>
           </span>
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
               <p className="text-lg font-bold leading-tight tracking-tight text-gray-900">
-                {completed} ολοκληρωμένες δουλειές
+                {t('tasknow.hub.completedJobs', { n: completed })}
               </p>
               {next && (
                 <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-600">
-                  Ακόμη {Math.max(0, next.minCompleted - completed)} για {next.icon}{' '}
-                  {next.label}
+                  {t('tasknow.hub.nextLevel', {
+                    n: Math.max(0, next.minCompleted - completed),
+                    icon: next.icon,
+                    label: levelLabelFor(locale, next),
+                  })}
                 </span>
               )}
             </div>
-            <p className="mt-1 text-sm leading-snug text-gray-500">{level.perk}</p>
+            <p className="mt-1 text-sm leading-snug text-gray-500">{levelPerkFor(locale, level)}</p>
 
             {next && (
               <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-gray-100">
@@ -492,14 +499,14 @@ export function TaskNowDashboardHub() {
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <label className="flex items-center gap-2">
               <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-                Στόχος μήνα
+                {t('tasknow.hub.goalLabel')}
               </span>
               <span className="flex items-center rounded-full border border-gray-200 bg-gray-50 pr-3 transition focus-within:border-emerald-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-400/20">
                 <input
                   value={goal}
                   onChange={(e) => setGoal(e.target.value.replace(/\D/g, ''))}
                   inputMode="numeric"
-                  aria-label="Στόχος μήνα σε ευρώ"
+                  aria-label={t('tasknow.hub.goalAria')}
                   className="w-14 rounded-full bg-transparent py-1.5 pl-3.5 text-xs font-semibold tabular-nums text-gray-900 outline-none"
                 />
                 <span className="text-xs font-semibold text-gray-400">€</span>
@@ -536,11 +543,10 @@ export function TaskNowDashboardHub() {
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-bold leading-tight text-gray-900">
-                Ειδοποίησέ με
+                {t('tasknow.hub.notifyTitle')}
               </span>
               <span className="mt-0.5 block text-xs leading-relaxed text-gray-600">
-                όταν βγαίνει μικροδουλειά στην περιοχή και την ειδικότητά μου. Δεν
-                χρειάζεται να μπαίνεις να κοιτάς — σε ειδοποιούμε εμείς.
+                {t('tasknow.hub.notifyText')}
               </span>
             </span>
             {/* Διακόπτης, όχι τετραγωνάκι. Το τετραγωνάκι του browser είναι
@@ -552,7 +558,7 @@ export function TaskNowDashboardHub() {
                 type="checkbox"
                 checked={notify.enabled}
                 onChange={(e) => setNotifyPrefs({ enabled: e.target.checked })}
-                aria-label="Ειδοποίησέ με για νέες μικροδουλειές"
+                aria-label={t('tasknow.hub.notifyAria')}
                 className="peer h-7 w-12 cursor-pointer appearance-none rounded-full bg-gray-200 transition-colors checked:bg-amber-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500"
               />
               <span
@@ -568,12 +574,12 @@ export function TaskNowDashboardHub() {
                 {/* Η περιοχή: κουτάκι με δικό μας βελάκι. Το σκέτο κουτάκι του
                     browser έδειχνε αλλιώς σε κάθε σύστημα και χάλαγε τη σειρά. */}
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-medium text-gray-500">Περιοχή</span>
+                  <span className="text-xs font-medium text-gray-500">{t('tasknow.hub.area')}</span>
                   <span className="relative">
                     <select
                       value={notify.area}
                       onChange={(e) => setNotifyPrefs({ area: e.target.value })}
-                      aria-label="Περιοχή ειδοποιήσεων"
+                      aria-label={t('tasknow.hub.areaAria')}
                       className="cursor-pointer appearance-none rounded-full border border-gray-200 bg-gray-50 py-1.5 pl-3.5 pr-8 text-xs font-semibold text-gray-900 transition hover:border-gray-300 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/20"
                     >
                       {Object.keys(AREA_COORDS).map((a) => (
@@ -595,7 +601,7 @@ export function TaskNowDashboardHub() {
                     ανοίγει για να διαλέξεις ανάμεσα σε τέσσερα είναι δύο
                     κινήσεις εκεί που φτάνει μία. */}
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-medium text-gray-500">Ακτίνα</span>
+                  <span className="text-xs font-medium text-gray-500">{t('tasknow.hub.radius')}</span>
                   <div className="inline-flex rounded-full bg-gray-100 p-0.5">
                     {[2, 5, 10, 25].map((r) => {
                       const on = notify.radiusKm === r;
@@ -612,7 +618,7 @@ export function TaskNowDashboardHub() {
                               : 'text-gray-500 hover:text-gray-900')
                           }
                         >
-                          {r} χλμ
+                          {t('tasknow.hub.km', { n: r })}
                         </button>
                       );
                     })}
@@ -622,7 +628,7 @@ export function TaskNowDashboardHub() {
                     onClick={() => setShowNotifySettings((v) => !v)}
                     className="rounded-full px-2 py-1 text-xs font-semibold text-amber-700 underline-offset-2 transition hover:bg-amber-50 hover:underline"
                   >
-                    {showNotifySettings ? 'κλείσε τις ειδικότητες' : 'διάλεξε ειδικότητες'}
+                    {showNotifySettings ? t('tasknow.hub.closeSpecialties') : t('tasknow.hub.pickSpecialties')}
                   </button>
                 </div>
               </div>
@@ -639,7 +645,7 @@ export function TaskNowDashboardHub() {
                         : 'bg-white text-gray-600 ring-1 ring-amber-200')
                     }
                   >
-                    Όλες
+                    {t('tasknow.hub.all')}
                   </button>
                   {CATEGORIES.map((c) => {
                     const on = notify.categories.includes(c.key);
@@ -659,7 +665,7 @@ export function TaskNowDashboardHub() {
                           (on ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 ring-1 ring-amber-200')
                         }
                       >
-                        {c.icon} {c.label}
+                        {c.icon} {categoryLabelFor(locale, c.key)}
                       </button>
                     );
                   })}
@@ -671,28 +677,28 @@ export function TaskNowDashboardHub() {
               <div className="mt-3 border-t border-gray-100 pt-3">
                 {matches.length === 0 ? (
                   <p className="text-xs text-gray-500">
-                    Αυτή τη στιγμή δεν υπάρχει κάτι που να ταιριάζει. Θα σου φτάσει μόλις
-                    βγει.
+                    {t('tasknow.hub.noMatch')}
                   </p>
                 ) : (
                   <>
                     <p className="text-xs font-semibold text-gray-900">
-                      {matches.length} {matches.length === 1 ? 'δουλειά ταιριάζει' : 'δουλειές ταιριάζουν'} τώρα —
-                      αυτές θα σου έφταναν:
+                      {matches.length === 1
+                        ? t('tasknow.hub.matchOne', { n: matches.length })
+                        : t('tasknow.hub.matchMany', { n: matches.length })}
                     </p>
                     <div className="mt-2 space-y-1.5">
-                      {matches.slice(0, 3).map((t) => (
+                      {matches.slice(0, 3).map((match) => (
                         <Link
-                          key={t.id}
+                          key={match.id}
                           href="/tasknow"
                           className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 transition hover:border-amber-200 hover:bg-amber-50"
                         >
                           <span className="min-w-0 truncate text-xs text-gray-800">
-                            {CATEGORY_BY_KEY[t.category]?.icon} {t.title}
-                            <span className="text-gray-400"> · {t.area}</span>
+                            {CATEGORY_BY_KEY[match.category]?.icon} {match.title}
+                            <span className="text-gray-400"> · {match.area}</span>
                           </span>
                           <span className="shrink-0 text-sm font-bold text-gray-900">
-                            {t.budget}€
+                            {match.budget}€
                           </span>
                         </Link>
                       ))}
@@ -709,12 +715,12 @@ export function TaskNowDashboardHub() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat
           icon="💶"
-          label="Έβγαλες αυτόν τον μήνα"
+          label={t('tasknow.hub.statEarned')}
           value={`${earned}€`}
-          note={earned === 0 ? 'καμία δεκτή προσφορά ακόμη' : 'από δεκτές προσφορές'}
+          note={earned === 0 ? t('tasknow.hub.statNoAccepted') : t('tasknow.hub.statFromAccepted')}
         />
-        <Stat icon="📤" label="Δουλειές που ανέβασες" value={String(mine.length)} />
-        <Stat icon="📥" label="Προσφορές που έστειλες" value={String(offers.length)} />
+        <Stat icon="📤" label={t('tasknow.hub.statPosted')} value={String(mine.length)} />
+        <Stat icon="📥" label={t('tasknow.hub.statOffers')} value={String(offers.length)} />
         {/* Τι έχει επαληθευτεί ΠΡΑΓΜΑΤΙΚΑ, και πώς να το προχωρήσει. */}
         <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2.5">
@@ -725,22 +731,22 @@ export function TaskNowDashboardHub() {
               ✅
             </span>
             <p className="min-w-0 text-[11px] font-semibold uppercase leading-tight tracking-wide text-gray-400">
-              Επαλήθευση
+              {t('tasknow.hub.verification')}
             </p>
           </div>
 
           {verif === null ? (
-            <p className="mt-3 text-sm text-gray-400">Φορτώνει…</p>
+            <p className="mt-3 text-sm text-gray-400">{t('tasknow.hub.loading')}</p>
           ) : (
             <>
               <ul className="mt-3 space-y-1 text-sm">
                 <li className={verif.phone ? 'font-semibold text-emerald-700' : 'text-gray-500'}>
-                  {verif.phone ? '✓' : '○'} Κινητό
+                  {verif.phone ? '✓' : '○'} {t('tasknow.hub.phone')}
                 </li>
                 <li className={verif.id ? 'font-semibold text-emerald-700' : 'text-gray-500'}>
-                  {verif.id ? '✓' : verif.pending ? '⏳' : '○'} Ταυτότητα
+                  {verif.id ? '✓' : verif.pending ? '⏳' : '○'} {t('tasknow.hub.id')}
                   {verif.pending && !verif.id && (
-                    <span className="font-normal text-gray-400"> — σε έλεγχο</span>
+                    <span className="font-normal text-gray-400">{t('tasknow.hub.pending')}</span>
                   )}
                 </li>
               </ul>
@@ -750,11 +756,11 @@ export function TaskNowDashboardHub() {
                   href="/dashboard/verification"
                   className="mt-3 inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
                 >
-                  {verif.phone ? 'Επαλήθευσε ταυτότητα' : 'Επαλήθευσε το κινητό'} →
+                  {verif.phone ? t('tasknow.hub.verifyId') : t('tasknow.hub.verifyPhone')} →
                 </Link>
               )}
               {verif.phone && verif.id && (
-                <p className="mt-2 text-xs text-gray-400">Όλα εντάξει — φαίνεσαι επαληθευμένος.</p>
+                <p className="mt-2 text-xs text-gray-400">{t('tasknow.hub.allVerified')}</p>
               )}
             </>
           )}
@@ -773,7 +779,7 @@ export function TaskNowDashboardHub() {
               (tab === 'tasks' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900')
             }
           >
-            Οι δουλειές μου ({mine.length})
+            {t('tasknow.hub.myTasks', { n: mine.length })}
           </button>
           <button
             type="button"
@@ -784,7 +790,7 @@ export function TaskNowDashboardHub() {
               (tab === 'offers' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900')
             }
           >
-            Οι προσφορές μου ({offers.length})
+            {t('tasknow.hub.myOffers', { n: offers.length })}
           </button>
         </div>
 
@@ -795,7 +801,7 @@ export function TaskNowDashboardHub() {
           {tab === 'tasks' &&
             (mine.length === 0 ? (
               <p className="px-5 py-10 text-center text-sm text-gray-500">
-                Δεν έχεις ανεβάσει μικροδουλειά ακόμη.
+                {t('tasknow.hub.noTasks')}
               </p>
             ) : (
               <ul className="space-y-3 p-3">
@@ -813,7 +819,7 @@ export function TaskNowDashboardHub() {
           {tab === 'offers' &&
             (offers.length === 0 ? (
               <p className="px-5 py-10 text-center text-sm text-gray-500">
-                Δεν έχεις στείλει προσφορά ακόμη.
+                {t('tasknow.hub.noOffers')}
               </p>
             ) : (
               offers.map(({ task, offer }) => (
@@ -838,7 +844,7 @@ export function TaskNowDashboardHub() {
                       <p className="truncate text-sm font-semibold text-gray-900">{task.title}</p>
                       <p className="mt-0.5 truncate text-xs text-gray-500">
                         {task.postedByName ? `${task.postedByName} · ` : ''}
-                        στάλθηκε {offer.createdAgo}
+                        {t('tasknow.hub.sentAgo', { ago: offer.createdAgo })}
                       </p>
                     </div>
                   </div>
@@ -855,10 +861,10 @@ export function TaskNowDashboardHub() {
                       }
                     >
                       {offer.status === 'accepted'
-                        ? 'Δεκτή'
+                        ? t('tasknow.hub.accepted')
                         : offer.status === 'rejected'
-                          ? 'Δεν επιλέχθηκε'
-                          : 'Σε αναμονή'}
+                          ? t('tasknow.hub.rejected')
+                          : t('tasknow.hub.waiting')}
                     </span>
                   </div>
                 </button>
@@ -869,7 +875,7 @@ export function TaskNowDashboardHub() {
 
       <p className="text-center text-xs text-gray-400">
         <Link href="/tasknow" className="underline hover:text-gray-600">
-          Δες τη δημόσια ροή μικροδουλειών
+          {t('tasknow.hub.seePublicFeed')}
         </Link>
       </p>
 

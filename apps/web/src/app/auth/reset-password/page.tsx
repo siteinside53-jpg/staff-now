@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -12,27 +12,36 @@ import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { useT } from '@/i18n/locale-provider';
 
-// Ο κωδικός επαναφοράς έρχεται από το email, όχι από τη φόρμα — γι' αυτό το
-// schema εδώ έχει μόνο τα δύο πεδία που βλέπει ο χρήστης.
-const resetFormSchema = z
-  .object({
-    password: passwordSchema,
-    confirmPassword: z.string(),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: 'Οι κωδικοί δεν ταιριάζουν',
-    path: ['confirmPassword'],
-  });
-
-type ResetFormData = z.infer<typeof resetFormSchema>;
+type ResetFormData = {
+  password: string;
+  confirmPassword: string;
+};
 
 function ResetPasswordForm() {
+  const t = useT();
   const searchParams = useSearchParams();
   const token = searchParams.get('token') || '';
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDone, setIsDone] = useState(false);
+
+  // Ο κωδικός επαναφοράς έρχεται από το email, όχι από τη φόρμα — γι' αυτό το
+  // schema εδώ έχει μόνο τα δύο πεδία που βλέπει ο χρήστης.
+  const resetFormSchema = useMemo(
+    () =>
+      z
+        .object({
+          password: passwordSchema,
+          confirmPassword: z.string(),
+        })
+        .refine((data) => data.password === data.confirmPassword, {
+          message: t('authPages.resetPassword.passwordsMismatch'),
+          path: ['confirmPassword'],
+        }),
+    [t],
+  );
 
   const {
     register,
@@ -54,7 +63,7 @@ function ResetPasswordForm() {
     } catch (err) {
       // Ο διακομιστής εξηγεί αν ο σύνδεσμος έληξε ή αν ο κωδικός δεν πληροί
       // τους κανόνες. Δείχνουμε το δικό του μήνυμα αντί για γενικόλογο λάθος.
-      toast.error((err as Error)?.message || 'Κάτι πήγε στραβά. Δοκίμασε ξανά.');
+      toast.error((err as Error)?.message || t('authPages.resetPassword.genericError'));
     } finally {
       setIsSubmitting(false);
     }
@@ -65,14 +74,13 @@ function ResetPasswordForm() {
     return (
       <Card>
         <CardContent className="p-8 text-center">
-          <h2 className="text-xl font-bold text-gray-900">Μη έγκυρος σύνδεσμος</h2>
+          <h2 className="text-xl font-bold text-gray-900">{t('authPages.resetPassword.invalidLink.title')}</h2>
           <p className="mt-3 text-gray-600">
-            Ο σύνδεσμος επαναφοράς δεν είναι πλήρης. Ζήτησε καινούργιο και άνοιξέ
-            τον απευθείας από το email.
+            {t('authPages.resetPassword.invalidLink.message')}
           </p>
           <div className="mt-8">
             <Button asChild className="w-full" size="lg">
-              <Link href="/auth/forgot-password">Ζήτησε νέο σύνδεσμο</Link>
+              <Link href="/auth/forgot-password">{t('authPages.resetPassword.invalidLink.requestNew')}</Link>
             </Button>
           </div>
         </CardContent>
@@ -95,13 +103,13 @@ function ResetPasswordForm() {
               <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
             </svg>
           </div>
-          <h2 className="mt-6 text-xl font-bold text-gray-900">Ο κωδικός άλλαξε</h2>
+          <h2 className="mt-6 text-xl font-bold text-gray-900">{t('authPages.resetPassword.done.title')}</h2>
           <p className="mt-3 text-gray-600">
-            Μπορείς τώρα να συνδεθείς με τον νέο σου κωδικό.
+            {t('authPages.resetPassword.done.message')}
           </p>
           <div className="mt-8">
             <Button asChild className="w-full" size="lg">
-              <Link href="/auth/login">Σύνδεση</Link>
+              <Link href="/auth/login">{t('authPages.resetPassword.done.login')}</Link>
             </Button>
           </div>
         </CardContent>
@@ -112,16 +120,16 @@ function ResetPasswordForm() {
   return (
     <Card>
       <CardHeader className="text-center">
-        <h1 className="text-2xl font-bold text-gray-900">Νέος Κωδικός</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('authPages.resetPassword.title')}</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Διάλεξε έναν νέο κωδικό για τον λογαριασμό σου.
+          {t('authPages.resetPassword.subtitle')}
         </p>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           <div>
             <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-gray-700">
-              Νέος κωδικός
+              {t('authPages.resetPassword.newPassword')}
             </label>
             <Input
               id="password"
@@ -133,7 +141,7 @@ function ResetPasswordForm() {
               <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
             )}
             <p className="mt-1 text-xs text-gray-500">
-              Τουλάχιστον 8 χαρακτήρες, με ένα κεφαλαίο, ένα πεζό και έναν αριθμό.
+              {t('authPages.resetPassword.passwordHint')}
             </p>
           </div>
 
@@ -142,7 +150,7 @@ function ResetPasswordForm() {
               htmlFor="confirmPassword"
               className="mb-1.5 block text-sm font-medium text-gray-700"
             >
-              Επανάληψη κωδικού
+              {t('authPages.resetPassword.confirmPassword')}
             </label>
             <Input
               id="confirmPassword"
@@ -156,13 +164,13 @@ function ResetPasswordForm() {
           </div>
 
           <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
-            {isSubmitting ? 'Αποθήκευση...' : 'Αποθήκευση Κωδικού'}
+            {isSubmitting ? t('authPages.resetPassword.saving') : t('authPages.resetPassword.submit')}
           </Button>
         </form>
 
         <div className="mt-6 text-center text-sm text-gray-600">
           <Link href="/auth/login" className="font-medium text-blue-600 hover:text-blue-700">
-            Επιστροφή στη Σύνδεση
+            {t('authPages.resetPassword.backToLogin')}
           </Link>
         </div>
       </CardContent>

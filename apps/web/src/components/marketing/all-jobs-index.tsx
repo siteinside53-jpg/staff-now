@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { fetchAllJobs } from '@/lib/seo-data';
+import { Tr } from '@/i18n/locale-provider';
 
 /**
  * Ανοιχτές θέσεις, γραμμένες μέσα στη σελίδα τη στιγμή του χτισίματος.
@@ -55,10 +56,10 @@ export async function AllJobsIndex({
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">
-              {title || `Ανοιχτές θέσεις (${all.length})`}
+              {title || <Tr k="jobsIndex.title" params={{ n: all.length }} />}
             </h2>
             <p className="mt-1.5 text-sm text-gray-600">
-              Κάθε αγγελία με τη δική της σελίδα — μισθός, παροχές και στοιχεία επικοινωνίας.
+              <Tr k="jobsIndex.subtitle" />
             </p>
           </div>
           {showAllLink && (
@@ -66,7 +67,7 @@ export async function AllJobsIndex({
               href="/find-job"
               className="text-sm font-semibold text-blue-700 hover:underline"
             >
-              Δες όλες τις θέσεις →
+              <Tr k="jobsIndex.seeAll" />
             </Link>
           )}
         </div>
@@ -96,8 +97,7 @@ export async function AllJobsIndex({
         {hidden > 0 && (
           <p className="mt-6 text-sm text-gray-600">
             <Link href="/find-job" className="font-semibold text-blue-700 hover:underline">
-              + {hidden} ακόμη θέσεις
-            </Link>
+              <Tr k="jobsIndex.moreJobs" params={{ n: hidden }} /></Link>
           </p>
         )}
       </div>

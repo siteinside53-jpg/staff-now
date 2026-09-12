@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { API_URL } from '@/lib/config';
 import { Spinner } from '@/components/ui/spinner';
-import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
+import { useT, useLocale } from '@/i18n/locale-provider';
+import { useLabels } from '@/i18n/labels';
 import { durationLabel, expiresLabel, netOf, whenLabel } from '@/lib/shift-display';
 import { ShareJob } from '@/components/share-job';
 
@@ -19,17 +20,16 @@ interface Props {
   swipeStatus?: string | null;
 }
 
-const BIZ_TYPES: Record<string, string> = {
-  hotel: 'Ξενοδοχείο', restaurant: 'Εστιατόριο', beach_bar: 'Beach Bar',
-  bar: 'Μπαρ', cafe: 'Καφετέρια', villa: 'Βίλα',
-  tourism_company: 'Τουριστική', resort: 'Resort', technical: 'Τεχνική', other: 'Επιχείρηση',
-};
-
-const empLabels: Record<string, string> = {
-  seasonal: 'Σεζόν', full_time: 'Πλήρης απασχόληση', part_time: 'Μερική απασχόληση', freelancer: 'Freelancer',
-};
-
 export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatched, swipeStatus }: Props) {
+  const t = useT();
+  const { locale } = useLocale();
+  const labels = useLabels();
+  const empLabels: Record<string, string> = {
+    seasonal: t('panels.empType.seasonal'),
+    full_time: t('panels.avail.full_time'),
+    part_time: t('panels.avail.part_time'),
+    freelancer: t('panels.empType.freelancer'),
+  };
   const [job, setJob] = useState<any>(null);
   const [business, setBusiness] = useState<any>(null);
   const [businessJobs, setBusinessJobs] = useState<any[]>([]);
@@ -110,7 +110,7 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
                 {b.verified === 1 && (
                   <div className="absolute top-4 left-4 flex items-center gap-1.5 rounded-full bg-white/95 backdrop-blur px-3 py-1.5 shadow-sm">
                     <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white text-[10px] font-bold">✓</span>
-                    <span className="text-xs font-semibold text-emerald-700">Επαληθευμένη</span>
+                    <span className="text-xs font-semibold text-emerald-700">{t('panels.verifiedShort')}</span>
                   </div>
                 )}
               </div>
@@ -131,12 +131,12 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
 
             {/* ====== COMPANY HEADER ====== */}
             <div className="px-6 pt-16 pb-4 border-b border-gray-100">
-              <h2 className="text-xl font-bold text-gray-900">{companyName || 'Επιχείρηση'}</h2>
+              <h2 className="text-xl font-bold text-gray-900">{companyName || t('panels.business')}</h2>
               <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-gray-500">
                 {companyType && (
                   <span className="flex items-center gap-1">
                     <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5M3.75 3v18m16.5-18v18M5.25 3h13.5M5.25 21V3m13.5 18V3" /></svg>
-                    {BIZ_TYPES[companyType] || companyType}
+                    {companyType ? labels.businessType(companyType) : companyType}
                   </span>
                 )}
                 {companyLocation && (
@@ -159,7 +159,7 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
                   </span>
                   <span className="text-sm font-bold text-gray-900">{Number((b as any).rating_avg).toFixed(1)}</span>
                   <span className="text-xs text-gray-400">
-                    · {(b as any).rating_count} {Number((b as any).rating_count) === 1 ? 'αξιολόγηση' : 'αξιολογήσεις'}
+                    · {(b as any).rating_count} {Number((b as any).rating_count) === 1 ? t('panels.reviewOne') : t('panels.reviewMany')}
                   </span>
                 </div>
               )}
@@ -172,12 +172,12 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
                   <svg className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
                 </div>
                 <h2 className="text-lg font-bold text-gray-900">
-                  {j.listing_kind === 'shift' ? 'Έκτακτη βάρδια' : 'Θέση Εργασίας'}
+                  {j.listing_kind === 'shift' ? t('panels.urgentShift') : t('panels.jobPosition')}
                 </h2>
               </div>
 
               {/* Job Title */}
-              <h3 className="text-xl font-bold text-gray-900 mb-2">{j.title || 'Χωρίς τίτλο'}</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">{j.title || t('panels.untitled')}</h3>
 
               {/* Έκτακτη βάρδια — πότε & διάρκεια */}
               {j.listing_kind === 'shift' && j.shift_date && (
@@ -192,7 +192,10 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
                       shift_days: j.shift_days,
                       shift_positions: j.shift_positions,
                     })}
-                    {expiresLabel(j.shift_start_utc) ? ` · λήγει ${expiresLabel(j.shift_start_utc)}` : ''}
+                    {(() => {
+                      const expires = expiresLabel(j.shift_start_utc);
+                      return expires ? ` · ${t('panels.expires', { when: expires })}` : '';
+                    })()}
                   </p>
                 </div>
               )}
@@ -211,7 +214,7 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
                 )}
                 {j.created_at && (
                   <span className="text-xs text-gray-400">
-                    {new Date(j.created_at).toLocaleDateString('el-GR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    {new Date(j.created_at).toLocaleDateString(locale === 'en' ? 'en-GB' : 'el-GR', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </span>
                 )}
               </div>
@@ -221,14 +224,14 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
                 <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 flex items-center justify-between mb-4">
                   <div>
                     <p className="text-sm font-medium text-emerald-800">
-                      {j.listing_kind === 'shift' ? 'Αμοιβή βάρδιας' : 'Μισθός'}
+                      {j.listing_kind === 'shift' ? t('panels.shiftPay') : t('panels.salary')}
                     </p>
                     <p className="text-xs text-emerald-600">
-                      {j.salary_type === 'hourly' ? 'Ανά ώρα' : j.salary_type === 'daily' ? 'Ανά βάρδια (μικτά)' : 'Ανά μήνα'}
+                      {j.salary_type === 'hourly' ? t('panels.perHourLabel') : j.salary_type === 'daily' ? t('panels.perShiftGross') : t('panels.perMonthLabel')}
                     </p>
                     {j.listing_kind === 'shift' && netOf(j.salary_min) !== null && (
                       <p className="mt-1 text-xs text-emerald-700">
-                        ≈ <strong>{netOf(j.salary_min)}€ καθαρά</strong> (ενδεικτικά) · δηλώνεται στην ΕΡΓΑΝΗ
+                        ≈ <strong>{t('panels.netStrong', { v: netOf(j.salary_min) ?? 0 })}</strong> {t('panels.netRest')}
                       </p>
                     )}
                   </div>
@@ -241,7 +244,7 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
               {/* Description */}
               {j.description && (
                 <div className="mb-4">
-                  <h4 className="text-sm font-bold text-gray-900 mb-1.5">Περιγραφή θέσης</h4>
+                  <h4 className="text-sm font-bold text-gray-900 mb-1.5">{t('panels.jobDescription')}</h4>
                   <p className="text-gray-600 leading-relaxed whitespace-pre-line text-sm">{j.description}</p>
                 </div>
               )}
@@ -249,11 +252,11 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
               {/* Roles */}
               {j.roles && j.roles.length > 0 && (
                 <div className="mb-4">
-                  <h4 className="text-sm font-bold text-gray-900 mb-2">Ειδικότητες</h4>
+                  <h4 className="text-sm font-bold text-gray-900 mb-2">{t('panels.specialties')}</h4>
                   <div className="flex flex-wrap gap-2">
                     {j.roles.map((r: string) => (
                       <span key={r} className="rounded-full bg-blue-50 border border-blue-200 px-3 py-1.5 text-xs font-semibold text-blue-700">
-                        {WORKER_JOB_ROLE_LABELS_EL[r] || r}
+                        {labels.role(r)}
                       </span>
                     ))}
                   </div>
@@ -270,25 +273,25 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
                 const anyBenefit = hasHousing || hasMeals || hasTransport || hasBonus || hasInsurance;
                 return (
                   <div>
-                    <h4 className="text-sm font-bold text-gray-900 mb-2">Παροχές</h4>
+                    <h4 className="text-sm font-bold text-gray-900 mb-2">{t('panels.perks')}</h4>
                     <div className="flex flex-wrap gap-2">
                       {hasHousing && (
-                        <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">🏠 Διαμονή</span>
+                        <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">{t('panels.housing')}</span>
                       )}
                       {hasMeals && (
-                        <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">🍽️ Σίτιση</span>
+                        <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">{t('panels.meals')}</span>
                       )}
                       {hasTransport && (
-                        <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">🚌 Μεταφορά</span>
+                        <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">{t('panels.transport')}</span>
                       )}
                       {hasBonus && (
-                        <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">🎁 Bonus</span>
+                        <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">{t('panels.bonusGift')}</span>
                       )}
                       {hasInsurance && (
-                        <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">🩺 Ασφάλιση</span>
+                        <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">{t('panels.insurance')}</span>
                       )}
                       {!anyBenefit && (
-                        <span className="text-sm text-gray-400">Δεν δηλώθηκαν παροχές</span>
+                        <span className="text-sm text-gray-400">{t('panels.noPerksDeclared')}</span>
                       )}
                     </div>
                   </div>
@@ -306,7 +309,7 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
                   <div className="mb-5">
                     <h3 className="flex items-center gap-2 text-base font-bold text-gray-900 mb-2">
                       <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
-                      Σχετικά με εμάς
+                      {t('panels.aboutUs')}
                     </h3>
                     <p className="text-sm text-gray-600 leading-relaxed">{companyDescription}</p>
                   </div>
@@ -316,7 +319,7 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
                 <div>
                   <h3 className="flex items-center gap-2 text-base font-bold text-gray-900 mb-3">
                     <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
-                    Ανοιχτές θέσεις
+                    {t('panels.openPositions')}
                   </h3>
                   {businessJobs.length > 0 ? (
                     <div className="space-y-2">
@@ -329,7 +332,7 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
                             <div>
                               <p className={`font-semibold text-sm ${bj.id === jobId ? 'text-blue-900' : 'text-gray-900'}`}>
                                 {bj.title}
-                                {bj.id === jobId && <span className="ml-1.5 text-[10px] text-blue-600 font-medium">(αυτή η θέση)</span>}
+                                {bj.id === jobId && <span className="ml-1.5 text-[10px] text-blue-600 font-medium">{t('panels.thisPosition')}</span>}
                               </p>
                               <p className="text-xs text-gray-500">{empLabels[bj.employment_type] || bj.employment_type}</p>
                             </div>
@@ -337,7 +340,7 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
                           {(bj.salary_min || bj.salary_max) && (
                             <div className="text-right">
                               <p className="font-bold text-emerald-600 text-sm">{bj.salary_min}{bj.salary_max ? `-${bj.salary_max}` : ''}€</p>
-                              <p className="text-[10px] text-gray-400">{bj.salary_type === 'hourly' ? 'την ώρα' : bj.salary_type === 'daily' ? 'ανά βάρδια' : 'τον μήνα'}</p>
+                              <p className="text-[10px] text-gray-400">{bj.salary_type === 'hourly' ? t('panels.perHourLc') : bj.salary_type === 'daily' ? t('panels.perShiftLc') : t('panels.perMonthLc')}</p>
                             </div>
                           )}
                         </div>
@@ -345,7 +348,7 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
                     </div>
                   ) : (
                     <div className="rounded-xl bg-gray-50 p-4 text-center text-sm text-gray-400">
-                      Δεν υπάρχουν άλλες ανοιχτές θέσεις
+                      {t('panels.noOtherPositions')}
                     </div>
                   )}
                 </div>
@@ -357,48 +360,48 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
                 <div>
                   <h3 className="flex items-center gap-2 text-base font-bold text-gray-900 mb-3">
                     <svg className="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" /></svg>
-                    Παροχές Εργοδότη
+                    {t('panels.employerPerks')}
                   </h3>
                   <div className="flex flex-wrap gap-2">
                     {b.staff_housing === 1 && (
-                      <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">🏠 Διαμονή</span>
+                      <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">{t('panels.housing')}</span>
                     )}
                     {b.meals_provided === 1 && (
-                      <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">🍽️ Γεύματα</span>
+                      <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">{t('panels.mealsAlt')}</span>
                     )}
                     {b.transportation_assistance === 1 && (
-                      <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">🚌 Μεταφορά</span>
+                      <span className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700">{t('panels.transport')}</span>
                     )}
-                    <span className="flex items-center gap-1.5 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700">⏰ Ωράριο εργασίας</span>
+                    <span className="flex items-center gap-1.5 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-700">{t('panels.workingHours')}</span>
                   </div>
                 </div>
 
                 {/* Πληροφορίες */}
                 <div>
-                  <h3 className="text-base font-bold text-gray-900 mb-3">Πληροφορίες</h3>
+                  <h3 className="text-base font-bold text-gray-900 mb-3">{t('panels.info')}</h3>
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">
                       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100"><span className="text-sm">📅</span></div>
-                      <div><p className="text-sm font-medium text-gray-900">Περίοδος λειτουργίας</p><p className="text-xs text-gray-500">Μάιος - Οκτώβριος (Σεζόν)</p></div>
+                      <div><p className="text-sm font-medium text-gray-900">{t('panels.operatingPeriod')}</p><p className="text-xs text-gray-500">{t('panels.operatingPeriodValue')}</p></div>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100"><span className="text-sm">💰</span></div>
-                      <div><p className="text-sm font-medium text-gray-900">Μισθοδοσία</p><p className="text-xs text-gray-500">{b.salary_range_min && b.salary_range_max ? `${b.salary_range_min}-${b.salary_range_max}€/μήνα` : 'Ανάλογα τη θέση'}</p></div>
+                      <div><p className="text-sm font-medium text-gray-900">{t('panels.payroll')}</p><p className="text-xs text-gray-500">{b.salary_range_min && b.salary_range_max ? t('panels.payrollRange', { min: b.salary_range_min, max: b.salary_range_max }) : t('panels.dependsOnRole')}</p></div>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100"><span className="text-sm">🌍</span></div>
-                      <div><p className="text-sm font-medium text-gray-900">Γλώσσες</p><p className="text-xs text-gray-500">Ελληνικά, Αγγλικά</p></div>
+                      <div><p className="text-sm font-medium text-gray-900">{t('panels.languages')}</p><p className="text-xs text-gray-500">{t('panels.languagesValue')}</p></div>
                     </div>
                     {companyPhone && (
                       <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100"><span className="text-sm">📞</span></div>
-                        <div><p className="text-sm font-medium text-gray-900">Τηλέφωνο</p><p className="text-xs text-gray-500">{companyPhone}</p></div>
+                        <div><p className="text-sm font-medium text-gray-900">{t('panels.phone')}</p><p className="text-xs text-gray-500">{companyPhone}</p></div>
                       </div>
                     )}
                     {companyWebsite && (
                       <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100"><span className="text-sm">🌐</span></div>
-                        <div><p className="text-sm font-medium text-gray-900">Website</p><a href={companyWebsite} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">{companyWebsite}</a></div>
+                        <div><p className="text-sm font-medium text-gray-900">{t('panels.website')}</p><a href={companyWebsite} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">{companyWebsite}</a></div>
                       </div>
                     )}
                   </div>
@@ -410,13 +413,13 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
             <div className="sticky bottom-0 border-t border-gray-200 bg-white px-6 py-4">
               {isMatched ? (
                 <a href="/dashboard/messages" className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
-                  💬 Άνοιξε Chat
+                  {t('panels.openChat')}
                 </a>
               ) : (onLike || onSkip) ? (
                 <div className="flex gap-3">
                   <button onClick={() => { onSkip?.(); onClose(); }}
                     className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-red-200 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors">
-                    ✕ Πέρασε
+                    {t('panels.skipX')}
                   </button>
                   <button
                     onClick={() => { onLike?.(); onClose(); }}
@@ -428,15 +431,15 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
                     }`}
                   >
                     {swipeStatus === 'like'
-                      ? '✓ Δηλώθηκε'
+                      ? t('panels.declared')
                       : j.listing_kind === 'shift'
-                        ? '🚨 Δήλωσε διαθεσιμότητα'
-                        : '✓ Ενδιαφέρομαι'}
+                        ? t('panels.declareAvailability')
+                        : t('panels.interestedTick')}
                   </button>
                 </div>
               ) : (
                 <button onClick={onClose} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-100 py-3 text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors">
-                  Κλείσιμο
+                  {t('panels.close')}
                 </button>
               )}
 
@@ -448,7 +451,7 @@ export function JobDetailPanel({ jobId, jobData, onClose, onLike, onSkip, isMatc
               */}
               {j.listing_kind !== 'shift' && (
                 <div className="mt-3 flex justify-center">
-                  <ShareJob jobId={jobId} jobTitle={j.title || 'Αγγελία'} dropUp compact />
+                  <ShareJob jobId={jobId} jobTitle={j.title || t('panels.jobFallback')} dropUp compact />
                 </div>
               )}
             </div>

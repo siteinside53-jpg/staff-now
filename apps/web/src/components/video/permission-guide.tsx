@@ -8,6 +8,7 @@ import {
   type MediaFailure,
   type PermSnapshot,
 } from '@/lib/call-engine';
+import { useT } from '@/i18n/locale-provider';
 
 /**
  * Ο οδηγός που εμφανίζεται όταν δεν πήραμε κάμερα και μικρόφωνο.
@@ -48,6 +49,7 @@ export function PermissionGuide({
   onGranted,
   onClose,
 }: PermissionGuideProps) {
+  const t = useT();
   const [current, setCurrent] = useState<MediaFailure>(failure);
   const [currentBlocked, setCurrentBlocked] = useState<BlockedDevice | undefined>(blocked);
   const [currentReason, setCurrentReason] = useState<string | undefined>(reason);
@@ -55,7 +57,7 @@ export function PermissionGuide({
   const [checking, setChecking] = useState(false);
   const [stillBlocked, setStillBlocked] = useState(false);
 
-  const { title, steps } = mediaFailureSteps(current, currentBlocked, currentPerms);
+  const { title, steps } = mediaFailureSteps(current, currentBlocked, currentPerms, t);
 
   const retry = async () => {
     setChecking(true);
@@ -96,15 +98,15 @@ export function PermissionGuide({
 
         {stillBlocked && (
           <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            Η κάμερα είναι ακόμη κλειστή. Κάνε τα βήματα παραπάνω και ξαναπάτησε.
+            {t('video.stillBlocked')}
           </p>
         )}
 
         {currentReason && (
           <p className="mt-3 text-center text-[11px] text-gray-400">
-            Ο browser απαντά: {currentReason}
+            {t('video.browserSays', { reason: currentReason || '' })}
             {currentPerms &&
-              ` · κάμερα: ${currentPerms.camera} · μικρόφωνο: ${currentPerms.microphone}`}
+              t('video.permsDetail', { camera: currentPerms.camera, microphone: currentPerms.microphone })}
           </p>
         )}
 
@@ -114,7 +116,7 @@ export function PermissionGuide({
           href="/elegxos-kameras"
           className="mt-4 block text-center text-xs font-semibold text-blue-600 underline"
         >
-          Δεν δουλεύει; Κάνε έλεγχο συσκευής
+          {t('video.deviceCheck')}
         </a>
 
         <div className="mt-5 flex gap-3">
@@ -123,7 +125,7 @@ export function PermissionGuide({
             onClick={onClose}
             className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-600"
           >
-            Άκυρο
+            {t('video.cancel')}
           </button>
           <button
             type="button"
@@ -131,7 +133,7 @@ export function PermissionGuide({
             disabled={checking}
             className="flex-1 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white disabled:opacity-60"
           >
-            {checking ? 'Έλεγχος…' : 'Ξαναδοκίμασε'}
+            {checking ? t('video.checking') : t('video.retry')}
           </button>
         </div>
       </div>

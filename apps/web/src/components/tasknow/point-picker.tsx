@@ -6,11 +6,13 @@ import { api } from '@/lib/api';
 import {
   AREA_COORDS,
   MAP_TILE_ATTRIBUTION,
+  MAP_TILE_MAX_ZOOM,
   MAP_TILE_URL,
   distanceKm,
   shortPlaceLabel,
   type Coords,
 } from './data';
+import { useT } from '@/i18n/locale-provider';
 
 /**
  * «Δείξε πού» — η πινέζα την ώρα του ανεβάσματος.
@@ -38,6 +40,7 @@ export function PointPicker({
   value: Coords | null;
   onChange: (p: Coords | null) => void;
 }) {
+  const t = useT();
   const holder = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
@@ -147,7 +150,7 @@ export function PointPicker({
 
   function pickMyLocation() {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      setLocErr('Ο browser δεν υποστηρίζει τοποθεσία.');
+      setLocErr(t('tasknow.picker.noGeo'));
       return;
     }
     setLocating(true);
@@ -200,10 +203,7 @@ export function PointPicker({
               place({ lat: d.lat, lon: d.lon });
               setHits([]);
               setNoHits(false);
-              setLocErr(
-                'Δεν πήραμε ακριβή τοποθεσία, οπότε βάλαμε την πινέζα κατά προσέγγιση. ' +
-                  'Πάτησε πάνω στον χάρτη για να τη διορθώσεις, ή γράψε τη διεύθυνση.',
-              );
+              setLocErr(t('tasknow.picker.approxPlaced'));
               return;
             }
           } catch {
@@ -211,8 +211,8 @@ export function PointPicker({
           }
           setLocErr(
             err?.code === 1
-              ? 'Ο browser δεν δίνει την τοποθεσία. Γράψε τη διεύθυνση εδώ πάνω ή δείξε το σημείο στον χάρτη — δουλεύουν και τα δύο χωρίς άδεια.'
-              : 'Δεν βρέθηκε η τοποθεσία. Γράψε τη διεύθυνση ή δείξε το σημείο στον χάρτη.',
+              ? t('tasknow.picker.deniedMsg')
+              : t('tasknow.picker.notFoundMsg'),
           );
         })();
       },
@@ -240,8 +240,7 @@ export function PointPicker({
       );
       L.tileLayer(MAP_TILE_URL, {
         attribution: MAP_TILE_ATTRIBUTION,
-        maxZoom: 20,
-        subdomains: 'abcd',
+        maxZoom: MAP_TILE_MAX_ZOOM,
       }).addTo(map);
 
       const icon = L.divIcon({
@@ -304,7 +303,7 @@ export function PointPicker({
               void search();
             }
           }}
-          placeholder="π.χ. Τσιμισκή 50, Θεσσαλονίκη"
+          placeholder={t('tasknow.picker.placeholder')}
           className="min-w-0 flex-1 rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
         />
         <button
@@ -313,7 +312,7 @@ export function PointPicker({
           disabled={searching || q.trim().length < 3}
           className="shrink-0 rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-700 disabled:opacity-40"
         >
-          {searching ? '…' : 'Βρες το'}
+          {searching ? '…' : t('tasknow.picker.find')}
         </button>
       </div>
 
@@ -327,11 +326,11 @@ export function PointPicker({
         <span aria-hidden="true">📍</span>{' '}
         {locating
           ? accuracy
-            ? `Ακριβεύω… ±${accuracy} μ.`
-            : 'Ψάχνω…'
+            ? t('tasknow.picker.refining', { m: accuracy })
+            : t('tasknow.picker.locating')
           : accuracy
-            ? `Η τοποθεσία μου (±${accuracy} μ.)`
-            : 'Η τοποθεσία μου'}
+            ? t('tasknow.picker.myLocationAcc', { m: accuracy })
+            : t('tasknow.picker.myLocation')}
       </button>
 
       {locErr && <p className="mb-2 text-[11px] leading-snug text-red-600">{locErr}</p>}
@@ -366,24 +365,23 @@ export function PointPicker({
 
       {noHits && (
         <p className="mb-2 text-[11px] text-gray-500">
-          Δεν βρέθηκε. Δοκίμασε πιο απλά (π.χ. «Τσιμισκή, Θεσσαλονίκη») ή δείξε το στον
-          χάρτη.
+          {t('tasknow.picker.noHits')}
         </p>
       )}
 
       <div className="overflow-hidden rounded-xl border border-gray-200">
-        <div ref={holder} className="h-44 w-full" role="application" aria-label="Διάλεξε σημείο" />
+        <div ref={holder} className="h-44 w-full" role="application" aria-label={t('tasknow.picker.mapAria')} />
       </div>
       <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
         <p className="text-[11px] leading-snug text-gray-500">
           {value ? (
             <>
-              ✓ Σημείο ορίστηκε. Δημόσια φαίνεται{' '}
-              <strong className="font-semibold">μόνο το τετράγωνο ~500 μ.</strong> μέσα στο οποίο
-              πέφτει — ποτέ η διεύθυνση. Την ακριβή τη μαθαίνει μόνο όποιον διαλέξεις.
+              {t('tasknow.picker.pointSet1')}
+              <strong className="font-semibold">{t('tasknow.picker.pointSetStrong')}</strong>
+              {t('tasknow.picker.pointSet2')}
             </>
           ) : (
-            <>Πάτησε στον χάρτη για να δείξεις πού. Προαιρετικό, αλλά σε βρίσκουν πιο εύκολα.</>
+            <>{t('tasknow.picker.tapMap')}</>
           )}
         </p>
         {value && (
@@ -398,7 +396,7 @@ export function PointPicker({
             }}
             className="shrink-0 text-[11px] font-medium text-gray-400 underline hover:text-gray-600"
           >
-            καθάρισε
+            {t('tasknow.picker.clear')}
           </button>
         )}
       </div>

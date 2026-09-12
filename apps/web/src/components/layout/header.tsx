@@ -8,6 +8,7 @@ import { TaskNowMark } from '@/components/tasknow/logo';
 import { StaffNowLogo } from '@/components/staffnow-logo';
 import { useLocale } from '@/i18n/locale-provider';
 import type { Locale } from '@/i18n';
+import { ThemeToggle } from '@/components/theme-provider';
 
 const NAV_LINKS: { href: string; labelKey: string; accent?: boolean }[] = [
   { href: '/how-it-works', labelKey: 'header.howItWorks' },
@@ -103,6 +104,7 @@ function Header() {
 
         {/* Desktop Actions */}
         <div className="hidden items-center gap-3 lg:flex">
+          <ThemeToggle />
           <LanguageToggle />
           {isAuthenticated ? (
             <>
@@ -187,7 +189,10 @@ function Header() {
           </nav>
           <div className="mt-4 flex items-center justify-between border-t pt-4">
             <span className="text-xs font-medium text-gray-500">{t('header.language')}</span>
-            <LanguageToggle />
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <LanguageToggle />
+            </div>
           </div>
           <div className="mt-4 flex flex-col gap-2 border-t pt-4">
             {isAuthenticated ? (

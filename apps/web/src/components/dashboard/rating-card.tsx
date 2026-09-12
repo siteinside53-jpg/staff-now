@@ -7,6 +7,8 @@
  * καθαρά αντί να δείχνει αστέρια που δεν αντιστοιχούν σε τίποτα.
  */
 
+import { useT } from '@/i18n/locale-provider';
+
 interface SubScore {
   label: string;
   value: number | null | undefined;
@@ -21,10 +23,10 @@ interface RatingCardProps {
   hireLabel: (n: number) => string;
 }
 
-function Stars({ value }: { value: number }) {
+function Stars({ value, t }: { value: number; t: (k: string, p?: Record<string, string | number>) => string }) {
   const full = Math.round(value);
   return (
-    <span className="text-lg leading-none" aria-label={`${value} στα 5`}>
+    <span className="text-lg leading-none" aria-label={t('ratingsUi.nFrom5', { n: value })}>
       <span className="text-yellow-400">{'★'.repeat(full)}</span>
       <span className="text-gray-300">{'★'.repeat(Math.max(0, 5 - full))}</span>
     </span>
@@ -32,6 +34,7 @@ function Stars({ value }: { value: number }) {
 }
 
 export function RatingCard({ ratingAvg, ratingCount, hireCount, scores, hireLabel }: RatingCardProps) {
+  const t = useT();
   const hireBadge =
     hireCount > 0 ? (
       <div className="mt-3 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
@@ -44,10 +47,9 @@ export function RatingCard({ ratingAvg, ratingCount, hireCount, scores, hireLabe
     return (
       <div>
         <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
-          <p className="text-sm font-semibold text-gray-700">Καμία αξιολόγηση ακόμη</p>
+          <p className="text-sm font-semibold text-gray-700">{t('ratingsUi.noReviews')}</p>
           <p className="mt-1 text-xs leading-relaxed text-gray-500">
-            Οι αξιολογήσεις γράφονται 15 μέρες μετά από πρόσληψη που επιβεβαίωσαν
-            και οι δύο πλευρές μέσω StaffNow.
+            {t('ratingsUi.noReviewsHint')}
           </p>
         </div>
         {hireBadge}
@@ -63,11 +65,11 @@ export function RatingCard({ ratingAvg, ratingCount, hireCount, scores, hireLabe
         <div className="mb-4 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <Stars value={ratingAvg} />
+              <Stars value={ratingAvg} t={t} />
               <span className="text-2xl font-bold text-gray-900">{ratingAvg.toFixed(1)}</span>
             </div>
             <p className="mt-0.5 text-xs text-gray-500">
-              {ratingCount} {ratingCount === 1 ? 'αξιολόγηση' : 'αξιολογήσεις'}
+              {ratingCount} {ratingCount === 1 ? t('ratingsUi.reviewOne') : t('ratingsUi.reviewMany')}
             </p>
           </div>
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100">

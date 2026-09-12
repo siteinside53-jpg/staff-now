@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useT } from '@/i18n/locale-provider';
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -41,10 +42,13 @@ function formatDate(iso: string | null): string {
   }
 }
 
+const ALL = '__all__';
+
 export function BlogList() {
+  const t = useT();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [active, setActive] = useState('Όλα');
+  const [active, setActive] = useState(ALL);
   const [selected, setSelected] = useState<BlogPost | null>(null);
 
   useEffect(() => {
@@ -62,10 +66,10 @@ export function BlogList() {
   const categories = useMemo(() => {
     const set = new Set<string>();
     posts.forEach((p) => p.category && set.add(p.category));
-    return ['Όλα', ...Array.from(set)];
+    return [ALL, ...Array.from(set)];
   }, [posts]);
 
-  const filtered = active === 'Όλα' ? posts : posts.filter((p) => p.category === active);
+  const filtered = active === ALL ? posts : posts.filter((p) => p.category === active);
 
   return (
     <section className="py-20 bg-white">
@@ -79,10 +83,9 @@ export function BlogList() {
         ) : posts.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50/50 px-6 py-24 text-center">
             <div className="mb-4 text-5xl">📝</div>
-            <h2 className="text-2xl font-bold text-gray-900">Δεν υπάρχουν άρθρα ακόμη</h2>
+            <h2 className="text-2xl font-bold text-gray-900">{t('blog.list.emptyTitle')}</h2>
             <p className="mt-3 max-w-md text-gray-600">
-              Ετοιμάζουμε χρήσιμα άρθρα, συμβουλές και νέα για την εργασία και τη στελέχωση.
-              Γράψου στο newsletter μας για να ενημερωθείς πρώτος.
+              {t('blog.list.emptySubtitle')}
             </p>
           </div>
         ) : (
@@ -100,7 +103,7 @@ export function BlogList() {
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                   >
-                    {cat}
+                    {cat === ALL ? t('blog.list.allFilter') : cat}
                   </button>
                 ))}
               </div>
@@ -198,7 +201,7 @@ export function BlogList() {
                 <button
                   onClick={() => setSelected(null)}
                   className="text-gray-400 hover:text-gray-600"
-                  aria-label="Κλείσιμο"
+                  aria-label={t('blog.list.closeAria')}
                 >
                   ✕
                 </button>
@@ -206,7 +209,7 @@ export function BlogList() {
               <h1 className="text-2xl font-extrabold text-gray-900 sm:text-3xl">{selected.title}</h1>
               {selected.author && (
                 <p className="mt-2 text-sm text-gray-500">
-                  από {selected.author}
+                  {t('blog.list.byAuthor')} {selected.author}
                   {selected.readTime ? ` · ${selected.readTime}` : ''}
                 </p>
               )}

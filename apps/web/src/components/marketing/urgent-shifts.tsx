@@ -17,7 +17,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { API_URL } from '@/lib/config';
-import { useT } from '@/i18n/locale-provider';
+import { useT, useLocale } from '@/i18n/locale-provider';
 import { durationLabel, expiresLabel, netOf, whenLabel } from '@/lib/shift-display';
 
 interface PublicShift {
@@ -136,6 +136,7 @@ const CalendarIcon = () => (
 
 export function UrgentShifts() {
   const t = useT();
+  const { locale } = useLocale();
   const [shifts, setShifts] = useState<PublicShift[]>([]);
   // Ξεκινάει στο 0 ώστε server και client να κάνουν render το ίδιο πράγμα
   // (μηδέν countdown) — το πραγματικό ρολόι μπαίνει μετά το mount.
@@ -178,7 +179,7 @@ export function UrgentShifts() {
   const now = nowTick > 0 ? new Date(nowTick) : new Date(0);
   // Κρύβουμε όσες ξεκίνησαν όσο ο χρήστης έχει ανοιχτή τη σελίδα.
   const live = shifts.filter(
-    (s) => !s.shift_start_utc || nowTick === 0 || expiresLabel(s.shift_start_utc, now) !== null,
+    (s) => !s.shift_start_utc || nowTick === 0 || expiresLabel(s.shift_start_utc, now, locale) !== null,
   );
 
   // Χωρίς πραγματικές βάρδιες δείχνουμε παραδείγματα — σημασμένα ως τέτοια.
@@ -210,11 +211,11 @@ export function UrgentShifts() {
         <div className="mt-[52px] grid gap-[18px] sm:grid-cols-2 lg:grid-cols-3">
           {visible.map((s) => {
             const countdown =
-              !isExample && nowTick > 0 ? expiresLabel(s.shift_start_utc, now) : null;
+              !isExample && nowTick > 0 ? expiresLabel(s.shift_start_utc, now, locale) : null;
             const net = netOf(s.salary_min);
             const company = s.display_company_name || s.company_name || t('urgentShifts.business');
             const city = s.display_city || s.city || s.region;
-            const when = s.shift_date ? whenLabel(s.shift_date, now) : t('urgentShifts.today');
+            const when = s.shift_date ? whenLabel(s.shift_date, now, locale) : t('urgentShifts.today');
 
             return (
               <article
@@ -274,7 +275,7 @@ export function UrgentShifts() {
                   )}
                   <div className="flex items-center gap-2">
                     <CalendarIcon />
-                    {durationLabel(s)}
+                    {durationLabel(s, locale)}
                   </div>
                 </div>
 

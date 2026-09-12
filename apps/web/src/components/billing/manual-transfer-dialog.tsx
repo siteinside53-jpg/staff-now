@@ -1,6 +1,7 @@
 'use client';
 
 import { toast } from 'sonner';
+import { useT, useLocale } from '@/i18n/locale-provider';
 
 interface Props {
   order: {
@@ -16,11 +17,13 @@ interface Props {
 }
 
 export function ManualTransferDialog({ order, onClose }: Props) {
+  const t = useT();
+  const { locale } = useLocale();
   const copy = (txt: string, label: string) => {
     navigator.clipboard
       .writeText(txt)
-      .then(() => toast.success(`Αντιγράφηκε: ${label}`))
-      .catch(() => toast.error('Δεν έγινε αντιγραφή'));
+      .then(() => toast.success(t('billingPage.copiedLabel', { label })))
+      .catch(() => toast.error(t('billingPage.copyFailed')));
   };
 
   return (
@@ -28,24 +31,24 @@ export function ManualTransferDialog({ order, onClose }: Props) {
       <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-gray-900">🏦 Στοιχεία πληρωμής με κατάθεση</h2>
+            <h2 className="text-lg font-bold text-gray-900">{t('billingPage.transferTitle')}</h2>
             <p className="mt-1 text-xs text-gray-500">
-              Λήγει στις <strong>{new Date(order.expiresAt).toLocaleDateString('el-GR')}</strong>.
+              {t('billingPage.expiresOnDate')} <strong>{new Date(order.expiresAt).toLocaleDateString(locale === 'en' ? 'en-GB' : 'el-GR')}</strong>.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="rounded-lg p-2 text-gray-400 hover:bg-gray-100"
-            aria-label="Κλείσιμο"
+            aria-label={t('billingPage.close')}
           >
             ✕
           </button>
         </div>
 
         <div className="mt-4 space-y-2 rounded-lg bg-gray-50 p-4 text-sm">
-          <Row label="Δικαιούχος" value={order.bank.beneficiary} />
-          <Row label="Τράπεζα" value={order.bank.bank} />
+          <Row label={t('billingPage.beneficiary')} value={order.bank.beneficiary} />
+          <Row label={t('billingPage.bank')} value={order.bank.bank} />
           <Row
             label="IBAN"
             value={order.bank.iban}
@@ -53,33 +56,33 @@ export function ManualTransferDialog({ order, onClose }: Props) {
             onCopy={() => copy(order.bank.iban.replace(/\s/g, ''), 'IBAN')}
           />
           <Row label="BIC" value={order.bank.bic} mono />
-          <Row label="Ποσό" value={fmtMoney(order.amountCents, order.currency)} bold />
+          <Row label={t('billingPage.amount')} value={fmtMoney(order.amountCents, order.currency)} bold />
           <Row
-            label="Αιτιολογία"
+            label={t('billingPage.reference')}
             value={order.referenceCode}
             mono
             bold
-            onCopy={() => copy(order.referenceCode, 'Κωδικός')}
+            onCopy={() => copy(order.referenceCode, t('billingPage.code'))}
             highlight
           />
         </div>
 
         <ol className="mt-4 list-decimal space-y-1 pl-5 text-xs text-gray-600">
-          {order.instructionsEl.map((t, i) => (
-            <li key={i}>{t}</li>
+          {order.instructionsEl.map((line, i) => (
+            <li key={i}>{line}</li>
           ))}
         </ol>
 
         <div className="mt-5 flex flex-wrap items-center justify-between gap-2">
           <p className="text-[11px] text-gray-400">
-            Αρ. παραγγελίας: <code className="font-mono">{order.id}</code>
+            {t('billingPage.orderNo')} <code className="font-mono">{order.id}</code>
           </p>
           <button
             type="button"
             onClick={onClose}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700"
           >
-            Έκλεισε
+            {t('billingPage.closeButton')}
           </button>
         </div>
       </div>
@@ -102,6 +105,7 @@ function Row({
   onCopy?: () => void;
   highlight?: boolean;
 }) {
+  const t = useT();
   return (
     <div className="flex items-center justify-between gap-3">
       <span className="text-xs font-semibold text-gray-500">{label}</span>
@@ -115,7 +119,7 @@ function Row({
             onClick={onCopy}
             className="rounded-md border border-gray-200 bg-white px-2 py-0.5 text-[10px] font-bold text-gray-700 hover:bg-gray-50"
           >
-            Αντιγραφή
+            {t('billingPage.copy')}
           </button>
         )}
       </span>

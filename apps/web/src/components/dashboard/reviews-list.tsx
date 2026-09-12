@@ -11,6 +11,7 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { useT, useLocale } from '@/i18n/locale-provider';
 
 interface Review {
   id: string;
@@ -23,22 +24,24 @@ interface Review {
   job_title: string | null;
 }
 
-function stars(n: number) {
+function stars(n: number, t: (k: string, p?: Record<string, string | number>) => string) {
   const full = Math.max(0, Math.min(5, Math.round(n)));
   return (
-    <span className="text-sm" aria-label={`${full} από 5`}>
+    <span className="text-sm" aria-label={t('ratingsUi.nFrom5', { n: full })}>
       <span className="text-yellow-400">{'★'.repeat(full)}</span>
       <span className="text-gray-300">{'★'.repeat(5 - full)}</span>
     </span>
   );
 }
 
-function when(iso: string): string {
+function when(iso: string, locale: 'el' | 'en'): string {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('el-GR', { month: 'short', year: 'numeric' });
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(locale === 'en' ? 'en-GB' : 'el-GR', { month: 'short', year: 'numeric' });
 }
 
 export function ReviewsList({ userId, className = '' }: { userId: string; className?: string }) {
+  const t = useT();
+  const { locale } = useLocale();
   const [items, setItems] = useState<Review[] | null>(null);
 
   useEffect(() => {
@@ -61,7 +64,7 @@ export function ReviewsList({ userId, className = '' }: { userId: string; classN
   return (
     <div className={className}>
       <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">
-        Αξιολογήσεις ({items.length})
+        {t('ratingsUi.reviewsCount', { n: items.length })}
       </h2>
       <ul className="space-y-3">
         {items.map((r) => (
@@ -78,12 +81,12 @@ export function ReviewsList({ userId, className = '' }: { userId: string; classN
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-gray-900">{r.rater_name}</p>
                 <p className="truncate text-[11px] text-gray-500">
-                  {r.rater_role === 'business' ? 'Επιχείρηση' : 'Εργαζόμενος/η'}
+                  {r.rater_role === 'business' ? t('ratingsUi.business') : t('ratingsUi.worker')}
                   {r.job_title ? ` · ${r.job_title}` : ''}
-                  {r.created_at ? ` · ${when(r.created_at)}` : ''}
+                  {r.created_at ? ` · ${when(r.created_at, locale)}` : ''}
                 </p>
               </div>
-              {stars(r.overall)}
+              {stars(r.overall, t)}
             </div>
             {r.comment && <p className="mt-2 text-sm leading-relaxed text-gray-700">{r.comment}</p>}
           </li>

@@ -15,7 +15,9 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { WORKER_JOB_ROLE_GROUPS, WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
+import { WORKER_JOB_ROLE_GROUPS } from '@staffnow/config';
+import { useT } from '@/i18n/locale-provider';
+import { useLabels } from '@/i18n/labels';
 
 interface RolePickerProps {
   /** Currently selected role IDs */
@@ -34,9 +36,12 @@ export function RolePicker({
   value,
   onChange,
   max,
-  triggerLabel = '+ Προσθήκη ειδικοτήτων',
+  triggerLabel,
   showCount = true,
 }: RolePickerProps) {
+  const t = useT();
+  const labels = useLabels();
+  const resolvedTriggerLabel = triggerLabel ?? t('uiKit.addRoles');
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
@@ -87,14 +92,14 @@ export function RolePicker({
     const out: Array<{ id: string; label: string; groupLabel: string }> = [];
     for (const g of WORKER_JOB_ROLE_GROUPS) {
       for (const r of g.roles) {
-        const label = WORKER_JOB_ROLE_LABELS_EL[r] || r;
+        const label = labels.role(r);
         if (label.toLowerCase().includes(q) || r.includes(q)) {
           out.push({ id: r, label, groupLabel: g.label });
         }
       }
     }
     return out;
-  }, [query]);
+  }, [query, labels]);
 
   const remaining = max != null ? max - value.length : Infinity;
 
@@ -107,12 +112,12 @@ export function RolePicker({
             key={r}
             className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700"
           >
-            {WORKER_JOB_ROLE_LABELS_EL[r] || r}
+            {labels.role(r)}
             <button
               type="button"
               onClick={() => toggleRole(r)}
               className="text-blue-500 hover:text-blue-700"
-              aria-label="Αφαίρεση"
+              aria-label={t('uiKit.remove')}
             >
               ×
             </button>
@@ -123,7 +128,7 @@ export function RolePicker({
           onClick={() => setOpen(true)}
           className="inline-flex items-center gap-1.5 rounded-full border-2 border-dashed border-gray-300 bg-white px-4 py-1.5 text-sm font-medium text-gray-600 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 transition-colors"
         >
-          {triggerLabel}
+          {resolvedTriggerLabel}
           {showCount && value.length > 0 && (
             <span className="ml-1 text-xs text-gray-400">
               ({value.length}{max ? `/${max}` : ''})
@@ -145,16 +150,16 @@ export function RolePicker({
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <div>
-                <h3 className="text-base font-bold text-gray-900">Επιλογή ειδικοτήτων</h3>
+                <h3 className="text-base font-bold text-gray-900">{t('uiKit.pickRoles')}</h3>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {value.length} επιλεγμένες{max ? ` · ${remaining} ακόμη` : ''}
+                  {t('uiKit.selected', { n: value.length })}{max ? t('uiKit.remaining', { n: remaining }) : ''}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
                 className="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100"
-                aria-label="Κλείσιμο"
+                aria-label={t('uiKit.close')}
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -183,7 +188,7 @@ export function RolePicker({
                   autoFocus
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Αναζήτηση ειδικότητας (π.χ. ηλεκτρολόγος, νοσηλευτής...)"
+                  placeholder={t('uiKit.searchRole')}
                   className="w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                 />
               </div>
@@ -194,7 +199,7 @@ export function RolePicker({
               {searchResults != null ? (
                 searchResults.length === 0 ? (
                   <p className="text-center text-sm text-gray-500 py-12">
-                    Δεν βρέθηκε ειδικότητα για «{query}». Δοκίμασε άλλη λέξη ή πρόσθεσε από Δεξιότητες.
+                    {t('uiKit.noRoleFound', { q: query })}
                   </p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
@@ -274,7 +279,7 @@ export function RolePicker({
                                         : 'border-gray-200 text-gray-700 hover:border-blue-300 hover:bg-blue-50'
                                     }`}
                                   >
-                                    {WORKER_JOB_ROLE_LABELS_EL[r] || r}
+                                    {labels.role(r)}
                                   </button>
                                 );
                               })}
@@ -291,14 +296,14 @@ export function RolePicker({
             {/* Footer */}
             <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 bg-gray-50">
               <span className="text-xs text-gray-500">
-                {value.length}{max ? `/${max}` : ''} επιλεγμένες
+                {t('uiKit.selectedOf', { n: value.length, max: max ? `/${max}` : '' })}
               </span>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
                 className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 transition-colors"
               >
-                Έτοιμο
+                {t('uiKit.done')}
               </button>
             </div>
           </div>

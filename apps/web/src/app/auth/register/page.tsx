@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useT } from '@/i18n/locale-provider';
 
 /**
  * Legacy /auth/register route.
@@ -10,6 +11,7 @@ import { useEffect } from 'react';
  * picks up to auto-open the auth modal in register mode.
  */
 export default function LegacyRegisterRedirect() {
+  const t = useT();
   useEffect(() => {
     if (typeof window !== 'undefined') {
       // Preserve ?role=worker/business if present
@@ -24,7 +26,7 @@ export default function LegacyRegisterRedirect() {
     <div className="min-h-screen bg-gradient-to-br from-blue-600 via-indigo-700 to-purple-800 flex items-center justify-center">
       <div className="text-center text-white">
         <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-white/30 border-t-white" />
-        <p className="mt-4 text-sm font-medium">Άνοιγμα εγγραφής...</p>
+        <p className="mt-4 text-sm font-medium">{t('authPages.registerRedirect.opening')}</p>
       </div>
     </div>
   );

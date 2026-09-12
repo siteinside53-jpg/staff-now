@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { Spinner } from '@/components/ui/spinner';
+import { useT, useLocale } from '@/i18n/locale-provider';
 
 // Οι τρεις υποβαθμολογίες αλλάζουν νόημα ανάλογα με το ποιος γράφει.
 export const LABELS = {
@@ -19,16 +20,25 @@ export const LABELS = {
   business: ['Επαγγελματισμός', 'Συνέπεια', 'Επικοινωνία'],
 } as const;
 
+/** Ίδιες κατηγορίες με το εξαγόμενο LABELS, μεταφρασμένες. */
+function useTranslatedLabels() {
+  const t = useT();
+  return {
+    worker: [t('ratingsUi.labels.worker.a'), t('ratingsUi.labels.worker.b'), t('ratingsUi.labels.worker.c')] as const,
+    business: [t('ratingsUi.labels.business.a'), t('ratingsUi.labels.business.b'), t('ratingsUi.labels.business.c')] as const,
+  };
+}
+
 function StarPicker({
-  value, onChange, size = 'text-3xl',
-}: { value: number; onChange: (v: number) => void; size?: string }) {
+  value, onChange, size = 'text-3xl', t,
+}: { value: number; onChange: (v: number) => void; size?: string; t: (k: string, p?: Record<string, string | number>) => string }) {
   return (
     <div className={`flex gap-1 ${size}`}>
       {[1, 2, 3, 4, 5].map((n) => (
         <button
           key={n}
           type="button"
-          aria-label={`${n} στα 5`}
+          aria-label={t('ratingsUi.nOf5', { n })}
           onClick={() => onChange(n)}
           className={`leading-none transition-transform hover:scale-110 ${n <= value ? 'text-yellow-400' : 'text-gray-300'}`}
         >
@@ -75,6 +85,9 @@ interface RatingModalProps {
 }
 
 export function RatingModal({ hireId, isWorker, otherName, onClose, onSaved }: RatingModalProps) {
+  const t = useT();
+  const { locale } = useLocale();
+  const translatedLabels = useTranslatedLabels();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [state, setState] = useState<any>(null);
@@ -84,8 +97,8 @@ export function RatingModal({ hireId, isWorker, otherName, onClose, onSaved }: R
   const [comment, setComment] = useState('');
 
   // Τα κριτήρια που γράφω εγώ αφορούν την άλλη πλευρά.
-  const myLabels = isWorker ? LABELS.worker : LABELS.business;
-  const theirLabels = isWorker ? LABELS.business : LABELS.worker;
+  const myLabels = isWorker ? translatedLabels.worker : translatedLabels.business;
+  const theirLabels = isWorker ? translatedLabels.business : translatedLabels.worker;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -93,16 +106,16 @@ export function RatingModal({ hireId, isWorker, otherName, onClose, onSaved }: R
       const res = (await api.hires.getRating(hireId)) as any;
       setState(res?.data || null);
     } catch {
-      toast.error('Δεν φόρτωσε η αξιολόγηση');
+      toast.error(t('ratingsUi.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, [hireId]);
+  }, [hireId, t]);
 
   useEffect(() => { load(); }, [load]);
 
   const submit = async () => {
-    if (overall < 1) { toast.error('Διάλεξε πόσα αστέρια'); return; }
+    if (overall < 1) { toast.error(t('ratingsUi.pickStars')); return; }
     setSaving(true);
     try {
       await api.hires.rate(hireId, {
@@ -112,11 +125,11 @@ export function RatingModal({ hireId, isWorker, otherName, onClose, onSaved }: R
         ...(scores[2] > 0 ? { score_c: scores[2] } : {}),
         ...(comment.trim() ? { comment: comment.trim() } : {}),
       });
-      toast.success('Η αξιολόγησή σου καταχωρήθηκε');
+      toast.success(t('ratingsUi.saved'));
       onSaved?.();
       await load();
     } catch (err: any) {
-      toast.error(err?.message || 'Δεν αποθηκεύτηκε');
+      toast.error(err?.message || t('ratingsUi.notSaved'));
     } finally {
       setSaving(false);
     }
@@ -130,7 +143,7 @@ export function RatingModal({ hireId, isWorker, otherName, onClose, onSaved }: R
     });
 
   const opensAtLabel = state?.opensAt
-    ? new Date(state.opensAt).toLocaleDateString('el-GR', { day: 'numeric', month: 'long' })
+    ? new Date(state.opensAt).toLocaleDateString(locale === 'en' ? 'en-GB' : 'el-GR', { day: 'numeric', month: 'long' })
     : null;
 
   return (
@@ -140,8 +153,8 @@ export function RatingModal({ hireId, isWorker, otherName, onClose, onSaved }: R
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-          <h2 className="text-lg font-bold text-gray-900">Αξιολόγηση</h2>
-          <button onClick={onClose} className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100" aria-label="Κλείσιμο">
+          <h2 className="text-lg font-bold text-gray-900">{t('ratingsUi.title')}</h2>
+          <button onClick={onClose} className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100" aria-label={t('ratingsUi.close')}>
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -155,37 +168,37 @@ export function RatingModal({ hireId, isWorker, otherName, onClose, onSaved }: R
             {state?.canRate ? (
               <>
                 {state.theirs && (
-                  <ReadOnlyRating title={`Τι έγραψε ${otherName}`} rating={state.theirs} labels={theirLabels} />
+                  <ReadOnlyRating title={t('ratingsUi.whatTheyWrote', { name: otherName })} rating={state.theirs} labels={theirLabels} />
                 )}
                 <p className="text-sm text-gray-600">
-                  Πώς πήγε με <span className="font-semibold text-gray-900">{otherName}</span>;
-                  Η αξιολόγησή σου θα φαίνεται στο προφίλ του/της.
+                  {t('ratingsUi.howDidItGo')} <span className="font-semibold text-gray-900">{otherName}</span>{t('ratingsUi.questionMark')}
+                  {' '}{t('ratingsUi.visibleOnProfile')}
                 </p>
 
                 <div className="rounded-2xl border border-gray-200 p-4">
-                  <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Συνολικά</p>
-                  <div className="mt-2"><StarPicker value={overall} onChange={setOverall} /></div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-gray-400">{t('ratingsUi.overall')}</p>
+                  <div className="mt-2"><StarPicker value={overall} onChange={setOverall} t={t} /></div>
                 </div>
 
                 <div className="space-y-3 rounded-2xl border border-gray-200 p-4">
                   {myLabels.map((label, i) => (
                     <div key={label} className="flex items-center justify-between gap-3">
                       <span className="text-sm text-gray-700">{label}</span>
-                      <StarPicker value={scores[i]!} onChange={(v) => setScore(i, v)} size="text-xl" />
+                      <StarPicker value={scores[i]!} onChange={(v) => setScore(i, v)} size="text-xl" t={t} />
                     </div>
                   ))}
                 </div>
 
                 <div>
                   <label className="text-xs font-bold uppercase tracking-wide text-gray-400" htmlFor="hire-comment">
-                    Σχόλιο (προαιρετικό)
+                    {t('ratingsUi.comment')}
                   </label>
                   <textarea
                     id="hire-comment"
                     value={comment}
                     onChange={(e) => setComment(e.target.value.slice(0, 500))}
                     rows={3}
-                    placeholder="Δυο λόγια για τη συνεργασία…"
+                    placeholder={t('ratingsUi.commentPlaceholder')}
                     className="mt-1 w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none"
                   />
                   <p className="mt-1 text-right text-[11px] text-gray-400">{comment.length}/500</p>
@@ -196,19 +209,19 @@ export function RatingModal({ hireId, isWorker, otherName, onClose, onSaved }: R
                   disabled={saving}
                   className="w-full rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
                 >
-                  {saving ? 'Αποθήκευση…' : 'Υποβολή αξιολόγησης'}
+                  {saving ? t('ratingsUi.saving') : t('ratingsUi.submit')}
                 </button>
               </>
             ) : state?.mine ? (
               <>
-                <ReadOnlyRating title="Η αξιολόγησή σου" rating={state.mine} labels={myLabels} />
+                <ReadOnlyRating title={t('ratingsUi.yourReview')} rating={state.mine} labels={myLabels} />
                 {state.theirs ? (
-                  <ReadOnlyRating title={`Τι έγραψε ${otherName}`} rating={state.theirs} labels={theirLabels} />
+                  <ReadOnlyRating title={t('ratingsUi.whatTheyWrote', { name: otherName })} rating={state.theirs} labels={theirLabels} />
                 ) : (
                   <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-center">
                     <p className="text-2xl">⏳</p>
                     <p className="mt-1 text-sm text-gray-600">
-                      {`${otherName} δεν έχει γράψει ακόμη.`}
+                      {t('ratingsUi.notWrittenYet', { name: otherName })}
                     </p>
                   </div>
                 )}
@@ -216,11 +229,11 @@ export function RatingModal({ hireId, isWorker, otherName, onClose, onSaved }: R
             ) : (
               <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5 text-center">
                 <p className="text-2xl">⏳</p>
-                <p className="mt-1 text-sm font-semibold text-gray-700">Η αξιολόγηση δεν έχει ανοίξει ακόμη</p>
+                <p className="mt-1 text-sm font-semibold text-gray-700">{t('ratingsUi.notOpenYet')}</p>
                 <p className="mt-1 text-xs text-gray-500">
                   {opensAtLabel
-                    ? `Ανοίγει στις ${opensAtLabel}, 15 μέρες μετά την έναρξη.`
-                    : 'Ανοίγει 15 μέρες μετά την έναρξη της συνεργασίας.'}
+                    ? t('ratingsUi.opensOn', { date: opensAtLabel })
+                    : t('ratingsUi.opens15')}
                 </p>
               </div>
             )}

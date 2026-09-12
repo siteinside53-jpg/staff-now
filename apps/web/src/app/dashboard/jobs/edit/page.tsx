@@ -18,6 +18,8 @@ import {
   BENEFITS_OPTIONS,
 } from '@staffnow/config';
 import { RolePicker } from '@/components/ui/role-picker';
+import { useT } from '@/i18n/locale-provider';
+import { useLabels } from '@/i18n/labels';
 
 const sel = "flex h-10 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500";
 
@@ -32,6 +34,8 @@ interface JobFormData {
 }
 
 function EditJobInner() {
+  const t = useT();
+  const labels = useLabels();
   const searchParams = useSearchParams();
   const jobId = searchParams.get('id');
   const [loading, setLoading] = useState(true);
@@ -104,9 +108,9 @@ function EditJobInner() {
   };
 
   const handleSave = async () => {
-    if (!form.title) { toast.error('Συμπλήρωσε τον τίτλο'); return; }
-    if (!form.salaryMin || parseFloat(form.salaryMin) <= 0) { toast.error('Ο μισθός είναι υποχρεωτικός — συμπλήρωσε το «Μισθός από»'); return; }
-    if (form.salaryMax && parseFloat(form.salaryMax) < parseFloat(form.salaryMin)) { toast.error('Ο μέγιστος μισθός δεν μπορεί να είναι μικρότερος από τον ελάχιστο'); return; }
+    if (!form.title) { toast.error(t('jobsPage.editErrTitle')); return; }
+    if (!form.salaryMin || parseFloat(form.salaryMin) <= 0) { toast.error(t('jobsPage.errSalaryMin')); return; }
+    if (form.salaryMax && parseFloat(form.salaryMax) < parseFloat(form.salaryMin)) { toast.error(t('jobsPage.errSalaryMax')); return; }
     setSaving(true);
     try {
       await api.jobs.update(jobId!, {
@@ -134,57 +138,63 @@ function EditJobInner() {
         languages: form.languages.length > 0 ? form.languages : undefined,
         roles: form.roles.length > 0 ? form.roles : undefined,
       });
-      toast.success('Η αγγελία ενημερώθηκε!');
-    } catch { toast.error('Αποτυχία αποθήκευσης'); } finally { setSaving(false); }
+      toast.success(t('jobsPage.updatedToast'));
+    } catch { toast.error(t('jobsPage.saveFailed')); } finally { setSaving(false); }
   };
 
   const handleStatusChange = async (newStatus: string) => {
     try {
-      if (newStatus === 'published') { await api.jobs.publish(jobId!); setStatus('published'); toast.success('Δημοσιεύτηκε!'); }
-      else if (newStatus === 'archived') { await api.jobs.archive(jobId!); setStatus('archived'); toast.success('Αρχειοθετήθηκε'); }
-      else if (newStatus === 'paused') { await api.jobs.pause(jobId!); setStatus('paused'); toast.success('Σε παύση'); }
-      else if (newStatus === 'resume') { await api.jobs.resume(jobId!); setStatus('published'); toast.success('Ενεργοποιήθηκε!'); }
+      if (newStatus === 'published') { await api.jobs.publish(jobId!); setStatus('published'); toast.success(t('jobsPage.publishedShort')); }
+      else if (newStatus === 'archived') { await api.jobs.archive(jobId!); setStatus('archived'); toast.success(t('jobsPage.archivedShort')); }
+      else if (newStatus === 'paused') { await api.jobs.pause(jobId!); setStatus('paused'); toast.success(t('jobsPage.pausedShort')); }
+      else if (newStatus === 'resume') { await api.jobs.resume(jobId!); setStatus('published'); toast.success(t('jobsPage.activatedShort')); }
     } catch (err: any) {
       if (err?.code === 'JOB_LIMIT_REACHED') {
-        toast.error(err.message || 'Έφτασες το όριο αγγελιών — αναβάθμισε το πλάνο σου.', {
-          action: { label: 'Αναβάθμιση', onClick: () => window.location.href = '/pricing' },
+        toast.error(err.message || t('jobsPage.limitReached'), {
+          action: { label: t('jobsPage.upgrade'), onClick: () => window.location.href = '/pricing' },
           duration: 8000,
         });
       } else {
-        toast.error('Σφάλμα αλλαγής κατάστασης');
+        toast.error(t('jobsPage.statusChangeError'));
       }
     }
   };
 
   const handleBoost = async () => {
     if (!jobId) return;
-    if (!confirm('Boost για 7 ημέρες; Κοστίζει 5 credits και η αγγελία θα εμφανίζεται πρώτη στους εργαζόμενους.')) return;
+    if (!confirm(t('jobsPage.confirmBoost'))) return;
     try {
       const res = await (api.jobs as any).boost(jobId);
       const exp = res?.data?.expiresAt;
-      toast.success(`🚀 Boost ενεργοποιήθηκε! Λήξη: ${exp ? new Date(exp).toLocaleDateString('el-GR') : '7 ημέρες'}`);
+      toast.success(t('jobsPage.boostActivated', { date: exp ? new Date(exp).toLocaleDateString(labels.locale === 'en' ? 'en-GB' : 'el-GR') : t('jobsPage.sevenDays') }));
     } catch (err: any) {
       if (err?.code === 'BOOST_LOCKED') {
-        toast.error(err.message || 'Το Boost είναι μόνο για Pro+', {
-          action: { label: 'Αναβάθμιση', onClick: () => (window.location.href = '/pricing') },
+        toast.error(err.message || t('jobsPage.boostLocked'), {
+          action: { label: t('jobsPage.upgrade'), onClick: () => (window.location.href = '/pricing') },
           duration: 8000,
         });
       } else if (err?.code === 'INSUFFICIENT_CREDITS') {
-        toast.error(err.message || 'Δεν φτάνουν τα credits.', {
-          action: { label: 'Αγορά credits', onClick: () => (window.location.href = '/dashboard/billing') },
+        toast.error(err.message || t('jobsPage.insufficientCredits'), {
+          action: { label: t('jobsPage.buyCredits'), onClick: () => (window.location.href = '/dashboard/billing') },
           duration: 8000,
         });
       } else if (err?.code === 'ALREADY_BOOSTED') {
-        toast.info(err.message || 'Η αγγελία είναι ήδη boosted.');
+        toast.info(err.message || t('jobsPage.alreadyBoosted'));
       } else {
-        toast.error(err?.message || 'Σφάλμα boost');
+        toast.error(err?.message || t('jobsPage.boostError'));
       }
     }
   };
 
   if (loading) return <div className="flex justify-center py-20"><Spinner className="h-8 w-8" /></div>;
 
-  const statusLabels: Record<string, string> = { draft: 'Πρόχειρη', published: 'Ενεργή', paused: 'Σε παύση', archived: 'Αρχείο', filled: 'Πληρώθηκε' };
+  const statusLabels: Record<string, string> = {
+    draft: t('jobsPage.statusDraft'),
+    published: t('jobsPage.statusPublished'),
+    paused: t('jobsPage.statusPaused'),
+    archived: t('jobsPage.statusArchived'),
+    filled: t('jobsPage.statusFilledLegacy'),
+  };
   const statusColors: Record<string, string> = { draft: 'bg-gray-100 text-gray-700', published: 'bg-emerald-100 text-emerald-700', paused: 'bg-red-100 text-red-700', archived: 'bg-amber-100 text-amber-700' };
 
   return (
@@ -194,7 +204,7 @@ function EditJobInner() {
           <svg className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
         </a>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-gray-900">Επεξεργασία Αγγελίας</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('jobsPage.editTitle')}</h1>
           <span className={`mt-1 inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusColors[status] || 'bg-gray-100 text-gray-700'}`}>
             {statusLabels[status] || status}
           </span>
@@ -203,79 +213,85 @@ function EditJobInner() {
 
       <div className="space-y-6">
         {/* 1. Βασικά Στοιχεία */}
-        <Card><CardHeader><h3 className="text-base font-bold text-gray-900"><span className="text-blue-600 mr-2">1.</span>Βασικά Στοιχεία</h3></CardHeader>
+        <Card><CardHeader><h3 className="text-base font-bold text-gray-900"><span className="text-blue-600 mr-2">1.</span>{t('jobsPage.secBasic')}</h3></CardHeader>
           <CardContent className="space-y-4">
-            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Τίτλος *</label>
-              <Input value={form.title} onChange={(e) => f('title', e.target.value)} placeholder="π.χ. Ζητείται Σερβιτόρος/α" /></div>
-            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Περιγραφή <span className="text-gray-400 text-xs">({form.description.length}/300)</span></label>
-              <Textarea value={form.description} onChange={(e) => { if (e.target.value.length <= 300) f('description', e.target.value); }} rows={3} placeholder="Σύντομη περιγραφή..." /></div>
+            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.editJobTitle')}</label>
+              <Input value={form.title} onChange={(e) => f('title', e.target.value)} placeholder={t('jobsPage.editJobTitlePlaceholder')} /></div>
+            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.description')} <span className="text-gray-400 text-xs">({form.description.length}/300)</span></label>
+              <Textarea value={form.description} onChange={(e) => { if (e.target.value.length <= 300) f('description', e.target.value); }} rows={3} placeholder={t('jobsPage.editDescriptionPlaceholder')} /></div>
           </CardContent></Card>
 
         {/* 2. Τοποθεσία */}
-        <Card><CardHeader><h3 className="text-base font-bold text-gray-900"><span className="text-blue-600 mr-2">2.</span>Τοποθεσία</h3></CardHeader>
+        <Card><CardHeader><h3 className="text-base font-bold text-gray-900"><span className="text-blue-600 mr-2">2.</span>{t('jobsPage.secLocation')}</h3></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
-              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Πόλη *</label>
-                <Input value={form.city} onChange={(e) => f('city', e.target.value)} placeholder="π.χ. Μύκονος" /></div>
-              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Περιοχή</label>
-                <Input value={form.region} onChange={(e) => f('region', e.target.value)} placeholder="π.χ. Καλαμαριά" /></div>
+              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.city')}</label>
+                <Input value={form.city} onChange={(e) => f('city', e.target.value)} placeholder={t('jobsPage.cityPlaceholder')} /></div>
+              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.region')}</label>
+                <Input value={form.region} onChange={(e) => f('region', e.target.value)} placeholder={t('jobsPage.regionPlaceholder')} /></div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Διεύθυνση</label>
+              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.address')}</label>
                 <Input value={form.address} onChange={(e) => f('address', e.target.value)} /></div>
-              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Τ.Κ.</label>
+              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.postalCode')}</label>
                 <Input value={form.postalCode} onChange={(e) => f('postalCode', e.target.value.replace(/\D/g, '').substring(0, 5))} maxLength={5} /></div>
             </div>
             <label className="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" checked={form.requiresRelocation} onChange={(e) => f('requiresRelocation', e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-blue-600" />
-              <span className="text-sm text-gray-700">Απαιτείται μετακίνηση</span>
+              <span className="text-sm text-gray-700">{t('jobsPage.requiresRelocation')}</span>
             </label>
           </CardContent></Card>
 
         {/* 3. Τύπος Εργασίας */}
-        <Card><CardHeader><h3 className="text-base font-bold text-gray-900"><span className="text-blue-600 mr-2">3.</span>Τύπος Εργασίας</h3></CardHeader>
+        <Card><CardHeader><h3 className="text-base font-bold text-gray-900"><span className="text-blue-600 mr-2">3.</span>{t('jobsPage.secEmployment')}</h3></CardHeader>
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-3">
-              {Object.entries(EMPLOYMENT_TYPE_LABELS_EL).map(([v, l]) => (
+              {Object.keys(EMPLOYMENT_TYPE_LABELS_EL).map((v) => (
                 <div key={v} onClick={() => f('employmentType', v)}
                   className={`cursor-pointer rounded-xl border-2 p-4 text-center transition-all ${form.employmentType === v ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                  <p className="text-sm font-semibold">{v === 'seasonal' ? '☀️' : v === 'full_time' ? '📅' : '⏰'} {l}</p>
+                  <p className="text-sm font-semibold">{v === 'seasonal' ? '☀️' : v === 'full_time' ? '📅' : '⏰'} {labels.employment(v)}</p>
                 </div>
               ))}
             </div>
           </CardContent></Card>
 
         {/* 4. Μισθός */}
-        <Card><CardHeader><h3 className="text-base font-bold text-gray-900"><span className="text-blue-600 mr-2">4.</span>Μισθός</h3></CardHeader>
+        <Card><CardHeader><h3 className="text-base font-bold text-gray-900"><span className="text-blue-600 mr-2">4.</span>{t('jobsPage.secSalary')}</h3></CardHeader>
           <CardContent className="space-y-4">
-            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Τύπος Μισθού</label>
+            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.salaryType')}</label>
               <select value={form.salaryType} onChange={(e) => f('salaryType', e.target.value)} className={sel}>
-                {Object.entries(SALARY_TYPE_LABELS_EL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                {Object.keys(SALARY_TYPE_LABELS_EL).map((v) => <option key={v} value={v}>{t(`jobsPage.salaryType${v.charAt(0).toUpperCase()}${v.slice(1)}`)}</option>)}
               </select></div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Από (€) *</label>
+              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.editSalaryFrom')}</label>
                 <Input type="number" min="0" value={form.salaryMin} onChange={(e) => f('salaryMin', e.target.value)} placeholder="1200" /></div>
-              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Έως (€)</label>
+              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.editSalaryTo')}</label>
                 <Input type="number" min="0" value={form.salaryMax} onChange={(e) => f('salaryMax', e.target.value)} placeholder="1800" /></div>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => f('salaryGross', true)} className={`flex-1 rounded-lg border-2 py-2.5 text-sm font-semibold transition-all ${form.salaryGross ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500'}`}>Μικτά</button>
-              <button onClick={() => f('salaryGross', false)} className={`flex-1 rounded-lg border-2 py-2.5 text-sm font-semibold transition-all ${!form.salaryGross ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500'}`}>Καθαρά</button>
+              <button onClick={() => f('salaryGross', true)} className={`flex-1 rounded-lg border-2 py-2.5 text-sm font-semibold transition-all ${form.salaryGross ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500'}`}>{t('jobsPage.gross')}</button>
+              <button onClick={() => f('salaryGross', false)} className={`flex-1 rounded-lg border-2 py-2.5 text-sm font-semibold transition-all ${!form.salaryGross ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500'}`}>{t('jobsPage.net')}</button>
             </div>
           </CardContent></Card>
 
         {/* 5. Παροχές */}
-        <Card><CardHeader><h3 className="text-base font-bold text-gray-900"><span className="text-blue-600 mr-2">5.</span>Παροχές</h3></CardHeader>
+        <Card><CardHeader><h3 className="text-base font-bold text-gray-900"><span className="text-blue-600 mr-2">5.</span>{t('jobsPage.secBenefits')}</h3></CardHeader>
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-3">
               {BENEFITS_OPTIONS.map((item) => {
                 const on = !!(form as any)[item.key];
+                const bKey = item.key === 'housing_provided' ? 'benefitHousing'
+                  : item.key === 'meals_provided' ? 'benefitMeals'
+                  : item.key === 'transport_provided' ? 'benefitTransport'
+                  : item.key === 'bonus_provided' ? 'benefitBonus'
+                  : item.key === 'insurance_provided' ? 'benefitFlexible'
+                  : 'benefitNone';
                 return (
                   <div key={item.key} onClick={() => toggleBenefit(item.key)}
                     className={`cursor-pointer rounded-xl border-2 p-4 text-center transition-all ${on ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                    <p className="text-sm font-semibold">{item.label}</p>
-                    <p className="mt-1 text-xs text-gray-500">{item.desc}</p>
-                    <div className={`mt-2 inline-block rounded-full px-3 py-0.5 text-xs font-medium ${on ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>{on ? 'Ναι' : 'Όχι'}</div>
+                    <p className="text-sm font-semibold">{t(`jobsPage.${bKey}`)}</p>
+                    <p className="mt-1 text-xs text-gray-500">{t(`jobsPage.${bKey}Desc`)}</p>
+                    <div className={`mt-2 inline-block rounded-full px-3 py-0.5 text-xs font-medium ${on ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}>{on ? t('jobsPage.yes') : t('jobsPage.no')}</div>
                   </div>
                 );
               })}
@@ -283,50 +299,50 @@ function EditJobInner() {
           </CardContent></Card>
 
         {/* 6. Ωράριο */}
-        <Card><CardHeader><h3 className="text-base font-bold text-gray-900"><span className="text-blue-600 mr-2">6.</span>Ωράριο Εργασίας</h3></CardHeader>
+        <Card><CardHeader><h3 className="text-base font-bold text-gray-900"><span className="text-blue-600 mr-2">6.</span>{t('jobsPage.secHours')}</h3></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
-              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Ώρες/ημέρα</label>
+              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.editHoursPerDay')}</label>
                 <Input type="number" min="1" max="24" value={form.hoursPerDay} onChange={(e) => f('hoursPerDay', e.target.value)} placeholder="8" /></div>
-              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Ημέρες/εβδομάδα</label>
+              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.editDaysPerWeek')}</label>
                 <Input type="number" min="1" max="7" value={form.daysPerWeek} onChange={(e) => f('daysPerWeek', e.target.value)} placeholder="6" /></div>
             </div>
             <div>
               <label className="flex items-center gap-3 cursor-pointer">
                 <input type="checkbox" checked={form.hasDayOff} onChange={(e) => f('hasDayOff', e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-blue-600" />
-                <span className="text-sm text-gray-700">Ρεπό</span>
+                <span className="text-sm text-gray-700">{t('jobsPage.dayOff')}</span>
               </label>
-              {form.hasDayOff && <Input value={form.dayOffDescription} onChange={(e) => f('dayOffDescription', e.target.value)} placeholder="π.χ. 1 μέρα/εβδομάδα" className="mt-2" />}
+              {form.hasDayOff && <Input value={form.dayOffDescription} onChange={(e) => f('dayOffDescription', e.target.value)} placeholder={t('jobsPage.dayOffPlaceholder')} className="mt-2" />}
             </div>
-            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Βάρδια</label>
+            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.shift')}</label>
               <select value={form.shiftType} onChange={(e) => f('shiftType', e.target.value)} className={sel}>
-                <option value="">Επέλεξε</option>{Object.entries(SHIFT_TYPE_LABELS_EL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                <option value="">{t('jobsPage.choose')}</option>{Object.keys(SHIFT_TYPE_LABELS_EL).map((v) => <option key={v} value={v}>{t(`jobsPage.shift${v.charAt(0).toUpperCase()}${v.slice(1)}`)}</option>)}
               </select></div>
           </CardContent></Card>
 
         {/* 7. Διάρκεια */}
-        <Card><CardHeader><h3 className="text-base font-bold text-gray-900"><span className="text-blue-600 mr-2">7.</span>Διάρκεια</h3></CardHeader>
+        <Card><CardHeader><h3 className="text-base font-bold text-gray-900"><span className="text-blue-600 mr-2">7.</span>{t('jobsPage.secDuration')}</h3></CardHeader>
           <CardContent>
             <div className="grid gap-4 sm:grid-cols-2">
-              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Μήνας Έναρξης</label>
+              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.startMonth')}</label>
                 <Input type="month" value={form.startDate} onChange={(e) => f('startDate', e.target.value)} /></div>
-              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Μήνας Λήξης</label>
+              <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.endMonth')}</label>
                 <Input type="month" value={form.endDate} onChange={(e) => f('endDate', e.target.value)} /></div>
             </div>
           </CardContent></Card>
 
         {/* 8. Απαιτήσεις */}
-        <Card><CardHeader><h3 className="text-base font-bold text-gray-900"><span className="text-blue-600 mr-2">8.</span>Απαιτήσεις</h3></CardHeader>
+        <Card><CardHeader><h3 className="text-base font-bold text-gray-900"><span className="text-blue-600 mr-2">8.</span>{t('jobsPage.secRequirements')}</h3></CardHeader>
           <CardContent className="space-y-4">
-            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">Εμπειρία</label>
+            <div><label className="mb-1.5 block text-sm font-medium text-gray-700">{t('jobsPage.experience')}</label>
               <select value={form.experienceRequired} onChange={(e) => f('experienceRequired', e.target.value)} className={sel}>
-                <option value="">Επέλεξε</option>{Object.entries(EXPERIENCE_LABELS_EL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                <option value="">{t('jobsPage.choose')}</option>{Object.keys(EXPERIENCE_LABELS_EL).map((v) => <option key={v} value={v}>{v === 'none' ? t('jobsPage.expNone') : v === '1_2_years' ? t('jobsPage.exp1to2') : t('jobsPage.exp3plus')}</option>)}
               </select></div>
             <div className="space-y-3">
               {[
-                { key: 'requiresDriversLicense' as const, label: 'Δίπλωμα οδήγησης' },
-                { key: 'requiresPhysicalFitness' as const, label: 'Καλή φυσική κατάσταση' },
-                { key: 'requiresCommunicationSkills' as const, label: 'Επικοινωνιακές δεξιότητες' },
+                { key: 'requiresDriversLicense' as const, label: t('jobsPage.driversLicense') },
+                { key: 'requiresPhysicalFitness' as const, label: t('jobsPage.physicalFitness') },
+                { key: 'requiresCommunicationSkills' as const, label: t('jobsPage.communicationSkills') },
               ].map((item) => (
                 <label key={item.key} className="flex items-center gap-3 cursor-pointer">
                   <input type="checkbox" checked={form[item.key]} onChange={(e) => f(item.key, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-blue-600" />
@@ -337,7 +353,7 @@ function EditJobInner() {
           </CardContent></Card>
 
         {/* 9. Γλώσσες */}
-        <Card><CardHeader><h3 className="text-base font-bold text-gray-900"><span className="text-blue-600 mr-2">9.</span>Γλώσσες</h3></CardHeader>
+        <Card><CardHeader><h3 className="text-base font-bold text-gray-900"><span className="text-blue-600 mr-2">9.</span>{t('jobsPage.secLanguages')}</h3></CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
               {LANGUAGES_COMMON.map((lang) => {
@@ -353,29 +369,29 @@ function EditJobInner() {
           </CardContent></Card>
 
         {/* 10. Ειδικότητες */}
-        <Card><CardHeader><h3 className="text-base font-bold text-gray-900"><span className="text-blue-600 mr-2">10.</span>Ειδικότητες</h3></CardHeader>
+        <Card><CardHeader><h3 className="text-base font-bold text-gray-900"><span className="text-blue-600 mr-2">10.</span>{t('jobsPage.editSecRoles')}</h3></CardHeader>
           <CardContent>
-            <p className="text-xs text-gray-500 mb-3">Επίλεξε τις ειδικότητες που ταιριάζουν με την αγγελία.</p>
+            <p className="text-xs text-gray-500 mb-3">{t('jobsPage.editRolesHint')}</p>
             <RolePicker
               value={form.roles}
               onChange={(next) => f('roles', next)}
               max={10}
-              triggerLabel="+ Προσθήκη ειδικοτήτων"
+              triggerLabel={t('jobsPage.addRoles')}
             />
           </CardContent></Card>
 
         {/* Actions */}
         <div className="flex flex-wrap gap-3">
           <Button onClick={handleSave} disabled={saving} size="lg">
-            {saving ? 'Αποθήκευση...' : '💾 Αποθήκευση'}
+            {saving ? t('jobsPage.saving') : t('jobsPage.save')}
           </Button>
-          {status === 'draft' && <Button onClick={() => handleStatusChange('published')} variant="outline" size="lg" className="text-emerald-600 border-emerald-300 hover:bg-emerald-50">🚀 Δημοσίευση</Button>}
-          {status === 'published' && <Button onClick={handleBoost} variant="outline" size="lg" className="text-amber-600 border-amber-400 bg-amber-50 hover:bg-amber-100 font-bold">🚀 Boost (5 credits · 7 ημέρες)</Button>}
-          {status === 'published' && <Button onClick={() => handleStatusChange('paused')} variant="outline" size="lg" className="text-orange-600 border-orange-300 hover:bg-orange-50">⏸️ Παύση</Button>}
-          {status === 'published' && <Button onClick={() => handleStatusChange('archived')} variant="outline" size="lg" className="text-amber-600 border-amber-300 hover:bg-amber-50">📦 Αρχειοθέτηση</Button>}
-          {status === 'paused' && <Button onClick={() => handleStatusChange('resume')} variant="outline" size="lg" className="text-emerald-600 border-emerald-300 hover:bg-emerald-50">▶️ Επανεκκίνηση</Button>}
-          {status === 'archived' && <Button onClick={() => handleStatusChange('published')} variant="outline" size="lg" className="text-emerald-600 border-emerald-300 hover:bg-emerald-50">🚀 Επαναδημοσίευση</Button>}
-          <a href="/dashboard/jobs" className="inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">← Πίσω</a>
+          {status === 'draft' && <Button onClick={() => handleStatusChange('published')} variant="outline" size="lg" className="text-emerald-600 border-emerald-300 hover:bg-emerald-50">{t('jobsPage.publish')}</Button>}
+          {status === 'published' && <Button onClick={handleBoost} variant="outline" size="lg" className="text-amber-600 border-amber-400 bg-amber-50 hover:bg-amber-100 font-bold">{t('jobsPage.boostButton')}</Button>}
+          {status === 'published' && <Button onClick={() => handleStatusChange('paused')} variant="outline" size="lg" className="text-orange-600 border-orange-300 hover:bg-orange-50">{t('jobsPage.pauseButton')}</Button>}
+          {status === 'published' && <Button onClick={() => handleStatusChange('archived')} variant="outline" size="lg" className="text-amber-600 border-amber-300 hover:bg-amber-50">{t('jobsPage.archiveButton')}</Button>}
+          {status === 'paused' && <Button onClick={() => handleStatusChange('resume')} variant="outline" size="lg" className="text-emerald-600 border-emerald-300 hover:bg-emerald-50">{t('jobsPage.resumeButton')}</Button>}
+          {status === 'archived' && <Button onClick={() => handleStatusChange('published')} variant="outline" size="lg" className="text-emerald-600 border-emerald-300 hover:bg-emerald-50">{t('jobsPage.republishButton')}</Button>}
+          <a href="/dashboard/jobs" className="inline-flex items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">{t('jobsPage.back')}</a>
         </div>
       </div>
     </div>

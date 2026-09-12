@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { fetchAllBlogPosts, type BlogPost } from '@/lib/seo-data';
+import { Tr } from '@/i18n/locale-provider';
 
 /**
  * Η σελίδα ΕΝΟΣ άρθρου.
@@ -132,7 +133,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
 
       <article className="mx-auto max-w-3xl px-4 py-14 sm:py-20">
         <Link href="/blog" className="text-sm font-medium text-blue-600 hover:underline">
-          ← Πίσω στο blog
+          <Tr k="blog.post.back" />
         </Link>
 
         <header className="mt-6">

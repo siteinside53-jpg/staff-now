@@ -25,10 +25,12 @@
 import Link from 'next/link';
 import type React from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { useT } from '@/i18n/locale-provider';
 
 export function JobApplyCta({ jobId, children }: { jobId: string; children?: React.ReactNode }) {
   const { user } = useAuth();
   const isBusiness = user?.role === 'business';
+  const t = useT();
 
   return (
     <>
@@ -38,14 +40,14 @@ export function JobApplyCta({ jobId, children }: { jobId: string; children?: Rea
             href={`/auth/register?role=worker&next=${encodeURIComponent(`/dashboard/discover?focus=${jobId}`)}`}
             className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-8 py-3.5 text-sm font-semibold text-white shadow transition hover:bg-emerald-700 sm:w-auto"
           >
-            Κάνε αίτηση δωρεάν →
+            {t('jobPage.applyFree')}
           </Link>
         )}
         {children}
       </div>
       {!isBusiness && (
         <p className="mt-2 text-xs text-gray-400">
-          Δωρεάν εγγραφή σε 30&apos;&apos; · Χωρίς πιστωτική κάρτα
+          {t('jobPage.applyNote')}
         </p>
       )}
     </>

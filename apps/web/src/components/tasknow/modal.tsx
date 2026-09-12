@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useT } from '@/i18n/locale-provider';
 
 /**
  * Απλό παράθυρο για τη μακέτα του TaskNow.
@@ -39,6 +40,7 @@ export function Modal({
   // Ρητός τύπος επιστροφής: το έργο έχει δύο αντίγραφα των τύπων της React,
   // οπότε ένα σκέτο portal βγάζει ψεύτικο σφάλμα «δεν είναι στοιχείο JSX».
 }): React.ReactElement | null {
+  const t = useT();
   const panelRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -87,7 +89,7 @@ export function Modal({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Κλείσιμο"
+              aria-label={t('tasknow.modal.close')}
               className="-mr-1 -mt-1 rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
             >
               <svg
@@ -112,9 +114,10 @@ export function Modal({
 
 /** Η κίτρινη υπενθύμιση ότι βλέπεις μακέτα και όχι αληθινή λειτουργία. */
 export function MockNote({ children }: { children: React.ReactNode }) {
+  const t = useT();
   return (
     <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-900">
-      <strong className="font-semibold">ΜΑΚΕΤΑ:</strong> {children}
+      <strong className="font-semibold">{t('tasknow.modal.mock')}</strong> {children}
     </p>
   );
 }

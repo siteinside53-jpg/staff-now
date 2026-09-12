@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
+import { useEffect, useState } from 'react';
 import { resolveCityName } from '@/lib/location';
+import { roleLabelFor, employmentLabelFor } from '@/i18n/labels';
+import { useT, useLocale } from '@/i18n/locale-provider';
 
 /* ── Image-with-fallback ───────────────────────────
  * Renders an <img>; if it fails to load (404, decode error, etc.) silently
@@ -72,22 +73,14 @@ const TYPE_COLORS: Record<string, string> = {
   freelance: 'bg-emerald-50 text-emerald-700',
 };
 
-const TYPE_LABELS: Record<string, string> = {
-  seasonal: 'Σεζόν', full_time: 'Full-time', part_time: 'Part-time', freelance: 'Freelance',
-};
-
-// Οι ειδικότητες βγαίνουν από τον κεντρικό κατάλογο (256 στα ελληνικά). Εδώ
-// υπήρχε τοπικό λεξικό με 11 εγγραφές — ό,τι δεν ήταν μέσα εμφανιζόταν αγγλικά.
-const ROLE_LABELS = WORKER_JOB_ROLE_LABELS_EL;
-
 function getInitials(name: string): string {
   return name.split(' ').slice(0, 2).map((n) => n[0]).join('').toUpperCase();
 }
 
-function expLabel(years: number | null): string {
-  if (!years || years <= 0) return 'Νέος/α';
-  if (years === 1) return '1 χρόνος';
-  return `${years} χρόνια`;
+function expLabel(years: number | null, t: (key: string, params?: Record<string, string | number>) => string): string {
+  if (!years || years <= 0) return t('liveWorkers.expNew');
+  if (years === 1) return t('liveWorkers.exp1Year');
+  return t('liveWorkers.expYears', { n: years });
 }
 
 function pickRandom<T extends { id: string }>(pool: T[], count: number, excludeIds: Set<string> = new Set()): T[] {
@@ -136,6 +129,8 @@ const DEV_DEMO_JOBS: Job[] =
  * να μη σπρώχνει κάτω τα κουμπιά.
  */
 export function LiveWorkersHeroCard({ compact = false }: { compact?: boolean } = {}) {
+  const t = useT();
+  const { locale } = useLocale();
   const [tab, setTab] = useState<'workers' | 'jobs'>('workers');
   // Production: ξεκινά άδειο, γεμίζει μόνο με πραγματικά δεδομένα.
   // Dev: ξεκινά με demo ώστε το localhost να δείχνει το live card όπως το staffnow.gr.
@@ -161,7 +156,7 @@ export function LiveWorkersHeroCard({ compact = false }: { compact?: boolean } =
           const data = wJson?.data;
           if (Array.isArray(data) && data.length > 0 && !cancelled) {
             const real: Worker[] = data.map((w: any, i: number) => {
-              const name = w.full_name || 'Χρήστης';
+              const name = w.full_name || t('liveWorkers.fallbackUser');
               const firstName = name.split(' ')[0];
               const lastInitial = name.split(' ')[1]?.[0] || '';
               const displayName = lastInitial ? `${firstName} ${lastInitial}.` : firstName;
@@ -169,8 +164,8 @@ export function LiveWorkersHeroCard({ compact = false }: { compact?: boolean } =
               return {
                 id: w.user_id || `rw_${i}`,
                 name: displayName,
-                role: ROLE_LABELS[roleKey] || roleKey || 'Εργαζόμενος',
-                exp: expLabel(w.years_of_experience),
+                role: roleKey ? roleLabelFor(locale, roleKey) : t('liveWorkers.fallbackWorkerRole'),
+                exp: expLabel(w.years_of_experience, t),
                 initials: getInitials(name),
                 color: COLORS[i % COLORS.length],
                 city: resolveCityName(w.city || w.region || ''),
@@ -192,11 +187,11 @@ export function LiveWorkersHeroCard({ compact = false }: { compact?: boolean } =
                 : j.salary_min ? `${j.salary_min}€+` : '';
               return {
                 id: j.id?.toString() || `rj_${i}`,
-                title: j.title || 'Θέση εργασίας',
-                company: j.display_company_name || j.company_name || 'Επιχείρηση',
+                title: j.title || t('liveWorkers.fallbackJobTitle'),
+                company: j.display_company_name || j.company_name || t('liveWorkers.fallbackBusiness'),
                 city: resolveCityName(j.city || j.region || ''),
                 salary,
-                type: TYPE_LABELS[j.employment_type] || j.employment_type || '',
+                type: j.employment_type ? employmentLabelFor(locale, j.employment_type) : '',
                 color: TYPE_COLORS[j.employment_type] || 'bg-blue-50 text-blue-700',
                 logo: j.company_logo || null,
               };
@@ -264,7 +259,7 @@ export function LiveWorkersHeroCard({ compact = false }: { compact?: boolean } =
             tab === 'workers' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'
           }`}
         >
-          👤 Εργαζόμενοι
+          👤 {t('liveWorkers.tabWorkers')}
         </button>
         <button
           onClick={() => setTab('jobs')}
@@ -272,18 +267,18 @@ export function LiveWorkersHeroCard({ compact = false }: { compact?: boolean } =
             tab === 'jobs' ? 'bg-emerald-600 text-white shadow' : 'text-gray-400 hover:text-white'
           }`}
         >
-          💼 Θέσεις εργασίας
+          💼 {t('liveWorkers.tabJobs')}
         </button>
       </div>
 
       {/* Header */}
       <div className="mb-3 flex items-center justify-between">
         <p className="text-xs text-gray-400">
-          {tab === 'workers' ? 'Διαθέσιμοι τώρα' : 'Ανοιχτές θέσεις'}
+          {tab === 'workers' ? t('liveWorkers.availableNow') : t('liveWorkers.openJobs')}
         </p>
         <span className="flex items-center gap-1.5 text-[10px] text-emerald-400">
           <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          Live
+          {t('liveWorkers.live')}
         </span>
       </div>
 
@@ -301,7 +296,7 @@ export function LiveWorkersHeroCard({ compact = false }: { compact?: boolean } =
               >
                 {isNew && (
                   <span className="absolute -top-1.5 -right-1.5 rounded-full bg-emerald-500 px-2 py-0.5 text-[9px] font-extrabold uppercase text-white shadow-lg animate-pulse">
-                    ΝΕΟΣ
+                    {t('liveWorkers.newBadgeM')}
                   </span>
                 )}
                 {w.photo ? (
@@ -350,7 +345,7 @@ export function LiveWorkersHeroCard({ compact = false }: { compact?: boolean } =
               >
                 {isNew && (
                   <span className="absolute -top-1.5 -right-1.5 rounded-full bg-blue-500 px-2 py-0.5 text-[9px] font-extrabold uppercase text-white shadow-lg animate-pulse">
-                    ΝΕΑ
+                    {t('liveWorkers.newBadgeF')}
                   </span>
                 )}
                 {j.logo ? (
@@ -387,7 +382,7 @@ export function LiveWorkersHeroCard({ compact = false }: { compact?: boolean } =
           tab === 'workers' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-emerald-600 hover:bg-emerald-700'
         }`}
       >
-        {tab === 'workers' ? 'Βρες προσωπικό' : 'Βρες δουλειά'}
+        {tab === 'workers' ? t('liveWorkers.ctaFindStaff') : t('liveWorkers.ctaFindJob')}
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
         </svg>
@@ -406,6 +401,8 @@ export function LiveWorkersGrid() { return null; }
  * δεν εμφανίζονται καθόλου.
  */
 function useLiveLists() {
+  const t = useT();
+  const { locale } = useLocale();
   const [workers, setWorkers] = useState<Worker[]>(DEV_DEMO_WORKERS);
   const [jobs, setJobs] = useState<Job[]>(DEV_DEMO_JOBS);
 
@@ -421,15 +418,15 @@ function useLiveLists() {
           const data = (await wRes.json())?.data;
           if (Array.isArray(data) && data.length > 0 && !cancelled) {
             setWorkers(data.map((w: any, i: number) => {
-              const name = w.full_name || 'Χρήστης';
+              const name = w.full_name || t('liveWorkers.fallbackUser');
               const firstName = name.split(' ')[0];
               const lastInitial = name.split(' ')[1]?.[0] || '';
               const roleKey = w.roles?.[0] || '';
               return {
                 id: w.user_id || `pw_${i}`,
                 name: lastInitial ? `${firstName} ${lastInitial}.` : firstName,
-                role: ROLE_LABELS[roleKey] || roleKey || 'Εργαζόμενος',
-                exp: expLabel(w.years_of_experience),
+                role: roleKey ? roleLabelFor(locale, roleKey) : t('liveWorkers.fallbackWorkerRole'),
+                exp: expLabel(w.years_of_experience, t),
                 initials: getInitials(name),
                 color: COLORS[i % COLORS.length] || COLORS[0]!,
                 city: resolveCityName(w.city || w.region || ''),
@@ -443,13 +440,13 @@ function useLiveLists() {
           if (Array.isArray(data) && data.length > 0 && !cancelled) {
             setJobs(data.map((j: any, i: number) => ({
               id: j.id?.toString() || `pj_${i}`,
-              title: j.title || 'Θέση εργασίας',
-              company: j.display_company_name || j.company_name || 'Επιχείρηση',
+              title: j.title || t('liveWorkers.fallbackJobTitle'),
+              company: j.display_company_name || j.company_name || t('liveWorkers.fallbackBusiness'),
               city: resolveCityName(j.city || j.region || ''),
               salary: j.salary_min && j.salary_max
                 ? `${j.salary_min}-${j.salary_max}€`
                 : j.salary_min ? `${j.salary_min}€+` : '',
-              type: TYPE_LABELS[j.employment_type] || j.employment_type || '',
+              type: j.employment_type ? employmentLabelFor(locale, j.employment_type) : '',
               color: TYPE_COLORS[j.employment_type] || 'bg-blue-50 text-blue-700',
               logo: j.company_logo || null,
             })));
@@ -465,18 +462,21 @@ function useLiveLists() {
 
 /** Panel αρχικής, ενότητα «Για Επιχειρήσεις» — πραγματικοί εργαζόμενοι. */
 export function LiveWorkersPanel() {
+  const t = useT();
   const { workers } = useLiveLists();
   // Σε 3 μόνο θέσεις δείχνουμε προφίλ που έχουν όντως συμπληρωθεί (όνομα +
   // ειδικότητα). Τα μισοάδεια θα εμφανίζονταν ως «Εργαζόμενος · Εργαζόμενος».
+  const fallbackRole = t('liveWorkers.fallbackWorkerRole');
+  const fallbackUser = t('liveWorkers.fallbackUser');
   const shown = workers
-    .filter((w) => w.role !== 'Εργαζόμενος' && w.name !== 'Εργαζόμενος')
+    .filter((w) => w.role !== fallbackRole && w.name !== fallbackUser)
     .slice(0, 3);
   if (shown.length === 0) return null;
 
   return (
     <div className="rounded-3xl bg-gradient-to-br from-blue-50 to-white p-8 border border-blue-100 shadow-xl">
       <div className="text-center mb-6">
-        <p className="text-sm font-semibold text-blue-600 uppercase tracking-wider">Τώρα διαθέσιμοι κοντά σου</p>
+        <p className="text-sm font-semibold text-blue-600 uppercase tracking-wider">{t('liveWorkers.panelAvailable')}</p>
       </div>
       <div className="space-y-4">
         {shown.map((w) => (
@@ -510,13 +510,14 @@ export function LiveWorkersPanel() {
 
 /** Panel αρχικής, ενότητα «Για Εργαζόμενους» — πραγματικές αγγελίες. */
 export function LiveJobsPanel() {
+  const t = useT();
   const { jobs } = useLiveLists();
   if (jobs.length === 0) return null;
 
   return (
     <div className="rounded-3xl bg-gradient-to-br from-emerald-50 to-white p-8 border border-emerald-100 shadow-xl">
       <div className="text-center mb-6">
-        <p className="text-sm font-semibold text-emerald-600 uppercase tracking-wider">Θέσεις κοντά σου</p>
+        <p className="text-sm font-semibold text-emerald-600 uppercase tracking-wider">{t('liveWorkers.panelJobs')}</p>
       </div>
       <div className="space-y-4">
         {jobs.slice(0, 3).map((j) => (

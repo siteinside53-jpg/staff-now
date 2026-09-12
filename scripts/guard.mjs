@@ -219,7 +219,11 @@ function checkNotificationBell() {
       'στο apps/web/src/app/dashboard/layout.tsx πρέπει να υπάρχει η notificationLink() και να τη χρησιμοποιούν ΚΑΙ ΤΑ ΔΥΟ καμπανάκια'
     );
   } else {
-    const inline = (clean.match(/'\/dashboard\/messages'\s*:/g) || []).length;
+    // Ο πίνακας με τις σύντομες ετικέτες του μενού κινητού (shortLabels) έχει
+    // κι αυτός κλειδί «/dashboard/messages», αλλά δεν αποφασίζει προορισμό —
+    // βγαίνει από τη μέτρηση ώστε να μη χτυπά λάθος συναγερμό.
+    const withoutShortLabels = clean.replace(/const shortLabels[\s\S]*?\n\s*\};?/, '');
+    const inline = (withoutShortLabels.match(/["']\/dashboard\/messages["']\s*:/g) || []).length;
     if (inline > 0) {
       fail(
         'Κάποιο καμπανάκι ξαναχτίζει μόνο του τον προορισμό',
@@ -1169,6 +1173,27 @@ function checkTrackerRespectsConsent() {
   }
 }
 
+function checkMapTilesNoKey() {
+  const src = stripComments(read('apps/web/src/components/tasknow/data.ts'));
+  const m = src.match(/MAP_TILE_URL\s*=\s*'([^']+)'/);
+  const url = m?.[1] || '';
+  const keyed = /cartocdn|mapbox|googleapis|maptiler|stadiamaps|thunderforest/i.test(url);
+  if (!url || keyed || url.includes('{s}') || url.includes('{r}')) {
+    fail(
+      'Ο χάρτης του TaskNow δείχνει σε πάροχο που ζητά κλειδί',
+      `MAP_TILE_URL = ${url || '(κενό)'} — η CARTO γράφει «API KEY REQUIRED» πάνω στον χάρτη. Μείνε στο tile.openstreetmap.org.`
+    );
+  } else {
+    ok('Χάρτης TaskNow: δωρεάν πλακίδια OpenStreetMap, χωρίς κλειδί');
+  }
+  for (const f of ['apps/web/src/components/tasknow/task-map.tsx', 'apps/web/src/components/tasknow/point-picker.tsx']) {
+    const s = stripComments(read(f));
+    if (/subdomains:\s*'abcd'/.test(s) || /maxZoom:\s*20/.test(s)) {
+      fail('Ο χάρτης έχει ρυθμίσεις για τον παλιό πάροχο', f + ' — subdomains/maxZoom 20 δεν ταιριάζουν στο OpenStreetMap.');
+    }
+  }
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // 5. Το πραγματικό site (μόνο με --live)
 // ───────────────────────────────────────────────────────────────────────────
@@ -1224,6 +1249,7 @@ checkDiscoverStripsContacts();
 checkCreditsNeedPayment();
 checkRegisterRoleParam();
 checkTrackerRespectsConsent();
+checkMapTilesNoKey();
 if (LIVE) await checkLive();
 
 console.log('');

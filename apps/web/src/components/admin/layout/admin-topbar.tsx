@@ -1,5 +1,7 @@
 'use client';
 
+import { ThemeToggle } from '@/components/theme-provider';
+
 interface Props {
   title: string;
   subtitle?: string;
@@ -41,6 +43,8 @@ export function AdminTopbar({ title, subtitle, adminName, adminEmail, onMobileMe
           className="w-64 rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
       </div>
+
+      <ThemeToggle />
 
       {/* Admin user */}
       {adminEmail && (

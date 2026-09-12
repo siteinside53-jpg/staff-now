@@ -10,6 +10,7 @@ import { TrackPageView } from '@/components/track-page-view';
 import { CookieConsent } from '@/components/cookie-consent';
 import { PushOptIn } from '@/components/push-optin';
 import { LocaleProvider } from '@/i18n/locale-provider';
+import { ThemeProvider, THEME_BOOT_SCRIPT } from '@/components/theme-provider';
 
 const inter = Inter({ subsets: ['latin', 'greek'] });
 
@@ -183,8 +184,10 @@ const websiteSchema = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="el">
+    <html lang="el" suppressHydrationWarning>
       <head>
+        {/* Νυχτερινή έκδοση: η κλάση `dark` μπαίνει ΠΡΙΝ ζωγραφιστεί η σελίδα */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
         {/* JSON-LD: Organization + WebSite (Sitelinks Search Box) */}
         <script
           type="application/ld+json"
@@ -199,6 +202,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <QueryProvider>
           <AuthProvider>
             <LocaleProvider>
+            <ThemeProvider>
               <TrackPageView />
               {children}
               <Toaster position="top-right" richColors />
@@ -206,6 +210,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <InstallPrompt />
               <CookieConsent />
               <PushOptIn />
+            </ThemeProvider>
             </LocaleProvider>
           </AuthProvider>
         </QueryProvider>

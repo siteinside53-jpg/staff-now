@@ -182,7 +182,7 @@ function Sidebar() {
         {/* Role-specific */}
         <div className="mt-6">
           <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
-            {role === 'business' ? 'Επιχείρηση' : 'Εργαζόμενος'}
+            {role === 'business' ? t('dashNav.roleBusiness') : t('dashNav.roleWorker')}
           </p>
           <div className="space-y-0.5">
             {roleNav.map(renderNavItem)}

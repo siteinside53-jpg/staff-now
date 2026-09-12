@@ -1,3 +1,5 @@
+import { Tr } from '@/i18n/locale-provider';
+
 export const metadata = {
   title: 'Όροι Χρήσης',
   description: 'Όροι χρήσης της πλατφόρμας StaffNow.',
@@ -7,137 +9,99 @@ export default function TermsPage() {
   return (
     <div className="py-20">
       <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-        <h1 className="text-4xl font-bold text-gray-900">Όροι Χρήσης</h1>
+        <h1 className="text-4xl font-bold text-gray-900"><Tr k="legal.terms.title" /></h1>
         <p className="mt-4 text-sm text-gray-500">
-          Τελευταία ενημέρωση: Μάρτιος 2026
+          <Tr k="legal.terms.updated" />
         </p>
 
         <div className="prose prose-gray mt-10 max-w-none">
           <section className="mb-10">
             <h2 className="text-2xl font-semibold text-gray-900">
-              1. Αποδοχή Όρων
+              <Tr k="legal.terms.s1.title" />
             </h2>
             <p className="mt-4 leading-relaxed text-gray-700">
-              Με την πρόσβαση και χρήση της πλατφόρμας StaffNow
-              (&laquo;Υπηρεσία&raquo;), συμφωνείτε ότι δεσμεύεστε από τους
-              παρόντες Όρους Χρήσης. Εάν δεν συμφωνείτε με κάποιον από τους
-              όρους, παρακαλούμε μη χρησιμοποιείτε την Υπηρεσία.
+              <Tr k="legal.terms.s1.p1" />
             </p>
           </section>
 
           <section className="mb-10">
             <h2 className="text-2xl font-semibold text-gray-900">
-              2. Περιγραφή Υπηρεσίας
+              <Tr k="legal.terms.s2.title" />
             </h2>
             <p className="mt-4 leading-relaxed text-gray-700">
-              Το StaffNow είναι ψηφιακή πλατφόρμα που διευκολύνει τη σύνδεση
-              επιχειρήσεων με εργαζομένους σε κάθε κλάδο μέσω
-              ενός συστήματος matching. Η Υπηρεσία δεν αποτελεί γραφείο
-              ευρέσεως εργασίας και δεν παρεμβαίνει στις εργασιακές σχέσεις
-              μεταξύ επιχειρήσεων και εργαζομένων.
+              <Tr k="legal.terms.s2.p1" />
             </p>
           </section>
 
           <section className="mb-10">
             <h2 className="text-2xl font-semibold text-gray-900">
-              3. Εγγραφή & Λογαριασμοί
+              <Tr k="legal.terms.s3.title" />
             </h2>
             <p className="mt-4 leading-relaxed text-gray-700">
-              Για τη χρήση ορισμένων λειτουργιών απαιτείται δημιουργία
-              λογαριασμού. Εγγυάστε ότι οι πληροφορίες που παρέχετε είναι
-              ακριβείς και ενημερωμένες. Είστε υπεύθυνοι για τη διατήρηση της
-              εμπιστευτικότητας του κωδικού πρόσβασής σας και για κάθε
-              δραστηριότητα που πραγματοποιείται μέσω του λογαριασμού σας.
-              Απαγορεύεται η δημιουργία πολλαπλών λογαριασμών ή η χρήση
-              ψευδών στοιχείων.
+              <Tr k="legal.terms.s3.p1" />
             </p>
           </section>
 
           <section className="mb-10">
             <h2 className="text-2xl font-semibold text-gray-900">
-              4. Χρήση της Πλατφόρμας
+              <Tr k="legal.terms.s4.title" />
             </h2>
             <p className="mt-4 leading-relaxed text-gray-700">
-              Απαγορεύεται η χρήση της πλατφόρμας για σκοπούς που αντίκεινται
-              στη νομοθεσία ή τους παρόντες όρους, συμπεριλαμβανομένων χωρίς
-              περιορισμό: δημοσίευση ψευδών ή παραπλανητικών αγγελιών, αποστολή
-              ανεπιθύμητων μηνυμάτων (spam), συλλογή προσωπικών δεδομένων άλλων
-              χρηστών, παρεμπόδιση της λειτουργίας της πλατφόρμας, και κάθε
-              άλλη παράνομη ή αντισυμβατική χρήση.
+              <Tr k="legal.terms.s4.p1" />
             </p>
           </section>
 
           <section className="mb-10">
             <h2 className="text-2xl font-semibold text-gray-900">
-              5. Περιεχόμενο Χρηστών
+              <Tr k="legal.terms.s5.title" />
             </h2>
             <p className="mt-4 leading-relaxed text-gray-700">
-              Οι χρήστες είναι αποκλειστικά υπεύθυνοι για το περιεχόμενο που
-              αναρτούν στην πλατφόρμα. Παρέχετε στο StaffNow μη αποκλειστική
-              άδεια χρήσης του περιεχομένου σας για τους σκοπούς λειτουργίας
-              της Υπηρεσίας. Διατηρούμε το δικαίωμα αφαίρεσης περιεχομένου που
-              παραβιάζει τους παρόντες όρους.
+              <Tr k="legal.terms.s5.p1" />
             </p>
           </section>
 
           <section className="mb-10">
             <h2 className="text-2xl font-semibold text-gray-900">
-              6. Συνδρομές & Πληρωμές
+              <Tr k="legal.terms.s6.title" />
             </h2>
             <p className="mt-4 leading-relaxed text-gray-700">
-              Ορισμένες λειτουργίες της Υπηρεσίας απαιτούν συνδρομή. Οι τιμές
-              αναγράφονται σε Ευρώ και περιλαμβάνουν ΦΠΑ. Η χρέωση
-              πραγματοποιείται αυτόματα κάθε μήνα. Μπορείτε να ακυρώσετε τη
-              συνδρομή σας οποιαδήποτε στιγμή, αλλά δεν παρέχεται επιστροφή
-              χρημάτων για τη τρέχουσα περίοδο χρέωσης.
+              <Tr k="legal.terms.s6.p1" />
             </p>
           </section>
 
           <section className="mb-10">
             <h2 className="text-2xl font-semibold text-gray-900">
-              7. Περιορισμός Ευθύνης
+              <Tr k="legal.terms.s7.title" />
             </h2>
             <p className="mt-4 leading-relaxed text-gray-700">
-              Η Υπηρεσία παρέχεται &laquo;ως έχει&raquo;. Το StaffNow δεν
-              εγγυάται ότι η Υπηρεσία θα είναι αδιάλειπτη ή χωρίς σφάλματα.
-              Δεν φέρουμε ευθύνη για τυχόν ζημίες που προκύπτουν από τη χρήση
-              ή την αδυναμία χρήσης της Υπηρεσίας, συμπεριλαμβανομένων ζημιών
-              από εργασιακές σχέσεις που προέκυψαν μέσω της πλατφόρμας.
+              <Tr k="legal.terms.s7.p1" />
             </p>
           </section>
 
           <section className="mb-10">
             <h2 className="text-2xl font-semibold text-gray-900">
-              8. Τερματισμός
+              <Tr k="legal.terms.s8.title" />
             </h2>
             <p className="mt-4 leading-relaxed text-gray-700">
-              Διατηρούμε το δικαίωμα αναστολής ή τερματισμού λογαριασμού που
-              παραβιάζει τους παρόντες όρους. Μπορείτε να διαγράψετε τον
-              λογαριασμό σας οποιαδήποτε στιγμή μέσω των ρυθμίσεων.
+              <Tr k="legal.terms.s8.p1" />
             </p>
           </section>
 
           <section className="mb-10">
             <h2 className="text-2xl font-semibold text-gray-900">
-              9. Τροποποίηση Όρων
+              <Tr k="legal.terms.s9.title" />
             </h2>
             <p className="mt-4 leading-relaxed text-gray-700">
-              Διατηρούμε το δικαίωμα τροποποίησης των παρόντων όρων. Σε
-              περίπτωση ουσιαστικών αλλαγών, θα σας ειδοποιήσουμε μέσω email ή
-              μέσω της πλατφόρμας. Η συνέχιση χρήσης της Υπηρεσίας μετά την
-              ειδοποίηση συνιστά αποδοχή των τροποποιημένων όρων.
+              <Tr k="legal.terms.s9.p1" />
             </p>
           </section>
 
           <section className="mb-10">
             <h2 className="text-2xl font-semibold text-gray-900">
-              10. Εφαρμοστέο Δίκαιο
+              <Tr k="legal.terms.s10.title" />
             </h2>
             <p className="mt-4 leading-relaxed text-gray-700">
-              Οι παρόντες όροι διέπονται από το Ελληνικό Δίκαιο. Κάθε
-              διαφορά που προκύπτει θα επιλύεται από τα αρμόδια δικαστήρια
-              Αθηνών. Για οποιαδήποτε ερώτηση σχετικά με τους Όρους Χρήσης,
-              παρακαλούμε επικοινωνήστε μαζί μας στο info@staffnow.gr.
+              <Tr k="legal.terms.s10.p1" />
             </p>
           </section>
         </div>

@@ -18,6 +18,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { useT, useLocale } from '@/i18n/locale-provider';
 
 interface Prompt {
   conversationId: string;
@@ -91,6 +92,8 @@ function femArticle(lower: string): string {
 }
 
 export function HirePromptCard({ isWorker }: { isWorker: boolean }) {
+  const t = useT();
+  const { locale } = useLocale();
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -117,14 +120,14 @@ export function HirePromptCard({ isWorker }: { isWorker: boolean }) {
       if (res?.data?.hire) {
         toast.success(
           isWorker
-            ? 'Καταγράφηκε! Περιμένουμε την επιβεβαίωση της επιχείρησης.'
-            : 'Καταγράφηκε! Περιμένουμε την επιβεβαίωσή του/της.',
+            ? t('hiresCard.toasts.declaredWorker')
+            : t('hiresCard.toasts.declaredBusiness'),
         );
       } else {
-        toast.error(res?.error?.message || 'Σφάλμα');
+        toast.error(res?.error?.message || t('hiresCard.toasts.error'));
       }
     } catch (e: any) {
-      toast.error(e?.message || 'Σφάλμα σύνδεσης');
+      toast.error(e?.message || t('hiresCard.toasts.connectionError'));
     }
     // Είτε πέτυχε είτε το πρόλαβε η άλλη πλευρά, η γραμμή φεύγει από την κάρτα.
     await load();
@@ -138,12 +141,12 @@ export function HirePromptCard({ isWorker }: { isWorker: boolean }) {
       const res = (await api.hires.snoozePrompt(p.conversationId)) as any;
       const d = res?.data;
       if (d) {
-        toast.success(d.stopped ? 'Εντάξει, δεν θα ξαναρωτήσουμε.' : `Θα ξαναρωτήσουμε σε ${d.days} μέρες.`);
+        toast.success(d.stopped ? t('hiresCard.toasts.snoozeStopped') : t('hiresCard.toasts.snoozeDays', { days: d.days }));
       } else {
-        toast.error(res?.error?.message || 'Σφάλμα');
+        toast.error(res?.error?.message || t('hiresCard.toasts.error'));
       }
     } catch (e: any) {
-      toast.error(e?.message || 'Σφάλμα σύνδεσης');
+      toast.error(e?.message || t('hiresCard.toasts.connectionError'));
     }
     await load();
     setBusy(null);
@@ -155,22 +158,23 @@ export function HirePromptCard({ isWorker }: { isWorker: boolean }) {
     <div className="mb-8 rounded-2xl border-2 border-emerald-200 bg-emerald-50/60 p-5">
       <div className="mb-1 flex items-center gap-2">
         <span className="text-xl">🤝</span>
-        <h2 className="text-base font-bold text-gray-900">Έγινε πρόσληψη;</h2>
+        <h2 className="text-base font-bold text-gray-900">{t('hiresCard.promptTitle')}</h2>
         <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-bold text-white">
           {prompts.length}
         </span>
       </div>
       <p className="mb-4 text-xs text-gray-600">
         {prompts.length === 1
-          ? '1 συνομιλία περιμένει απάντηση.'
-          : `${prompts.length} συνομιλίες περιμένουν απάντηση.`}
+          ? t('hiresCard.waitingOne')
+          : t('hiresCard.waitingMany', { n: prompts.length })}
       </p>
 
       <div className="space-y-3">
         {prompts.map((p) => {
-          const job = p.jobTitle ? ` για «${p.jobTitle}»` : '';
+          const job = p.jobTitle ? t('hiresCard.forJob', { title: p.jobTitle }) : '';
           // Μόνο η επιχείρηση ονομάζει τον άλλον μέσα στην πρόταση.
-          const acc = isWorker ? null : accusative(p.otherName);
+          // Η κλίση ονόματος σε αιτιατική βγάζει νόημα μόνο στα ελληνικά.
+          const acc = isWorker || locale !== 'el' ? null : accusative(p.otherName);
           return (
             <div key={p.conversationId} className="rounded-xl border border-gray-200 bg-white p-4">
               {/*
@@ -184,15 +188,15 @@ export function HirePromptCard({ isWorker }: { isWorker: boolean }) {
               </p>
               <p className="text-sm font-semibold text-gray-900">
                 {isWorker
-                  ? 'Σε προσέλαβαν;'
+                  ? t('hiresCard.wereYouHired')
                   : acc
-                    ? `Προσέλαβες ${acc.phrase};`
-                    : 'Τον/την προσέλαβες;'}
+                    ? t('hiresCard.didYouHire', { name: acc.phrase })
+                    : t('hiresCard.didYouHireThem')}
               </p>
               <p className="mt-0.5 text-xs text-gray-500">
                 {isWorker
-                  ? 'Δήλωσέ το — μετράει στο προφίλ σου και ανοίγει η αξιολόγηση.'
-                  : 'Δήλωσέ το για να κλείσει η θέση και να ανοίξει η αξιολόγηση.'}
+                  ? t('hiresCard.workerHint')
+                  : t('hiresCard.businessHint')}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
@@ -201,17 +205,17 @@ export function HirePromptCard({ isWorker }: { isWorker: boolean }) {
                   className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
                 >
                   {isWorker
-                    ? '✅ Ναι, με προσέλαβαν'
+                    ? t('hiresCard.yesHiredMe')
                     : acc
-                      ? `✅ Ναι, ${acc.clitic} προσέλαβα`
-                      : '✅ Ναι, τον/την προσέλαβα'}
+                      ? t('hiresCard.yesHiredName', { name: acc.clitic })
+                      : t('hiresCard.yesHired')}
                 </button>
                 <button
                   onClick={() => snooze(p)}
                   disabled={busy === p.conversationId}
                   className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                 >
-                  Όχι ακόμη
+                  {t('hiresCard.notYet')}
                 </button>
               </div>
             </div>

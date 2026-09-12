@@ -4,12 +4,14 @@ import {
   CATEGORY_BY_KEY,
   NEW_MINUTES,
   type CenterSource,
+  categoryLabelFor,
   distanceLabel,
   formatPostedAgo,
   isLicensedCategory,
   posterLabel,
 } from './data';
 import type { MockTask } from './mock-store';
+import { useT, useLocale } from '@/i18n/locale-provider';
 
 /**
  * Η κάρτα μιας μικροδουλειάς — ΜΙΑ φορά γραμμένη, παντού η ίδια.
@@ -26,7 +28,7 @@ export function TaskRow({
   task,
   km,
   source = 'default',
-  centerLabel = 'το κέντρο',
+  centerLabel,
   onOpen,
   onOffer,
 }: {
@@ -47,6 +49,9 @@ export function TaskRow({
   onOpen: () => void;
   onOffer: () => void;
 }) {
+  const t = useT();
+  const { locale } = useLocale();
+  const resolvedCenterLabel = centerLabel ?? t('tasknow.feed.centerDefault');
   const cat = CATEGORY_BY_KEY[task.category];
   const licensed = isLicensedCategory(task.category);
   const mineOffer = task.offersList.some((o) => o.mine);
@@ -82,28 +87,28 @@ export function TaskRow({
               </button>
               {isNew && !task.mine && (
                 <span className="mt-0.5 flex-shrink-0 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                  Νέο
+                  {t('tasknow.common.new')}
                 </span>
               )}
             </div>
 
             {task.postedByName && (
               <p className="truncate text-xs text-gray-500">
-                {posterLabel(task.postedByName, task.postedByRole)}
+                {posterLabel(task.postedByName, task.postedByRole, locale)}
               </p>
             )}
 
             <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-gray-500">
               <span>
                 <span aria-hidden="true">📍</span> {task.area}
-                {km !== undefined && <> · {distanceLabel(km, source, centerLabel)}</>}
+                {km !== undefined && <> · {distanceLabel(km, source, resolvedCenterLabel, locale)}</>}
               </span>
               <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold">
-                {cat?.icon} {cat?.label}
+                {cat?.icon} {cat ? categoryLabelFor(locale, cat.key) : ''}
               </span>
               <span className="text-gray-400">
-                {formatPostedAgo(task.postedMinutesAgo)} · {task.offersList.length}{' '}
-                {task.offersList.length === 1 ? 'προσφορά' : 'προσφορές'}
+                {formatPostedAgo(task.postedMinutesAgo, locale)} · {task.offersList.length}{' '}
+                {task.offersList.length === 1 ? t('tasknow.common.offerOne') : t('tasknow.common.offerMany')}
               </span>
             </div>
 
@@ -116,7 +121,7 @@ export function TaskRow({
               >
                 💰 {task.budget}€
                 <span className="ml-1 text-[11px] font-medium text-gray-400">
-                  {task.budgetNote ?? 'για όλη τη δουλειά'}
+                  {task.budgetNote ?? t('tasknow.common.forWholeJob')}
                 </span>
               </span>
 
@@ -126,17 +131,17 @@ export function TaskRow({
                   onClick={onOpen}
                   className="relative z-10 flex-shrink-0 rounded-full bg-blue-600 px-4 py-1.5 text-xs font-bold text-white transition hover:bg-blue-700"
                 >
-                  Δες τις προσφορές
+                  {t('tasknow.row.seeOffers')}
                 </button>
               ) : mineOffer ? (
                 <span className="relative z-10 flex-shrink-0 rounded-full bg-emerald-50 px-4 py-1.5 text-xs font-bold text-emerald-700">
-                  ✓ Έστειλες προσφορά
+                  {t('tasknow.row.sentOffer')}
                 </span>
               ) : task.isSample ? (
                 /* Στο παράδειγμα ΔΕΝ μπαίνει κουμπί προσφοράς. Ένα κουμπί που
                    δεν οδηγεί πουθενά είναι χειρότερο από κανένα κουμπί. */
                 <span className="relative z-10 flex-shrink-0 rounded-full bg-gray-100 px-4 py-1.5 text-xs font-bold text-gray-500">
-                  Παράδειγμα
+                  {t('tasknow.row.sample')}
                 </span>
               ) : (
                 <button
@@ -144,7 +149,7 @@ export function TaskRow({
                   onClick={onOffer}
                   className="relative z-10 flex-shrink-0 rounded-full bg-amber-500 px-4 py-1.5 text-xs font-bold text-white transition hover:bg-amber-600"
                 >
-                  Κάνε προσφορά
+                  {t('tasknow.row.makeOffer')}
                 </button>
               )}
             </div>
@@ -154,33 +159,33 @@ export function TaskRow({
               <div className="mt-2 flex flex-wrap gap-1">
                 {task.isSample && (
                   <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600">
-                    δείγμα — έτσι δείχνει μια μικροδουλειά
+                    {t('tasknow.row.sampleTag')}
                   </span>
                 )}
                 {licensed && (
                   <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700">
-                    θέλει άδεια
+                    {t('tasknow.common.needsLicence')}
                   </span>
                 )}
                 {task.urgent && (
                   <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-semibold text-orange-600">
-                    Επείγον
+                    {t('tasknow.common.urgent')}
                   </span>
                 )}
                 {task.remote && (
                   <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700">
-                    Εξ αποστάσεως
+                    {t('tasknow.common.remote')}
                   </span>
                 )}
                 {task.mine && (
                   <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
                     {task.status === 'assigned'
-                      ? 'δική σου · ανατέθηκε'
+                      ? t('tasknow.row.mineAssigned')
                       : task.status === 'done'
-                        ? 'δική σου · ολοκληρώθηκε'
+                        ? t('tasknow.row.mineDone')
                         : task.status === 'paused'
-                          ? 'δική σου · σε παύση'
-                          : 'δική σου'}
+                          ? t('tasknow.row.minePaused')
+                          : t('tasknow.row.mine')}
                   </span>
                 )}
               </div>

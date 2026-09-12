@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useT } from '@/i18n/locale-provider';
 
 export type FilterOption = { value: string; label: string; count?: number };
 export type FilterCategory = {
@@ -58,8 +59,8 @@ function CategorizedFilter({
   onToggle,
   onToggleMany,
   accent,
-  searchPlaceholder = 'Αναζήτηση ειδικότητας…',
-  selectAllLabel = 'Όλες οι ειδικότητες',
+  searchPlaceholder,
+  selectAllLabel,
 }: {
   groupKey: string;
   categories: FilterCategory[];
@@ -70,6 +71,9 @@ function CategorizedFilter({
   searchPlaceholder?: string;
   selectAllLabel?: string;
 }) {
+  const t = useT();
+  const resolvedSearchPlaceholder = searchPlaceholder ?? t('lists.specialtySearchPlaceholder');
+  const resolvedSelectAllLabel = selectAllLabel ?? t('lists.allSpecialties');
   const a = ACCENT[accent];
   const [q, setQ] = useState('');
   const [openCat, setOpenCat] = useState<Record<string, boolean>>({});
@@ -104,7 +108,7 @@ function CategorizedFilter({
         type="search"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder={searchPlaceholder}
+        placeholder={resolvedSearchPlaceholder}
         className={`mb-2 w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 ${a.ring}`}
       />
       <div className="max-h-80 space-y-1 overflow-y-auto pr-1">
@@ -125,7 +129,7 @@ function CategorizedFilter({
                   }}
                   onChange={() => toggleMany(groupKey, values, !allSel)}
                   className={`h-4 w-4 rounded border-gray-300 ${a.check}`}
-                  aria-label={`${selectAllLabel}: ${cat.label}`}
+                  aria-label={`${resolvedSelectAllLabel}: ${cat.label}`}
                 />
                 <button
                   type="button"
@@ -174,7 +178,7 @@ function CategorizedFilter({
           );
         })}
         {filtered.length === 0 && (
-          <p className="py-1 text-xs text-gray-400">Κανένα αποτέλεσμα</p>
+          <p className="py-1 text-xs text-gray-400">{t('lists.noResults')}</p>
         )}
       </div>
     </div>
@@ -194,6 +198,7 @@ function FilterGroups({
   onToggleMany?: (g: string, values: string[], select: boolean) => void;
   accent: Accent;
 }) {
+  const t = useT();
   const a = ACCENT[accent];
   const [open, setOpen] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(groups.map((g) => [g.key, true])),
@@ -250,7 +255,7 @@ function FilterGroups({
                     type="search"
                     value={groupSearch[g.key] ?? ''}
                     onChange={(e) => setGroupSearch((p) => ({ ...p, [g.key]: e.target.value }))}
-                    placeholder="Αναζήτηση…"
+                    placeholder={t('lists.searchGeneric')}
                     className={`mb-2 w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 ${a.ring}`}
                   />
                 )}
@@ -273,7 +278,7 @@ function FilterGroups({
                     </label>
                   ))}
                   {opts.length === 0 && (
-                    <p className="text-xs text-gray-400 py-1">Κανένα αποτέλεσμα</p>
+                    <p className="text-xs text-gray-400 py-1">{t('lists.noResults')}</p>
                   )}
                 </div>
               </div>
@@ -300,6 +305,7 @@ export function FilteredListLayout({
   sidebarHeader,
   children,
 }: Props) {
+  const t = useT();
   const a = ACCENT[accent];
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -332,7 +338,7 @@ export function FilteredListLayout({
           value={search}
           onChange={(e) => onSearch(e.target.value)}
           placeholder={searchPlaceholder}
-          aria-label="Αναζήτηση"
+          aria-label={t('lists.searchAria')}
           className={`w-full rounded-xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm text-gray-900 placeholder:text-gray-400 shadow-sm focus:outline-none focus:ring-2 ${a.ring}`}
         />
       </div>
@@ -346,7 +352,7 @@ export function FilteredListLayout({
         <div className="flex items-center gap-2">
           {activeCount > 0 && (
             <button type="button" onClick={onClear} className={`text-sm font-medium ${a.text} hover:underline`}>
-              Καθαρισμός
+              {t('lists.clear')}
             </button>
           )}
           <button
@@ -357,7 +363,7 @@ export function FilteredListLayout({
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h18M6 12h12M10.5 19.5h3" />
             </svg>
-            Φίλτρα{activeCount > 0 ? ` (${activeCount})` : ''}
+            {t('lists.filters')}{activeCount > 0 ? ` (${activeCount})` : ''}
           </button>
         </div>
       </div>
@@ -381,8 +387,8 @@ export function FilteredListLayout({
           <div className="absolute inset-0 bg-black/50" onClick={() => setDrawerOpen(false)} />
           <div className="absolute inset-y-0 left-0 flex w-[85%] max-w-sm flex-col bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-              <h2 className="text-base font-bold text-gray-900">Φίλτρα</h2>
-              <button type="button" onClick={() => setDrawerOpen(false)} aria-label="Κλείσιμο" className="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
+              <h2 className="text-base font-bold text-gray-900">{t('lists.filters')}</h2>
+              <button type="button" onClick={() => setDrawerOpen(false)} aria-label={t('lists.close')} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">×</button>
             </div>
             <div className="flex-1 overflow-y-auto px-5 py-4">
               {sidebarHeader && <div className="mb-4">{sidebarHeader}</div>}
@@ -391,7 +397,7 @@ export function FilteredListLayout({
             <div className="border-t border-gray-100 p-4 flex gap-2">
               {activeCount > 0 && (
                 <button type="button" onClick={onClear} className="rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700">
-                  Καθαρισμός
+                  {t('lists.clear')}
                 </button>
               )}
               <button
@@ -399,7 +405,7 @@ export function FilteredListLayout({
                 onClick={() => setDrawerOpen(false)}
                 className={`flex-1 rounded-xl ${a.btn} px-4 py-3 text-sm font-semibold text-white shadow`}
               >
-                Δες {resultCount} {resultCount === 1 ? resultNoun[0] : resultNoun[1]}
+                {t('lists.seeResults', { n: resultCount, noun: resultCount === 1 ? resultNoun[0] : resultNoun[1] })}
               </button>
             </div>
           </div>

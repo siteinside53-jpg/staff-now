@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,19 +9,30 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { useT } from '@/i18n/locale-provider';
 
-const contactSchema = z.object({
-  name: z.string().min(2, 'Το όνομα πρέπει να έχει τουλάχιστον 2 χαρακτήρες'),
-  email: z.string().email('Μη έγκυρη διεύθυνση email'),
-  subject: z.string().min(3, 'Το θέμα πρέπει να έχει τουλάχιστον 3 χαρακτήρες'),
-  message: z.string().min(10, 'Το μήνυμα πρέπει να έχει τουλάχιστον 10 χαρακτήρες'),
-});
-
-type ContactFormData = z.infer<typeof contactSchema>;
+type ContactFormData = {
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+};
 
 export default function ContactPage(): React.JSX.Element {
+  const t = useT();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+
+  const contactSchema = useMemo(
+    () =>
+      z.object({
+        name: z.string().min(2, t('contact.validation.nameMin')),
+        email: z.string().email(t('contact.validation.emailInvalid')),
+        subject: z.string().min(3, t('contact.validation.subjectMin')),
+        message: z.string().min(10, t('contact.validation.messageMin')),
+      }),
+    [t],
+  );
 
   const {
     register,
@@ -49,12 +60,12 @@ export default function ContactPage(): React.JSX.Element {
       }
       setIsSubmitted(true);
       reset();
-      toast.success('Το μήνυμά σου στάλθηκε επιτυχώς!');
+      toast.success(t('contact.toast.success'));
     } catch (err) {
       const msg =
         err instanceof Error && err.message !== 'Request failed'
           ? err.message
-          : 'Κάτι πήγε στραβά. Δοκίμασε ξανά.';
+          : t('contact.toast.error');
       toast.error(msg);
     } finally {
       setIsSubmitting(false);
@@ -67,10 +78,10 @@ export default function ContactPage(): React.JSX.Element {
         {/* Header */}
         <div className="text-center">
           <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl">
-            Επικοινωνία
+            {t('contact.header.title')}
           </h1>
           <p className="mt-4 text-lg text-gray-600">
-            Έχεις ερωτήσεις; Θέλεις να μάθεις περισσότερα; Στείλε μας μήνυμα.
+            {t('contact.header.subtitle')}
           </p>
         </div>
 
@@ -79,10 +90,10 @@ export default function ContactPage(): React.JSX.Element {
           <Card>
             <CardHeader>
               <h2 className="text-xl font-semibold text-gray-900">
-                Φόρμα Επικοινωνίας
+                {t('contact.form.title')}
               </h2>
               <p className="text-sm text-gray-500">
-                Συμπλήρωσε τα παρακάτω στοιχεία και θα σου απαντήσουμε εντός 24 ωρών.
+                {t('contact.form.subtitle')}
               </p>
             </CardHeader>
             <CardContent>
@@ -102,18 +113,17 @@ export default function ContactPage(): React.JSX.Element {
                     />
                   </svg>
                   <h3 className="mt-4 text-lg font-semibold text-green-800">
-                    Ευχαριστούμε!
+                    {t('contact.success.title')}
                   </h3>
                   <p className="mt-2 text-green-700">
-                    Το μήνυμά σου στάλθηκε επιτυχώς. Θα σου απαντήσουμε το
-                    συντομότερο δυνατό.
+                    {t('contact.success.message')}
                   </p>
                   <Button
                     variant="outline"
                     className="mt-4"
                     onClick={() => setIsSubmitted(false)}
                   >
-                    Στείλε νέο μήνυμα
+                    {t('contact.success.newMessage')}
                   </Button>
                 </div>
               ) : (
@@ -123,11 +133,11 @@ export default function ContactPage(): React.JSX.Element {
                       htmlFor="name"
                       className="mb-1.5 block text-sm font-medium text-gray-700"
                     >
-                      Ονοματεπώνυμο
+                      {t('contact.form.name')}
                     </label>
                     <Input
                       id="name"
-                      placeholder="π.χ. Γιώργος Παπαδόπουλος"
+                      placeholder={t('contact.form.namePlaceholder')}
                       {...register('name')}
                     />
                     {errors.name && (
@@ -142,7 +152,7 @@ export default function ContactPage(): React.JSX.Element {
                       htmlFor="email"
                       className="mb-1.5 block text-sm font-medium text-gray-700"
                     >
-                      Email
+                      {t('contact.form.email')}
                     </label>
                     <Input
                       id="email"
@@ -162,11 +172,11 @@ export default function ContactPage(): React.JSX.Element {
                       htmlFor="subject"
                       className="mb-1.5 block text-sm font-medium text-gray-700"
                     >
-                      Θέμα
+                      {t('contact.form.subject')}
                     </label>
                     <Input
                       id="subject"
-                      placeholder="π.χ. Ερώτηση για τιμολόγηση"
+                      placeholder={t('contact.form.subjectPlaceholder')}
                       {...register('subject')}
                     />
                     {errors.subject && (
@@ -181,12 +191,12 @@ export default function ContactPage(): React.JSX.Element {
                       htmlFor="message"
                       className="mb-1.5 block text-sm font-medium text-gray-700"
                     >
-                      Μήνυμα
+                      {t('contact.form.message')}
                     </label>
                     <Textarea
                       id="message"
                       rows={5}
-                      placeholder="Γράψε το μήνυμά σου εδώ..."
+                      placeholder={t('contact.form.messagePlaceholder')}
                       {...register('message')}
                     />
                     {errors.message && (
@@ -202,7 +212,7 @@ export default function ContactPage(): React.JSX.Element {
                     size="lg"
                     disabled={isSubmitting}
                   >
-                    {isSubmitting ? 'Αποστολή...' : 'Αποστολή Μηνύματος'}
+                    {isSubmitting ? t('contact.form.sending') : t('contact.form.submit')}
                   </Button>
                 </form>
               )}
@@ -213,10 +223,10 @@ export default function ContactPage(): React.JSX.Element {
           <div className="space-y-8">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                Στοιχεία Επικοινωνίας
+                {t('contact.info.title')}
               </h2>
               <p className="mt-2 text-gray-600">
-                Μπορείς επίσης να επικοινωνήσεις μαζί μας μέσω:
+                {t('contact.info.subtitle')}
               </p>
             </div>
 
@@ -228,7 +238,7 @@ export default function ContactPage(): React.JSX.Element {
                   </svg>
                 </div>
                 <div>
-                  <p className="font-medium text-gray-900">Email</p>
+                  <p className="font-medium text-gray-900">{t('contact.info.email')}</p>
                   <p className="mt-1 text-gray-600">info@staffnow.gr</p>
                 </div>
               </div>
@@ -240,7 +250,7 @@ export default function ContactPage(): React.JSX.Element {
                   </svg>
                 </div>
                 <div>
-                  <p className="font-medium text-gray-900">Τηλέφωνο</p>
+                  <p className="font-medium text-gray-900">{t('contact.info.phone')}</p>
                   <p className="mt-1 text-gray-600">+30 697 155 3942</p>
                 </div>
               </div>
@@ -253,9 +263,9 @@ export default function ContactPage(): React.JSX.Element {
                   </svg>
                 </div>
                 <div>
-                  <p className="font-medium text-gray-900">Διεύθυνση</p>
+                  <p className="font-medium text-gray-900">{t('contact.info.address')}</p>
                   <p className="mt-1 text-gray-600">
-                    Θεσσαλονίκη, Ελλάδα
+                    {t('contact.info.addressValue')}
                   </p>
                 </div>
               </div>
@@ -263,11 +273,11 @@ export default function ContactPage(): React.JSX.Element {
 
             {/* Business hours */}
             <div className="rounded-lg bg-gray-50 p-6">
-              <h3 className="font-semibold text-gray-900">Ωράριο Εξυπηρέτησης</h3>
+              <h3 className="font-semibold text-gray-900">{t('contact.hours.title')}</h3>
               <div className="mt-3 space-y-2 text-sm text-gray-600">
-                <p>Δευτέρα - Παρασκευή: 09:00 - 18:00</p>
-                <p>Σάββατο: 10:00 - 14:00</p>
-                <p>Κυριακή: Κλειστά</p>
+                <p>{t('contact.hours.weekdays')}</p>
+                <p>{t('contact.hours.saturday')}</p>
+                <p>{t('contact.hours.sunday')}</p>
               </div>
             </div>
           </div>

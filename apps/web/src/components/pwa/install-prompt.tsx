@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useT } from '@/i18n/locale-provider';
 
 // Chrome / Edge / Android `beforeinstallprompt` event
 interface BeforeInstallPromptEvent extends Event {
@@ -22,6 +23,7 @@ const DISMISS_DAYS = 14;
  * - Dismissed: hidden for 14 days
  */
 export function InstallPrompt() {
+  const t = useT();
   const [state, setState] = useState<InstallState>('hidden');
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
@@ -116,44 +118,44 @@ export function InstallPrompt() {
         {/* Content */}
         <div className="min-w-0 flex-1">
           <h3 id="install-prompt-title" className="text-sm font-extrabold text-gray-900 leading-tight">
-            Εγκατάσταση StaffNow
+            {t('installPrompt.title')}
           </h3>
           {state === 'available' ? (
             <>
               <p className="mt-0.5 text-[11px] text-gray-600 leading-snug">
-                Γρήγορη πρόσβαση, offline support και notifications. Όλες οι λειτουργίες, ίδιο design.
+                {t('installPrompt.availableDescription')}
               </p>
               <div className="mt-3 flex gap-2">
                 <button
                   onClick={handleInstall}
                   className="flex-1 rounded-full bg-blue-600 px-4 py-2 text-xs font-bold uppercase tracking-wide text-white shadow-md hover:bg-blue-700 transition-all active:scale-95"
                 >
-                  ⬇ Εγκατάσταση
+                  {t('installPrompt.install')}
                 </button>
                 <button
                   onClick={handleDismiss}
                   className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50"
                 >
-                  Όχι
+                  {t('installPrompt.no')}
                 </button>
               </div>
             </>
           ) : (
             <>
               <p className="mt-0.5 text-[11px] text-gray-600 leading-snug">
-                Πάτα <span className="inline-flex items-center gap-0.5 font-bold text-gray-900">
+                {t('installPrompt.iosPress')} <span className="inline-flex items-center gap-0.5 font-bold text-gray-900">
                   <svg className="inline h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                   </svg>
-                  Share
-                </span> και μετά <span className="font-bold text-gray-900">«Προσθήκη στην αρχική οθόνη»</span>.
+                  {t('installPrompt.iosShare')}
+                </span> {t('installPrompt.iosAnd')} <span className="font-bold text-gray-900">{t('installPrompt.iosAddToHome')}</span>.
               </p>
               <div className="mt-3 flex gap-2">
                 <button
                   onClick={handleDismiss}
                   className="flex-1 rounded-full bg-blue-600 px-4 py-2 text-xs font-bold uppercase tracking-wide text-white hover:bg-blue-700"
                 >
-                  Κατάλαβα
+                  {t('installPrompt.gotIt')}
                 </button>
               </div>
             </>
@@ -164,7 +166,7 @@ export function InstallPrompt() {
         <button
           onClick={handleDismiss}
           className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-          aria-label="Κλείσιμο"
+          aria-label={t('installPrompt.closeAria')}
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

@@ -19,6 +19,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { UpgradeModal } from './upgrade-modal';
 import { ManualTransferDialog } from './manual-transfer-dialog';
+import { useT, useLocale } from '@/i18n/locale-provider';
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -51,6 +52,7 @@ interface BillingMe {
 }
 
 export function SubscriptionSection() {
+  const t = useT();
   const [data, setData] = useState<BillingMe | null>(null);
   const [loading, setLoading] = useState(true);
   const [showUpgrade, setShowUpgrade] = useState(false);
@@ -66,7 +68,7 @@ export function SubscriptionSection() {
       const j = (await res.json()) as any;
       if (j.success) setData(j.data);
     } catch (err: any) {
-      toast.error(err?.message || 'Σφάλμα φόρτωσης');
+      toast.error(err?.message || t('billingPage.loadError'));
     } finally {
       setLoading(false);
     }
@@ -86,14 +88,14 @@ export function SubscriptionSection() {
       });
       const j = (await res.json()) as any;
       if (j.success && j.data?.url) window.location.href = j.data.url;
-      else toast.error(j.error?.message || 'Σφάλμα πύλης διαχείρισης');
+      else toast.error(j.error?.message || t('billingPage.portalError'));
     } catch {
-      toast.error('Σφάλμα πύλης διαχείρισης');
+      toast.error(t('billingPage.portalError'));
     }
   };
 
   const onCancel = async () => {
-    if (!confirm('Σίγουρα θέλετε να ακυρώσετε τη συνδρομή στο τέλος της περιόδου;')) return;
+    if (!confirm(t('billingPage.confirmCancel'))) return;
     try {
       const token = localStorage.getItem('staffnow_token');
       const res = await fetch(`${API_BASE}/billing/cancel`, {
@@ -102,13 +104,13 @@ export function SubscriptionSection() {
       });
       const j = (await res.json()) as any;
       if (j.success) {
-        toast.success('Η συνδρομή θα ακυρωθεί στο τέλος της περιόδου.');
+        toast.success(t('billingPage.cancelScheduled'));
         refresh();
       } else {
-        toast.error(j.error?.message || 'Αποτυχία ακύρωσης');
+        toast.error(j.error?.message || t('billingPage.cancelFailed'));
       }
     } catch {
-      toast.error('Αποτυχία ακύρωσης');
+      toast.error(t('billingPage.cancelFailed'));
     }
   };
 
@@ -183,6 +185,8 @@ function CurrentPlanCard({
   onPortal: () => void;
   onCancel: () => void;
 }) {
+  const t = useT();
+  const { locale } = useLocale();
   const sub = data?.subscription;
   const plan = data?.plan;
   const planName = plan?.nameEl || plan?.name || 'Free';
@@ -191,13 +195,20 @@ function CurrentPlanCard({
   const periodEnd: string | null = sub?.current_period_end || null;
   const cancelAtEnd: number = sub?.cancel_at_period_end || 0;
 
+  const STATUS_LABEL: Record<string, { label: string; tone: 'green' | 'amber' | 'rose' | 'gray' }> = {
+    active: { label: t('billingPage.statusActive'), tone: 'green' },
+    trialing: { label: t('billingPage.statusTrialing'), tone: 'green' },
+    past_due: { label: t('billingPage.statusPastDue'), tone: 'amber' },
+    canceled: { label: t('billingPage.statusCanceled'), tone: 'rose' },
+    free: { label: t('billingPage.statusFree'), tone: 'gray' },
+  };
   const statusEl = STATUS_LABEL[status] || { label: status, tone: 'gray' };
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Τρέχον πλάνο</p>
+          <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">{t('billingPage.currentPlan')}</p>
           <h2 className="mt-1 text-2xl font-extrabold text-gray-900">{planName}</h2>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <span
@@ -215,20 +226,19 @@ function CurrentPlanCard({
             </span>
             {cancelAtEnd === 1 && (
               <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700 ring-1 ring-amber-200">
-                Ακύρωση στο τέλος της περιόδου
+                {t('billingPage.cancelAtEnd')}
               </span>
             )}
           </div>
           {periodEnd && (
             <p className="mt-2 text-xs text-gray-500">
-              {cancelAtEnd === 1 ? 'Λήγει στις' : 'Επόμενη χρέωση'}:{' '}
-              <strong>{formatDate(periodEnd)}</strong>
+              {cancelAtEnd === 1 ? t('billingPage.expiresOn') : t('billingPage.nextCharge')}:{' '}
+              <strong>{formatDate(periodEnd, locale)}</strong>
             </p>
           )}
           {grace && (
             <p className="mt-1 text-xs text-rose-700">
-              ⚠ Περίοδος χάριτος έως {formatDate(grace)} — αν δεν επιτύχει η πληρωμή, ο λογαριασμός
-              θα υποβαθμιστεί στο Free.
+              {t('billingPage.graceWarning', { date: formatDate(grace, locale) })}
             </p>
           )}
         </div>
@@ -239,7 +249,7 @@ function CurrentPlanCard({
             onClick={onUpgrade}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700"
           >
-            {plan ? 'Αλλαγή πλάνου' : 'Επιλογή πλάνου'}
+            {plan ? t('billingPage.changePlan') : t('billingPage.choosePlan')}
           </button>
           {sub?.stripe_customer_id && (
             <button
@@ -247,7 +257,7 @@ function CurrentPlanCard({
               onClick={onPortal}
               className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
             >
-              Διαχείριση κάρτας (Stripe)
+              {t('billingPage.manageCard')}
             </button>
           )}
           {plan && status === 'active' && cancelAtEnd !== 1 && (
@@ -256,7 +266,7 @@ function CurrentPlanCard({
               onClick={onCancel}
               className="rounded-lg border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50"
             >
-              Ακύρωση
+              {t('billingPage.cancel')}
             </button>
           )}
         </div>
@@ -264,14 +274,6 @@ function CurrentPlanCard({
     </div>
   );
 }
-
-const STATUS_LABEL: Record<string, { label: string; tone: 'green' | 'amber' | 'rose' | 'gray' }> = {
-  active:    { label: 'Ενεργό',                tone: 'green' },
-  trialing:  { label: 'Δοκιμαστική περίοδος',   tone: 'green' },
-  past_due:  { label: 'Σε καθυστέρηση πληρωμής', tone: 'amber' },
-  canceled:  { label: 'Ακυρωμένο',              tone: 'rose'  },
-  free:      { label: 'Δωρεάν',                 tone: 'gray'  },
-};
 
 // =====================================================================
 // Billing profile card
@@ -290,27 +292,28 @@ function BillingProfileCard({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const t = useT();
   const docType: 'invoice' | 'receipt' = profile?.document_type === 'invoice' ? 'invoice' : 'receipt';
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
-            Στοιχεία χρέωσης
+            {t('billingPage.billingDetails')}
           </p>
           <h3 className="mt-1 text-base font-bold text-gray-900">
-            {profile?.legal_name || 'Δεν έχουν συμπληρωθεί στοιχεία'}
+            {profile?.legal_name || t('billingPage.noDetails')}
           </h3>
           <p className="mt-0.5 text-xs text-gray-600">
-            Τύπος εγγράφου:{' '}
-            <strong>{docType === 'invoice' ? 'Τιμολόγιο' : 'Απόδειξη παροχής υπηρεσιών'}</strong>
+            {t('billingPage.documentType')}{' '}
+            <strong>{docType === 'invoice' ? t('billingPage.invoice') : t('billingPage.receiptFull')}</strong>
           </p>
           {profile && (
             <ul className="mt-2 space-y-0.5 text-xs text-gray-600">
               {profile.vat_number && (
                 <li>
-                  <strong>ΑΦΜ:</strong> {profile.vat_number}
-                  {profile.doy ? ` · ΔΟΥ: ${profile.doy}` : ''}
+                  <strong>{t('billingPage.vat')}</strong> {profile.vat_number}
+                  {profile.doy ? ` · ${t('billingPage.doy', { doy: profile.doy })}` : ''}
                 </li>
               )}
               {profile.address && (
@@ -320,8 +323,8 @@ function BillingProfileCard({
                   {profile.city ? `, ${profile.city}` : ''}
                 </li>
               )}
-              {profile.phone && <li>Τηλ: {profile.phone}</li>}
-              {profile.email && <li>Email χρέωσης: {profile.email}</li>}
+              {profile.phone && <li>{t('billingPage.tel', { phone: profile.phone })}</li>}
+              {profile.email && <li>{t('billingPage.billingEmail', { email: profile.email })}</li>}
             </ul>
           )}
         </div>
@@ -330,7 +333,7 @@ function BillingProfileCard({
           onClick={onEdit}
           className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
         >
-          {profile ? 'Επεξεργασία' : 'Συμπλήρωση'}
+          {profile ? t('billingPage.edit') : t('billingPage.fillIn')}
         </button>
       </div>
 
@@ -348,6 +351,7 @@ function BillingProfileForm({
   onSaved: () => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const [docType, setDocType] = useState<'invoice' | 'receipt'>(
     initial?.document_type === 'invoice' ? 'invoice' : 'receipt',
   );
@@ -383,10 +387,10 @@ function BillingProfileForm({
       });
       const j = (await res.json()) as any;
       if (!j.success) {
-        toast.error(j.error?.message || 'Αποτυχία αποθήκευσης');
+        toast.error(j.error?.message || t('billingPage.saveFailed'));
         return;
       }
-      toast.success('Αποθηκεύτηκε');
+      toast.success(t('billingPage.saved'));
       onSaved();
     } finally {
       setSaving(false);
@@ -405,7 +409,7 @@ function BillingProfileForm({
               : 'bg-white text-gray-700 ring-gray-300'
           }`}
         >
-          Απόδειξη
+          {t('billingPage.receipt')}
         </button>
         <button
           type="button"
@@ -416,37 +420,37 @@ function BillingProfileForm({
               : 'bg-white text-gray-700 ring-gray-300'
           }`}
         >
-          Τιμολόγιο (απαιτεί ΑΦΜ)
+          {t('billingPage.invoiceRequiresVat')}
         </button>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label={docType === 'invoice' ? 'Επωνυμία (υποχρεωτικό)' : 'Όνομα / Επωνυμία'}>
+        <Field label={docType === 'invoice' ? t('billingPage.legalNameRequired') : t('billingPage.nameOrLegalName')}>
           <input value={legalName} onChange={(e) => setLegalName(e.target.value)} className={inputClass} />
         </Field>
         {docType === 'invoice' && (
           <>
-            <Field label="ΑΦΜ (υποχρεωτικό)">
+            <Field label={t('billingPage.vatRequired')}>
               <input value={vatNumber} onChange={(e) => setVatNumber(e.target.value)} className={inputClass} />
             </Field>
-            <Field label="ΔΟΥ">
+            <Field label={t('billingPage.doyLabel')}>
               <input value={doy} onChange={(e) => setDoy(e.target.value)} className={inputClass} />
             </Field>
           </>
         )}
-        <Field label="Διεύθυνση">
+        <Field label={t('billingPage.address')}>
           <input value={address} onChange={(e) => setAddress(e.target.value)} className={inputClass} />
         </Field>
-        <Field label="Τ.Κ.">
+        <Field label={t('billingPage.postalCode')}>
           <input value={postalCode} onChange={(e) => setPostalCode(e.target.value)} className={inputClass} />
         </Field>
-        <Field label="Πόλη">
+        <Field label={t('billingPage.city')}>
           <input value={city} onChange={(e) => setCity(e.target.value)} className={inputClass} />
         </Field>
-        <Field label="Τηλέφωνο">
+        <Field label={t('billingPage.phone')}>
           <input value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} />
         </Field>
-        <Field label="Email χρέωσης">
+        <Field label={t('billingPage.billingEmailLabel')}>
           <input value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
         </Field>
       </div>
@@ -457,14 +461,14 @@ function BillingProfileForm({
           disabled={saving}
           className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
         >
-          {saving ? 'Αποθήκευση...' : 'Αποθήκευση'}
+          {saving ? t('billingPage.saving') : t('billingPage.save')}
         </button>
         <button
           type="button"
           onClick={onClose}
           className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
         >
-          Ακύρωση
+          {t('billingPage.cancel')}
         </button>
       </div>
     </div>
@@ -494,6 +498,8 @@ function PaymentHistoryCard({
   payments: BillingMe['payments'];
   invoices: BillingMe['invoices'];
 }) {
+  const t = useT();
+  const { locale } = useLocale();
   const invoiceById = useMemo(() => {
     const m = new Map<string, BillingMe['invoices'][number]>();
     for (const i of invoices) m.set(i.id, i);
@@ -502,9 +508,9 @@ function PaymentHistoryCard({
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-      <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Ιστορικό πληρωμών</p>
+      <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">{t('billingPage.paymentHistory')}</p>
       {payments.length === 0 ? (
-        <p className="mt-3 text-sm text-gray-500">Δεν υπάρχουν πληρωμές ακόμη.</p>
+        <p className="mt-3 text-sm text-gray-500">{t('billingPage.noPayments')}</p>
       ) : (
         <ul className="mt-3 divide-y divide-gray-100">
           {payments.map((p) => {
@@ -516,18 +522,18 @@ function PaymentHistoryCard({
                     {fmtMoney(p.amount_cents, p.currency)}
                     {p.refunded_cents > 0 && (
                       <span className="ml-2 text-xs text-rose-600">
-                        Επιστροφή: {fmtMoney(p.refunded_cents, p.currency)}
+                        {t('billingPage.refund', { amount: fmtMoney(p.refunded_cents, p.currency) })}
                       </span>
                     )}
                   </p>
                   <p className="text-[11px] text-gray-500">
-                    {formatDate(p.created_at)} · {providerLabel(p.provider)} · {paymentStatusLabel(p.status)}
+                    {formatDate(p.created_at, locale)} · {providerLabel(p.provider, t)} · {paymentStatusLabel(p.status, t)}
                     {p.plan_id ? ` · ${p.plan_id}` : ''}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-700">
-                    {p.document_type === 'invoice' ? 'Τιμολόγιο' : 'Απόδειξη'}
+                    {p.document_type === 'invoice' ? t('billingPage.invoice') : t('billingPage.receipt')}
                   </span>
                   {invoice && (
                     <Link
@@ -535,7 +541,7 @@ function PaymentHistoryCard({
                       target="_blank"
                       className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-gray-700 hover:bg-gray-50"
                     >
-                      Λήψη ({invoice.doc_number})
+                      {t('billingPage.download', { number: invoice.doc_number })}
                     </Link>
                   )}
                 </div>
@@ -557,29 +563,29 @@ function fmtMoney(cents: number, currency = 'EUR'): string {
   return currency === 'EUR' ? `${v} €` : `${v} ${currency}`;
 }
 
-function formatDate(s: string): string {
-  return new Date(s).toLocaleDateString('el-GR', {
+function formatDate(s: string, locale: 'el' | 'en' = 'el'): string {
+  return new Date(s).toLocaleDateString(locale === 'en' ? 'en-GB' : 'el-GR', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
   });
 }
 
-function providerLabel(p: string): string {
-  if (p === 'stripe') return 'Κάρτα (Stripe)';
-  if (p === 'manual') return 'Κατάθεση τραπέζης';
+function providerLabel(p: string, t: (k: string) => string): string {
+  if (p === 'stripe') return t('billingPage.providerStripe');
+  if (p === 'manual') return t('billingPage.providerManual');
   if (p === 'paypal') return 'PayPal';
   return p;
 }
 
-function paymentStatusLabel(s: string): string {
+function paymentStatusLabel(s: string, t: (k: string) => string): string {
   return (
     {
-      succeeded: 'Επιτυχής',
-      pending: 'Σε εκκρεμότητα',
-      failed: 'Αποτυχία',
-      refunded: 'Επιστράφηκε',
-      partially_refunded: 'Μερική επιστροφή',
+      succeeded: t('billingPage.paySucceeded'),
+      pending: t('billingPage.payPending'),
+      failed: t('billingPage.payFailed'),
+      refunded: t('billingPage.payRefunded'),
+      partially_refunded: t('billingPage.payPartiallyRefunded'),
     } as Record<string, string>
   )[s] || s;
 }

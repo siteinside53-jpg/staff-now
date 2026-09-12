@@ -32,6 +32,8 @@ import {
   posterLabel,
 } from '@/components/tasknow/data';
 import { isOpen, useMockTasks } from '@/components/tasknow/mock-store';
+import { useT, useLocale } from '@/i18n/locale-provider';
+import { useLabels } from '@/i18n/labels';
 
 type Kind = 'job' | 'shift' | 'task';
 
@@ -41,8 +43,6 @@ const KIND_ORDER: Kind[] = ['job', 'task', 'shift'];
 const KIND: Record<
   Kind,
   {
-    label: string;
-    plural: string;
     chip: string;
     bar: string;
     dot: string;
@@ -61,8 +61,6 @@ const KIND: Record<
   }
 > = {
   job: {
-    label: 'Αγγελία εργασίας',
-    plural: 'Αγγελίες εργασίας',
     chip: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
     bar: 'bg-emerald-500',
     dot: 'bg-emerald-500',
@@ -75,8 +73,6 @@ const KIND: Record<
     href: '/dashboard/discover',
   },
   shift: {
-    label: 'Έκτακτη βάρδια',
-    plural: 'Έκτακτες βάρδιες',
     chip: 'bg-rose-50 text-rose-700 ring-rose-200',
     bar: 'bg-rose-500',
     dot: 'bg-rose-500',
@@ -89,8 +85,6 @@ const KIND: Record<
     href: '/dashboard/discover',
   },
   task: {
-    label: 'Μικροδουλειά',
-    plural: 'Μικροδουλειές',
     chip: 'bg-amber-50 text-amber-800 ring-amber-200',
     bar: 'bg-amber-500',
     dot: 'bg-amber-500',
@@ -103,6 +97,10 @@ const KIND: Record<
     href: '/dashboard/tasknow',
   },
 };
+
+/** Κλειδιά μετάφρασης ενικού/πληθυντικού ανά είδος. */
+const KIND_LABEL_KEY: Record<Kind, string> = { job: 'listings.kind.job', shift: 'listings.kind.shift', task: 'listings.kind.task' };
+const KIND_PLURAL_KEY: Record<Kind, string> = { job: 'listings.kind.jobs', shift: 'listings.kind.shifts', task: 'listings.kind.tasks' };
 
 type Item = {
   id: string;
@@ -163,29 +161,23 @@ interface PublicShift {
   shift_start_utc?: string | null;
 }
 
-function salaryText(j: PublicJob): string {
+function salaryText(j: PublicJob, t: (k: string, p?: Record<string, string | number>) => string): string {
   const unit =
     j.salary_type === 'hourly'
-      ? '€/ώρα'
+      ? t('listings.salary.perHour')
       : j.salary_type === 'daily'
-        ? '€/ημέρα'
+        ? t('listings.salary.perDay')
         : j.salary_type === 'monthly'
-          ? '€/μήνα'
+          ? t('listings.salary.perMonth')
           : '€';
   if (j.salary_min && j.salary_max) return `${j.salary_min}-${j.salary_max} ${unit}`;
-  if (j.salary_min) return `Από ${j.salary_min} ${unit}`;
-  if (j.salary_max) return `Έως ${j.salary_max} ${unit}`;
-  return 'Κατόπιν συνεννόησης';
+  if (j.salary_min) return t('listings.salary.from', { v: `${j.salary_min} ${unit}` });
+  if (j.salary_max) return t('listings.salary.upTo', { v: `${j.salary_max} ${unit}` });
+  return t('listings.salary.negotiable');
 }
 
-function employmentGreek(t?: string | null): string {
-  const map: Record<string, string> = {
-    full_time: 'Full-time',
-    part_time: 'Part-time',
-    seasonal: 'Σεζόν',
-    freelance: 'Freelance',
-  };
-  return t ? (map[t] ?? '') : '';
+function employmentText(v: string | null | undefined, labels: { employment: (t: string) => string }): string {
+  return v ? labels.employment(v) : '';
 }
 
 /** «πριν 3 ημέρες» — ίδια διατύπωση με την κανονική λίστα αγγελιών. */
@@ -195,20 +187,21 @@ function isRecent(iso?: string | null): boolean {
   return !Number.isNaN(t) && Date.now() - t < 48 * 3600 * 1000;
 }
 
-function agoLabel(iso?: string | null): string {
+function agoLabel(iso: string | null | undefined, t: (k: string, p?: Record<string, string | number>) => string): string {
   if (!iso) return '';
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return '';
-  const days = Math.floor((Date.now() - t) / 86_400_000);
-  if (days <= 0) return 'σήμερα';
-  if (days === 1) return 'χθες';
-  if (days < 30) return `πριν ${days} ημέρες`;
+  const parsed = Date.parse(iso);
+  if (Number.isNaN(parsed)) return '';
+  const days = Math.floor((Date.now() - parsed) / 86_400_000);
+  if (days <= 0) return t('listings.ago.today');
+  if (days === 1) return t('listings.ago.yesterday');
+  if (days < 30) return t('listings.ago.days', { n: days });
   const months = Math.floor(days / 30);
-  return months === 1 ? 'πριν 1 μήνα' : `πριν ${months} μήνες`;
+  return months === 1 ? t('listings.ago.monthOne') : t('listings.ago.months', { n: months });
 }
 
-function Row({ item }: { item: Item }) {
+function Row({ item, t }: { item: Item; t: (k: string, p?: Record<string, string | number>) => string }) {
   const k = KIND[item.kind];
+  const kindLabel = t(KIND_LABEL_KEY[item.kind]);
   return (
     <li>
       {/* ΟΨΗ ΚΑΡΤΑΣ: ίδια ακριβώς με τη λίστα αγγελιών (public-jobs-list).
@@ -216,7 +209,7 @@ function Row({ item }: { item: Item }) {
           ώστε αγγελία, μικροδουλειά και βάρδια να ξεχωρίζουν με μια ματιά. */}
       <Link
         href={item.href}
-        aria-label={`${k.label}: ${item.title}`}
+        aria-label={`${kindLabel}: ${item.title}`}
         className={
           'block w-full rounded-2xl bg-white p-4 text-left transition hover:shadow-md active:scale-[0.99] ' +
           k.hover +
@@ -266,7 +259,7 @@ function Row({ item }: { item: Item }) {
                     k.solid
                   }
                 >
-                  Νέο
+                  {t('listings.new')}
                 </span>
               )}
             </div>
@@ -276,7 +269,7 @@ function Row({ item }: { item: Item }) {
               {/* Το είδος γράφεται πάντα: είναι όλος ο λόγος που τα βλέπεις μαζί. */}
               <span className={'rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ' + k.chip}>
                 {item.kind === 'task' && <TaskNowMark className="mr-1 inline-block h-3 w-3 align-[-2px]" />}
-                {k.label}
+                {kindLabel}
               </span>
               {item.where && <span>📍 {item.where}</span>}
               {item.badges?.filter(Boolean).map((b) => (
@@ -309,7 +302,7 @@ function Row({ item }: { item: Item }) {
               <div className="mt-2 flex flex-wrap gap-1">
                 {item.mock && (
                   <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                    ΜΑΚΕΤΑ
+                    {t('listings.mock')}
                   </span>
                 )}
                 {item.perks?.map((p) => (
@@ -346,6 +339,9 @@ export function AllListings({
   /** Ο μεγάλος τίτλος — κρύβεται όταν το ταμπλό μπαίνει μέσα σε άλλη σελίδα. */
   heading?: boolean;
 } = {}) {
+  const t = useT();
+  useLocale();
+  const labels = useLabels();
   const state = useMockTasks();
 
   const [jobs, setJobs] = useState<PublicJob[] | null>(null);
@@ -415,16 +411,16 @@ export function AllListings({
         // αγγελιών στη σελίδα εύρεσης).
         where: (j.display_city || j.city || j.region || '').trim(),
         when: '',
-        money: salaryText(j),
+        money: salaryText(j, t),
         extra: j.display_company_name || j.company_name || undefined,
         href: `/jobs/${j.id}`,
         logo: j.company_logo,
-        badges: [employmentGreek(j.employment_type), agoLabel(j.created_at)].filter(Boolean),
+        badges: [employmentText(j.employment_type, labels), agoLabel(j.created_at, t)].filter(Boolean),
         perks: [
-          j.housing_provided ? '🏠 Στέγη' : '',
-          j.meals_provided ? '🍽️ Φαγητό' : '',
+          j.housing_provided ? t('listings.housing') : '',
+          j.meals_provided ? t('listings.meals') : '',
         ].filter(Boolean),
-        actionLabel: 'Δες αγγελία',
+        actionLabel: t('listings.viewJob'),
         isNew: isRecent(j.created_at),
       });
     }
@@ -444,39 +440,39 @@ export function AllListings({
           undefined,
         href: '/dashboard/discover',
         flags: expires ? [{ text: expires, className: 'bg-rose-50 text-rose-700' }] : undefined,
-        actionLabel: 'Δες τη βάρδια',
+        actionLabel: t('listings.viewShift'),
       });
     }
 
-    for (const t of state.tasks.filter(isOpen)) {
-      const cat = CATEGORY_BY_KEY[t.category];
+    for (const task of state.tasks.filter(isOpen)) {
+      const cat = CATEGORY_BY_KEY[task.category];
       out.push({
-        id: `task-${t.id}`,
+        id: `task-${task.id}`,
         kind: 'task',
-        title: t.title,
-        where: t.area,
-        when: t.when,
-        money: `${t.budget}€`,
-        moneyNote: t.budgetNote ?? 'για όλη τη δουλειά',
+        title: task.title,
+        where: task.area,
+        when: task.when,
+        money: `${task.budget}€`,
+        moneyNote: task.budgetNote ?? t('listings.wholeJob'),
         // Ποιος την ανέβασε — στη θέση που έχει η επιχείρηση στις αγγελίες.
-        extra: posterLabel(t.postedByName, t.postedByRole),
-        logo: t.postedByPhoto ?? null,
-        badges: [cat?.label ?? '', `${t.offersList.length} προσφορές`].filter(Boolean),
-        href: `/tasknow?task=${t.id}`,
+        extra: posterLabel(task.postedByName, task.postedByRole),
+        logo: task.postedByPhoto ?? null,
+        badges: [cat?.label ?? '', t('listings.offers', { n: task.offersList.length })].filter(Boolean),
+        href: `/tasknow?task=${task.id}`,
         mock: true,
-        actionLabel: 'Δες τη δουλειά',
-        isNew: t.postedMinutesAgo < NEW_MINUTES,
+        actionLabel: t('listings.viewTask'),
+        isNew: task.postedMinutesAgo < NEW_MINUTES,
         flags: [
-          ...(isLicensedCategory(t.category)
-            ? [{ text: 'θέλει άδεια', className: 'bg-red-50 text-red-700' }]
+          ...(isLicensedCategory(task.category)
+            ? [{ text: t('listings.needsLicence'), className: 'bg-red-50 text-red-700' }]
             : []),
-          ...(t.urgent ? [{ text: 'Επείγον', className: 'bg-orange-50 text-orange-600' }] : []),
+          ...(task.urgent ? [{ text: t('listings.urgent'), className: 'bg-orange-50 text-orange-600' }] : []),
         ],
       });
     }
 
     return out;
-  }, [jobs, shifts, state]);
+  }, [jobs, shifts, state, t, labels]);
 
   const counts = useMemo(() => {
     const c: Record<Kind, number> = { job: 0, shift: 0, task: 0 };
@@ -492,20 +488,19 @@ export function AllListings({
     <div className="space-y-4">
       {heading ? (
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Όλες οι αγγελίες</h1>
+          <h1 className="text-xl font-bold text-gray-900">{t('listings.title')}</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Αγγελίες εργασίας, μικροδουλειές και έκτακτες βάρδιες — μαζί, με το χρώμα του
-            καθενός.
+            {t('listings.subtitle')}
           </p>
         </div>
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-bold text-gray-900">Όλες οι αγγελίες</h2>
+          <h2 className="text-lg font-bold text-gray-900">{t('listings.title')}</h2>
           <Link
             href="/dashboard/board"
             className="text-sm font-semibold text-blue-600 hover:text-blue-700"
           >
-            Δες τες όλες →
+            {t('listings.seeAll')}
           </Link>
         </div>
       )}
@@ -523,7 +518,7 @@ export function AllListings({
               : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300')
           }
         >
-          Όλα <span className="tabular-nums">{items.length}</span>
+          {t('listings.all')} <span className="tabular-nums">{items.length}</span>
         </button>
 
         {KIND_ORDER.map((k) => (
@@ -540,7 +535,7 @@ export function AllListings({
             }
           >
             <span className={'h-2 w-2 rounded-full ' + KIND[k].dot} aria-hidden="true" />
-            {KIND[k].plural} <span className="tabular-nums">{counts[k]}</span>
+            {t(KIND_PLURAL_KEY[k])} <span className="tabular-nums">{counts[k]}</span>
           </button>
         ))}
       </div>
@@ -554,20 +549,18 @@ export function AllListings({
           {/* Αν κάτι δεν φόρτωσε, το λέμε. Δεν βάζουμε παραδείγματα στη θέση του. */}
           {failed.length > 0 && (
             <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-900">
-              Δεν φορτώθηκαν {failed.map((k) => KIND[k].plural.toLowerCase()).join(' και ')} —
-              ο server δεν απάντησε. Δοκίμασε ανανέωση· δεν δείχνουμε παραδείγματα στη
-              θέση τους.
+              {t('listings.failed', { kinds: failed.map((k) => t(KIND_PLURAL_KEY[k]).toLowerCase()).join(` ${t('listings.and')} `) })}
             </p>
           )}
 
           {visible.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center text-sm text-gray-500">
-              Δεν υπάρχει τίποτα εδώ αυτή τη στιγμή.
+              {t('listings.empty')}
             </p>
           ) : (
             <ul className="space-y-3">
               {visible.map((item) => (
-                <Row key={item.id} item={item} />
+                <Row key={item.id} item={item} t={t} />
               ))}
             </ul>
           )}
@@ -578,7 +571,7 @@ export function AllListings({
                 href="/dashboard/board"
                 className="text-sm font-semibold text-blue-600 hover:text-blue-700"
               >
-                +{hidden} ακόμη →
+                {t('listings.more', { n: hidden })}
               </Link>
             </div>
           )}

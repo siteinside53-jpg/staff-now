@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
+import { useT } from '@/i18n/locale-provider';
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || 'https://staffnow-api-production.siteinside53.workers.dev';
@@ -43,20 +44,28 @@ const COLOR_MAP = {
   blue: 'bg-blue-500 text-white',
 };
 
-function timeAgo(dateStr?: string): string {
-  if (!dateStr) return 'πρόσφατα';
+type TFn = (key: string, params?: Record<string, string | number>) => string;
+
+function timeAgo(dateStr: string | undefined, t: TFn): string {
+  if (!dateStr) return t('liveToasts.recently');
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'μόλις τώρα';
-  if (mins < 60) return `πριν ${mins} λεπτά`;
+  if (mins < 1) return t('liveToasts.justNow');
+  if (mins < 60) return t('liveToasts.minutesAgo', { n: mins });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `πριν ${hours} ${hours === 1 ? 'ώρα' : 'ώρες'}`;
+  if (hours < 24) return t('liveToasts.hoursAgo', { n: hours });
   const days = Math.floor(hours / 24);
-  return `πριν ${days} ${days === 1 ? 'μέρα' : 'μέρες'}`;
+  return t('liveToasts.daysAgo', { n: days });
 }
 
-/** Map a real API activity into a toast. Returns null for anything unusable. */
-function toToast(a: ApiActivity): Toast | null {
+/**
+ * Map a real API activity into a toast. Returns null for anything unusable.
+ *
+ * Το κύριο κείμενο του τοστ (τίτλος αγγελίας, ειδικότητα) έρχεται από τον
+ * server σε πραγματικά δεδομένα χρηστών — παραμένει όπως στέλνεται, όπως
+ * κάθε μήνυμα server, ενώ ο χρόνος («πριν Χ λεπτά») μεταφράζεται εδώ.
+ */
+function toToast(a: ApiActivity, t: TFn): Toast | null {
   if (!a || !a.text) return null;
   if (a.type === 'job') {
     const title = a.text.replace(/^Νέα αγγελία:\s*/i, '').trim();
@@ -67,7 +76,7 @@ function toToast(a: ApiActivity): Toast | null {
       icon: '💼',
       text: main,
       subtitle: subParts.filter(Boolean).join(' · ') || undefined,
-      timeAgo: timeAgo(a.createdAt),
+      timeAgo: timeAgo(a.createdAt, t),
       color: 'blue',
     };
   }
@@ -77,7 +86,7 @@ function toToast(a: ApiActivity): Toast | null {
     icon: '🆕',
     text: humanizeSignup(a.text),
     subtitle: a.location || undefined,
-    timeAgo: timeAgo(a.createdAt),
+    timeAgo: timeAgo(a.createdAt, t),
     color: 'emerald',
   };
 }
@@ -88,6 +97,7 @@ function toToast(a: ApiActivity): Toast | null {
  * No fabricated data — if there is no real activity, nothing renders.
  */
 export function LiveActivityToasts() {
+  const t = useT();
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [current, setCurrent] = useState<Toast | null>(null);
   const [dismissed, setDismissed] = useState(false);
@@ -102,7 +112,7 @@ export function LiveActivityToasts() {
         if (!res.ok) return;
         const json = await res.json();
         const activities: ApiActivity[] = json?.data?.activity ?? [];
-        const mapped = activities.map(toToast).filter((t): t is Toast => t !== null);
+        const mapped = activities.map((a) => toToast(a, t)).filter((x): x is Toast => x !== null);
         if (!cancelled && mapped.length > 0) setToasts(mapped);
       } catch {
         // no fake fallback — stays hidden until real data arrives
@@ -111,6 +121,7 @@ export function LiveActivityToasts() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Rotate through the real toasts.
@@ -151,7 +162,7 @@ export function LiveActivityToasts() {
         <button
           onClick={() => setDismissed(true)}
           className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors"
-          aria-label="Κλείσιμο ειδοποιήσεων"
+          aria-label={t('liveToasts.close')}
         >
           <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

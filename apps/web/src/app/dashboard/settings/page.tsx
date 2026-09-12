@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Modal } from '@/components/ui/modal';
+import { useT } from '@/i18n/locale-provider';
 
 interface PasswordForm {
   currentPassword: string;
@@ -25,6 +26,7 @@ interface NotificationSettings {
 }
 
 export default function SettingsPage() {
+  const t = useT();
   const { user, logout } = useAuth();
   const [savingPassword, setSavingPassword] = useState(false);
   const [savingNotifications, setSavingNotifications] = useState(false);
@@ -60,11 +62,11 @@ export default function SettingsPage() {
           headers: { 'Authorization': `Bearer ${token2}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ avatarUrl: data.data.url }),
         });
-        toast.success('Η φωτογραφία ανέβηκε!');
+        toast.success(t('settingsPage.photoUploaded'));
       } else {
-        toast.error(data.error?.message || 'Αποτυχία upload');
+        toast.error(data.error?.message || t('settingsPage.uploadFailed'));
       }
-    } catch { toast.error('Σφάλμα upload'); } finally { setUploadingAvatar(false); }
+    } catch { toast.error(t('settingsPage.uploadError')); } finally { setUploadingAvatar(false); }
   };
 
   const saveAccountSettings = async () => {
@@ -78,11 +80,11 @@ export default function SettingsPage() {
       });
       const data = await res.json() as any;
       if (data.success) {
-        toast.success('Τα στοιχεία ενημερώθηκαν!');
+        toast.success(t('settingsPage.detailsUpdated'));
       } else {
-        toast.error(data.error?.message || 'Αποτυχία αποθήκευσης');
+        toast.error(data.error?.message || t('settingsPage.saveFailed'));
       }
-    } catch (err: any) { toast.error(err?.message || 'Σφάλμα σύνδεσης'); } finally { setSavingAccount(false); }
+    } catch (err: any) { toast.error(err?.message || t('settingsPage.connError')); } finally { setSavingAccount(false); }
   };
 
   const passwordForm = useForm<PasswordForm>();
@@ -118,7 +120,7 @@ export default function SettingsPage() {
 
   const onChangePassword = async (data: PasswordForm) => {
     if (data.newPassword !== data.confirmPassword) {
-      toast.error('Οι κωδικοί δεν ταιριάζουν.');
+      toast.error(t('settingsPage.passwordsMismatch'));
       return;
     }
     setSavingPassword(true);
@@ -136,14 +138,14 @@ export default function SettingsPage() {
       // νέο κλειδί βρίσκεται μέσα στο `data`.
       const fresh = (res as { data?: { token?: string } } | undefined)?.data?.token;
       if (fresh) localStorage.setItem('staffnow_token', fresh);
-      toast.success('Ο κωδικός αλλάχτηκε επιτυχώς!');
+      toast.success(t('settingsPage.passwordChanged'));
       passwordForm.reset();
     } catch (err) {
       // Δείχνουμε το μήνυμα του διακομιστή (π.χ. «Ο τρέχων κωδικός δεν είναι
       // σωστός», «τουλάχιστον 8 χαρακτήρες»). Πριν έδειχνε πάντα «ελέγξτε τον
       // τρέχοντα κωδικό», που κατηγορούσε τον χρήστη ακόμη κι όταν το πρόβλημα
       // ήταν αλλού.
-      toast.error((err as Error)?.message || 'Αποτυχία αλλαγής κωδικού. Δοκίμασε ξανά.');
+      toast.error((err as Error)?.message || t('settingsPage.passwordChangeFailed'));
     } finally {
       setSavingPassword(false);
     }
@@ -153,23 +155,23 @@ export default function SettingsPage() {
     setSavingNotifications(true);
     try {
       await api.notifications.updateSettings(notifications);
-      toast.success('Οι ρυθμίσεις ειδοποιήσεων ενημερώθηκαν!');
+      toast.success(t('settingsPage.notifSaved'));
     } catch {
-      toast.error('Αποτυχία αποθήκευσης. Δοκίμασε ξανά.');
+      toast.error(t('settingsPage.saveFailedRetry'));
     } finally {
       setSavingNotifications(false);
     }
   };
 
   const onDeleteAccount = async () => {
-    if (deleteConfirmText !== 'ΔΙΑΓΡΑΦΗ') return;
+    if (deleteConfirmText !== t('settingsPage.deleteWord')) return;
     setDeleting(true);
     try {
       await api.auth.deleteAccount(deletePassword ? { password: deletePassword } : undefined);
-      toast.success('Ο λογαριασμός σου διαγράφηκε.');
+      toast.success(t('settingsPage.accountDeleted'));
       logout();
     } catch (err: any) {
-      toast.error(err?.message || 'Αποτυχία διαγραφής. Δοκίμασε ξανά.');
+      toast.error(err?.message || t('settingsPage.deleteFailed'));
     } finally {
       setDeleting(false);
     }
@@ -178,9 +180,9 @@ export default function SettingsPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Ρυθμίσεις</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('settingsPage.title')}</h1>
         <p className="mt-1 text-gray-600">
-          Διαχειρίσου τον λογαριασμό και τις ειδοποιήσεις σου.
+          {t('settingsPage.subtitle')}
         </p>
       </div>
 
@@ -188,7 +190,7 @@ export default function SettingsPage() {
         {/* Account Info with Avatar */}
         <Card>
           <CardHeader>
-            <h2 className="text-lg font-semibold text-gray-900">Στοιχεία Λογαριασμού</h2>
+            <h2 className="text-lg font-semibold text-gray-900">{t('settingsPage.accountTitle')}</h2>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Avatar upload */}
@@ -209,26 +211,26 @@ export default function SettingsPage() {
                 </div>
               </label>
               <div>
-                <p className="text-sm font-medium text-gray-700">Φωτογραφία Λογαριασμού</p>
-                <p className="text-xs text-gray-400">Εμφανίζεται στο sidebar + chat</p>
+                <p className="text-sm font-medium text-gray-700">{t('settingsPage.accountPhoto')}</p>
+                <p className="text-xs text-gray-400">{t('settingsPage.accountPhotoHint')}</p>
               </div>
             </div>
 
             {/* Display name */}
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Ονοματεπώνυμο</label>
-              <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="π.χ. Ευγένιος Αφενδουλίδης" />
-              <p className="mt-1 text-xs text-gray-400">Εμφανίζεται κάτω αριστερά και στα matches</p>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">{t('settingsPage.displayName')}</label>
+              <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder={t('settingsPage.displayNamePlaceholder')} />
+              <p className="mt-1 text-xs text-gray-400">{t('settingsPage.displayNameHint')}</p>
             </div>
 
             {/* Email (read-only) */}
             <div className="rounded-lg bg-gray-50 px-4 py-3">
-              <p className="text-sm font-medium text-gray-700">Email</p>
+              <p className="text-sm font-medium text-gray-700">{t('settingsPage.email')}</p>
               <p className="text-sm text-gray-500">{user?.email}</p>
             </div>
 
             <Button onClick={saveAccountSettings} disabled={savingAccount} size="sm">
-              {savingAccount ? 'Αποθήκευση...' : 'Αποθήκευση Στοιχείων'}
+              {savingAccount ? t('settingsPage.saving') : t('settingsPage.saveAccount')}
             </Button>
           </CardContent>
         </Card>
@@ -237,7 +239,7 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <h2 className="text-lg font-semibold text-gray-900">
-              Αλλαγή Κωδικού
+              {t('settingsPage.passwordTitle')}
             </h2>
           </CardHeader>
           <CardContent>
@@ -247,13 +249,13 @@ export default function SettingsPage() {
             >
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                  Τρέχων Κωδικός
+                  {t('settingsPage.currentPassword')}
                 </label>
                 <Input
                   type="password"
-                  placeholder="Εισάγετε τον τρέχοντα κωδικό"
+                  placeholder={t('settingsPage.currentPasswordPlaceholder')}
                   {...passwordForm.register('currentPassword', {
-                    required: 'Υποχρεωτικό πεδίο',
+                    required: t('settingsPage.required'),
                   })}
                 />
                 {passwordForm.formState.errors.currentPassword && (
@@ -264,16 +266,16 @@ export default function SettingsPage() {
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                  Νέος Κωδικός
+                  {t('settingsPage.newPassword')}
                 </label>
                 <Input
                   type="password"
-                  placeholder="Τουλάχιστον 8 χαρακτήρες"
+                  placeholder={t('settingsPage.min8')}
                   {...passwordForm.register('newPassword', {
-                    required: 'Υποχρεωτικό πεδίο',
+                    required: t('settingsPage.required'),
                     minLength: {
                       value: 8,
-                      message: 'Τουλάχιστον 8 χαρακτήρες',
+                      message: t('settingsPage.min8'),
                     },
                   })}
                 />
@@ -285,13 +287,13 @@ export default function SettingsPage() {
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                  Επιβεβαίωση Νέου Κωδικού
+                  {t('settingsPage.confirmPassword')}
                 </label>
                 <Input
                   type="password"
-                  placeholder="Επανέλαβε τον νέο κωδικό"
+                  placeholder={t('settingsPage.confirmPasswordPlaceholder')}
                   {...passwordForm.register('confirmPassword', {
-                    required: 'Υποχρεωτικό πεδίο',
+                    required: t('settingsPage.required'),
                   })}
                 />
                 {passwordForm.formState.errors.confirmPassword && (
@@ -301,7 +303,7 @@ export default function SettingsPage() {
                 )}
               </div>
               <Button type="submit" disabled={savingPassword}>
-                {savingPassword ? 'Αποθήκευση...' : 'Αλλαγή Κωδικού'}
+                {savingPassword ? t('settingsPage.saving') : t('settingsPage.changePassword')}
               </Button>
             </form>
           </CardContent>
@@ -311,16 +313,16 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <h2 className="text-lg font-semibold text-gray-900">
-              Ειδοποιήσεις
+              {t('settingsPage.notifTitle')}
             </h2>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-700">Email</h3>
+              <h3 className="text-sm font-medium text-gray-700">{t('settingsPage.notifEmail')}</h3>
               {([
-                { key: 'emailMatches' as const, label: 'Νέα matches' },
-                { key: 'emailMessages' as const, label: 'Νέα μηνύματα' },
-                { key: 'emailMarketing' as const, label: 'Προσφορές & νέα' },
+                { key: 'emailMatches' as const, label: t('settingsPage.newMatches') },
+                { key: 'emailMessages' as const, label: t('settingsPage.newMessages') },
+                { key: 'emailMarketing' as const, label: t('settingsPage.offersNews') },
               ]).map((item) => (
                 <label
                   key={item.key}
@@ -343,12 +345,12 @@ export default function SettingsPage() {
 
               <div className="border-t pt-4">
                 <h3 className="text-sm font-medium text-gray-700">
-                  Push Notifications
+                  {t('settingsPage.pushTitle')}
                 </h3>
               </div>
               {([
-                { key: 'pushMatches' as const, label: 'Νέα matches' },
-                { key: 'pushMessages' as const, label: 'Νέα μηνύματα' },
+                { key: 'pushMatches' as const, label: t('settingsPage.newMatches') },
+                { key: 'pushMessages' as const, label: t('settingsPage.newMessages') },
               ]).map((item) => (
                 <label
                   key={item.key}
@@ -374,8 +376,8 @@ export default function SettingsPage() {
                 disabled={savingNotifications}
               >
                 {savingNotifications
-                  ? 'Αποθήκευση...'
-                  : 'Αποθήκευση Ρυθμίσεων'}
+                  ? t('settingsPage.saving')
+                  : t('settingsPage.saveSettings')}
               </Button>
             </div>
           </CardContent>
@@ -385,20 +387,19 @@ export default function SettingsPage() {
         <Card className="border-red-200">
           <CardHeader>
             <h2 className="text-lg font-semibold text-red-600">
-              Ζώνη Κινδύνου
+              {t('settingsPage.dangerTitle')}
             </h2>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-gray-600">
-              Η διαγραφή του λογαριασμού σου είναι μόνιμη και δεν μπορεί να
-              αναιρεθεί. Όλα τα δεδομένα σου θα διαγραφούν οριστικά.
+              {t('settingsPage.dangerText')}
             </p>
             <Button
               variant="outline"
               className="mt-4 border-red-300 text-red-600 hover:bg-red-50"
               onClick={() => setShowDeleteModal(true)}
             >
-              Διαγραφή Λογαριασμού
+              {t('settingsPage.deleteAccount')}
             </Button>
           </CardContent>
         </Card>
@@ -414,23 +415,22 @@ export default function SettingsPage() {
       >
         <div className="p-6">
           <h2 className="text-lg font-bold text-gray-900">
-            Διαγραφή Λογαριασμού
+            {t('settingsPage.deleteAccount')}
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            Αυτή η ενέργεια είναι μόνιμη. Θα χάσεις όλα τα δεδομένα σου,
-            τα matches, τα μηνύματα και τη συνδρομή σου.
+            {t('settingsPage.deleteModalText')}
           </p>
           <p className="mt-4 text-sm font-medium text-gray-700">
-            Πληκτρολόγησε <strong>ΔΙΑΓΡΑΦΗ</strong> για να επιβεβαιώσεις:
+            {t('settingsPage.typeToConfirm')} <strong>{t('settingsPage.deleteWord')}</strong> {t('settingsPage.typeToConfirmSuffix')}
           </p>
           <Input
             className="mt-2"
             value={deleteConfirmText}
             onChange={(e) => setDeleteConfirmText(e.target.value)}
-            placeholder="ΔΙΑΓΡΑΦΗ"
+            placeholder={t('settingsPage.deleteWord')}
           />
           <p className="mt-4 text-sm font-medium text-gray-700">
-            Και ο κωδικός σου (αν συνδέεσαι με Google, άφησέ το κενό):
+            {t('settingsPage.andPassword')}
           </p>
           <Input
             className="mt-2"
@@ -438,7 +438,7 @@ export default function SettingsPage() {
             autoComplete="current-password"
             value={deletePassword}
             onChange={(e) => setDeletePassword(e.target.value)}
-            placeholder="Κωδικός"
+            placeholder={t('settingsPage.passwordPlaceholder')}
           />
           <div className="mt-6 flex gap-3 justify-end">
             <Button
@@ -449,14 +449,14 @@ export default function SettingsPage() {
                 setDeletePassword('');
               }}
             >
-              Ακύρωση
+              {t('settingsPage.cancel')}
             </Button>
             <Button
               className="bg-red-600 hover:bg-red-700 text-white"
               onClick={onDeleteAccount}
-              disabled={deleteConfirmText !== 'ΔΙΑΓΡΑΦΗ' || deleting}
+              disabled={deleteConfirmText !== t('settingsPage.deleteWord') || deleting}
             >
-              {deleting ? 'Διαγραφή...' : 'Οριστική Διαγραφή'}
+              {deleting ? t('settingsPage.deleting') : t('settingsPage.deletePermanently')}
             </Button>
           </div>
         </div>

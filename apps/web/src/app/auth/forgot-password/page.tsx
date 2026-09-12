@@ -11,10 +11,12 @@ import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { useT } from '@/i18n/locale-provider';
 
 type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
 
 export default function ForgotPasswordPage() {
+  const t = useT();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -31,9 +33,9 @@ export default function ForgotPasswordPage() {
     try {
       await api.auth.forgotPassword({ email: data.email });
       setIsSubmitted(true);
-      toast.success('Στάλθηκε email επαναφοράς κωδικού!');
+      toast.success(t('authPages.forgotPassword.sentToast'));
     } catch {
-      toast.error('Κάτι πήγε στραβά. Δοκίμασε ξανά.');
+      toast.error(t('authPages.forgotPassword.errorToast'));
     } finally {
       setIsSubmitting(false);
     }
@@ -59,22 +61,21 @@ export default function ForgotPasswordPage() {
             </svg>
           </div>
           <h2 className="mt-6 text-xl font-bold text-gray-900">
-            Ελέγξτε το Email σας
+            {t('authPages.forgotPassword.checkEmail.title')}
           </h2>
           <p className="mt-3 text-gray-600">
-            Αν υπάρχει λογαριασμός με αυτό το email, θα λάβετε σύνδεσμο
-            επαναφοράς κωδικού. Ελέγξτε και τον φάκελο spam.
+            {t('authPages.forgotPassword.checkEmail.message')}
           </p>
           <div className="mt-8 space-y-3">
             <Button asChild variant="outline" className="w-full">
-              <Link href="/auth/login">Επιστροφή στη Σύνδεση</Link>
+              <Link href="/auth/login">{t('authPages.forgotPassword.checkEmail.backToLogin')}</Link>
             </Button>
             <button
               type="button"
               onClick={() => setIsSubmitted(false)}
               className="text-sm font-medium text-blue-600 hover:text-blue-700"
             >
-              Δοκίμασε ξανά με διαφορετικό email
+              {t('authPages.forgotPassword.checkEmail.tryAgain')}
             </button>
           </div>
         </CardContent>
@@ -86,10 +87,10 @@ export default function ForgotPasswordPage() {
     <Card>
       <CardHeader className="text-center">
         <h1 className="text-2xl font-bold text-gray-900">
-          Επαναφορά Κωδικού
+          {t('authPages.forgotPassword.title')}
         </h1>
         <p className="mt-1 text-sm text-gray-500">
-          Εισάγετε το email σας και θα σας στείλουμε σύνδεσμο επαναφοράς.
+          {t('authPages.forgotPassword.subtitle')}
         </p>
       </CardHeader>
       <CardContent>
@@ -99,7 +100,7 @@ export default function ForgotPasswordPage() {
               htmlFor="email"
               className="mb-1.5 block text-sm font-medium text-gray-700"
             >
-              Email
+              {t('authPages.forgotPassword.email')}
             </label>
             <Input
               id="email"
@@ -121,17 +122,17 @@ export default function ForgotPasswordPage() {
             size="lg"
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Αποστολή...' : 'Αποστολή Συνδέσμου'}
+            {isSubmitting ? t('authPages.forgotPassword.sending') : t('authPages.forgotPassword.submit')}
           </Button>
         </form>
 
         <div className="mt-6 text-center text-sm text-gray-600">
-          Θυμάσαι τον κωδικό σου;{' '}
+          {t('authPages.forgotPassword.rememberPassword')}{' '}
           <Link
             href="/auth/login"
             className="font-medium text-blue-600 hover:text-blue-700"
           >
-            Σύνδεση
+            {t('authPages.forgotPassword.login')}
           </Link>
         </div>
       </CardContent>

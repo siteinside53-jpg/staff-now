@@ -6,11 +6,13 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import {
   AREA_COORDS,
   MAP_TILE_ATTRIBUTION,
+  MAP_TILE_MAX_ZOOM,
   MAP_TILE_URL,
   type Coords,
   distanceKm,
 } from './data';
 import type { MockTask } from './mock-store';
+import { useT } from '@/i18n/locale-provider';
 
 /**
  * Ο χάρτης με τις μικροδουλειές — με πραγματικούς δρόμους.
@@ -81,6 +83,7 @@ export function TaskMap({
    */
   autoFit?: boolean;
 }) {
+  const t = useT();
   const holder = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const layerRef = useRef<any>(null);
@@ -124,8 +127,7 @@ export function TaskMap({
 
       L.tileLayer(TILE_URL, {
         attribution: TILE_ATTRIBUTION,
-        maxZoom: 20,
-        subdomains: 'abcd',
+        maxZoom: MAP_TILE_MAX_ZOOM,
       }).addTo(map);
 
       /*
@@ -236,7 +238,7 @@ export function TaskMap({
            εξαφανίζεται ακριβώς εκεί που έχει σημασία, στο κέντρο της πόλης. */
         meRef.current = L.marker([center.lat, center.lon], {
           icon: meIcon,
-          title: `Εδώ είσαι — ${centerLabel}`,
+          title: t('tasknow.map.hereYouAre', { label: centerLabel }),
           zIndexOffset: 1000,
           interactive: false,
         }).addTo(map);
@@ -298,7 +300,7 @@ export function TaskMap({
     return () => {
       cancelled = true;
     };
-  }, [ready, tasks, center.lat, center.lon, centerLabel, radiusKm, selectedId, autoFit, youAreHere]);
+  }, [ready, tasks, center.lat, center.lon, centerLabel, radiusKm, selectedId, autoFit, youAreHere, t]);
 
   const nearest = tasks.length
     ? Math.min(
@@ -317,7 +319,10 @@ export function TaskMap({
           που ανοίγει χάρτη είναι «έχει πράγματα εδώ;». */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-3 py-2">
         <span className="rounded-full bg-gray-900 px-3 py-1 text-xs font-bold text-white">
-          {tasks.length} {tasks.length === 1 ? 'μικροδουλειά' : 'μικροδουλειές'} στον χάρτη
+          {t('tasknow.map.onMap', {
+            n: tasks.length,
+            noun: tasks.length === 1 ? t('tasknow.common.taskOne') : t('tasknow.common.taskMany'),
+          })}
         </span>
         <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-gray-500">
           <span
@@ -325,7 +330,7 @@ export function TaskMap({
             className="inline-block h-2.5 w-2.5 rounded-full"
             style={{ background: '#f59e0b' }}
           />
-          ζητάνε χέρια
+          {t('tasknow.map.wantHands')}
         </span>
       </div>
 
@@ -333,24 +338,24 @@ export function TaskMap({
         ref={holder}
         className="h-80 w-full sm:h-[28rem]"
         role="application"
-        aria-label={`Χάρτης με ${tasks.length} μικροδουλειές γύρω από ${centerLabel}`}
+        aria-label={t('tasknow.map.aria', { n: tasks.length, center: centerLabel })}
       />
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 px-3 py-2">
         <p className="text-[11px] leading-snug text-gray-500">
-          Οι θέσεις είναι κατά προσέγγιση — ο κύκλος δείχνει τετράγωνο ~500 μ., όχι διεύθυνση.
+          {t('tasknow.map.approx')}
           {nearest !== null && Number.isFinite(nearest) && (
             <>
               {' '}
-              Πιο κοντινή:{' '}
+              {t('tasknow.map.nearest')}
               {/* «0 μ.» διαβάζεται σαν χαλασμένος υπολογισμός. Κάτω από 100 μέτρα
                   η ακρίβεια δεν έχει νόημα ούτως ή άλλως — το σημείο είναι
                   κουμπωμένο σε τετράγωνο 500 μέτρων. */}
               {nearest < 0.1
-                ? 'εδώ δίπλα'
+                ? t('tasknow.map.nextDoor')
                 : nearest < 1
-                  ? `${Math.round(nearest * 1000)} μ.`
-                  : `${nearest.toFixed(1)} χλμ`}
+                  ? t('tasknow.map.meters', { n: Math.round(nearest * 1000) })
+                  : t('tasknow.map.km', { n: nearest.toFixed(1) })}
               .
             </>
           )}
@@ -372,7 +377,7 @@ export function TaskMap({
             }}
             className="shrink-0 rounded-full bg-gray-900 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-gray-700"
           >
-            Ψάξε σε αυτή την περιοχή
+            {t('tasknow.map.searchHere')}
           </button>
         )}
       </div>

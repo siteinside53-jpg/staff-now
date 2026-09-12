@@ -1,3 +1,5 @@
+import { Tr } from '@/i18n/locale-provider';
+
 export const metadata = {
   title: 'Πολιτική Απορρήτου',
   description: 'Πολιτική απορρήτου και προστασίας προσωπικών δεδομένων του StaffNow.',
@@ -8,177 +10,147 @@ export default function PrivacyPage() {
     <div className="py-20">
       <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
         <h1 className="text-4xl font-bold text-gray-900">
-          Πολιτική Απορρήτου
+          <Tr k="legal.privacy.title" />
         </h1>
         <p className="mt-4 text-sm text-gray-500">
-          Τελευταία ενημέρωση: Σεπτέμβριος 2026
+          <Tr k="legal.privacy.updated" />
         </p>
 
         <div className="prose prose-gray mt-10 max-w-none">
           <section className="mb-10">
             <h2 className="text-2xl font-semibold text-gray-900">
-              1. Εισαγωγή
+              <Tr k="legal.privacy.s1.title" />
             </h2>
             <p className="mt-4 leading-relaxed text-gray-700">
-              Η προστασία των προσωπικών σας δεδομένων είναι σημαντική για εμάς.
-              Η παρούσα Πολιτική Απορρήτου εξηγεί πώς συλλέγουμε,
-              χρησιμοποιούμε, αποθηκεύουμε και προστατεύουμε τα δεδομένα σας
-              κατά τη χρήση της πλατφόρμας StaffNow, σύμφωνα με τον Γενικό
-              Κανονισμό Προστασίας Δεδομένων (GDPR) και την ελληνική νομοθεσία.
+              <Tr k="legal.privacy.s1.p1" />
             </p>
           </section>
 
           <section className="mb-10">
             <h2 className="text-2xl font-semibold text-gray-900">
-              2. Υπεύθυνος Επεξεργασίας
+              <Tr k="legal.privacy.s2.title" />
             </h2>
             <p className="mt-4 leading-relaxed text-gray-700">
-              Υπεύθυνος επεξεργασίας των δεδομένων σας είναι η εταιρεία
-              StaffNow, με έδρα τη Θεσσαλονίκη, Ελλάδα. Για θέματα προστασίας
-              δεδομένων μπορείτε να επικοινωνήσετε μαζί μας στο
-              privacy@staffnow.gr.
+              <Tr k="legal.privacy.s2.p1" />
             </p>
           </section>
 
           <section className="mb-10">
             <h2 className="text-2xl font-semibold text-gray-900">
-              3. Δεδομένα που Συλλέγουμε
+              <Tr k="legal.privacy.s3.title" />
             </h2>
             <p className="mt-4 leading-relaxed text-gray-700">
-              Συλλέγουμε τα ακόλουθα δεδομένα:
+              <Tr k="legal.privacy.s3.p1" />
             </p>
             <ul className="mt-4 list-disc space-y-2 pl-6 text-gray-700">
               <li>
-                <strong>Στοιχεία εγγραφής:</strong> Ονοματεπώνυμο, email,
-                τηλέφωνο, ρόλος (εργαζόμενος/επιχείρηση).
+                <strong><Tr k="legal.privacy.s3.li1label" /></strong> <Tr k="legal.privacy.s3.li1" />
               </li>
               <li>
-                <strong>Στοιχεία προφίλ:</strong> Εμπειρία, δεξιότητες,
-                γλώσσες, τοποθεσία, διαθεσιμότητα, φωτογραφία προφίλ.
+                <strong><Tr k="legal.privacy.s3.li2label" /></strong> <Tr k="legal.privacy.s3.li2" />
               </li>
               <li>
-                <strong>Δεδομένα χρήσης:</strong> Ενέργειες στην πλατφόρμα
-                (swipes, matches, μηνύματα), ώρες πρόσβασης, συσκευή.
+                <strong><Tr k="legal.privacy.s3.li3label" /></strong> <Tr k="legal.privacy.s3.li3" />
               </li>
               <li>
-                <strong>Δεδομένα πληρωμών:</strong> Πληροφορίες τιμολόγησης
-                (επεξεργάζονται από πιστοποιημένο πάροχο πληρωμών).
+                <strong><Tr k="legal.privacy.s3.li4label" /></strong> <Tr k="legal.privacy.s3.li4" />
               </li>
               <li>
-                <strong>Τεχνικά δεδομένα:</strong> Διεύθυνση IP, τύπος
-                browser, λειτουργικό σύστημα.
+                <strong><Tr k="legal.privacy.s3.li5label" /></strong> <Tr k="legal.privacy.s3.li5" />
               </li>
             </ul>
           </section>
 
           <section className="mb-10">
             <h2 className="text-2xl font-semibold text-gray-900">
-              4. Σκοπός Επεξεργασίας
+              <Tr k="legal.privacy.s4.title" />
             </h2>
             <p className="mt-4 leading-relaxed text-gray-700">
-              Χρησιμοποιούμε τα δεδομένα σας για:
+              <Tr k="legal.privacy.s4.p1" />
             </p>
             <ul className="mt-4 list-disc space-y-2 pl-6 text-gray-700">
-              <li>Παροχή και βελτίωση της Υπηρεσίας.</li>
-              <li>Λειτουργία του συστήματος matching.</li>
-              <li>Επικοινωνία μαζί σας (ειδοποιήσεις, ενημερώσεις).</li>
-              <li>Διαχείριση πληρωμών και συνδρομών.</li>
-              <li>Ανάλυση χρήσης και στατιστικά.</li>
-              <li>Πρόληψη κατάχρησης και ασφάλεια.</li>
+              <li><Tr k="legal.privacy.s4.li1" /></li>
+              <li><Tr k="legal.privacy.s4.li2" /></li>
+              <li><Tr k="legal.privacy.s4.li3" /></li>
+              <li><Tr k="legal.privacy.s4.li4" /></li>
+              <li><Tr k="legal.privacy.s4.li5" /></li>
+              <li><Tr k="legal.privacy.s4.li6" /></li>
             </ul>
           </section>
 
           <section className="mb-10">
             <h2 className="text-2xl font-semibold text-gray-900">
-              5. Νομική Βάση Επεξεργασίας
+              <Tr k="legal.privacy.s5.title" />
             </h2>
             <p className="mt-4 leading-relaxed text-gray-700">
-              Η επεξεργασία βασίζεται σε: εκτέλεση σύμβασης (παροχή
-              Υπηρεσίας), συγκατάθεση (marketing, cookies), έννομο συμφέρον
-              (ασφάλεια, βελτίωση), και νομική υποχρέωση (φορολογικά
-              παραστατικά).
+              <Tr k="legal.privacy.s5.p1" />
             </p>
           </section>
 
           <section className="mb-10">
             <h2 className="text-2xl font-semibold text-gray-900">
-              6. Κοινοποίηση Δεδομένων
+              <Tr k="legal.privacy.s6.title" />
             </h2>
             <p className="mt-4 leading-relaxed text-gray-700">
-              Δεν πωλούμε τα δεδομένα σας. Μπορεί να μοιραστούμε δεδομένα με:
-              άλλους χρήστες (μόνο τα δεδομένα που εμφανίζονται στο δημόσιο
-              προφίλ σας — email, τηλέφωνο και βιογραφικό μόνο μετά από
-              αμοιβαίο ταίριασμα), δημόσιες αρχές (όπου απαιτείται από τη
-              νομοθεσία), και τους παρακάτω παρόχους που επεξεργάζονται
-              δεδομένα για λογαριασμό μας:
+              <Tr k="legal.privacy.s6.p1" />
             </p>
             <ul className="mt-3 list-disc space-y-1.5 pl-6 text-gray-700">
-              <li><strong>Cloudflare</strong> (ΗΠΑ/ΕΕ) — φιλοξενία της πλατφόρμας, βάση δεδομένων, αποθήκευση αρχείων, ασφάλεια δικτύου.</li>
-              <li><strong>Stripe</strong> (ΕΕ/ΗΠΑ) — πληρωμές με κάρτα. Δεν βλέπουμε ούτε αποθηκεύουμε στοιχεία κάρτας.</li>
-              <li><strong>OpenAI</strong> (ΗΠΑ) — μόνο όταν χρησιμοποιείτε τις λειτουργίες τεχνητής νοημοσύνης (π.χ. δημιουργία βιογραφικού, προτάσεις υποψηφίων). Στέλνονται τα στοιχεία του προφίλ ή της αγγελίας που ζητάτε να επεξεργαστεί.</li>
-              <li><strong>Google</strong> (ΗΠΑ) — μόνο αν επιλέξετε σύνδεση μέσω Google.</li>
-              <li><strong>Πάροχος αποστολής email και SMS</strong> — για τα email και τους κωδικούς επαλήθευσης που σας στέλνουμε.</li>
+              <li><strong><Tr k="legal.privacy.s6.li1label" /></strong><Tr k="legal.privacy.s6.li1" /></li>
+              <li><strong><Tr k="legal.privacy.s6.li2label" /></strong><Tr k="legal.privacy.s6.li2" /></li>
+              <li><strong><Tr k="legal.privacy.s6.li3label" /></strong><Tr k="legal.privacy.s6.li3" /></li>
+              <li><strong><Tr k="legal.privacy.s6.li4label" /></strong><Tr k="legal.privacy.s6.li4" /></li>
+              <li><strong><Tr k="legal.privacy.s6.li5label" /></strong><Tr k="legal.privacy.s6.li5" /></li>
             </ul>
             <p className="mt-3 leading-relaxed text-gray-700">
-              Για παρόχους εκτός ΕΕ, οι διαβιβάσεις γίνονται με τις τυποποιημένες
-              συμβατικές ρήτρες της Ευρωπαϊκής Επιτροπής ή με απόφαση επάρκειας
-              (Data Privacy Framework).
+              <Tr k="legal.privacy.s6.p2" />
             </p>
           </section>
 
           <section className="mb-10">
             <h2 className="text-2xl font-semibold text-gray-900">
-              7. Διατήρηση Δεδομένων
+              <Tr k="legal.privacy.s7.title" />
             </h2>
             <p className="mt-4 leading-relaxed text-gray-700">
-              Διατηρούμε τα δεδομένα σας όσο ο λογαριασμός σας είναι ενεργός.
-              Μετά τη διαγραφή του λογαριασμού, τα δεδομένα σας διαγράφονται
-              εντός 30 ημερών, εκτός αν υπάρχει νομική υποχρέωση διατήρησης.
+              <Tr k="legal.privacy.s7.p1" />
             </p>
           </section>
 
           <section className="mb-10">
             <h2 className="text-2xl font-semibold text-gray-900">
-              8. Τα Δικαιώματά σας
+              <Tr k="legal.privacy.s8.title" />
             </h2>
             <p className="mt-4 leading-relaxed text-gray-700">
-              Σύμφωνα με τον GDPR, έχετε δικαίωμα:
+              <Tr k="legal.privacy.s8.p1" />
             </p>
             <ul className="mt-4 list-disc space-y-2 pl-6 text-gray-700">
-              <li>Πρόσβασης στα δεδομένα σας.</li>
-              <li>Διόρθωσης ανακριβών δεδομένων.</li>
-              <li>Διαγραφής δεδομένων (&laquo;δικαίωμα λήθης&raquo;).</li>
-              <li>Περιορισμού της επεξεργασίας.</li>
-              <li>Φορητότητας δεδομένων.</li>
-              <li>Εναντίωσης στην επεξεργασία.</li>
-              <li>Ανάκλησης συγκατάθεσης.</li>
+              <li><Tr k="legal.privacy.s8.li1" /></li>
+              <li><Tr k="legal.privacy.s8.li2" /></li>
+              <li><Tr k="legal.privacy.s8.li3" /></li>
+              <li><Tr k="legal.privacy.s8.li4" /></li>
+              <li><Tr k="legal.privacy.s8.li5" /></li>
+              <li><Tr k="legal.privacy.s8.li6" /></li>
+              <li><Tr k="legal.privacy.s8.li7" /></li>
             </ul>
             <p className="mt-4 leading-relaxed text-gray-700">
-              Για άσκηση των δικαιωμάτων σας, επικοινωνήστε στο
-              privacy@staffnow.gr.
+              <Tr k="legal.privacy.s8.p2" />
             </p>
           </section>
 
           <section className="mb-10">
             <h2 className="text-2xl font-semibold text-gray-900">
-              9. Ασφάλεια Δεδομένων
+              <Tr k="legal.privacy.s9.title" />
             </h2>
             <p className="mt-4 leading-relaxed text-gray-700">
-              Εφαρμόζουμε κατάλληλα τεχνικά και οργανωτικά μέτρα ασφαλείας,
-              συμπεριλαμβανομένων κρυπτογράφησης TLS/SSL, ελέγχου πρόσβασης,
-              τακτικών αντιγράφων ασφαλείας και ελέγχων ασφαλείας.
+              <Tr k="legal.privacy.s9.p1" />
             </p>
           </section>
 
           <section className="mb-10">
             <h2 className="text-2xl font-semibold text-gray-900">
-              10. Επικοινωνία
+              <Tr k="legal.privacy.s10.title" />
             </h2>
             <p className="mt-4 leading-relaxed text-gray-700">
-              Για ερωτήσεις σχετικά με την πολιτική απορρήτου, επικοινωνήστε
-              μαζί μας: email privacy@staffnow.gr. Έχετε επίσης δικαίωμα
-              υποβολής καταγγελίας στην Αρχή Προστασίας Δεδομένων Προσωπικού
-              Χαρακτήρα (www.dpa.gr).
+              <Tr k="legal.privacy.s10.p1" />
             </p>
           </section>
         </div>

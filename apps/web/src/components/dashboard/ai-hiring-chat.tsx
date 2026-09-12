@@ -12,19 +12,16 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import { useT } from '@/i18n/locale-provider';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
 }
 
-const SUGGESTIONS = [
-  'Πώς γράφω αγγελία που τραβάει τον σωστό σερβιτόρο;',
-  'Τι μισθό να βάλω για βοηθό κουζίνας Ιούλιο;',
-  'Ποιες ερωτήσεις να κάνω σε συνέντευξη για receptionist;',
-];
-
 export function AIHiringChat() {
+  const t = useT();
+  const SUGGESTIONS = [t('aiChat.s1'), t('aiChat.s2'), t('aiChat.s3')];
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -63,12 +60,12 @@ export function AIHiringChat() {
         setLocked(true);
         return;
       }
-      const answer = j?.data?.answer?.trim() || j?.error?.message || 'Δεν έλαβα απάντηση. Δοκίμασε ξανά.';
+      const answer = j?.data?.answer?.trim() || j?.error?.message || t('aiChat.noAnswer');
       setMessages([...newMessages, { role: 'assistant', content: answer }]);
     } catch {
       setMessages([
         ...newMessages,
-        { role: 'assistant', content: 'Σφάλμα δικτύου. Δοκίμασε ξανά σε λίγο.' },
+        { role: 'assistant', content: t('aiChat.networkError') },
       ]);
     } finally {
       setLoading(false);
@@ -78,16 +75,15 @@ export function AIHiringChat() {
   if (locked) {
     return (
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center">
-        <p className="text-sm font-bold text-amber-900">🔒 AI Hiring Chat</p>
+        <p className="text-sm font-bold text-amber-900">{t('aiChat.lockedTitle')}</p>
         <p className="mt-1 text-xs text-amber-800">
-          Διαθέσιμο από το πλάνο <strong>Pro</strong> και πάνω. Πάρε άμεσες, εξατομικευμένες
-          συμβουλές για κάθε hiring θέμα.
+          {t('aiChat.lockedDescPre')} <strong>{t('aiChat.plan')}</strong> {t('aiChat.lockedDescPost')}
         </p>
         <a
           href="/dashboard/billing"
           className="mt-3 inline-block rounded-lg bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-700"
         >
-          Αναβάθμιση
+          {t('aiChat.upgrade')}
         </a>
       </div>
     );
@@ -101,9 +97,9 @@ export function AIHiringChat() {
           🧠
         </span>
         <div>
-          <h3 className="text-sm font-bold text-gray-900">AI Hiring Chat</h3>
+          <h3 className="text-sm font-bold text-gray-900">{t('aiChat.title')}</h3>
           <p className="text-[11px] text-gray-500">
-            Σύμβουλος hiring · μόνο για εσένα · Pro feature
+            {t('aiChat.subtitle')}
           </p>
         </div>
       </div>
@@ -112,7 +108,7 @@ export function AIHiringChat() {
       <div ref={scrollRef} className="max-h-[400px] min-h-[200px] overflow-y-auto px-5 py-4">
         {messages.length === 0 && (
           <div className="space-y-3">
-            <p className="text-xs text-gray-500">Ξεκίνα με μία ερώτηση:</p>
+            <p className="text-xs text-gray-500">{t('aiChat.startWith')}</p>
             <div className="flex flex-col gap-2">
               {SUGGESTIONS.map((s) => (
                 <button
@@ -166,7 +162,7 @@ export function AIHiringChat() {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ρώτα για hiring, αγγελίες, μισθούς..."
+          placeholder={t('aiChat.placeholder')}
           maxLength={2000}
           disabled={loading}
           className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none disabled:opacity-50"
@@ -176,7 +172,7 @@ export function AIHiringChat() {
           disabled={loading || !input.trim()}
           className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? '...' : 'Στείλε'}
+          {loading ? '...' : t('aiChat.send')}
         </button>
       </form>
     </div>

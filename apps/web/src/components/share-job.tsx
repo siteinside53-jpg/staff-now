@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Share2, Facebook, Link2, Check, MessageCircle } from 'lucide-react';
+import { useT } from '@/i18n/locale-provider';
 
 /**
  * Κουμπί «Κοινοποίηση» για μία αγγελία.
@@ -41,13 +42,14 @@ export function ShareJob({
   dropUp = false,
   fullWidth = false,
 }: Props) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [notReady, setNotReady] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
   const url = `${SITE_URL}/jobs/${jobId}`;
-  const text = `${jobTitle} — δες την αγγελία στο StaffNow`;
+  const text = t('share.shareText', { title: jobTitle });
 
   // Κλείσιμο όταν ο χρήστης πατήσει έξω από το πλαίσιο ή το Escape.
   useEffect(() => {
@@ -135,7 +137,7 @@ export function ShareJob({
       <button
         type="button"
         onClick={handleClick}
-        aria-label={`Κοινοποίηση αγγελίας: ${jobTitle}`}
+        aria-label={t('share.ariaLabel', { title: jobTitle })}
         className={[
           fullWidth ? 'flex w-full justify-center' : 'inline-flex',
           compact
@@ -144,7 +146,7 @@ export function ShareJob({
         ].join(' ')}
       >
         <Share2 className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
-        Κοινοποίηση
+        {t('share.button')}
       </button>
 
       {open && (
@@ -157,8 +159,7 @@ export function ShareJob({
         >
           {notReady && (
             <p className="border-b border-amber-100 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-800">
-              Η δημόσια σελίδα της αγγελίας ετοιμάζεται ακόμα. Αν τη μοιραστείς
-              τώρα, όποιος την ανοίξει δεν θα τη βρει. Δοκίμασε ξανά αργότερα.
+              {t('share.notReady')}
             </p>
           )}
 
@@ -171,7 +172,7 @@ export function ShareJob({
             className="flex w-full items-center gap-3 px-4 py-3 text-sm text-gray-800 hover:bg-gray-50"
           >
             <Facebook className="h-4 w-4 text-[#1877F2]" />
-            Facebook
+            {t('share.facebook')}
           </button>
 
           <button
@@ -183,7 +184,7 @@ export function ShareJob({
             className="flex w-full items-center gap-3 px-4 py-3 text-sm text-gray-800 hover:bg-gray-50"
           >
             <MessageCircle className="h-4 w-4 text-[#25D366]" />
-            WhatsApp
+            {t('share.whatsapp')}
           </button>
 
           <button
@@ -195,12 +196,12 @@ export function ShareJob({
             {copied ? (
               <>
                 <Check className="h-4 w-4 text-emerald-600" />
-                <span className="text-emerald-700">Ο σύνδεσμος αντιγράφηκε</span>
+                <span className="text-emerald-700">{t('share.linkCopied')}</span>
               </>
             ) : (
               <>
                 <Link2 className="h-4 w-4 text-gray-500" />
-                Αντιγραφή συνδέσμου
+                {t('share.copyLink')}
               </>
             )}
           </button>

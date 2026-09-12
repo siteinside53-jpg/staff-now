@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Avatar } from '@/components/ui/avatar';
 import type { CallEngine, CallStatus } from '@/lib/call-engine';
+import { useT } from '@/i18n/locale-provider';
 
 /**
  * Το παράθυρο της κλήσης — δικό μας, στα χρώματα του StaffNow.
@@ -22,14 +23,15 @@ interface CallWindowProps {
   onHangup: () => void;
 }
 
-const STATUS_TEXT: Record<CallStatus, string> = {
-  idle: '',
-  preparing: 'Άνοιγμα κάμερας…',
-  calling: 'Κλήση…',
-  connecting: 'Σύνδεση…',
-  connected: '',
-  ended: 'Η κλήση τερματίστηκε',
-};
+function statusText(status: CallStatus, t: (k: string) => string): string {
+  switch (status) {
+    case 'preparing': return t('video.status.preparing');
+    case 'calling': return t('video.status.calling');
+    case 'connecting': return t('video.status.connecting');
+    case 'ended': return t('video.status.ended');
+    default: return '';
+  }
+}
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -46,6 +48,7 @@ export function CallWindow({
   remoteStream,
   onHangup,
 }: CallWindowProps) {
+  const t = useT();
   const localRef = useRef<HTMLVideoElement>(null);
   const remoteRef = useRef<HTMLVideoElement>(null);
   const [micOn, setMicOn] = useState(true);
@@ -99,7 +102,7 @@ export function CallWindow({
             <p className="text-2xl font-bold">{peerName}</p>
             <p className="flex items-center gap-2 text-sm text-white/80">
               <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
-              {STATUS_TEXT[status]}
+              {statusText(status, t)}
             </p>
           </div>
         )}
@@ -130,7 +133,7 @@ export function CallWindow({
         <button
           type="button"
           onClick={() => setMicOn(engine.toggleMic())}
-          aria-label={micOn ? 'Κλείσε το μικρόφωνο' : 'Άνοιξε το μικρόφωνο'}
+          aria-label={micOn ? t('video.micOff') : t('video.micOn')}
           className={`flex h-14 w-14 items-center justify-center rounded-full transition-colors ${
             micOn ? 'bg-white/15 text-white hover:bg-white/25' : 'bg-white text-gray-900'
           }`}
@@ -142,7 +145,7 @@ export function CallWindow({
           <button
             type="button"
             onClick={() => setCamOn(engine.toggleCamera())}
-            aria-label={camOn ? 'Κλείσε την κάμερα' : 'Άνοιξε την κάμερα'}
+            aria-label={camOn ? t('video.camOff') : t('video.camOn')}
             className={`flex h-14 w-14 items-center justify-center rounded-full transition-colors ${
               camOn ? 'bg-white/15 text-white hover:bg-white/25' : 'bg-white text-gray-900'
             }`}
@@ -155,7 +158,7 @@ export function CallWindow({
           type="button"
           onClick={onHangup}
           className="flex h-16 w-16 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition-colors hover:bg-red-700"
-          aria-label="Τέλος κλήσης"
+          aria-label={t('video.hangup')}
         >
           <HangupIcon />
         </button>

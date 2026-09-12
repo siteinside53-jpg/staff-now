@@ -12,6 +12,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { API_URL } from '@/lib/config';
+import { useT } from '@/i18n/locale-provider';
 
 interface LiveJob {
   id: string;
@@ -34,22 +35,14 @@ interface LiveJob {
   roles?: string[];
 }
 
-const EMPLOYMENT: Record<string, string> = {
-  full_time: 'Πλήρης απασχόληση',
-  part_time: 'Μερική απασχόληση',
-  seasonal: 'Σεζόν',
-  freelancer: 'Freelancer',
-  contract: 'Σύμβαση',
-};
-
-function salary(j: LiveJob): string | null {
-  if (!j.salary_min && !j.salary_max) return null;
-  const unit = j.salary_type === 'hourly' ? '/ώρα' : j.salary_type === 'daily' ? '/ημέρα' : '/μήνα';
-  if (j.salary_min && j.salary_max && j.salary_min !== j.salary_max) return `${j.salary_min}–${j.salary_max}€ ${unit}`;
-  return `${j.salary_min || j.salary_max}€ ${unit}`;
+function salaryUnitKey(j: LiveJob): 'hourly' | 'daily' | 'monthly' {
+  return j.salary_type === 'hourly' ? 'hourly' : j.salary_type === 'daily' ? 'daily' : 'monthly';
 }
 
+const EMPLOYMENT_KEYS = ['full_time', 'part_time', 'seasonal', 'freelancer', 'contract'];
+
 export default function NotFound() {
+  const t = useT();
   const [job, setJob] = useState<LiveJob | null>(null);
   const [checking, setChecking] = useState(true);
 
@@ -77,15 +70,20 @@ export default function NotFound() {
   }
 
   if (job) {
-    const company = job.display_company_name || job.company_name || 'Επιχείρηση';
+    const company = job.display_company_name || job.company_name || t('notFound.companyFallback');
     const loc = [job.city, job.region].filter(Boolean).join(', ');
-    const pay = salary(job);
+    const pay =
+      job.salary_min || job.salary_max
+        ? job.salary_min && job.salary_max && job.salary_min !== job.salary_max
+          ? `${job.salary_min}–${job.salary_max}€ ${t(`notFound.salaryUnit.${salaryUnitKey(job)}`)}`
+          : `${job.salary_min || job.salary_max}€ ${t(`notFound.salaryUnit.${salaryUnitKey(job)}`)}`
+        : null;
     const perks = [
-      job.housing_provided ? '🏠 Διαμονή' : null,
-      job.meals_provided ? '🍽️ Σίτιση' : null,
-      job.transport_provided ? '🚌 Μεταφορά' : null,
-      job.bonus_provided ? '💰 Bonus' : null,
-      job.insurance_provided ? '🛡️ Ασφάλιση' : null,
+      job.housing_provided ? t('notFound.perks.housing') : null,
+      job.meals_provided ? t('notFound.perks.meals') : null,
+      job.transport_provided ? t('notFound.perks.transport') : null,
+      job.bonus_provided ? t('notFound.perks.bonus') : null,
+      job.insurance_provided ? t('notFound.perks.insurance') : null,
     ].filter(Boolean) as string[];
     return (
       <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
@@ -109,7 +107,11 @@ export default function NotFound() {
           </div>
           <div className="mt-5 flex flex-wrap gap-2 text-sm">
             {pay && <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">{pay}</span>}
-            {job.employment_type && <span className="rounded-full bg-blue-50 px-3 py-1 font-semibold text-blue-700">{EMPLOYMENT[job.employment_type] || job.employment_type}</span>}
+            {job.employment_type && (
+              <span className="rounded-full bg-blue-50 px-3 py-1 font-semibold text-blue-700">
+                {EMPLOYMENT_KEYS.includes(job.employment_type) ? t(`notFound.employment.${job.employment_type}`) : job.employment_type}
+              </span>
+            )}
             {perks.map((p) => (
               <span key={p} className="rounded-full bg-gray-100 px-3 py-1 text-gray-700">{p}</span>
             ))}
@@ -120,14 +122,14 @@ export default function NotFound() {
               href={`/auth/register?role=worker&next=${encodeURIComponent(`/dashboard/discover?focus=${job.id}`)}`}
               className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-8 py-3.5 text-sm font-semibold text-white shadow hover:bg-emerald-700"
             >
-              Κάνε αίτηση δωρεάν
+              {t('notFound.applyFree')}
             </Link>
             <Link href="/find-job" className="inline-flex items-center justify-center rounded-xl border border-gray-200 px-8 py-3.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">
-              Όλες οι θέσεις
+              {t('notFound.allListings')}
             </Link>
           </div>
         </header>
-        <p className="mt-4 text-center text-xs text-gray-400">Η αγγελία δημοσιεύτηκε πρόσφατα — η πλήρης σελίδα της ετοιμάζεται.</p>
+        <p className="mt-4 text-center text-xs text-gray-400">{t('notFound.recentlyPublished')}</p>
       </main>
     );
   }
@@ -136,9 +138,9 @@ export default function NotFound() {
     <div className="flex min-h-screen items-center justify-center">
       <div className="text-center">
         <h1 className="mb-4 text-6xl font-bold text-brand-600">404</h1>
-        <p className="mb-8 text-xl text-gray-600">Η σελίδα δεν βρέθηκε.</p>
+        <p className="mb-8 text-xl text-gray-600">{t('notFound.pageNotFound')}</p>
         <Link href="/" className="inline-flex items-center rounded-lg bg-brand-600 px-6 py-3 text-white transition-colors hover:bg-brand-700">
-          Πίσω στην αρχική
+          {t('notFound.backHome')}
         </Link>
       </div>
     </div>

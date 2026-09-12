@@ -1,0 +1,1429 @@
+{
+  "about": {
+    "hero": {
+      "eyebrow": "About us",
+      "titleLead": "We're changing the way",
+      "titleHighlight": "hiring works",
+      "subtitle": "StaffNow was born from a simple idea: finding staff shouldn't be slow and complicated. We built the platform we wished existed."
+    },
+    "mission": {
+      "eyebrow": "Our mission",
+      "title": "Connecting every business with the right person for the job",
+      "p1": "Every year, many industries in Greece face a huge staffing problem. Thousands of jobs stay unfilled while thousands of workers search desperately for work. StaffNow bridges that gap with technology, speed and simplicity.",
+      "p2": "We believe in a world where finding a job or finding staff is as easy as a swipe on your phone. That's what we build every day.",
+      "vision": {
+        "title": "Vision",
+        "description": "To become the #1 hiring platform in Greece and the Mediterranean."
+      },
+      "goal": {
+        "title": "Goal",
+        "description": "100,000+ successful matches by the end of 2026."
+      },
+      "value": {
+        "title": "Values",
+        "description": "Every worker deserves a fair chance. Every business deserves reliable staff."
+      }
+    },
+    "story": {
+      "eyebrow": "Our story",
+      "title": "From an idea in Thessaloniki to the platform reshaping the job market",
+      "p1": "In the summer of 2024, a team with experience in staffing and technology met in Thessaloniki with a simple observation: hiring still runs through generic <strong>listings platforms</strong> — tools that treat every profession the same way, without understanding the real needs of either businesses or workers.",
+      "p2": "The business owner posts a listing and <strong>waits blindly</strong>: not knowing who will see it, when, or whether it fits their needs. Dozens of irrelevant CVs pile up in their inbox, and the listing gets buried among thousands of others. Meanwhile, the worker <strong>sends ten CVs and hears back from two</strong> — if that. A position that needs covering <em>now</em> ends up filled weeks later. Or never.",
+      "p3": "<strong>StaffNow</strong> was created to close that gap. Instead of static listings and blind applications, workers and businesses discover each other through <strong>swipe-based matching</strong>: you «like» the ones you're interested in, and as soon as there's mutual interest, the chat opens. No waiting, no blind applications — just real matches, in real time, with AI that suggests candidates and jobs based on the profile.",
+      "p4": "Today, less than a year after launch, businesses across every industry and all of Greece trust StaffNow with their hiring — from food service and hospitality to retail, services, logistics and manual trades. With <strong>over 10,000 registered workers</strong> and<strong> 1,000+ active businesses</strong>, we keep improving the platform every day — with one goal: hiring should happen as fast as it truly needs to."
+    },
+    "values": {
+      "eyebrow": "Our values",
+      "title": "What drives us",
+      "speed": {
+        "title": "Speed",
+        "description": "Every minute counts. We design tools that cut hiring time from weeks to hours."
+      },
+      "trust": {
+        "title": "Trust",
+        "description": "We build trust between workers and businesses. Reviews, verification and transparency at every step."
+      },
+      "innovation": {
+        "title": "Innovation",
+        "description": "We use artificial intelligence and modern technology to make hiring smarter than ever."
+      },
+      "simplicity": {
+        "title": "Simplicity",
+        "description": "We believe technology should simplify, not complicate. Every feature is designed with ease of use in mind."
+      }
+    },
+    "team": {
+      "eyebrow": "Our team",
+      "title": "The people behind StaffNow",
+      "subtitle": "A small but dynamic team, passionate about innovation in the job market.",
+      "bios": {
+        "eu": "Former staffing industry executive with 15+ years of experience. Envisioned StaffNow to solve the long-standing problem of finding staff.",
+        "el": "Full-stack engineer with a background in AI and machine learning. Former tech lead at a leading Greek startup.",
+        "gi": "Growth marketing and go-to-market strategy specialist. Has helped 3 startups scale to thousands of users.",
+        "ma": "Specialised in operations and customer success. Makes sure every user gets the best possible experience."
+      }
+    },
+    "stats": {
+      "free": {
+        "value": "Free",
+        "label": "Sign-up for workers"
+      },
+      "ai": {
+        "value": "AI",
+        "label": "Smart job matching"
+      },
+      "instant": {
+        "value": "Instant",
+        "label": "Connection with businesses"
+      },
+      "greek": {
+        "value": "100%",
+        "label": "Greek platform"
+      }
+    },
+    "cta": {
+      "title": "Want to be part of the story?",
+      "subtitle": "Whether you're looking for a job or for staff, StaffNow is here for you.",
+      "register": "Sign Up Free",
+      "careers": "See our open positions"
+    }
+  },
+  "authPages": {
+    "forgotPassword": {
+      "sentToast": "A password reset email has been sent!",
+      "errorToast": "Something went wrong. Please try again.",
+      "checkEmail": {
+        "title": "Check Your Email",
+        "message": "If an account exists with this email, you'll receive a password reset link. Please also check your spam folder.",
+        "backToLogin": "Back to Login",
+        "tryAgain": "Try again with a different email"
+      },
+      "title": "Reset Password",
+      "subtitle": "Enter your email and we'll send you a reset link.",
+      "email": "Email",
+      "sending": "Sending...",
+      "submit": "Send Link",
+      "rememberPassword": "Remember your password?",
+      "login": "Log in"
+    },
+    "resetPassword": {
+      "passwordsMismatch": "Passwords don't match",
+      "genericError": "Something went wrong. Please try again.",
+      "invalidLink": {
+        "title": "Invalid link",
+        "message": "The reset link is incomplete. Request a new one and open it directly from the email.",
+        "requestNew": "Request a new link"
+      },
+      "done": {
+        "title": "Password changed",
+        "message": "You can now sign in with your new password.",
+        "login": "Log in"
+      },
+      "title": "New Password",
+      "subtitle": "Choose a new password for your account.",
+      "newPassword": "New password",
+      "passwordHint": "At least 8 characters, with one uppercase letter, one lowercase letter and a number.",
+      "confirmPassword": "Confirm password",
+      "saving": "Saving...",
+      "submit": "Save Password",
+      "backToLogin": "Back to Login"
+    },
+    "googleCallback": {
+      "connecting": "Signing in with Google..."
+    },
+    "loginRedirect": {
+      "opening": "Opening login..."
+    },
+    "registerRedirect": {
+      "opening": "Opening sign-up..."
+    }
+  },
+  "blog": {
+    "hero": {
+      "eyebrow": "Blog",
+      "title": "Blog & News",
+      "subtitle": "Articles, advice and news about work and hiring."
+    },
+    "newsletter": {
+      "title": "Stay in the loop",
+      "subtitle": "Sign up to our newsletter for news, advice and updates.",
+      "noSpam": "No spam. Unsubscribe any time."
+    },
+    "list": {
+      "allFilter": "All",
+      "emptyTitle": "No articles yet",
+      "emptySubtitle": "We're preparing useful articles, advice and news about work and hiring. Sign up to our newsletter to be the first to know.",
+      "closeAria": "Close",
+      "byAuthor": "by"
+    },
+    "post": {
+      "back": "← Back to blog"
+    }
+  },
+  "cameraCheck": {
+    "title": "Camera and microphone check",
+    "subtitle": "If a video call won't start, press the button. The check runs entirely on your device — nothing is stored or sent anywhere.",
+    "running": "Running check…",
+    "start": "Start the check",
+    "copied": "Copied ✓",
+    "copy": "Copy results",
+    "rows": {
+      "secureContext": "Secure connection",
+      "yes": "yes",
+      "no": "NO",
+      "address": "Address",
+      "cameraSupport": "Camera support",
+      "notSupported": "not supported",
+      "permCamera": "Site permission: camera",
+      "permMic": "Site permission: microphone",
+      "camerasSeen": "Cameras detected",
+      "micsSeen": "Microphones detected",
+      "deviceNames": "Device names",
+      "visible": "visible",
+      "hidden": "hidden (no permission)",
+      "deviceList": "Device list",
+      "errorPrefix": "error",
+      "unknown": "unknown",
+      "micOnlyTest": "Microphone-only test",
+      "cameraOnlyTest": "Camera-only test",
+      "bothTest": "Both test",
+      "ok": "OK",
+      "genericError": "error",
+      "callRelay": "Call relay",
+      "needsLogin": "sign in needed to check",
+      "relayActive": "active ✓",
+      "relayInactive": "NOT active",
+      "connectionServers": "Connection servers",
+      "serverNoResponse": "the server didn't respond",
+      "device": "Device"
+    }
+  },
+  "careers": {
+    "hero": {
+      "eyebrow": "Careers at StaffNow",
+      "titleLead": "We're building the future of",
+      "titleHighlight": "work",
+      "subtitle": "Join a team that's changing the way hiring works in Greece. Remote-first, mission-driven, fast-growing.",
+      "cta": "See open positions"
+    },
+    "why": {
+      "eyebrow": "Why StaffNow",
+      "title": "What we offer our team",
+      "subtitle": "We believe that building a great product takes a great team. And a great team needs the right tools, freedom and support."
+    },
+    "perks": {
+      "remoteFirst": {
+        "title": "Remote-first",
+        "description": "Work from wherever you like. Our office in Thessaloniki is always open, but it's never mandatory."
+      },
+      "stockOptions": {
+        "title": "Stock Options",
+        "description": "Every team member gets stock options. We grow together, we win together."
+      },
+      "unlimitedPto": {
+        "title": "Unlimited PTO",
+        "description": "We trust our team. Take the days you need, with no limit."
+      },
+      "learningBudget": {
+        "title": "Learning Budget",
+        "description": "An annual budget for conferences, courses and books. Learning never stops."
+      },
+      "teamRetreats": {
+        "title": "Team Retreats",
+        "description": "Twice a year the team gets together on Greek islands for team building."
+      },
+      "healthInsurance": {
+        "title": "Health Insurance",
+        "description": "Full private health insurance for you and your family."
+      }
+    },
+    "culture": {
+      "eyebrow": "Culture",
+      "title": "How we work",
+      "p1": "At StaffNow we believe in autonomy, transparency and mutual respect. Every team member has a voice in the decisions that shape the product and the company.",
+      "p2": "We work in small, autonomous teams with clear goals. Asynchronous communication is our default, and we hold meetings only when they're truly needed.",
+      "p3": "Quality always beats quantity. We'd rather do a few things right than many things averagely. Ship fast, iterate faster.",
+      "moveFast": {
+        "title": "Move Fast",
+        "description": "We make decisions quickly, test ideas early, and learn from our mistakes."
+      },
+      "ownWork": {
+        "title": "Own Your Work",
+        "description": "Every team member has ownership. You don't wait for instructions — you take initiative."
+      },
+      "beTransparent": {
+        "title": "Be Transparent",
+        "description": "We share metrics, decisions and challenges openly with the whole team."
+      }
+    },
+    "positions": {
+      "eyebrow": "Open positions",
+      "title": "Join the team",
+      "subtitle": "Here are our current open positions. If one interests you, get in touch.",
+      "apply": "Apply now",
+      "locationThessRemote": "Thessaloniki / Remote",
+      "locationThess": "Thessaloniki",
+      "locationRemote": "Remote",
+      "locationNationwide": "Nationwide",
+      "list": {
+        "fullstack": "We're looking for an experienced full-stack engineer to help build and scale our platform. Next.js, TypeScript, PostgreSQL.",
+        "backend": "You'll build and scale the APIs and infrastructure that power the platform. Node.js/TypeScript, databases, cloud.",
+        "mobile": "You'll develop and maintain our iOS and Android apps, so workers and businesses can connect from anywhere.",
+        "designer": "We're looking for a product designer with experience in B2B/B2C platforms. You'll design the user experience for thousands of users.",
+        "growth": "We need a growth marketer to drive our expansion. Performance marketing, SEO, content strategy and partnerships.",
+        "content": "You'll create content and manage our social media. Tell StaffNow's story to workers and businesses across Greece.",
+        "sales": "You'll bring new businesses onto the platform. Present StaffNow, build relationships and close deals in hospitality, tourism and retail.",
+        "regional": "You'll lead the StaffNow launch in new cities as we expand nationwide. Go-to-market strategy, local partnerships and growth by region.",
+        "csLead": "We're looking for a CS lead to make sure our business customers get the most value from the platform.",
+        "support": "You'll support workers and businesses every day. Answer questions, solve problems and ensure an excellent experience.",
+        "community": "You'll build and nurture the community of StaffNow workers and businesses. Engagement, feedback and events.",
+        "hr": "You'll help us build the team as we grow. Recruiting, onboarding and culture for a fast-growing startup."
+      }
+    },
+    "openCta": {
+      "title": "Don't see something that fits you?",
+      "subtitle": "Send us your CV and we'll get in touch when a position matching your profile opens up.",
+      "cta": "Send your CV"
+    }
+  },
+  "categoriesPage": {
+    "hero": {
+      "eyebrow": "Industries",
+      "title": "Every industry, every speciality",
+      "subtitle": "<strong class=\"text-white\">{groups} categories</strong> · <strong class=\"text-white\">{roles}+ specialities</strong> — find or post a job in any industry.",
+      "startFree": "Start for free",
+      "forBusinesses": "For businesses"
+    },
+    "rolesCount": "specialities",
+    "viewJobs": "See listings →",
+    "cta": {
+      "title": "Can't find your speciality?",
+      "subtitle": "Get in touch and we'll add it to the list.",
+      "message": "📧 Send a message",
+      "start": "Start for free →"
+    }
+  },
+  "contact": {
+    "validation": {
+      "nameMin": "Name must be at least 2 characters",
+      "emailInvalid": "Invalid email address",
+      "subjectMin": "Subject must be at least 3 characters",
+      "messageMin": "Message must be at least 10 characters"
+    },
+    "header": {
+      "title": "Contact",
+      "subtitle": "Have questions? Want to know more? Send us a message."
+    },
+    "form": {
+      "title": "Contact Form",
+      "subtitle": "Fill in the details below and we'll get back to you within 24 hours.",
+      "name": "Full name",
+      "namePlaceholder": "e.g. John Smith",
+      "email": "Email",
+      "subject": "Subject",
+      "subjectPlaceholder": "e.g. Pricing question",
+      "message": "Message",
+      "messagePlaceholder": "Write your message here...",
+      "sending": "Sending...",
+      "submit": "Send Message"
+    },
+    "success": {
+      "title": "Thank you!",
+      "message": "Your message was sent successfully. We'll get back to you as soon as possible.",
+      "newMessage": "Send a new message"
+    },
+    "toast": {
+      "success": "Your message was sent successfully!",
+      "error": "Something went wrong. Please try again."
+    },
+    "info": {
+      "title": "Contact Details",
+      "subtitle": "You can also reach us through:",
+      "email": "Email",
+      "phone": "Phone",
+      "address": "Address",
+      "addressValue": "Thessaloniki, Greece"
+    },
+    "hours": {
+      "title": "Support Hours",
+      "weekdays": "Monday - Friday: 09:00 - 18:00",
+      "saturday": "Saturday: 10:00 - 14:00",
+      "sunday": "Sunday: Closed"
+    }
+  },
+  "faq": {
+    "header": {
+      "title": "Frequently Asked Questions",
+      "subtitle": "Find answers to the most common questions about StaffNow"
+    },
+    "items": {
+      "0": {
+        "q": "What is StaffNow?",
+        "a": "StaffNow is the first swipe-style matching platform in Greece. It connects businesses in every industry (food service, retail, logistics, health, construction and more) with reliable workers through a fast, easy-to-use matching system. Beyond permanent job listings, StaffNow also has urgent shifts for last-minute cover and small jobs (TaskNow) for everyday tasks."
+      },
+      "1": {
+        "q": "Can I talk by video within the platform?",
+        "a": "Yes, and it's completely free for everyone — no subscription needed. As soon as there's a match, a camera icon appears in the conversation: one tap starts a video call inside StaffNow, with nothing to install and no one giving out their phone number. Video and audio go directly from device to device. One thing to note: the call only rings if the other person has StaffNow open on their device at that moment. If it's closed, they'll get a notification — it's a good idea to arrange it by message first."
+      },
+      "2": {
+        "q": "What are small jobs (TaskNow)?",
+        "a": "They're everyday small jobs — moving furniture, cleaning, assembly, dog walking, shopping, minor repairs. You post for free what you need done, how much you're paying and where, and you receive offers. You pick whoever you like and talk within the platform. Your exact address is never published: the map only shows the wider area. In categories that require a licence (electrical, plumbing, gas, refrigeration), no offer is allowed without declaring a licence. Until there are enough real listings, you'll see clearly marked examples so you can see how it works — these don't accept offers and disappear on their own."
+      },
+      "3": {
+        "q": "What are urgent shifts?",
+        "a": "They're listings for covering a specific shift that's happening right now — e.g. someone left and you need a person tonight. They have a start date and time, appear separately from permanent listings, and stop showing once their time has passed, so no dead listings linger in the list."
+      },
+      "4": {
+        "q": "How does swipe matching work?",
+        "a": "After you create a profile, the platform shows you relevant profiles (job listings if you're a worker, candidates if you're a business). You show interest with the \"✓ Interested\" button or by swiping right, and pass with a swipe left. When both sides are interested, a match is created: a conversation opens and you can talk by message or by video call. StaffNow is a professional platform, not a dating one — that's why interest is shown with a ✓ rather than a heart."
+      },
+      "5": {
+        "q": "Is signing up free?",
+        "a": "Yes! Signing up and creating a profile is completely free for both workers and businesses. Workers use the platform for free, with no limit on swipes. Premium (a one-off €4.99, paid once for good) is optional and adds extra features. Businesses have subscription plans."
+      },
+      "6": {
+        "q": "What plans are there and what do they cost?",
+        "a": "For workers: free use, with an optional one-off Premium at €4.99. For businesses: Free (€0) to try out with one listing, Starter (€29/month), Pro (€79/month) for teams that hire continuously, and Elite (€149/month) for larger organisations. There's also Pro (Founding) at €39/month: the same features as Pro at a locked-in price, for the first 100 businesses to take it. Business plan prices are excluding VAT (24% is added to the payment). Paying annually gets you 9 months for the price of 12 (25% discount). You can also buy credit packs without a monthly subscription. All plans can be cancelled at any time, with no penalties."
+      },
+      "7": {
+        "q": "How do I make my listing stand out?",
+        "a": "With promotion: the listing rises to the top of the lists for 7 days and gets a \"Promoted\" badge. It also shows to visitors without an account, i.e. on \"Find a job\" and the homepage, where most people look. It costs 5 credits and is available on the Pro, Pro (Founding) and Elite plans — not on Starter. It doesn't apply to urgent shifts, since they only last a few hours and the credits would go to waste."
+      },
+      "8": {
+        "q": "How is an account verified?",
+        "a": "On three levels. Email is confirmed with a link we send you. You can upload your ID from settings, and a person from our team checks it. For mobile: right now we don't yet send SMS, so the number is recorded as \"declared\" and confirmed by us — it never shows to anyone as verified until the check is genuinely done. We never show a verification badge for something that hasn't been checked."
+      },
+      "9": {
+        "q": "How is my data protected?",
+        "a": "The security of your data is our priority. We use state-of-the-art encryption (TLS/SSL) for all communications, we fully follow the GDPR, and we never share your data with third parties without your explicit consent. You can delete your account and all your data at any time."
+      },
+      "10": {
+        "q": "Which areas is it available in?",
+        "a": "StaffNow is available across all of Greece. We cover the islands (Santorini, Mykonos, Crete, Rhodes, Corfu and more), the mainland (Athens, Thessaloniki, Chalkidiki and more) and every region of the country. We're planning expansion into more countries in the future."
+      },
+      "11": {
+        "q": "How can I cancel my subscription?",
+        "a": "You can cancel your subscription at any time from your account settings. Cancellation takes effect from the next billing cycle. There are no cancellation penalties or hidden fees. If you cancel, your account automatically returns to the free version."
+      }
+    },
+    "contact": {
+      "title": "Didn't find what you're looking for?",
+      "subtitle": "Send us a message and we'll get back to you as soon as possible.",
+      "cta": "Contact"
+    }
+  },
+  "feedbackWidget": {
+    "validationError": "Choose a star rating or write a couple of words.",
+    "sendError": "Not sent",
+    "sendErrorRetry": "Not sent. Please try again.",
+    "openButton": "Your feedback",
+    "openAria": "Tell us what you think about StaffNow",
+    "thanks": "Thank you!",
+    "readAll": "We read all of it.",
+    "title": "Tell us about your experience",
+    "subtitle": "How does StaffNow feel to you? What should we improve?",
+    "placeholder": "A couple of words (optional)…",
+    "starAria": "{n} out of 5",
+    "cancel": "Cancel",
+    "sending": "Sending…",
+    "send": "Send"
+  },
+  "help": {
+    "hero": {
+      "eyebrow": "Support",
+      "title": "Help Centre",
+      "subtitle": "Find quick answers to your questions.",
+      "searchPlaceholder": "Search e.g. account, matching, payment..."
+    },
+    "resultsCount": "{count} result{suffix} for \"{q}\"",
+    "resultsSuffixPlural": "s",
+    "noResultsFor": "No results for \"{q}\"",
+    "categoriesTitle": "Categories",
+    "noResults": {
+      "title": "No results found",
+      "subtitle": "Try a different search or get in touch with us.",
+      "reset": "See all articles"
+    },
+    "contact": {
+      "title": "Didn't find what you're looking for?",
+      "subtitle": "Our support team is here to help.",
+      "message": "📧 Send a message",
+      "email": "✉️ info@staffnow.gr",
+      "response": "We reply within 24 hours, Monday to Friday."
+    },
+    "categories": {
+      "gettingStarted": {
+        "title": "Getting Started",
+        "articles": {
+          "0": {
+            "q": "How do I create an account?",
+            "a": "Go to the Sign Up page (staffnow.gr/auth/register). You can sign up with email or your Google account. Choose Worker or Business, fill in your details and press \"Create Account\". The password needs at least 8 characters, an uppercase letter, a lowercase letter and a number."
+          },
+          "1": {
+            "q": "How do I choose whether I'm a worker or a business?",
+            "a": "During sign-up you'll see two options: \"Worker\" and \"Business\". If you're looking for a job, choose Worker. If you're looking for staff, choose Business. This choice determines what you see on the platform."
+          },
+          "2": {
+            "q": "How do I fill in my profile?",
+            "a": "Dashboard → Profile. Fill in: full name, bio, city, area, availability and choice of specialities (worker) or company name, description, type (business). Press \"Save Changes\"."
+          },
+          "3": {
+            "q": "How many specialities does StaffNow support?",
+            "a": "256 specialities across 25 categories (Tourism, Food Service, Logistics, Sales, Production, Engineering, Office, Accounting, Health, IT, Marketing, Legal, Maritime, Agriculture and more). One button on the form opens a modal with search and grouping."
+          },
+          "4": {
+            "q": "Can I change my account type?",
+            "a": "You can't change type after signing up. Create a new account with a different email, or contact info@staffnow.gr."
+          }
+        }
+      },
+      "businesses": {
+        "title": "For Businesses",
+        "articles": {
+          "0": {
+            "q": "How do I post a job listing?",
+            "a": "Dashboard → Listings → \"+ New Listing\". Fill in title, description, city, area, employment type and pick specialities. Salary is mandatory — every listing on StaffNow states pay explicitly. Press \"Publish\" and the listing becomes visible right away."
+          },
+          "1": {
+            "q": "How do I find candidates?",
+            "a": "Dashboard → Discover. You'll see worker cards with roles, experience, location, salary. Premium candidates appear first (blue ✓ badge) — they have a complete, active profile."
+          },
+          "2": {
+            "q": "How does matching work?",
+            "a": "It's mutual: you like a worker + the worker likes your listing = Match! A conversation opens automatically and contact details are revealed."
+          },
+          "3": {
+            "q": "Can I preview my listing?",
+            "a": "Yes. The listings list has a 👁 \"Preview\" button that shows how a worker sees the listing."
+          },
+          "4": {
+            "q": "How do I communicate after a match?",
+            "a": "Dashboard → Messages. You can send text, images (JPEG, PNG) up to 5MB, or PDF files up to 10MB, with an image preview before sending. You can also start a video call from the same screen, using the camera icon top right."
+          },
+          "5": {
+            "q": "How do I make a listing stand out?",
+            "a": "Dashboard → Listings → \"Promote\". The listing rises to the top of the lists for 7 days and gets a \"Promoted\" badge — including for visitors WITHOUT an account, i.e. on \"Find a job\" and the homepage, where most people look. It costs 5 credits. Available on the Pro, Pro (Founding) and Elite plans — not on Starter. Not available for urgent shifts, since they only last a few hours and the credits would go to waste."
+          },
+          "6": {
+            "q": "What are urgent shifts and how do I post one?",
+            "a": "They're listings for a specific shift happening right now — e.g. someone left and you need a person tonight. You post them normally from Listings, stating a start date and time. They appear separately from permanent listings and stop showing automatically once their time has passed, so no dead listings linger in the list."
+          }
+        }
+      },
+      "videoCall": {
+        "title": "Video Calls",
+        "articles": {
+          "0": {
+            "q": "How do I make a video call?",
+            "a": "Only after a match. Dashboard → Messages → open the conversation → press the camera icon top right. The other person sees a ringing screen and presses \"Answer\". Nothing to install, and no one gives out their phone number."
+          },
+          "1": {
+            "q": "Does it cost anything?",
+            "a": "No. Video calling is completely free for everyone, workers and businesses alike, with no subscription and no credits."
+          },
+          "2": {
+            "q": "It rang but they didn't answer — why?",
+            "a": "The call only rings if the other person has StaffNow open on their device at that moment. If it's closed or their phone screen is locked, they'll get a notification but may not see it right away — especially on iPhone. The most reliable approach: send a message first asking \"can we talk now?\" and then call."
+          },
+          "3": {
+            "q": "The camera or microphone won't open.",
+            "a": "The browser asks for permission the first time. If you've denied it once, it won't ask again on its own — you need to allow it manually from the icon to the left of the address bar (padlock or sliders) → Camera/Microphone → \"Allow\" and refresh the page. On Android, also check your phone's settings: the browser itself may not have camera permission. There's also a device-check page at staffnow.gr/elegxos-kameras."
+          },
+          "4": {
+            "q": "Who can see my video?",
+            "a": "Only the person you're talking to. Video and audio travel directly from device to device; nothing is stored anywhere and no call is ever recorded."
+          }
+        }
+      },
+      "tasknow": {
+        "title": "Small Jobs (TaskNow)",
+        "articles": {
+          "0": {
+            "q": "What are small jobs?",
+            "a": "Everyday small jobs: moving furniture, cleaning, assembly, dog walking, shopping, minor repairs. You'll find them at staffnow.gr/tasknow."
+          },
+          "1": {
+            "q": "How do I post a small job?",
+            "a": "For free, from staffnow.gr/tasknow → \"Post a job\". You write what you need done, how much you're paying, where and when. Then you receive offers, pick whoever you like and talk within the platform."
+          },
+          "2": {
+            "q": "Is my address shown?",
+            "a": "No. The exact address is never published. The map only shows the wider area, and it's even \"snapped\" to a grid so your home can't be worked out from the pin's position. You give out the address yourself, in the conversation, to whoever you choose."
+          },
+          "3": {
+            "q": "How do I make an offer?",
+            "a": "You open the small job and press \"Make an offer\". Before your first offer we register your mobile number — this happens once. You write how much you're asking and a couple of lines on why you should be picked. One offer per person."
+          },
+          "4": {
+            "q": "Do I need a licence for some jobs?",
+            "a": "Yes. For electrical, plumbing, gas and refrigeration work, you can't make an offer without declaring a professional licence. The licence is always shown as \"declared\" until a person from our team checks it — never as verified on its own."
+          },
+          "5": {
+            "q": "Why do I see listings marked \"Example\"?",
+            "a": "They're samples, to show you what a small job looks like while the service is getting started. They're clearly marked, don't accept offers, and disappear on their own once enough real listings build up. We never present a sample as a real listing."
+          }
+        }
+      },
+      "workers": {
+        "title": "For Workers",
+        "articles": {
+          "0": {
+            "q": "How do I find jobs?",
+            "a": "Dashboard → Discover. You'll see listing cards (title, company, location, salary, housing/meals/transport, employment type)."
+          },
+          "1": {
+            "q": "How do I like a listing?",
+            "a": "In Discover, press \"✓ Interested\" on the listing you want. If the business has already liked you, it becomes a Match!"
+          },
+          "2": {
+            "q": "Is it free?",
+            "a": "Yes, basic use is 100% free for workers — sign-up, profile, swipe, matching, messages, with no limit on swipes. Worker Premium (a one-off €4.99, paid once for good) is optional and unlocks the AI tools and boosts."
+          },
+          "3": {
+            "q": "What does Worker Premium (one-off €4.99) do?",
+            "a": "A single €4.99 payment — not a subscription, never expires and never renews. It includes: 1) A blue ✓ badge next to your name, shown to employers, 2) Top placement in discovery lists, 3) Advanced search filters, 4) Profile view statistics, 5) Unlimited boosts, 6) Read receipts in messages, 7) AI CV Generator and AI Profile Optimizer at no extra charge."
+          },
+          "4": {
+            "q": "How does the AI CV work?",
+            "a": "Dashboard → Subscription → \"AI CV\". It generates a professional CV from your profile in a few seconds. You can edit it, regenerate it, or download it. It requires Worker Premium (one-off €4.99), and after that it's used without limit, at no extra charge."
+          },
+          "5": {
+            "q": "What is Boost?",
+            "a": "Your profile or your application is shown with priority in Discover (24 hours for the profile, for as long as the listing is open for the application). It's an exclusive perk for Worker Premium users and is unlimited — it costs nothing extra. Don't confuse it with \"Listing Promotion\": that's for businesses, costs credits, and boosts a listing, not a worker."
+          }
+        }
+      },
+      "subscriptions": {
+        "title": "Subscriptions & Payments",
+        "articles": {
+          "0": {
+            "q": "What plans do businesses have?",
+            "a": "🟢 Free: free trial with one listing and up to 5 active matches. 🔵 Starter €29/month (or €261/year): up to 3 listings, 30 credits/month, basic tools — no listing promotion. ⭐ Pro (Founding) €39/month (€351/year): exactly the same as Pro, at a locked-in price for the first 100 businesses. 🟣 Pro €79/month (€711/year): up to 10 listings, 100 credits/month, listing promotion, AI matching, advanced analytics. 🔴 Elite €149/month (€1,341/year): unlimited listings, 500 credits/month, promotion, priority support, API access. Prices are net — 24% VAT is added. Paying annually gets you 9 months for the price of 12 (25% discount)."
+          },
+          "1": {
+            "q": "What does Worker Premium include?",
+            "a": "A one-off €4.99 — a single payment, valid for good, not a subscription and needs no cancellation. It includes a Premium ✓ badge, top placement in discover, advanced filters, profile view statistics, unlimited boosts, read receipts, and full access to the AI tools (CV Generator, Profile Optimizer) with no credits needed."
+          },
+          "2": {
+            "q": "How do I upgrade?",
+            "a": "Dashboard → Subscription → press the plan you want. Pay via Stripe (Visa, Mastercard, Apple Pay) or by bank transfer (manual bank transfer)."
+          },
+          "3": {
+            "q": "How does bank transfer work?",
+            "a": "At checkout choose \"Bank transfer\". We give you an IBAN and a unique reference code. You make the transfer with that code as the reference, and the subscription activates once our team confirms it (usually within 1 business day)."
+          },
+          "4": {
+            "q": "Do I receive an invoice/receipt?",
+            "a": "Yes. A digital document (a receipt, or an invoice if you've entered a VAT number on your profile) is issued automatically for every successful payment, and you can download it from Dashboard → Subscription → Payments."
+          },
+          "5": {
+            "q": "How do I cancel?",
+            "a": "Dashboard → Subscription → \"Manage\" → Cancel. The plan stays active until the end of the current period. If a renewal fails, you have a 3-day grace period to fix your payment method before the plan is downgraded. Worker Premium is a one-off payment and needs no cancellation."
+          },
+          "6": {
+            "q": "What payment methods are there?",
+            "a": "Visa, Mastercard, American Express, Apple Pay/Google Pay via Stripe (PCI-DSS Level 1). Also: bank transfer. We never store your card details."
+          }
+        }
+      },
+      "security": {
+        "title": "Security & Privacy",
+        "articles": {
+          "0": {
+            "q": "How is my data protected?",
+            "a": "HTTPS/TLS encryption everywhere, PBKDF2 password hashing with salt, JWT tokens with expiry, hosting on Cloudflare (D1 + R2). All data is hosted within the EU."
+          },
+          "1": {
+            "q": "How do I change my password?",
+            "a": "Logged in: Dashboard → Settings → Change password. Forgotten: Login → \"Forgot your password?\" → reset email (valid for 1 hour)."
+          },
+          "2": {
+            "q": "How do I delete my account?",
+            "a": "By yourself, instantly: Dashboard → Settings → Delete Account. Type DELETE to confirm and the account is deleted immediately. The action is permanent and cannot be undone — your personal data is removed (GDPR-compliant). If you run into a problem, write to us at info@staffnow.gr."
+          },
+          "3": {
+            "q": "How is my account verified?",
+            "a": "On three levels. Email: with a link we send you. ID: you upload it from Dashboard → Settings → Verification and a person from our team checks it. Mobile: right now we do NOT yet send SMS, so the number is recorded as \"declared\" and confirmed by us — it never shows anywhere as verified until the check is actually done. We never show a verification badge for something that hasn't been checked."
+          },
+          "4": {
+            "q": "What do others see?",
+            "a": "Before a match: name, roles, area, experience, bio, profile photo. NOT email/phone. After a match: communication through internal chat — contact details are never exposed to other users."
+          },
+          "5": {
+            "q": "Do you have an admin dashboard with logs?",
+            "a": "Yes, internally. All important actions (logins, profile changes, payments, match deletions, etc.) are recorded in an audit log. You can request a copy of your personal data at any time by sending a request to info@staffnow.gr — we reply within GDPR deadlines."
+          }
+        }
+      },
+      "mobile": {
+        "title": "Mobile & Notifications",
+        "articles": {
+          "0": {
+            "q": "Is there a mobile app?",
+            "a": "staffnow.gr works as a PWA: open it from your phone's browser and press \"Add to Home Screen\" (Share → Add to Home Screen on iPhone, ⋮ menu → Install on Android). It gets its own icon and you receive push notifications just like a native app, without needing an App Store. Separate native iOS/Android versions are planned for the future."
+          },
+          "1": {
+            "q": "Does staffnow.gr work from a phone?",
+            "a": "Yes, staffnow.gr is 100% responsive and works perfectly from a mobile browser. All features are available (swipe, matching, messages, payments)."
+          },
+          "2": {
+            "q": "Is it free?",
+            "a": "Yes. Basic use is entirely free. Optional: Worker Premium (one-off €4.99) for workers and subscription Business plans for businesses, via web checkout."
+          },
+          "3": {
+            "q": "Notifications on mobile?",
+            "a": "Yes, they already work. The first time the browser asks you, press \"Yes\" to enable them. You'll get a notification for new matches, new interests, new messages and new opportunities that fit your profile — even when StaffNow is closed. We also send email alongside. Manage from Dashboard → Settings → Notifications."
+          }
+        }
+      },
+      "updates": {
+        "title": "Recent Updates",
+        "articles": {
+          "0": {
+            "q": "In-platform video calls (Aug 2026)",
+            "a": "After every match you can talk by video straight from the conversation, with one tap on the camera icon. Free for everyone, no subscription, nothing to install and no one gives out their phone number. Video goes directly from device to device and isn't stored anywhere. Remember it only rings if the other person has StaffNow open at that moment."
+          },
+          "1": {
+            "q": "Small jobs — TaskNow (Aug 2026)",
+            "a": "A new section at staffnow.gr/tasknow for everyday small jobs: moving, cleaning, assembly, pets, errands, minor repairs. Post for free, receive offers, choose. With a map, protection of the exact address, and mandatory licence declaration in categories that need it."
+          },
+          "2": {
+            "q": "Listing promotion for businesses (Aug 2026)",
+            "a": "A promoted listing now rises to the top even for visitors without an account — on \"Find a job\" and the homepage, where most people look. Until recently, promotion only showed in the internal lists. It lasts 7 days, costs 5 credits, and gets a visible \"Promoted\" badge."
+          },
+          "3": {
+            "q": "Urgent shifts",
+            "a": "A separate listing type for covering a specific shift, with a start date and time. They appear separately from permanent listings and withdraw themselves once their time has passed."
+          },
+          "4": {
+            "q": "More honest mobile verification",
+            "a": "Previously the screen could show \"verified\" without a real check having taken place. That's now fixed: as long as we don't yet send SMS, the number is recorded as \"declared\" and we say so plainly. A verification badge only appears once the check has actually happened."
+          },
+          "5": {
+            "q": "New speciality structure (Apr 2026)",
+            "a": "Expanded from 17 to 256 specialities across 25 categories (Tourism, Food Service, Logistics, Retail, Production, Engineering, Office/Admin, Technical trades, Accounting, B2B, Health, Security/Cleaning, Call Centre, Marketing, Beauty/Fitness, IT, Education, Insurance/Real Estate, Management, Design, Digital/Ecommerce, Agriculture, Legal, Maritime). Selection with search + grouping."
+          },
+          "6": {
+            "q": "New business pricing",
+            "a": "Old: Free / Starter €14.99 / Pro €29.99. New: Business Starter €29 / Business Pro €79 / Business Elite €149. Existing subscribers keep their old plans until they cancel."
+          },
+          "7": {
+            "q": "Worker Premium, one-off €4.99",
+            "a": "A one-off upgrade for workers (single payment, no renewal) with a Premium ✓ badge, priority in lists, advanced filters, view statistics and unlimited boosts."
+          },
+          "8": {
+            "q": "AI tools for workers",
+            "a": "AI CV Generator, AI Profile Optimizer and Boost Discover/Application for more visibility. All included in Worker Premium (one-off €4.99) at no extra charge or credits."
+          },
+          "9": {
+            "q": "Off-platform notifications",
+            "a": "You now receive browser push notifications and email when something important happens (match, interest, new message, new opportunity) — even when StaffNow is closed. Enable with one click on the prompt that appears, manage from Settings → Notifications."
+          },
+          "10": {
+            "q": "Instant account deletion",
+            "a": "No email needed any more. Dashboard → Settings → Delete Account, type DELETE and the account is deleted instantly and permanently."
+          },
+          "11": {
+            "q": "Mandatory salary on listings",
+            "a": "Every listing must now state pay. Full transparency — there are no listings without a salary on StaffNow."
+          },
+          "12": {
+            "q": "Bank transfer as a payment method",
+            "a": "A new option for businesses/workers who prefer an IBAN over a card. A unique reference code and automatic confirmation from the finance team."
+          },
+          "13": {
+            "q": "Phone support",
+            "a": "+30 697 155 3942 (mobile, for now). It will soon move to a landline call centre number with hours Mon-Fri 09:00-18:00 and Sat 10:00-14:00."
+          },
+          "14": {
+            "q": "New headquarters",
+            "a": "Since April 2026, StaffNow's headquarters is in Thessaloniki."
+          }
+        }
+      }
+    }
+  },
+  "installPrompt": {
+    "title": "Install StaffNow",
+    "availableDescription": "Fast access, offline support and notifications. All features, same design.",
+    "install": "⬇ Install",
+    "no": "No",
+    "iosPress": "Tap",
+    "iosShare": "Share",
+    "iosAnd": "then",
+    "iosAddToHome": "\"Add to Home Screen\"",
+    "gotIt": "Got it",
+    "closeAria": "Close"
+  },
+  "legal": {
+    "cookies": {
+      "title": "Cookie Policy",
+      "updated": "Last updated: March 2026",
+      "s1": {
+        "title": "1. What Cookies Are",
+        "p1": "Cookies are small text files stored on your device when you visit our website. They help us make the platform work properly, keep it more secure, and give you a better experience."
+      },
+      "s2": {
+        "title": "2. Types of Cookies We Use",
+        "s21title": "2.1 Essential Cookies",
+        "s21p": "These are absolutely necessary for the platform to function. Without them, the website cannot work properly. They include authentication, security and session-preference cookies.",
+        "table": {
+          "cookie": "Cookie",
+          "purpose": "Purpose",
+          "duration": "Duration",
+          "row1purpose": "Signing in to your account (essential)",
+          "row1duration": "72 hours",
+          "row2purpose": "Your choices in this consent banner (essential)",
+          "row2duration": "Until you change them",
+          "row3purpose": "Language (Greek / English) (essential)",
+          "row3duration": "Until you change it",
+          "row4purpose": "Traffic statistics — ONLY if you agree to \"Statistics\"",
+          "row4duration": "Until you opt out / end of visit",
+          "row5purpose": "What you've already seen/answered, so we don't ask again (essential)",
+          "row5duration": "Until you clear your browser"
+        },
+        "s22title": "2.2 Functionality Cookies",
+        "s22p": "These help us remember your preferences (language, location, display settings) for a more personalised experience. They don't collect information that can identify you.",
+        "s23title": "2.3 Analytics Cookies",
+        "s23p": "These let us understand how you use the platform (pages you visit, time spent). The data is anonymous and helps us continuously improve the Service.",
+        "s24title": "2.4 Marketing Cookies",
+        "s24p": "These are used to show you relevant ads within and outside the platform. They are only placed with your explicit consent."
+      },
+      "s3": {
+        "title": "3. Managing Cookies",
+        "p1": "You can manage your cookie preferences at any time. On your first visit, you'll see a banner with your choices. You can also change cookie settings through your browser. Note that disabling certain cookies may affect the platform's functionality."
+      },
+      "s4": {
+        "title": "4. Third-Party Cookies",
+        "p1": "We do not use Google Analytics or advertising cookies. Only during checkout does Stripe's payment page set its own security cookies, which are subject to Stripe's privacy policy. If you sign in via Google, Google's policy applies to the sign-in process."
+      },
+      "s5": {
+        "title": "5. Policy Updates",
+        "p1": "This policy may be updated from time to time. In the event of material changes, we will notify you via a banner on the platform. The date of the last update is shown at the top of this page."
+      },
+      "s6": {
+        "title": "6. Contact",
+        "p1": "For questions about our use of cookies, contact us at privacy@staffnow.gr."
+      }
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "updated": "Last updated: September 2026",
+      "s1": {
+        "title": "1. Introduction",
+        "p1": "The protection of your personal data is important to us. This Privacy Policy explains how we collect, use, store and protect your data when you use the StaffNow platform, in accordance with the General Data Protection Regulation (GDPR) and Greek law."
+      },
+      "s2": {
+        "title": "2. Data Controller",
+        "p1": "The data controller for your data is the company StaffNow, headquartered in Thessaloniki, Greece. For data protection matters, you can contact us at privacy@staffnow.gr."
+      },
+      "s3": {
+        "title": "3. Data We Collect",
+        "p1": "We collect the following data:",
+        "li1label": "Registration details:",
+        "li1": "Full name, email, phone number, role (worker/business).",
+        "li2label": "Profile details:",
+        "li2": "Experience, skills, languages, location, availability, profile photo.",
+        "li3label": "Usage data:",
+        "li3": "Actions on the platform (swipes, matches, messages), access times, device.",
+        "li4label": "Payment data:",
+        "li4": "Billing information (processed by a certified payment provider).",
+        "li5label": "Technical data:",
+        "li5": "IP address, browser type, operating system."
+      },
+      "s4": {
+        "title": "4. Purpose of Processing",
+        "p1": "We use your data to:",
+        "li1": "Provide and improve the Service.",
+        "li2": "Operate the matching system.",
+        "li3": "Communicate with you (notifications, updates).",
+        "li4": "Manage payments and subscriptions.",
+        "li5": "Analyse usage and statistics.",
+        "li6": "Prevent abuse and ensure security."
+      },
+      "s5": {
+        "title": "5. Legal Basis for Processing",
+        "p1": "Processing is based on: performance of a contract (providing the Service), consent (marketing, cookies), legitimate interest (security, improvement), and legal obligation (tax records)."
+      },
+      "s6": {
+        "title": "6. Data Disclosure",
+        "p1": "We do not sell your data. We may share data with: other users (only the data shown on your public profile — email, phone number and CV only after a mutual match), public authorities (where required by law), and the following providers who process data on our behalf:",
+        "li1label": "Cloudflare",
+        "li1": " (US/EU) — platform hosting, database, file storage, network security.",
+        "li2label": "Stripe",
+        "li2": " (EU/US) — card payments. We never see or store your card details.",
+        "li3label": "OpenAI",
+        "li3": " (US) — only when you use the artificial-intelligence features (e.g. CV generation, candidate suggestions). Only the profile or listing data you ask it to process is sent.",
+        "li4label": "Google",
+        "li4": " (US) — only if you choose to sign in via Google.",
+        "li5label": "Our email and SMS provider",
+        "li5": " — for the emails and verification codes we send you.",
+        "p2": "For providers outside the EU, transfers are made under the European Commission's standard contractual clauses or an adequacy decision (Data Privacy Framework)."
+      },
+      "s7": {
+        "title": "7. Data Retention",
+        "p1": "We retain your data for as long as your account is active. After your account is deleted, your data is deleted within 30 days, unless a legal obligation requires it to be kept longer."
+      },
+      "s8": {
+        "title": "8. Your Rights",
+        "p1": "Under the GDPR, you have the right to:",
+        "li1": "Access your data.",
+        "li2": "Correct inaccurate data.",
+        "li3": "Erasure of data (the «right to be forgotten»).",
+        "li4": "Restrict processing.",
+        "li5": "Data portability.",
+        "li6": "Object to processing.",
+        "li7": "Withdraw consent.",
+        "p2": "To exercise your rights, contact privacy@staffnow.gr."
+      },
+      "s9": {
+        "title": "9. Data Security",
+        "p1": "We apply appropriate technical and organisational security measures, including TLS/SSL encryption, access controls, regular backups and security audits."
+      },
+      "s10": {
+        "title": "10. Contact",
+        "p1": "For questions about this privacy policy, contact us: email privacy@staffnow.gr. You also have the right to lodge a complaint with the Hellenic Data Protection Authority (www.dpa.gr)."
+      }
+    },
+    "terms": {
+      "title": "Terms of Use",
+      "updated": "Last updated: March 2026",
+      "s1": {
+        "title": "1. Acceptance of Terms",
+        "p1": "By accessing and using the StaffNow platform (the «Service»), you agree to be bound by these Terms of Use. If you do not agree with any of these terms, please do not use the Service."
+      },
+      "s2": {
+        "title": "2. Description of Service",
+        "p1": "StaffNow is a digital platform that facilitates connections between businesses and workers across every industry through a matching system. The Service is not an employment agency and does not intervene in the employment relationships between businesses and workers."
+      },
+      "s3": {
+        "title": "3. Registration & Accounts",
+        "p1": "Creating an account is required to use certain features. You warrant that the information you provide is accurate and up to date. You are responsible for keeping your password confidential and for all activity carried out through your account. Creating multiple accounts or using false information is prohibited."
+      },
+      "s4": {
+        "title": "4. Use of the Platform",
+        "p1": "You may not use the platform for purposes contrary to the law or these terms, including without limitation: posting false or misleading listings, sending unsolicited messages (spam), collecting other users' personal data, interfering with the platform's operation, and any other unlawful or non-compliant use."
+      },
+      "s5": {
+        "title": "5. User Content",
+        "p1": "Users are solely responsible for the content they post on the platform. You grant StaffNow a non-exclusive licence to use your content for the purposes of operating the Service. We reserve the right to remove content that violates these terms."
+      },
+      "s6": {
+        "title": "6. Subscriptions & Payments",
+        "p1": "Certain features of the Service require a subscription. Prices are listed in Euros and include VAT. Billing occurs automatically each month. You may cancel your subscription at any time, but no refund is provided for the current billing period."
+      },
+      "s7": {
+        "title": "7. Limitation of Liability",
+        "p1": "The Service is provided «as is». StaffNow does not guarantee that the Service will be uninterrupted or error-free. We are not liable for any damages arising from the use or inability to use the Service, including damages arising from employment relationships formed through the platform."
+      },
+      "s8": {
+        "title": "8. Termination",
+        "p1": "We reserve the right to suspend or terminate an account that violates these terms. You may delete your account at any time through the settings."
+      },
+      "s9": {
+        "title": "9. Changes to These Terms",
+        "p1": "We reserve the right to modify these terms. In the event of material changes, we will notify you by email or through the platform. Continued use of the Service after notice constitutes acceptance of the modified terms."
+      },
+      "s10": {
+        "title": "10. Governing Law",
+        "p1": "These terms are governed by Greek law. Any dispute arising shall be resolved by the competent courts of Athens. For any question regarding these Terms of Use, please contact us at info@staffnow.gr."
+      }
+    }
+  },
+  "notFound": {
+    "employment": {
+      "full_time": "Full-time",
+      "part_time": "Part-time",
+      "seasonal": "Seasonal",
+      "freelancer": "Freelancer",
+      "contract": "Contract"
+    },
+    "salaryUnit": {
+      "hourly": "/hour",
+      "daily": "/day",
+      "monthly": "/month"
+    },
+    "perks": {
+      "housing": "🏠 Housing",
+      "meals": "🍽️ Meals",
+      "transport": "🚌 Transport",
+      "bonus": "💰 Bonus",
+      "insurance": "🛡️ Insurance"
+    },
+    "companyFallback": "Business",
+    "applyFree": "Apply for free",
+    "allListings": "All listings",
+    "recentlyPublished": "This listing was just published — its full page is on its way.",
+    "pageNotFound": "Page not found.",
+    "backHome": "Back to home"
+  },
+  "press": {
+    "hero": {
+      "eyebrow": "Press",
+      "title": "StaffNow in the Media",
+      "subtitle": "The latest news, press kit and media resources."
+    },
+    "articlesTitle": "Articles",
+    "kit": {
+      "title": "Press Kit",
+      "description": "For logos, screenshots and brand guidelines, get in touch with us.",
+      "cta": "📦 Request Press Kit"
+    },
+    "brandColors": "Brand Colors",
+    "contact": {
+      "title": "Press Contact",
+      "subtitle": "For press inquiries, interviews or media inquiries:",
+      "response": "We reply within 24 hours."
+    }
+  },
+  "pricing": {
+    "header": {
+      "badge": "🎯 Plans for every business size",
+      "title": "Transparent pricing. No surprises.",
+      "subtitle": "You only pay for what you use. No setup fees, no per-job charges, no commitment. Cancel whenever you like."
+    },
+    "founding": {
+      "title": "Founding Members — First {total} customers",
+      "spotsLeft": "🔥 {remaining} spots left",
+      "subtitle": "The Pro plan forever at <strong>€39/month</strong> (instead of €79). Lifetime grandfathered.",
+      "cta": "Claim your spot"
+    },
+    "foundingDone": {
+      "title": "✅ The Founding Members offer is over — all 100 spots are filled!",
+      "subtitle": "Thank you to everyone who joined first. The regular Pro price of €79/month applies below."
+    },
+    "toggle": {
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "discount": "−25%"
+    },
+    "plans": {
+      "free": {
+        "name": "Free",
+        "description": "Try it out with no commitment.",
+        "cta": "Start for free",
+        "features": {
+          "0": "1 active listing",
+          "1": "5 searches/day",
+          "2": "Chat with matched workers",
+          "3": "AI Top-5 Shortlist",
+          "4": "AI Hiring Chat",
+          "5": "Listing boost",
+          "6": "Verified Badge"
+        }
+      },
+      "business_basic": {
+        "name": "Starter",
+        "description": "For small businesses at 1 location.",
+        "cta": "Start Starter",
+        "features": {
+          "0": "Up to 3 listings",
+          "1": "Unlimited searches",
+          "2": "AI Top-5 Shortlist",
+          "3": "Email support",
+          "4": "AI Hiring Chat",
+          "5": "Listing boost",
+          "6": "Verified Badge"
+        }
+      },
+      "business_pro": {
+        "name": "Pro",
+        "description": "For mid-size hotels & restaurants. Sweet spot.",
+        "cta": "Start Pro",
+        "features": {
+          "0": "Up to 10 listings",
+          "1": "Unlimited searches",
+          "2": "AI Top-5 Shortlist",
+          "3": "AI Hiring Chat",
+          "4": "Listing boost",
+          "5": "Verified Badge",
+          "6": "Priority support (24h)"
+        }
+      },
+      "business_elite": {
+        "name": "Elite",
+        "description": "For chains & restaurant groups with multiple locations.",
+        "cta": "Contact us",
+        "features": {
+          "0": "Unlimited listings",
+          "1": "Unlimited matches",
+          "2": "AI Top-5 Shortlist",
+          "3": "AI Hiring Chat",
+          "4": "Listing boost",
+          "5": "Verified Badge",
+          "6": "API access"
+        }
+      }
+    },
+    "badges": {
+      "popular": "⭐ Most popular",
+      "enterprise": "Enterprise"
+    },
+    "plan": {
+      "perMonth": "/month",
+      "perYear": "/year",
+      "vatIncluded": "+24% VAT · {gross} with VAT",
+      "savingsLabel": "you save €{amount}",
+      "launchOffer": "🚀 Launch offer — free until official launch"
+    },
+    "vatNote": "Business prices are net — 24% VAT is added.",
+    "roi": {
+      "badge": "🧮 ROI Calculator",
+      "title": "How much you actually save with StaffNow Pro",
+      "hiresLabel": "How many hires {period}?",
+      "hiresSingular": "hire",
+      "hiresPlural": "hires",
+      "periodMonthly": "per month",
+      "periodYearly": "per year",
+      "investment": "Investment",
+      "perMonth": "month",
+      "perYear": "year",
+      "savings": "Productivity savings*",
+      "roiLabel": "ROI",
+      "footnote": "*Conservative estimate: every extra week a position stays empty costs ~€200 in lost productivity plus strain on the rest of the team. With an average time-to-hire of 2 weeks instead of 5, you save ~€600 per hire."
+    },
+    "comparison": {
+      "title": "Detailed plan comparison",
+      "priceFree": "Free",
+      "pricePerMonthVat": "€{price}/mo +VAT",
+      "rows": {
+        "0": "Active listings",
+        "1": "Searches",
+        "2": "Active matches",
+        "3": "AI Top-5 Shortlist",
+        "4": "AI Hiring Chat",
+        "5": "Listing boost",
+        "6": "Verified Badge",
+        "7": "Featured in Discover",
+        "8": "Email support",
+        "9": "Priority support (24h)",
+        "10": "API access",
+        "11": "Dedicated Account Manager"
+      },
+      "values": {
+        "0": {
+          "0": "1",
+          "1": "3",
+          "2": "10",
+          "3": "Unlimited"
+        },
+        "1": {
+          "0": "5/day",
+          "1": "Unlimited",
+          "2": "Unlimited",
+          "3": "Unlimited"
+        },
+        "2": {
+          "0": "—",
+          "1": "30",
+          "2": "100",
+          "3": "Unlimited"
+        }
+      }
+    },
+    "worker": {
+      "badge": "👤 For workers",
+      "title": "Free for everyone — Premium if you want extra",
+      "subtitle": "Basic use is 100% free forever. With <strong>Worker Premium</strong> (a one-off €4.99) you get priority and AI tools to stand out to employers.",
+      "free": {
+        "badge": "Free",
+        "perForever": "/forever",
+        "description": "Everything you need to find a job. No cost, no commitment.",
+        "features": {
+          "0": "Full profile with photo & bio",
+          "1": "Choose 5 specialities from 250+",
+          "2": "Upload CV as PDF",
+          "3": "Swipe & match on listings",
+          "4": "Chat with matched employers",
+          "5": "Push notifications for new opportunities"
+        },
+        "cta": "Start for free"
+      },
+      "premium": {
+        "ribbon": "✓ Premium",
+        "badge": "Worker Premium",
+        "priceUnit": "one-off",
+        "note": "<strong>Pay once</strong> · forever, no subscription",
+        "description": "Stand out from thousands of candidates — priority + AI tools.",
+        "features": {
+          "0": "Everything in Free",
+          "1": "Blue ✓ Premium badge on your profile",
+          "2": "Top placement in discovery lists",
+          "3": "AI CV Generator — create a CV",
+          "4": "AI Profile Optimizer — improve your profile",
+          "5": "Unlimited boosts on Discover & listings",
+          "6": "Advanced filters & read receipts",
+          "7": "Unlimited likes — no daily limit"
+        },
+        "cta": "Unlock forever",
+        "footnote": "One-off payment · No monthly charge"
+      }
+    },
+    "faqTitle": "Frequently asked questions",
+    "faq": {
+      "0": {
+        "q": "Can I change plan at any time?",
+        "a": "Yes. Upgrades are instant, downgrades take effect at the end of the current cycle. Everything is managed from the billing page."
+      },
+      "1": {
+        "q": "Do you issue an invoice or a receipt?",
+        "a": "Both. You choose from your billing settings. For an invoice we need your company name, VAT number and tax office."
+      },
+      "2": {
+        "q": "Can I pause my subscription for the off-season?",
+        "a": "You can cancel at any time from the billing page and reactivate whenever you reopen. Your profile, listings and history stay in place."
+      },
+      "3": {
+        "q": "Do workers pay anything?",
+        "a": "Never. The platform is 100% free for workers — creating a profile, searching, messaging. All of it free."
+      },
+      "4": {
+        "q": "Is there any yearly contract dragging?",
+        "a": "No. On annual billing you pay upfront with a 25% discount. Cancel anytime, no penalties."
+      }
+    },
+    "otherQuestions": "Other questions?",
+    "contactCta": "Get in touch"
+  },
+  "pushOptin": {
+    "dialogAria": "Enable notifications",
+    "messageWorker": "Want to be first to see new job listings?",
+    "messageBusiness": "Want to be first to see new workers?",
+    "messageGuest": "Want to be notified about new opportunities on the platform?",
+    "no": "No",
+    "yes": "Yes"
+  },
+  "share": {
+    "button": "Share",
+    "ariaLabel": "Share listing: {title}",
+    "shareText": "{title} — check out the listing on StaffNow",
+    "notReady": "The listing's public page is still being prepared. If you share it now, whoever opens it won't find it. Try again later.",
+    "facebook": "Facebook",
+    "whatsapp": "WhatsApp",
+    "linkCopied": "Link copied",
+    "copyLink": "Copy link"
+  },
+  "liveBadge": {
+    "userOne": "user online",
+    "userMany": "users online"
+  },
+  "marquee": {
+    "justNow": "just now",
+    "minutesAgo": "{n} min ago",
+    "hoursAgo": "{n} hours ago",
+    "daysAgo": "{n} days ago"
+  },
+  "jobsIndex": {
+    "title": "Open positions ({n})",
+    "subtitle": "Every listing has its own page — salary, perks and contact details.",
+    "seeAll": "See all positions →",
+    "moreJobs": "+ {n} more positions"
+  },
+  "browseHero": {
+    "onlineNow": "online now"
+  },
+  "liveWorkers": {
+    "tabWorkers": "Workers",
+    "tabJobs": "Jobs",
+    "availableNow": "Available now",
+    "openJobs": "Open jobs",
+    "live": "Live",
+    "newBadgeM": "NEW",
+    "newBadgeF": "NEW",
+    "ctaFindStaff": "Find staff",
+    "ctaFindJob": "Find a job",
+    "fallbackUser": "User",
+    "fallbackWorkerRole": "Worker",
+    "fallbackBusiness": "Business",
+    "fallbackJobTitle": "Job position",
+    "expNew": "New",
+    "exp1Year": "1 year",
+    "expYears": "{n} years",
+    "panelAvailable": "Available near you now",
+    "panelJobs": "Jobs near you"
+  },
+  "liveToasts": {
+    "recently": "recently",
+    "justNow": "just now",
+    "minutesAgo": "{n} min ago",
+    "hoursAgo": "{n} hours ago",
+    "daysAgo": "{n} days ago",
+    "close": "Close notifications"
+  },
+  "shiftDisplay": {
+    "today": "TODAY",
+    "tomorrow": "TOMORROW",
+    "inMinutes": "in {n}m",
+    "inHours": "in {h}h",
+    "inHoursMinutes": "in {h}h {m}m",
+    "inDays": "in {n} d.",
+    "hourOne": "{n} hour",
+    "hoursMany": "{n} hours",
+    "oneShift": "one shift",
+    "daysMany": "{n} days",
+    "positionsMany": "{n} positions"
+  },
+  "locationLib": {
+    "wholeCity": "Whole city"
+  },
+  "lists": {
+    "noResults": "No results",
+    "searchGeneric": "Search…",
+    "searchAria": "Search",
+    "clear": "Clear",
+    "filters": "Filters",
+    "close": "Close",
+    "seeResults": "See {n} {noun}",
+    "specialtySearchPlaceholder": "Search specialty…",
+    "allSpecialties": "All specialties",
+    "cities": "Cities",
+    "citySearchPlaceholder": "Search city…",
+    "wholeCity": "Whole city",
+    "clearFilters": "Clear filters",
+    "jobs": {
+      "perHour": "€/hour",
+      "perDay": "€/day",
+      "perMonth": "€/month",
+      "salaryFrom": "From {value}",
+      "salaryTo": "Up to {value}",
+      "justNow": "just now",
+      "minutesAgo": "{n} min ago",
+      "hoursAgo": "{n} hours ago",
+      "daysAgo": "{n} days ago",
+      "monthsAgo": "{n} months ago",
+      "fallbackTitle": "Job position",
+      "fallbackCompany": "Business",
+      "specialties": "Specialties",
+      "employmentType": "Employment type",
+      "perks": "Perks",
+      "housing": "Housing",
+      "meals": "Meals",
+      "searchPlaceholder": "Search role, company or area…",
+      "resultOne": "available position",
+      "resultMany": "available positions",
+      "openPositions": "Open positions",
+      "businessesLooking": "Businesses looking for staff",
+      "activeOne": "1 active listing on StaffNow",
+      "activeMany": "{n} active listings on StaffNow",
+      "newToday": "New today",
+      "avgMonthly": "Average monthly",
+      "areas": "Areas",
+      "noResults": "No positions match these filters.",
+      "ariaSeeJob": "View the {title} listing at {company}",
+      "boosted": "Boosted",
+      "new": "New",
+      "seeJob": "View listing",
+      "salaryLabel": "Salary",
+      "typeLabel": "Type",
+      "yes": "Yes",
+      "descriptionLabel": "Description",
+      "contactLocked": "Contact details available after signing up",
+      "loginToApply": "Log in / Sign up to apply",
+      "openSeparatePage": "Open as a separate page ↗"
+    },
+    "workers": {
+      "fallbackRole": "Worker",
+      "expNew": "New",
+      "expOneYear": "1 year of experience",
+      "expYears": "{n} years of experience",
+      "expBucketJr": "0-2 years",
+      "expBucketMid": "3-5 years",
+      "expBucketSr": "6+ years",
+      "availImmediate": "Available immediately",
+      "availWithin7": "Within 7 days",
+      "availSeasonal": "Seasonal",
+      "availPartTime": "Part-time",
+      "availFullTime": "Full-time",
+      "specialties": "Specialties",
+      "experienceTitle": "Experience",
+      "availabilityTitle": "Availability",
+      "searchPlaceholder": "Search role or area…",
+      "resultOne": "available worker",
+      "resultMany": "available workers",
+      "availableNowBadge": "Available now",
+      "tagline": "Workers looking for a job",
+      "activeOne": "1 active profile on StaffNow",
+      "activeMany": "{n} active profiles on StaffNow",
+      "noResults": "No workers match these filters.",
+      "ariaSeeProfile": "View {name}’s profile",
+      "verified": "Verified",
+      "seeProfile": "View profile →",
+      "availableNowStat": "Available immediately",
+      "verifiedStat": "Verified",
+      "areasStat": "Areas",
+      "areaLabel": "Area",
+      "notDeclared": "Not stated",
+      "statusLabel": "Status",
+      "active": "Active",
+      "contactLocked": "Contact details & full profile available after signing up",
+      "loginToContact": "Log in / Sign up to get in touch"
+    }
+  },
+  "findJob": {
+    "breadcrumbHome": "Home",
+    "breadcrumbCurrent": "Jobs",
+    "nounOne": "job",
+    "nounMany": "jobs",
+    "headline": "Jobs",
+    "subtitle": "See the latest jobs in tourism, hospitality, retail, logistics and other sectors.",
+    "h1": "Jobs in Greece",
+    "ctaTitle": "Looking for a job?",
+    "ctaText": "Sign up for free and apply to listings with one click.",
+    "ctaRegister": "Sign up for free →",
+    "hasAccount": "Already have an account?",
+    "login": "Log in"
+  },
+  "findStaff": {
+    "breadcrumbHome": "Home",
+    "breadcrumbCurrent": "Workers",
+    "nounOne": "available worker",
+    "nounMany": "available workers",
+    "headline": "Available workers",
+    "subtitle": "See which workers are available now in your area — tourism, hospitality, retail and more.",
+    "h1": "Available workers in Greece",
+    "ctaTitle": "Looking for staff?",
+    "ctaText": "Sign up your business for free and get in touch with available workers.",
+    "ctaRegister": "Sign up your business for free →",
+    "hasAccount": "Already have an account?",
+    "login": "Log in"
+  },
+  "jobPage": {
+    "breadcrumbHome": "Home",
+    "breadcrumbJobs": "Jobs",
+    "salaryFrom": "From {value}",
+    "salaryTo": "Up to {value}",
+    "salaryLabel": "Salary",
+    "typeLabel": "Type",
+    "housingLabel": "Housing",
+    "mealsLabel": "Meals",
+    "yes": "Yes",
+    "specialties": "Specialties",
+    "descriptionTitle": "Description",
+    "perkHousing": "housing provided",
+    "perkMeals": "meals provided",
+    "perksIntro": "Also: {perks}.",
+    "autoDescription": "The business {company} is looking for a {title} in the {loc} area. Employment type: {type}. Pay: {salary}.{perksPart} Apply via StaffNow.",
+    "lookingForMore": "Looking for more jobs?",
+    "seeAllJobs": "See all jobs",
+    "applyFree": "Apply for free →",
+    "applyNote": "Free sign-up in 30 seconds · No credit card"
+  },
+  "workerPage": {
+    "breadcrumbHome": "Home",
+    "breadcrumbWorkers": "Workers",
+    "expNewToIndustry": "New to the industry",
+    "ctaConnect": "Log in / Sign up to get in touch →",
+    "freeSignupNote": "Free business sign-up in 30 seconds",
+    "lookingForStaff": "Looking for staff?",
+    "seeAllWorkers": "See all workers"
+  },
+  "newsletter": {
+    "invalidEmail": "Enter a valid email address",
+    "subscribed": "You're subscribed! We'll be in touch soon.",
+    "failed": "Something went wrong. Please try again.",
+    "done": "Your subscription is confirmed. Welcome!",
+    "placeholder": "Your email",
+    "sending": "Sending...",
+    "subscribe": "Subscribe"
+  }
+}

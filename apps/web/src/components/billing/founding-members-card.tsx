@@ -16,6 +16,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useT } from '@/i18n/locale-provider';
 
 interface Spots {
   total: number;
@@ -26,6 +27,7 @@ interface Spots {
 }
 
 export function FoundingMembersCard({ onClaim }: { onClaim?: () => void }) {
+  const t = useT();
   const [spots, setSpots] = useState<Spots | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -46,7 +48,7 @@ export function FoundingMembersCard({ onClaim }: { onClaim?: () => void }) {
     return (
       <div className="mb-6 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-center">
         <p className="text-sm font-semibold text-gray-700">
-          ✅ Η προσφορά Founding Members ολοκληρώθηκε — και οι 100 θέσεις γέμισαν.
+          {t('billingPage.foundingClosed')}
         </p>
       </div>
     );
@@ -184,21 +186,21 @@ export function FoundingMembersCard({ onClaim }: { onClaim?: () => void }) {
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-amber-600 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-sm">
-                  Founding Members
+                  {t('billingPage.foundingMembers')}
                 </span>
                 <span className="rounded-full bg-red-100 border border-red-200 px-2.5 py-0.5 text-[10px] font-bold text-red-700">
-                  ⚡ ΠΕΡΙΟΡΙΣΜΕΝΕΣ ΘΕΣΕΙΣ
+                  {t('billingPage.limitedSpots')}
                 </span>
               </div>
 
               <h3 className="mt-2 text-xl sm:text-2xl font-extrabold leading-tight">
-                <span className="shine-text">39€/μήνα για πάντα</span>
-                <span className="text-gray-900"> — αντί 79€</span>
+                <span className="shine-text">{t('billingPage.foundingPrice')}</span>
+                <span className="text-gray-900">{t('billingPage.foundingInstead')}</span>
               </h3>
 
               <p className="mt-1 text-sm text-amber-900">
-                Πρώτοι <strong>{spots.total}</strong> πελάτες κλειδώνουν το Pro plan για πάντα στα 39€.
-                {' '}<strong>Lifetime grandfathered</strong> — δεν αλλάζει η τιμή ποτέ.
+                {t('billingPage.foundingFirst')} <strong>{spots.total}</strong> {t('billingPage.foundingLock')}
+                {' '}<strong>{t('billingPage.foundingGrandfathered')}</strong> {t('billingPage.foundingNeverChanges')}
               </p>
 
               {/* Progress */}
@@ -210,7 +212,7 @@ export function FoundingMembersCard({ onClaim }: { onClaim?: () => void }) {
                   />
                 </div>
                 <p className="text-xs font-bold text-amber-900 whitespace-nowrap">
-                  Έμειναν <span className="text-base text-red-600">{spots.remaining}</span>/{spots.total}
+                  {t('billingPage.spotsLeft')} <span className="text-base text-red-600">{spots.remaining}</span>/{spots.total}
                 </p>
               </div>
 
@@ -220,12 +222,12 @@ export function FoundingMembersCard({ onClaim }: { onClaim?: () => void }) {
                   onClick={handleClick}
                   className="cta-btn inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg hover:from-amber-700 hover:to-orange-700 transition-colors"
                 >
-                  Πάρε τη θέση σου τώρα
+                  {t('billingPage.claimSpot')}
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
                   </svg>
                 </button>
-                <span className="text-xs text-amber-800">✓ Ακύρωση όποτε θες · ✓ 30 ημέρες δοκιμή</span>
+                <span className="text-xs text-amber-800">{t('billingPage.foundingGuarantee')}</span>
               </div>
             </div>
           </div>

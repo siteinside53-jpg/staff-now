@@ -12,6 +12,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { useT, useLocale } from '@/i18n/locale-provider';
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -23,6 +24,8 @@ interface BillingMe {
 }
 
 export function WorkerBillingSection() {
+  const t = useT();
+  const { locale } = useLocale();
   const [billingMe, setBillingMe] = useState<BillingMe | null>(null);
   const [running, setRunning] = useState<string | null>(null);
   const [aiOutput, setAiOutput] = useState<{ kind: 'cv' | 'opt'; text: string } | null>(null);
@@ -72,7 +75,7 @@ export function WorkerBillingSection() {
     });
     const j = (await res.json()) as any;
     if (j.success && j.data?.url) window.location.href = j.data.url;
-    else toast.error(j.error?.message || 'Σφάλμα');
+    else toast.error(j.error?.message || t('billingPage.error'));
   };
 
   const runAi = async (path: string, kind: 'cv' | 'opt') => {
@@ -87,12 +90,12 @@ export function WorkerBillingSection() {
       });
       const j = (await res.json()) as any;
       if (!j.success) {
-        toast.error(j.error?.message || 'Αποτυχία');
+        toast.error(j.error?.message || t('billingPage.failed'));
         return;
       }
       const text = j.data?.cv || j.data?.bio || '';
       setAiOutput({ kind, text });
-      toast.success('Έτοιμο');
+      toast.success(t('billingPage.ready'));
     } finally {
       setRunning(null);
     }
@@ -110,12 +113,12 @@ export function WorkerBillingSection() {
       });
       const j = (await res.json()) as any;
       if (!j.success) {
-        toast.error(j.error?.message || 'Αποτυχία');
+        toast.error(j.error?.message || t('billingPage.failed'));
         return;
       }
       setAiOutput({ kind: 'cv', text: editCvDraft });
       setEditingCv(false);
-      toast.success('Αποθηκεύτηκε στο προφίλ');
+      toast.success(t('billingPage.savedToProfile'));
     } finally {
       setRunning(null);
     }
@@ -127,17 +130,18 @@ export function WorkerBillingSection() {
     // proper PDF without us having to ship a server-side PDF renderer.
     const win = window.open('', '_blank');
     if (!win) {
-      toast.error('Επίτρεψε popups για να κατεβάσεις το PDF.');
+      toast.error(t('billingPage.allowPopups'));
       return;
     }
-    const html = `<!doctype html><html lang="el"><head><meta charset="utf-8"><title>Βιογραφικό</title>
+    const docTitle = t('billingPage.cvDocTitle');
+    const html = `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><title>${docTitle}</title>
 <style>
  body { font-family: Georgia, "Times New Roman", serif; max-width: 720px; margin: 32px auto; padding: 0 24px; line-height: 1.55; color: #111; }
  h1 { font-size: 22px; border-bottom: 2px solid #111; padding-bottom: 6px; }
  pre { white-space: pre-wrap; word-wrap: break-word; font-family: inherit; font-size: 14px; }
  @media print { body { margin: 0; padding: 0 16px; } }
 </style></head>
-<body><h1>Βιογραφικό</h1><pre>${aiOutput.text.replace(/[<>&]/g, m => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[m]!))}</pre>
+<body><h1>${docTitle}</h1><pre>${aiOutput.text.replace(/[<>&]/g, m => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[m]!))}</pre>
 <script>setTimeout(() => window.print(), 300);</script>
 </body></html>`;
     win.document.write(html);
@@ -155,10 +159,10 @@ export function WorkerBillingSection() {
       });
       const j = (await res.json()) as any;
       if (!j.success) {
-        toast.error(j.error?.message || 'Αποτυχία');
+        toast.error(j.error?.message || t('billingPage.failed'));
         return;
       }
-      toast.success(`${label} ενεργό μέχρι ${new Date(j.data.expiresAt).toLocaleString('el-GR')}`);
+      toast.success(t('billingPage.boostActiveUntil', { label, date: new Date(j.data.expiresAt).toLocaleString(locale === 'en' ? 'en-GB' : 'el-GR') }));
     } finally {
       setRunning(null);
     }
@@ -172,13 +176,13 @@ export function WorkerBillingSection() {
           <div className="flex items-start gap-3">
             <span className="text-3xl">✨</span>
             <div className="flex-1">
-              <p className="text-xs font-bold uppercase tracking-wider text-amber-700">Worker Premium</p>
-              <h3 className="mt-1 text-lg font-bold text-gray-900">Είσαι Premium! ✓</h3>
+              <p className="text-xs font-bold uppercase tracking-wider text-amber-700">{t('billingPage.workerPremium')}</p>
+              <h3 className="mt-1 text-lg font-bold text-gray-900">{t('billingPage.youArePremium')}</h3>
               <p className="mt-1 text-xs text-gray-700">
-                Premium Tick · AI εργαλεία · απεριόριστα boosts · advanced filters
+                {t('billingPage.premiumPerks')}
               </p>
               <p className="mt-1 text-xs text-amber-700">
-                Ξεκλειδωμένο <strong>για πάντα</strong> — καμία ανανέωση, καμία χρέωση.
+                {t('billingPage.unlockedForever')} <strong>{t('billingPage.unlockedForeverStrong')}</strong> {t('billingPage.unlockedForeverSuffix')}
               </p>
             </div>
           </div>
@@ -189,20 +193,20 @@ export function WorkerBillingSection() {
             <span className="text-4xl">✨</span>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-bold uppercase tracking-wider text-amber-700">
-                Αναβάθμιση
+                {t('billingPage.upgrade')}
               </p>
               <h3 className="mt-1 text-xl font-extrabold text-gray-900">
-                Worker Premium — <span className="text-amber-700">εφάπαξ 4,99€ · για πάντα</span>
+                {t('billingPage.premiumHeadline')} <span className="text-amber-700">{t('billingPage.premiumPrice')}</span>
               </h3>
               <p className="mt-0.5 text-xs text-gray-500">
-                Πληρώνεις μία φορά. Το ξεκλειδώνεις για πάντα — χωρίς μηνιαία συνδρομή.
+                {t('billingPage.payOnce')}
               </p>
               <ul className="mt-2 space-y-0.5 text-sm text-gray-700">
-                <li>✓ <strong>Premium Tick</strong> δίπλα στο όνομά σου (πάντα)</li>
-                <li>✓ AI CV Generator & AI Profile Optimizer</li>
-                <li>✓ Απεριόριστα boosts στο Discover</li>
-                <li>✓ Advanced filters & profile views statistics</li>
-                <li>✓ Read receipts στα μηνύματα</li>
+                <li>✓ <strong>Premium Tick</strong> {t('billingPage.perkTick')}</li>
+                <li>{t('billingPage.perkAi')}</li>
+                <li>{t('billingPage.perkBoosts')}</li>
+                <li>{t('billingPage.perkFilters')}</li>
+                <li>{t('billingPage.perkReceipts')}</li>
               </ul>
             </div>
             {/* Στο κινητό το κουμπί πιάνει όλη τη γραμμή. Χωρίς αυτό, το `flex-1
@@ -213,7 +217,7 @@ export function WorkerBillingSection() {
               onClick={upgradeToPremium}
               className="w-full rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-amber-600/25 hover:bg-amber-700 sm:w-auto"
             >
-              Ξεκλείδωσε για πάντα
+              {t('billingPage.unlockForever')}
             </button>
           </div>
         </div>
@@ -221,10 +225,10 @@ export function WorkerBillingSection() {
 
       {/* ----- AI Tools ----- */}
       <div className="rounded-2xl border border-gray-200 bg-white p-5">
-        <p className="text-xs font-bold uppercase tracking-wider text-gray-500">🤖 AI Εργαλεία</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-gray-500">{t('billingPage.aiTools')}</p>
         <p className="mt-1 text-xs text-gray-500">
-          Φτιάξε επαγγελματικό CV ή βελτίωσε το προφίλ σου με τη βοήθεια AI.
-          {isPremium ? '' : ' Διαθέσιμα με Premium.'}
+          {t('billingPage.aiToolsHint')}
+          {isPremium ? '' : t('billingPage.availableWithPremium')}
         </p>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -238,10 +242,10 @@ export function WorkerBillingSection() {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-gray-900">AI CV Generator</p>
               <p className="text-xs text-gray-600">
-                Δημιουργία πλήρους βιογραφικού από τα στοιχεία προφίλ.
+                {t('billingPage.aiCvDesc')}
               </p>
               <span className="mt-1 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 ring-1 ring-amber-200">
-                {isPremium ? 'Ενεργό' : 'Μόνο Premium ✨'}
+                {isPremium ? t('billingPage.active') : t('billingPage.premiumOnly')}
               </span>
             </div>
             {running === 'cv' && (
@@ -259,10 +263,10 @@ export function WorkerBillingSection() {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-gray-900">AI Profile Optimizer</p>
               <p className="text-xs text-gray-600">
-                Βελτίωση bio με keywords για να σε βρίσκουν πιο εύκολα οι businesses.
+                {t('billingPage.aiOptDesc')}
               </p>
               <span className="mt-1 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 ring-1 ring-amber-200">
-                {isPremium ? 'Ενεργό' : 'Μόνο Premium ✨'}
+                {isPremium ? t('billingPage.active') : t('billingPage.premiumOnly')}
               </span>
             </div>
             {running === 'opt' && (
@@ -275,20 +279,20 @@ export function WorkerBillingSection() {
           <div className="mt-4 rounded-xl bg-gray-50 p-4">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-bold text-gray-700">
-                {aiOutput.kind === 'cv' ? '🎨 Το βιογραφικό σου' : '✨ Βελτιωμένο bio'}
+                {aiOutput.kind === 'cv' ? t('billingPage.yourCv') : t('billingPage.improvedBio')}
                 {aiOutput.kind === 'cv' && (
                   <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                    ✓ αποθηκεύτηκε στο προφίλ
+                    {t('billingPage.savedBadge')}
                   </span>
                 )}
               </p>
               <div className="flex flex-wrap gap-1">
                 <button
                   type="button"
-                  onClick={() => navigator.clipboard.writeText(aiOutput.text).then(() => toast.success('Αντιγράφηκε'))}
+                  onClick={() => navigator.clipboard.writeText(aiOutput.text).then(() => toast.success(t('billingPage.copied')))}
                   className="rounded-md border border-gray-200 bg-white px-2 py-1 text-[10px] font-bold text-gray-700 hover:bg-gray-100"
                 >
-                  Αντιγραφή
+                  {t('billingPage.copy')}
                 </button>
                 {aiOutput.kind === 'cv' && (
                   <>
@@ -300,7 +304,7 @@ export function WorkerBillingSection() {
                       }}
                       className="rounded-md border border-gray-200 bg-white px-2 py-1 text-[10px] font-bold text-gray-700 hover:bg-gray-100"
                     >
-                      ✏️ Επεξεργασία
+                      {t('billingPage.editCv')}
                     </button>
                     <button
                       type="button"
@@ -308,14 +312,14 @@ export function WorkerBillingSection() {
                       onClick={() => runAi('/workers/ai/cv-regenerate', 'cv')}
                       className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-800 hover:bg-amber-100 disabled:opacity-50"
                     >
-                      {running === 'cv' ? '...' : '🔄 Ξανά'}
+                      {running === 'cv' ? '...' : t('billingPage.again')}
                     </button>
                     <button
                       type="button"
                       onClick={downloadCvPdf}
                       className="rounded-md bg-blue-600 px-2 py-1 text-[10px] font-bold text-white hover:bg-blue-700"
                     >
-                      📄 Λήψη PDF
+                      {t('billingPage.downloadPdf')}
                     </button>
                     <button
                       type="button"
@@ -330,17 +334,17 @@ export function WorkerBillingSection() {
                           });
                           const j = (await res.json()) as any;
                           if (!j.success) {
-                            toast.error(j.error?.message || 'Αποτυχία αποθήκευσης');
+                            toast.error(j.error?.message || t('billingPage.saveFailed'));
                             return;
                           }
-                          toast.success('🎉 Το CV αποθηκεύτηκε ως PDF στο προφίλ σου!');
+                          toast.success(t('billingPage.pdfSaved'));
                         } finally {
                           setRunning(null);
                         }
                       }}
                       className="rounded-md bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
                     >
-                      {running === 'save-pdf' ? '...' : '✓ Αποθήκευση ως CV'}
+                      {running === 'save-pdf' ? '...' : t('billingPage.saveAsCv')}
                     </button>
                   </>
                 )}
@@ -364,14 +368,14 @@ export function WorkerBillingSection() {
                     disabled={running === 'save-cv'}
                     className="rounded-md bg-blue-600 px-3 py-1.5 text-[11px] font-bold text-white disabled:opacity-50"
                   >
-                    {running === 'save-cv' ? 'Αποθήκευση...' : '✓ Αποθήκευση'}
+                    {running === 'save-cv' ? t('billingPage.saving') : t('billingPage.saveCheck')}
                   </button>
                   <button
                     type="button"
                     onClick={() => setEditingCv(false)}
                     className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-gray-700"
                   >
-                    Ακύρωση
+                    {t('billingPage.cancel')}
                   </button>
                 </div>
               </>
@@ -382,38 +386,36 @@ export function WorkerBillingSection() {
 
       {/* ----- Boosts ----- */}
       <div className="rounded-2xl border border-gray-200 bg-white p-5">
-        <p className="text-xs font-bold uppercase tracking-wider text-gray-500">🚀 Boost ορατότητας</p>
+        <p className="text-xs font-bold uppercase tracking-wider text-gray-500">{t('billingPage.boostVisibility')}</p>
         <p className="mt-1 text-xs text-gray-500">
-          Εμφανίσου πρώτος στις κάρτες των businesses ή στους applicants μιας αγγελίας.
-          {isPremium ? ' (απεριόριστα για Premium)' : ' Διαθέσιμο με Premium.'}
+          {t('billingPage.boostHint')}
+          {isPremium ? t('billingPage.unlimitedForPremium') : t('billingPage.availableWithPremiumSingular')}
         </p>
 
         <button
           type="button"
           disabled={!!running}
-          onClick={() => boost('/workers/boost/discover', 'Boost Discover', 'boost-d')}
+          onClick={() => boost('/workers/boost/discover', t('billingPage.boostDiscoverLabel'), 'boost-d')}
           className="mt-4 flex w-full flex-col items-start gap-2 rounded-xl border border-gray-200 bg-white p-4 text-left transition-all hover:border-blue-300 hover:shadow-sm disabled:opacity-50 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
         >
           <div>
-            <p className="text-sm font-bold text-gray-900">Boost στο Discover (24 ώρες)</p>
+            <p className="text-sm font-bold text-gray-900">{t('billingPage.boostDiscover')}</p>
             <p className="text-xs text-gray-600">
-              Μπες στις πρώτες κάρτες όλων των businesses που ψάχνουν.
+              {t('billingPage.boostDiscoverDesc')}
             </p>
           </div>
           {/* whitespace-nowrap: αλλιώς στο κινητό το κείμενο σπάει μέσα στο
               στρογγυλό σήμα και βγαίνει παραμορφωμένο οβάλ τριών σειρών. */}
           <span className="whitespace-nowrap rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-bold text-blue-700 ring-1 ring-blue-200">
-            {isPremium ? 'Ενεργό' : 'Μόνο Premium ✨'}
+            {isPremium ? t('billingPage.active') : t('billingPage.premiumOnly')}
           </span>
         </button>
       </div>
 
       {/* Bottom note */}
       <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-xs text-emerald-900">
-        💚 <strong>Η εύρεση εργασίας είναι 100% δωρεάν.</strong> Το Premium είναι
-        προαιρετικό — για να ξεχωρίσεις, όχι για να βρεις δουλειά. Μπορείς πάντα να χρησιμοποιείς
-        το StaffNow χωρίς να πληρώσεις τίποτα. {' '}
-        <Link href="/pricing" className="font-bold underline">Δες όλα τα πλάνα →</Link>
+        💚 <strong>{t('billingPage.freeNoteStrong')}</strong> {t('billingPage.freeNote')} {' '}
+        <Link href="/pricing" className="font-bold underline">{t('billingPage.seeAllPlansArrow')}</Link>
       </div>
     </div>
   );

@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useT } from '@/i18n/locale-provider';
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ||
   'https://staffnow-api-production.siteinside53.workers.dev';
 
 export function NewsletterForm() {
+  const t = useT();
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -16,7 +18,7 @@ export function NewsletterForm() {
     e.preventDefault();
     const trimmed = email.trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) {
-      toast.error('Βάλε ένα έγκυρο email');
+      toast.error(t('newsletter.invalidEmail'));
       return;
     }
     setSubmitting(true);
@@ -34,9 +36,9 @@ export function NewsletterForm() {
       if (!res.ok) throw new Error('request failed');
       setDone(true);
       setEmail('');
-      toast.success('Εγγράφηκες! Θα σε ενημερώσουμε σύντομα.');
+      toast.success(t('newsletter.subscribed'));
     } catch {
-      toast.error('Κάτι πήγε στραβά. Δοκίμασε ξανά.');
+      toast.error(t('newsletter.failed'));
     } finally {
       setSubmitting(false);
     }
@@ -45,7 +47,7 @@ export function NewsletterForm() {
   if (done) {
     return (
       <p className="mt-8 text-sm font-semibold text-emerald-700">
-        ✓ Η εγγραφή σου καταχωρήθηκε. Καλωσόρισες!
+        ✓ {t('newsletter.done')}
       </p>
     );
   }
@@ -56,7 +58,7 @@ export function NewsletterForm() {
         type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        placeholder="Το email σου"
+        placeholder={t('newsletter.placeholder')}
         required
         className="flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none"
       />
@@ -65,7 +67,7 @@ export function NewsletterForm() {
         disabled={submitting}
         className="rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition-colors whitespace-nowrap disabled:opacity-60"
       >
-        {submitting ? 'Αποστολή...' : 'Εγγραφή'}
+        {submitting ? t('newsletter.sending') : t('newsletter.subscribe')}
       </button>
     </form>
   );

@@ -3,13 +3,13 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import {
   CATEGORY_BY_KEY,
-  formatPostedAgo,
   isLicensedCategory,
-  REQUIRED_LICENCE,
 } from '@/components/tasknow/data';
 import { TaskNowLogo } from '@/components/tasknow/logo';
 import { fetchAllTasks } from '@/lib/seo-data';
 import { TaskPageActions } from '@/components/tasknow/task-page-actions';
+import { TaskCategoryBadge, TaskPageBadges, TaskPostedAgo, TaskLicenceNote } from '@/components/tasknow/task-page-facts';
+import { Tr } from '@/i18n/locale-provider';
 
 /**
  * ΜΑΚΕΤΑ — η σελίδα μιας μικροδουλειάς.
@@ -75,12 +75,12 @@ export default async function TaskPage({ params }: Params) {
 
   const cat = CATEGORY_BY_KEY[task.category];
   const licensed = isLicensedCategory(task.category);
-  const licenceLabel = REQUIRED_LICENCE[task.category] ?? 'Επαγγελματική άδεια';
 
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="bg-gray-900 px-4 py-2 text-center text-sm text-amber-300">
-        <strong className="font-semibold">ΜΑΚΕΤΑ</strong> — παράδειγμα, όχι αληθινή αγγελία.
+        <strong className="font-semibold"><Tr k="tasknow.taskPage.mockStrong" /></strong>
+        <Tr k="tasknow.taskPage.mockText" />
       </div>
 
       <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
@@ -93,25 +93,17 @@ export default async function TaskPage({ params }: Params) {
             TaskNow
           </Link>{' '}
           <span aria-hidden="true">/</span>{' '}
-          <span className="text-gray-700">{cat?.label}</span>
+          <span className="text-gray-700"><TaskCategoryBadge categoryKey={task.category} /></span>
         </nav>
 
         <article className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-8">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
-              {cat?.icon} {cat?.label}
-            </span>
-            {licensed && (
-              <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">
-                θέλει άδεια
-              </span>
-            )}
-            {task.urgent && (
-              <span className="rounded-full bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-600">
-                Επείγον
-              </span>
-            )}
-          </div>
+          <TaskPageBadges
+            categoryKey={task.category}
+            categoryIcon={cat?.icon}
+            licensed={licensed}
+            urgent={task.urgent}
+            postedMinutesAgo={task.postedMinutesAgo}
+          />
 
           <h1 className="mt-3 text-2xl font-bold leading-tight tracking-tight text-gray-900 sm:text-3xl">
             {task.title}
@@ -132,29 +124,23 @@ export default async function TaskPage({ params }: Params) {
                 <span aria-hidden="true">🕒</span> {task.when}
               </p>
               <p className="mt-1 text-xs text-gray-400">
-                Ανέβηκε {formatPostedAgo(task.postedMinutesAgo)}
+                <TaskPostedAgo postedMinutesAgo={task.postedMinutesAgo} />
               </p>
             </div>
 
             <div className="text-right">
-              <p className="text-xs text-gray-400">δίνει</p>
+              <p className="text-xs text-gray-400"><Tr k="tasknow.taskPage.gives" /></p>
               <p className="text-4xl font-extrabold leading-none tracking-tight tabular-nums text-gray-900">
                 {task.budget}
                 <span className="text-xl font-bold text-gray-400">€</span>
               </p>
               <p className="mt-1 text-xs text-gray-500">
-                {task.budgetNote ?? 'για όλη τη δουλειά'}
+                {task.budgetNote ?? <Tr k="tasknow.taskPage.forWholeJob" />}
               </p>
             </div>
           </div>
 
-          {licensed && (
-            <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs leading-relaxed text-red-900">
-              Η εργασία απαιτεί <strong>{licenceLabel.toLowerCase()}</strong>. Προσφορά
-              μπορούν να κάνουν μόνο όσοι ανεβάσουν την άδειά τους, και η άδεια φαίνεται
-              ως «δηλωμένη» μέχρι να την ελέγξει άνθρωπος.
-            </p>
-          )}
+          {licensed && <TaskLicenceNote categoryKey={task.category} />}
 
           <div className="mt-6">
             <TaskPageActions
@@ -166,9 +152,7 @@ export default async function TaskPage({ params }: Params) {
           </div>
 
           <p className="mt-5 border-t border-gray-100 pt-4 text-xs leading-relaxed text-gray-500">
-            Το StaffNow δεν είναι εργοδότης, δεν αναθέτει και δεν κρατά χρήματα. Η
-            συμφωνία και η πληρωμή είναι ανάμεσα σε εσένα και σε αυτόν που ανέβασε τη
-            δουλειά — η επιλογή γίνεται με δική σας ευθύνη.
+            <Tr k="tasknow.taskPage.disclaimer" />
           </p>
         </article>
 
@@ -177,13 +161,13 @@ export default async function TaskPage({ params }: Params) {
             <TaskNowLogo className="text-xl" markClassName="h-6 w-6" />
           </div>
           <p className="mt-2 text-sm text-gray-700">
-            Δες όλες τις μικροδουλειές που είναι ανοιχτές τώρα στη Θεσσαλονίκη.
+            <Tr k="tasknow.taskPage.seeAll" />
           </p>
           <Link
             href="/tasknow"
             className="mt-4 inline-flex rounded-xl bg-amber-500 px-7 py-3 text-sm font-semibold text-white transition hover:bg-amber-600"
           >
-            Δες τη ροή
+            <Tr k="tasknow.taskPage.seeFeed" />
           </Link>
         </div>
       </div>

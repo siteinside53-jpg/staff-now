@@ -13,40 +13,44 @@ import { CreditsProvider } from '@/components/credits/credits-context';
 import { CallCenter } from '@/components/video/call-center';
 import { StaffNowLogo } from '@/components/staffnow-logo';
 import { FeedbackWidget } from '@/components/feedback-widget';
+import { useT } from '@/i18n/locale-provider';
+import { ThemeToggle } from '@/components/theme-provider';
 
 // ΠΡΟΣΟΧΗ στη σειρά: η κάτω μπάρα του κινητού δείχνει τα ΠΡΩΤΑ ΠΕΝΤΕ
 // (`navItems.slice(0, 5)` πιο κάτω). Οι «Προσλήψεις» και οι «Αξιολογήσεις»
 // μπαίνουν σκόπιμα από την 6η θέση και μετά, ώστε η μπάρα να μείνει ακριβώς
 // όπως την ξέρει ο κόσμος.
+// Τα labelKey είναι κλειδιά μετάφρασης (dashNav.*)· το badge/shortLabel πιο
+// κάτω κλειδώνει πάνω στο `href`, ΟΧΙ πάνω στο μεταφρασμένο κείμενο.
 const workerNavItems = [
-  { href: '/dashboard', label: 'Αρχική', icon: HomeIcon },
-  { href: '/dashboard/discover', label: 'Εύρεση', icon: DiscoverIcon },
-  { href: '/dashboard/matches', label: 'Matches', icon: MatchIcon },
-  { href: '/dashboard/messages', label: 'Μηνύματα', icon: MessageIcon },
-  { href: '/dashboard/profile', label: 'Προφίλ', icon: ProfileIcon },
-  { href: '/dashboard/hires', label: 'Προσλήψεις', icon: HireIcon },
-  { href: '/dashboard/board', label: 'Όλες οι αγγελίες', icon: BoardIcon },
-  { href: '/dashboard/tasknow', label: 'TaskNow', icon: TaskNowIcon },
-  { href: '/dashboard/ratings', label: 'Αξιολογήσεις', icon: StarIcon },
-  { href: '/dashboard/interests', label: 'Ενδιαφέρον', icon: HeartIcon },
-  { href: '/dashboard/billing', label: 'Premium', icon: BillingIcon },
-  { href: '/dashboard/settings', label: 'Ρυθμίσεις', icon: SettingsIcon },
+  { href: '/dashboard', labelKey: 'dashNav.home', icon: HomeIcon },
+  { href: '/dashboard/discover', labelKey: 'dashNav.discover', icon: DiscoverIcon },
+  { href: '/dashboard/matches', labelKey: 'dashNav.matches', icon: MatchIcon },
+  { href: '/dashboard/messages', labelKey: 'dashNav.messages', icon: MessageIcon },
+  { href: '/dashboard/profile', labelKey: 'dashNav.profile', icon: ProfileIcon },
+  { href: '/dashboard/hires', labelKey: 'dashNav.hires', icon: HireIcon },
+  { href: '/dashboard/board', labelKey: 'dashNav.board', icon: BoardIcon },
+  { href: '/dashboard/tasknow', labelKey: 'dashNav.tasknow', icon: TaskNowIcon },
+  { href: '/dashboard/ratings', labelKey: 'dashNav.ratings', icon: StarIcon },
+  { href: '/dashboard/interests', labelKey: 'dashNav.interests', icon: HeartIcon },
+  { href: '/dashboard/billing', labelKey: 'dashNav.premium', icon: BillingIcon },
+  { href: '/dashboard/settings', labelKey: 'dashNav.settings', icon: SettingsIcon },
 ];
 
 const businessNavItems = [
-  { href: '/dashboard', label: 'Αρχική', icon: HomeIcon },
-  { href: '/dashboard/jobs', label: 'Αγγελίες', icon: JobsIcon },
-  { href: '/dashboard/discover', label: 'Εύρεση', icon: DiscoverIcon },
-  { href: '/dashboard/matches', label: 'Matches', icon: MatchIcon },
-  { href: '/dashboard/messages', label: 'Μηνύματα', icon: MessageIcon },
-  { href: '/dashboard/hires', label: 'Προσλήψεις', icon: HireIcon },
-  { href: '/dashboard/board', label: 'Όλες οι αγγελίες', icon: BoardIcon },
-  { href: '/dashboard/tasknow', label: 'TaskNow', icon: TaskNowIcon },
-  { href: '/dashboard/ratings', label: 'Αξιολογήσεις', icon: StarIcon },
-  { href: '/dashboard/interests', label: 'Ενδιαφέρον', icon: HeartIcon },
-  { href: '/dashboard/profile', label: 'Προφίλ', icon: ProfileIcon },
-  { href: '/dashboard/billing', label: 'Συνδρομή', icon: BillingIcon },
-  { href: '/dashboard/settings', label: 'Ρυθμίσεις', icon: SettingsIcon },
+  { href: '/dashboard', labelKey: 'dashNav.home', icon: HomeIcon },
+  { href: '/dashboard/jobs', labelKey: 'dashNav.jobs', icon: JobsIcon },
+  { href: '/dashboard/discover', labelKey: 'dashNav.discover', icon: DiscoverIcon },
+  { href: '/dashboard/matches', labelKey: 'dashNav.matches', icon: MatchIcon },
+  { href: '/dashboard/messages', labelKey: 'dashNav.messages', icon: MessageIcon },
+  { href: '/dashboard/hires', labelKey: 'dashNav.hires', icon: HireIcon },
+  { href: '/dashboard/board', labelKey: 'dashNav.board', icon: BoardIcon },
+  { href: '/dashboard/tasknow', labelKey: 'dashNav.tasknow', icon: TaskNowIcon },
+  { href: '/dashboard/ratings', labelKey: 'dashNav.ratings', icon: StarIcon },
+  { href: '/dashboard/interests', labelKey: 'dashNav.interests', icon: HeartIcon },
+  { href: '/dashboard/profile', labelKey: 'dashNav.profile', icon: ProfileIcon },
+  { href: '/dashboard/billing', labelKey: 'dashNav.subscription', icon: BillingIcon },
+  { href: '/dashboard/settings', labelKey: 'dashNav.settings', icon: SettingsIcon },
 ];
 
 // ── Seen interests (ώστε το badge «Ενδιαφέρον» να καθαρίζει μόλις το δεις) ──
@@ -107,6 +111,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { user, profile, loading, logout } = useAuth();
+  const t = useT();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -233,7 +238,7 @@ export default function DashboardLayout({
   // αμέσως μετά την αρχική (μπαίνει και στην κάτω μπάρα του κινητού).
   const isAgency = user.role === 'business' && Number((profile as any)?.is_agency) === 1;
   const navItems = isAgency
-    ? [businessNavItems[0]!, { href: '/dashboard/clients', label: 'Πελάτες', icon: ClientsIcon }, ...businessNavItems.slice(1)]
+    ? [businessNavItems[0]!, { href: '/dashboard/clients', labelKey: 'dashNav.clients', icon: ClientsIcon }, ...businessNavItems.slice(1)]
     : user.role === 'business'
       ? businessNavItems
       : workerNavItems;
@@ -280,10 +285,10 @@ export default function DashboardLayout({
                 <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
                 <div className="absolute left-0 top-11 z-50 w-80 rounded-xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
                   <div className="border-b border-gray-100 px-4 py-2.5 flex items-center justify-between">
-                    <p className="text-sm font-semibold text-gray-900">Ειδοποιήσεις</p>
+                    <p className="text-sm font-semibold text-gray-900">{t('dashNav.notifications')}</p>
                     {notifUnread > 0 && (
                       <button onClick={markAllNotificationsRead} className="text-[10px] text-blue-600 font-medium hover:underline">
-                        Διάβασα όλες ({notifUnread})
+                        {t('dashNav.readAll', { n: notifUnread })}
                       </button>
                     )}
                   </div>
@@ -292,12 +297,12 @@ export default function DashboardLayout({
                       <div className="px-3 py-2 flex gap-2 border-b border-gray-100 bg-gray-50">
                         {badges.messages > 0 && (
                           <Link href="/dashboard/messages" onClick={() => setNotifOpen(false)} className="flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-200">
-                            💬 {badges.messages} μηνύματα
+                            💬 {t('dashNav.badgeMessages', { n: badges.messages ?? 0 })}
                           </Link>
                         )}
                         {badges.interests > 0 && (
                           <Link href="/dashboard/interests" onClick={() => setNotifOpen(false)} className="flex items-center gap-1.5 rounded-full bg-pink-100 px-3 py-1 text-xs font-medium text-pink-700 hover:bg-pink-200">
-                            👋 {badges.interests} ενδιαφέρον
+                            👋 {t('dashNav.badgeInterests', { n: badges.interests ?? 0 })}
                           </Link>
                         )}
                       </div>
@@ -316,8 +321,8 @@ export default function DashboardLayout({
                       badges.messages > 0 || badges.interests > 0 ? null : (
                       <div className="px-4 py-8 text-center">
                         <p className="text-3xl mb-2">🔔</p>
-                        <p className="text-sm font-medium text-gray-500">Δεν υπάρχουν ειδοποιήσεις</p>
-                        <p className="text-xs text-gray-400 mt-1">Θα σε ενημερώσουμε για matches, μηνύματα και ενδιαφέρον</p>
+                        <p className="text-sm font-medium text-gray-500">{t('dashNav.noNotifications')}</p>
+                        <p className="text-xs text-gray-400 mt-1">{t('dashNav.noNotificationsHint')}</p>
                       </div>
                       )
                     ) : (
@@ -339,12 +344,12 @@ export default function DashboardLayout({
                         const timeAgo = (() => {
                           if (!n.created_at) return '';
                           const mins = Math.floor((Date.now() - new Date(n.created_at).getTime()) / 60000);
-                          if (mins < 1) return 'Τώρα';
-                          if (mins < 60) return `${mins}λ πριν`;
+                          if (mins < 1) return t('dashNav.timeNow');
+                          if (mins < 60) return t('dashNav.minsAgo', { n: mins });
                           const hrs = Math.floor(mins / 60);
-                          if (hrs < 24) return `${hrs}ω πριν`;
+                          if (hrs < 24) return t('dashNav.hoursAgo', { n: hrs });
                           const days = Math.floor(hrs / 24);
-                          return `${days}η πριν`;
+                          return t('dashNav.daysAgo', { n: days });
                         })();
                         return (
                           <Link key={n.id} href={link} onClick={() => { setNotifOpen(false); dismissNotification(n); }}
@@ -390,10 +395,10 @@ export default function DashboardLayout({
                         isActive ? 'text-blue-600' : 'text-gray-400'
                       }`}
                     />
-                    <span className="flex-1">{item.label}</span>
-                    {item.label === 'Matches' && badges.matches > 0 && <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{badges.matches}</span>}
-                    {item.label === 'Μηνύματα' && badges.messages > 0 && <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{badges.messages}</span>}
-                    {item.label === 'Ενδιαφέρον' && badges.interests > 0 && <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{badges.interests}</span>}
+                    <span className="flex-1">{t(item.labelKey)}</span>
+                    {item.href === '/dashboard/matches' && badges.matches > 0 && <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{badges.matches}</span>}
+                    {item.href === '/dashboard/messages' && badges.messages > 0 && <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{badges.messages}</span>}
+                    {item.href === '/dashboard/interests' && badges.interests > 0 && <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{badges.interests}</span>}
                   </Link>
                 </li>
               );
@@ -416,7 +421,7 @@ export default function DashboardLayout({
                 {((user as any)?.display_name || '').trim() || ((profile as any)?.full_name || '').trim() || ((profile as any)?.company_name || '').trim() || user.email}
               </p>
               <p className="truncate text-xs text-gray-500">
-                {user.role === 'business' ? 'Επιχείρηση' : 'Εργαζόμενος'}
+                {user.role === 'business' ? t('dashNav.roleBusiness') : t('dashNav.roleWorker')}
               </p>
             </div>
           </div>
@@ -426,8 +431,11 @@ export default function DashboardLayout({
             className="mt-3 w-full"
             onClick={() => logout()}
           >
-            Αποσύνδεση
+            {t('dashNav.logout')}
           </Button>
+          <div className="mt-3 flex justify-end">
+            <ThemeToggle />
+          </div>
         </div>
       </aside>
 
@@ -437,6 +445,7 @@ export default function DashboardLayout({
           <StaffNowLogo size="md" />
         </Link>
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           {/* Notification bell with dropdown */}
           <div className="relative">
             {/*
@@ -470,10 +479,10 @@ export default function DashboardLayout({
                 */}
                 <div className="fixed left-2 right-2 top-16 z-50 rounded-xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
                   <div className="border-b border-gray-100 px-4 py-2.5 flex items-center justify-between">
-                    <p className="text-sm font-semibold text-gray-900">Ειδοποιήσεις</p>
+                    <p className="text-sm font-semibold text-gray-900">{t('dashNav.notifications')}</p>
                     {notifUnread > 0 && (
                       <button onClick={markAllNotificationsRead} className="text-[10px] text-blue-600 font-medium hover:underline">
-                        Διάβασα όλες ({notifUnread})
+                        {t('dashNav.readAll', { n: notifUnread })}
                       </button>
                     )}
                   </div>
@@ -483,12 +492,12 @@ export default function DashboardLayout({
                       <div className="px-3 py-2 flex gap-2 border-b border-gray-100 bg-gray-50">
                         {badges.messages > 0 && (
                           <Link href="/dashboard/messages" onClick={() => setNotifOpen(false)} className="flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-200">
-                            💬 {badges.messages} μηνύματα
+                            💬 {t('dashNav.badgeMessages', { n: badges.messages ?? 0 })}
                           </Link>
                         )}
                         {badges.interests > 0 && (
                           <Link href="/dashboard/interests" onClick={() => setNotifOpen(false)} className="flex items-center gap-1.5 rounded-full bg-pink-100 px-3 py-1 text-xs font-medium text-pink-700 hover:bg-pink-200">
-                            👋 {badges.interests} ενδιαφέρον
+                            👋 {t('dashNav.badgeInterests', { n: badges.interests ?? 0 })}
                           </Link>
                         )}
                       </div>
@@ -497,8 +506,8 @@ export default function DashboardLayout({
                     {notifications.filter((n: any) => !n.read_at).length === 0 ? (
                       <div className="px-4 py-8 text-center">
                         <p className="text-3xl mb-2">🔔</p>
-                        <p className="text-sm font-medium text-gray-500">Δεν υπάρχουν ειδοποιήσεις</p>
-                        <p className="text-xs text-gray-400 mt-1">Θα σε ενημερώσουμε για matches, μηνύματα και ενδιαφέρον</p>
+                        <p className="text-sm font-medium text-gray-500">{t('dashNav.noNotifications')}</p>
+                        <p className="text-xs text-gray-400 mt-1">{t('dashNav.noNotificationsHint')}</p>
                       </div>
                     ) : (
                       notifications.filter((n: any) => !n.read_at).map((n: any) => {
@@ -513,12 +522,12 @@ export default function DashboardLayout({
                         const timeAgo = (() => {
                           if (!n.created_at) return '';
                           const mins = Math.floor((Date.now() - new Date(n.created_at).getTime()) / 60000);
-                          if (mins < 1) return 'Τώρα';
-                          if (mins < 60) return `${mins}λ πριν`;
+                          if (mins < 1) return t('dashNav.timeNow');
+                          if (mins < 60) return t('dashNav.minsAgo', { n: mins });
                           const hrs = Math.floor(mins / 60);
-                          if (hrs < 24) return `${hrs}ω πριν`;
+                          if (hrs < 24) return t('dashNav.hoursAgo', { n: hrs });
                           const days = Math.floor(hrs / 24);
-                          return `${days}η πριν`;
+                          return t('dashNav.daysAgo', { n: days });
                         })();
                         return (
                           <Link key={n.id} href={link} onClick={() => { setNotifOpen(false); dismissNotification(n); }}
@@ -553,14 +562,14 @@ export default function DashboardLayout({
                 <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)}
                   className={`flex items-center gap-3 px-4 py-2.5 text-sm ${pathname.startsWith(item.href) && item.href !== '/dashboard' ? 'text-blue-600 bg-blue-50 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}>
                   <item.icon className="h-4 w-4" />
-                  {item.label}
+                  {t(item.labelKey)}
                 </Link>
               ))}
               <div className="my-1 border-t border-gray-100" />
               <button onClick={() => { setMobileMenuOpen(false); logout(); }}
                 className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" /></svg>
-                Αποσύνδεση
+                {t('dashNav.logout')}
               </button>
             </div>
           )}
@@ -575,17 +584,17 @@ export default function DashboardLayout({
             item.href === '/dashboard'
               ? pathname === '/dashboard'
               : pathname.startsWith(item.href);
+          // Κλειδωμένο πάνω σε `href`, ΟΧΙ στο (μεταφρασμένο) label.
           const shortLabels: Record<string, string> = {
-            'Αρχική': 'Αρχική',
-            'Ανακάλυψη': 'Εύρεση',
-            'Ενδιαφέρον': '👋',
-            'Matches': 'Match',
-            'Μηνύματα': 'Chat',
-            'Αγγελίες': 'Αγγελ.',
-            'Πελάτες': 'Πελάτες',
-            'Προφίλ': 'Προφίλ',
-            'Συνδρομή': 'Πλάνο',
-            'Ρυθμίσεις': 'Ρυθμ.',
+            '/dashboard': t('dashNav.short.home'),
+            '/dashboard/interests': t('dashNav.short.interests'),
+            '/dashboard/matches': t('dashNav.short.matches'),
+            '/dashboard/messages': t('dashNav.short.messages'),
+            '/dashboard/jobs': t('dashNav.short.jobs'),
+            '/dashboard/clients': t('dashNav.short.clients'),
+            '/dashboard/profile': t('dashNav.short.profile'),
+            '/dashboard/billing': t('dashNav.short.subscription'),
+            '/dashboard/settings': t('dashNav.short.settings'),
           };
           return (
             <Link
@@ -597,10 +606,10 @@ export default function DashboardLayout({
             >
               <div className="relative">
                 <item.icon className="h-5 w-5" />
-                {item.label === 'Matches' && badges.matches > 0 && <span className="absolute -top-1.5 -right-2.5 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-red-500 px-0.5 text-[8px] font-bold text-white">{badges.matches}</span>}
-                {item.label === 'Μηνύματα' && badges.messages > 0 && <span className="absolute -top-1.5 -right-2.5 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-red-500 px-0.5 text-[8px] font-bold text-white">{badges.messages}</span>}
+                {item.href === '/dashboard/matches' && badges.matches > 0 && <span className="absolute -top-1.5 -right-2.5 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-red-500 px-0.5 text-[8px] font-bold text-white">{badges.matches}</span>}
+                {item.href === '/dashboard/messages' && badges.messages > 0 && <span className="absolute -top-1.5 -right-2.5 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-red-500 px-0.5 text-[8px] font-bold text-white">{badges.messages}</span>}
               </div>
-              <span className="truncate">{shortLabels[item.label] || item.label}</span>
+              <span className="truncate">{shortLabels[item.href] || t(item.labelKey)}</span>
             </Link>
           );
         })}

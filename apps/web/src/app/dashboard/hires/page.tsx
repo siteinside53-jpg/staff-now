@@ -21,6 +21,7 @@ import { api } from '@/lib/api';
 import { Spinner } from '@/components/ui/spinner';
 import { EmptyState } from '@/components/ui/empty-state';
 import { RatingModal } from '@/components/dashboard/rating-modal';
+import { useT, useLocale } from '@/i18n/locale-provider';
 
 interface Hire {
   id: string;
@@ -41,21 +42,23 @@ interface Hire {
   i_declared: number;
 }
 
-function greekDate(iso?: string | null): string {
+function formatDate(iso: string | null | undefined, locale: 'el' | 'en'): string {
   if (!iso) return '—';
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return '—';
-  return new Date(t).toLocaleDateString('el-GR', { day: 'numeric', month: 'long', year: 'numeric' });
+  return new Date(t).toLocaleDateString(locale === 'en' ? 'en-GB' : 'el-GR', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-const STATUS_BADGE: Record<Hire['status'], { label: string; className: string }> = {
-  pending: { label: 'Εκκρεμεί επιβεβαίωση', className: 'bg-amber-100 text-amber-800' },
-  confirmed: { label: 'Επιβεβαιωμένη', className: 'bg-emerald-100 text-emerald-800' },
-  declined: { label: 'Δεν επιβεβαιώθηκε', className: 'bg-gray-100 text-gray-600' },
-  cancelled: { label: 'Ακυρώθηκε', className: 'bg-gray-100 text-gray-600' },
-};
-
 export default function HiresPage() {
+  const t = useT();
+  const { locale } = useLocale();
+  const greekDate = (iso?: string | null) => formatDate(iso, locale);
+  const STATUS_BADGE: Record<Hire['status'], { label: string; className: string }> = {
+    pending: { label: t('hiresPage.statusPending'), className: 'bg-amber-100 text-amber-800' },
+    confirmed: { label: t('hiresPage.statusConfirmed'), className: 'bg-emerald-100 text-emerald-800' },
+    declined: { label: t('hiresPage.statusDeclined'), className: 'bg-gray-100 text-gray-600' },
+    cancelled: { label: t('hiresPage.statusCancelled'), className: 'bg-gray-100 text-gray-600' },
+  };
   const { user } = useAuth();
   const isWorker = user?.role !== 'business';
 
@@ -87,14 +90,14 @@ export default function HiresPage() {
     try {
       const res = (await (ans === 'confirm' ? api.hires.confirm(id) : api.hires.decline(id))) as any;
       if (res?.data?.hire) {
-        toast.success(ans === 'confirm' ? 'Επιβεβαιώθηκε!' : 'Καταγράφηκε');
+        toast.success(ans === 'confirm' ? t('hiresPage.confirmedToast') : t('hiresPage.recorded'));
         await load();
         window.dispatchEvent(new Event('staffnow:badges-refresh'));
       } else {
-        toast.error(res?.error?.message || 'Σφάλμα');
+        toast.error(res?.error?.message || t('hiresPage.error'));
       }
     } catch (e: any) {
-      toast.error(e?.message || 'Σφάλμα σύνδεσης');
+      toast.error(e?.message || t('hiresPage.connError'));
     }
     setBusy(null);
   };
@@ -104,16 +107,16 @@ export default function HiresPage() {
     setBusy(id);
     try {
       await api.hires.cancel(id);
-      toast.success('Η δήλωση αποσύρθηκε');
+      toast.success(t('hiresPage.withdrawn'));
       await load();
     } catch (e: any) {
-      toast.error(e?.message || 'Δεν αποσύρθηκε');
+      toast.error(e?.message || t('hiresPage.notWithdrawn'));
     }
     setBusy(null);
   };
 
   const otherName = (h: Hire) =>
-    (isWorker ? h.business_name : h.worker_name) || (isWorker ? 'Επιχείρηση' : 'Εργαζόμενος/η');
+    (isWorker ? h.business_name : h.worker_name) || (isWorker ? t('hiresPage.business') : t('hiresPage.worker'));
   const otherAvatar = (h: Hire) => (isWorker ? h.business_logo : h.worker_avatar) || null;
 
   const pending = hires.filter((h) => h.status === 'pending');
@@ -145,12 +148,12 @@ export default function HiresPage() {
             </div>
 
             {h.job_title && (
-              <p className="mt-0.5 truncate text-sm text-gray-600">για «{h.job_title}»</p>
+              <p className="mt-0.5 truncate text-sm text-gray-600">{t('hiresPage.forJob', { title: h.job_title })}</p>
             )}
 
             <p className="mt-1 text-xs text-gray-500">
-              Δηλώθηκε {greekDate(h.declared_at)}
-              {h.confirmed_at ? ` · Επιβεβαιώθηκε ${greekDate(h.confirmed_at)}` : ''}
+              {t('hiresPage.declaredOn', { date: greekDate(h.declared_at) })}
+              {h.confirmed_at ? t('hiresPage.confirmedOn', { date: greekDate(h.confirmed_at) }) : ''}
             </p>
 
             {/* Ενέργειες */}
@@ -167,14 +170,14 @@ export default function HiresPage() {
                     disabled={busy === h.id}
                     className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
                   >
-                    {isWorker ? '✅ Ναι, ξεκίνησα' : '✅ Ναι, τον/την προσέλαβα'}
+                    {isWorker ? t('hiresPage.yesStarted') : t('hiresPage.yesHired')}
                   </button>
                   <button
                     onClick={() => answer(h.id, 'decline')}
                     disabled={busy === h.id}
                     className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                   >
-                    {isWorker ? 'Όχι, δεν ξεκίνησα' : 'Όχι, δεν έγινε'}
+                    {isWorker ? t('hiresPage.noNotStarted') : t('hiresPage.noNotHappened')}
                   </button>
                 </>
               )}
@@ -182,14 +185,14 @@ export default function HiresPage() {
               {h.status === 'pending' && !!h.i_declared && (
                 <>
                   <span className="text-xs text-gray-500">
-                    Περιμένουμε την επιβεβαίωσή του/της. Μέχρι τότε δεν μετράει στις θέσεις.
+                    {t('hiresPage.waitingConfirmation')}
                   </span>
                   <button
                     onClick={() => cancelDeclaration(h.id)}
                     disabled={busy === h.id}
                     className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                   >
-                    Απόσυρση δήλωσης
+                    {t('hiresPage.withdraw')}
                   </button>
                 </>
               )}
@@ -199,7 +202,7 @@ export default function HiresPage() {
                   onClick={() => setRating({ id: h.id, name: otherName(h) })}
                   className="rounded-lg bg-yellow-500 px-4 py-2 text-sm font-bold text-white hover:bg-yellow-600"
                 >
-                  ⭐ Γράψε αξιολόγηση
+                  {t('hiresPage.writeRating')}
                 </button>
               )}
 
@@ -208,13 +211,13 @@ export default function HiresPage() {
                   onClick={() => setRating({ id: h.id, name: otherName(h) })}
                   className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-bold text-gray-800 hover:bg-gray-50"
                 >
-                  ⭐ Δες τις αξιολογήσεις
+                  {t('hiresPage.seeRatings')}
                 </button>
               )}
 
               {h.status === 'confirmed' && !ratingOpen && (
                 <span className="text-xs text-gray-500">
-                  Η αξιολόγηση ανοίγει {opensAt ? `στις ${greekDate(h.rating_opens_at)}` : '15 μέρες μετά την έναρξη'}.
+                  {opensAt ? t('hiresPage.ratingOpensOn', { date: greekDate(h.rating_opens_at) }) : t('hiresPage.ratingOpensLater')}
                 </span>
               )}
             </div>
@@ -237,10 +240,9 @@ export default function HiresPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Προσλήψεις</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('hiresPage.title')}</h1>
         <p className="mt-1 text-sm text-gray-600">
-          Κάθε πρόσληψη που δηλώθηκε μέσω StaffNow. Μετράει μόνο όταν την επιβεβαιώσει
-          και ο/η εργαζόμενος/η.
+          {t('hiresPage.subtitle')}
         </p>
       </div>
 
@@ -249,40 +251,36 @@ export default function HiresPage() {
       ) : failed ? (
         <EmptyState
           icon={<span className="text-2xl">⚠️</span>}
-          title="Δεν φόρτωσε το ιστορικό"
-          description="Κάτι πήγε στραβά με τη σύνδεση. Δοκίμασε ξανά."
+          title={t('hiresPage.loadFailedTitle')}
+          description={t('hiresPage.loadFailedDesc')}
           action={
             <button
               onClick={() => { setLoading(true); load(); }}
               className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700"
             >
-              Δοκίμασε ξανά
+              {t('hiresPage.tryAgain')}
             </button>
           }
         />
       ) : hires.length === 0 ? (
         <EmptyState
           icon={<span className="text-2xl">🤝</span>}
-          title="Καμία πρόσληψη ακόμη"
-          description={
-            isWorker
-              ? 'Όταν σε προσλάβουν, δήλωσέ το μέσα στη συνομιλία — ή περίμενε να το δηλώσει η επιχείρηση. Θα εμφανιστεί εδώ για επιβεβαίωση.'
-              : 'Όταν προσλάβεις κάποιον/α, δήλωσέ το μέσα στη συνομιλία — ή περίμενε να το δηλώσει ο/η ίδιος/α. Θα εμφανιστεί εδώ για επιβεβαίωση.'
-          }
+          title={t('hiresPage.emptyTitle')}
+          description={isWorker ? t('hiresPage.emptyWorker') : t('hiresPage.emptyBusiness')}
           action={
             <Link
               href="/dashboard/messages"
               className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700"
             >
-              Στις συνομιλίες
+              {t('hiresPage.toConversations')}
             </Link>
           }
         />
       ) : (
         <>
-          {section('Εκκρεμούν', pending)}
-          {section('Επιβεβαιωμένες', confirmed)}
-          {section('Δεν προχώρησαν', closed)}
+          {section(t('hiresPage.secPending'), pending)}
+          {section(t('hiresPage.secConfirmed'), confirmed)}
+          {section(t('hiresPage.secClosed'), closed)}
         </>
       )}
 

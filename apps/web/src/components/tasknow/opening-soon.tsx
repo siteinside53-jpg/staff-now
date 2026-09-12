@@ -15,8 +15,10 @@
 
 import Link from 'next/link';
 import { TaskNowLogo } from './logo';
+import { useT } from '@/i18n/locale-provider';
 
 export function TaskNowOpeningSoon() {
+  const t = useT();
   return (
     <div className="rounded-3xl border border-amber-200 bg-white p-6 text-center shadow-sm sm:p-10">
       <div className="flex justify-center">
@@ -24,23 +26,19 @@ export function TaskNowOpeningSoon() {
       </div>
 
       <span className="mt-4 inline-flex items-center gap-2 rounded-full bg-amber-50 px-4 py-1.5 text-sm font-semibold text-amber-800">
-        Ανοίγει σύντομα στη Θεσσαλονίκη
+        {t('tasknow.openingSoon.badge')}
       </span>
 
       <h1 className="mt-4 text-2xl font-bold leading-tight tracking-tight text-gray-900">
-        Οι μικροδουλειές δεν έχουν ανοίξει ακόμη.
+        {t('tasknow.openingSoon.title')}
       </h1>
 
       <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-gray-600">
-        Ετοιμάζουμε το κομμάτι όπου ανεβάζεις μια μικρή δουλειά — βόλτα με τον σκύλο,
-        μεταφορά, καθάρισμα, θέλημα, μαστόρεμα — και δέχεσαι προσφορές με ποσό. Ξεκινάμε
-        από τη Θεσσαλονίκη. Έχεις ήδη λογαριασμό, οπότε θα είσαι από τους πρώτους που θα
-        μπορούν να ανεβάσουν και να αναλάβουν.
+        {t('tasknow.openingSoon.text')}
       </p>
 
       <p className="mx-auto mt-3 max-w-xl text-xs leading-relaxed text-gray-400">
-        Δεν σου κρύβουμε τίποτα: αυτή τη στιγμή δεν υπάρχει καμία ανοιχτή μικροδουλειά,
-        ούτε δική σου ούτε άλλου.
+        {t('tasknow.openingSoon.note')}
       </p>
 
       <div className="mt-6 flex flex-wrap justify-center gap-3">
@@ -48,13 +46,13 @@ export function TaskNowOpeningSoon() {
           href="/tasknow"
           className="rounded-xl bg-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-amber-500/25 transition hover:bg-amber-600"
         >
-          Δες πώς θα δουλεύει
+          {t('tasknow.openingSoon.seeHow')}
         </Link>
         <Link
           href="/dashboard/jobs"
           className="rounded-xl bg-gray-100 px-6 py-3 text-sm font-semibold text-gray-800 transition hover:bg-gray-200"
         >
-          Πήγαινε στις αγγελίες
+          {t('tasknow.openingSoon.goJobs')}
         </Link>
       </div>
     </div>

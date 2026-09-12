@@ -10,6 +10,7 @@
  * μεταφέρεται αυτούσια ώστε να τη μοιράζονται και οι δημόσιες λίστες.
  */
 import { GREEK_CITIES, GREEK_CITY_AREAS } from './greek-cities';
+import { translate, type Locale } from '@/i18n';
 
 /** Πεζά + χωρίς τόνους, για συγκρίσεις. */
 export function normText(s: string): string {
@@ -148,6 +149,7 @@ export type FilterCategoryShape = {
  */
 export function buildCityCategories(
   entries: { location: string; region?: string }[],
+  locale: Locale = 'el',
 ): FilterCategoryShape[] {
   type Agg = { label: string; count: number; areas: Map<string, { label: string; count: number }> };
   const byCity = new Map<string, Agg>();
@@ -219,7 +221,10 @@ export function buildCityCategories(
         id: agg.label,
         label: agg.label,
         count: agg.count,
-        options: [{ value: agg.label, label: 'Όλη η πόλη', count: agg.count }, ...areaOptions],
+        options: [
+          { value: agg.label, label: translate(locale, 'locationLib.wholeCity'), count: agg.count },
+          ...areaOptions,
+        ],
       };
     })
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'el'));

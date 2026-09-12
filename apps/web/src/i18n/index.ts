@@ -1,5 +1,15 @@
 import elCommon from './locales/el/common.json';
 import enCommon from './locales/en/common.json';
+// Επιπλέον λεξικά ανά περιοχή — καθένα με ΔΙΚΑ του namespaces, ώστε να τα
+// δουλεύουν παράλληλα διαφορετικά χέρια χωρίς συγκρούσεις στο ίδιο αρχείο.
+import elPublic from './locales/el/public.json';
+import enPublic from './locales/en/public.json';
+import elDashboard from './locales/el/dashboard.json';
+import enDashboard from './locales/en/dashboard.json';
+import elTasknow from './locales/el/tasknow.json';
+import enTasknow from './locales/en/tasknow.json';
+import elLabels from './locales/el/labels.json';
+import enLabels from './locales/en/labels.json';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -18,9 +28,23 @@ interface Translations {
 // Translation data
 // ---------------------------------------------------------------------------
 
+function mergeDicts(...dicts: unknown[]): TranslationMap {
+  const out: TranslationMap = {};
+  for (const d of dicts) {
+    for (const [k, v] of Object.entries((d || {}) as TranslationMap)) {
+      const prev = out[k];
+      out[k] =
+        prev && typeof prev === 'object' && v && typeof v === 'object'
+          ? { ...(prev as TranslationMap), ...(v as TranslationMap) }
+          : v;
+    }
+  }
+  return out;
+}
+
 const translations: Translations = {
-  el: { common: elCommon as unknown as TranslationMap },
-  en: { common: enCommon as unknown as TranslationMap },
+  el: { common: mergeDicts(elCommon, elPublic, elDashboard, elTasknow, elLabels) },
+  en: { common: mergeDicts(enCommon, enPublic, enDashboard, enTasknow, enLabels) },
 };
 
 // Default locale (Greek is the primary language)

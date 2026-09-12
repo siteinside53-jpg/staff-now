@@ -6,13 +6,16 @@ import { ShareTask } from './share-task';
 import {
   AREA_COORDS,
   CATEGORY_BY_KEY,
-  REQUIRED_LICENCE,
   type CenterSource,
   type Coords,
+  categoryLabelFor,
   distanceKm,
   distanceLabel,
+  formatPostedAgo,
   isLicensedCategory,
   levelFor,
+  levelLabelFor,
+  licenceLabelFor,
   posterLabel,
 } from './data';
 import {
@@ -28,6 +31,7 @@ import {
   type MockOffer,
   type MockTask,
 } from './mock-store';
+import { useT, useLocale } from '@/i18n/locale-provider';
 
 /**
  * ΜΑΚΕΤΑ — η καρτέλα μιας μικροδουλειάς.
@@ -44,8 +48,9 @@ import {
  */
 
 function Stars({ rating }: { rating: number | null }) {
+  const t = useT();
   if (rating === null) {
-    return <span className="text-xs font-medium text-gray-400">νέος χρήστης</span>;
+    return <span className="text-xs font-medium text-gray-400">{t('tasknow.detail.newUser')}</span>;
   }
   return (
     <span className="text-xs font-semibold text-gray-900">
@@ -65,6 +70,8 @@ function OfferRow({
   decided: boolean;
   onChoose: () => void;
 }) {
+  const t = useT();
+  const { locale } = useLocale();
   const lvl = levelFor(offer.completed, offer.rating);
   return (
     <div
@@ -83,16 +90,16 @@ function OfferRow({
             {offer.name}
             {offer.mine && (
               <span className="ml-2 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
-                η προσφορά σου
+                {t('tasknow.detail.yourOffer')}
               </span>
             )}
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
             <span className={'rounded-full px-2 py-0.5 text-[11px] font-semibold ' + lvl.className}>
-              {lvl.icon} {lvl.label}
+              {lvl.icon} {levelLabelFor(locale, lvl)}
             </span>
             <Stars rating={offer.rating} />
-            <span className="text-xs text-gray-500">{offer.completed} ολοκληρωμένες</span>
+            <span className="text-xs text-gray-500">{t('tasknow.detail.completedCount', { n: offer.completed })}</span>
             <span className="text-xs text-gray-400">{offer.createdAgo}</span>
           </div>
         </div>
@@ -111,7 +118,7 @@ function OfferRow({
             (offer.verifiedPhone ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500')
           }
         >
-          {offer.verifiedPhone ? '✓ κινητό' : 'κινητό: όχι'}
+          {offer.verifiedPhone ? t('tasknow.detail.phoneYes') : t('tasknow.detail.phoneNo')}
         </span>
         <span
           className={
@@ -119,7 +126,7 @@ function OfferRow({
             (offer.verifiedId ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500')
           }
         >
-          {offer.verifiedId ? '✓ ταυτότητα' : 'ταυτότητα: όχι'}
+          {offer.verifiedId ? t('tasknow.detail.idYes') : t('tasknow.detail.idNo')}
         </span>
         <span
           className={
@@ -127,7 +134,7 @@ function OfferRow({
             (offer.invoice ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-500')
           }
         >
-          {offer.invoice ? 'εκδίδει παραστατικό' : 'δεν δήλωσε παραστατικό'}
+          {offer.invoice ? t('tasknow.detail.invoiceYes') : t('tasknow.detail.invoiceNo')}
         </span>
         {offer.licence && (
           <span
@@ -139,8 +146,8 @@ function OfferRow({
             }
           >
             {offer.licence.verified
-              ? '✓ ελεγμένη άδεια: '
-              : 'δηλωμένη άδεια (δεν έχει ελεγχθεί): '}
+              ? t('tasknow.detail.licenceVerified')
+              : t('tasknow.detail.licenceDeclared')}
             {offer.licence.label}
           </span>
         )}
@@ -152,7 +159,7 @@ function OfferRow({
               (c.verified ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800')
             }
           >
-            {c.verified ? '✓ ελεγμένο: ' : 'δηλωμένο: '}
+            {c.verified ? t('tasknow.detail.credVerified') : t('tasknow.detail.credDeclared')}
             {c.label}
           </span>
         ))}
@@ -164,11 +171,11 @@ function OfferRow({
           onClick={onChoose}
           className="mt-3 w-full rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-500"
         >
-          Διάλεξε αυτή την προσφορά
+          {t('tasknow.detail.chooseOffer')}
         </button>
       )}
       {chosen && (
-        <p className="mt-3 text-center text-sm font-semibold text-emerald-700">✓ Την επέλεξες</p>
+        <p className="mt-3 text-center text-sm font-semibold text-emerald-700">{t('tasknow.detail.chosen')}</p>
       )}
     </div>
   );
@@ -176,14 +183,15 @@ function OfferRow({
 
 /** Η συνομιλία της δουλειάς. Ανοίγει μόλις γίνει η επιλογή. */
 function Chat({ task }: { task: MockTask }) {
+  const t = useT();
   const [text, setText] = useState('');
   const [as, setAs] = useState<'owner' | 'worker'>(task.mine ? 'owner' : 'worker');
   const other = task.offersList.find((o) => o.id === task.chosenOfferId);
 
   function send() {
-    const t = text.trim();
-    if (!t) return;
-    sendMessage(task.id, as, t);
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    sendMessage(task.id, as, trimmed);
     setText('');
   }
 
@@ -191,25 +199,27 @@ function Chat({ task }: { task: MockTask }) {
     <div className="mt-4 rounded-xl border border-gray-200">
       <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2.5">
         <p className="text-sm font-semibold text-gray-900">
-          Συνομιλία με {task.mine ? (other?.name ?? 'τον εκτελεστή') : 'τον πελάτη'}
+          {t('tasknow.detail.chatWith', {
+            who: task.mine ? (other?.name ?? t('tasknow.detail.theWorker')) : t('tasknow.detail.theClient'),
+          })}
         </p>
         {/* Μόνο για τη μακέτα: εδώ είσαι και οι δύο πλευρές. */}
         <label className="flex items-center gap-1.5 text-[11px] text-gray-500">
-          γράφω ως
+          {t('tasknow.detail.writeAs')}
           <select
             value={as}
             onChange={(e) => setAs(e.target.value as 'owner' | 'worker')}
             className="rounded-md border border-gray-300 px-1.5 py-1 text-[11px]"
           >
-            <option value="owner">πελάτης</option>
-            <option value="worker">εκτελεστής</option>
+            <option value="owner">{t('tasknow.detail.client')}</option>
+            <option value="worker">{t('tasknow.detail.worker')}</option>
           </select>
         </label>
       </div>
 
       <div className="max-h-56 space-y-2 overflow-y-auto p-3">
         {task.messages.length === 0 ? (
-          <p className="py-6 text-center text-xs text-gray-400">Κανένα μήνυμα ακόμη.</p>
+          <p className="py-6 text-center text-xs text-gray-400">{t('tasknow.detail.noMessages')}</p>
         ) : (
           task.messages.map((m) => (
             <div key={m.id} className={'flex ' + (m.from === 'owner' ? 'justify-start' : 'justify-end')}>
@@ -228,7 +238,7 @@ function Chat({ task }: { task: MockTask }) {
                     (m.from === 'owner' ? 'text-gray-400' : 'text-amber-100')
                   }
                 >
-                  {m.from === 'owner' ? 'πελάτης' : 'εκτελεστής'} · {m.at}
+                  {m.from === 'owner' ? t('tasknow.detail.client') : t('tasknow.detail.worker')} · {m.at}
                 </span>
               </div>
             </div>
@@ -246,7 +256,7 @@ function Chat({ task }: { task: MockTask }) {
               send();
             }
           }}
-          placeholder="Γράψε μήνυμα…"
+          placeholder={t('tasknow.detail.msgPlaceholder')}
           className="flex-1 rounded-xl border border-gray-300 px-3.5 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
         />
         <button
@@ -254,13 +264,12 @@ function Chat({ task }: { task: MockTask }) {
           onClick={send}
           className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-500"
         >
-          Στείλε
+          {t('tasknow.detail.send')}
         </button>
       </div>
 
       <p className="border-t border-gray-100 px-3 py-2 text-[11px] leading-relaxed text-gray-500">
-        Στην πραγματική έκδοση η συνομιλία γίνεται στα μηνύματα του StaffNow, που
-        υπάρχουν ήδη — με ειδοποίηση, καμπανάκι και ιστορικό.
+        {t('tasknow.detail.chatNote')}
       </p>
     </div>
   );
@@ -282,6 +291,7 @@ function ReasonBox({
   onConfirm: (reason: string) => void;
   onCancel: () => void;
 }) {
+  const t = useT();
   const [reason, setReason] = useState('');
   const [error, setError] = useState(false);
 
@@ -301,12 +311,12 @@ function ReasonBox({
           setReason(e.target.value);
           if (e.target.value.trim().length >= 10) setError(false);
         }}
-        placeholder="Γράψε τι έγινε…"
+        placeholder={t('tasknow.detail.reasonPlaceholder')}
         className="mt-2 w-full resize-none rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none focus:border-amber-500"
       />
       {error && (
         <p className="mt-1 text-xs font-medium text-red-700">
-          Γράψε τουλάχιστον δύο λόγια — αλλιώς δεν μπορεί να κριθεί.
+          {t('tasknow.detail.reasonTooShort')}
         </p>
       )}
       <div className="mt-3 flex flex-col gap-2 sm:flex-row-reverse">
@@ -331,7 +341,7 @@ function ReasonBox({
           onClick={onCancel}
           className="flex-1 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 ring-1 ring-gray-300 transition hover:bg-gray-50"
         >
-          Άκυρο
+          {t('tasknow.common.cancel')}
         </button>
       </div>
     </div>
@@ -342,7 +352,7 @@ export function TaskDetailModal({
   task,
   center,
   centerSource = 'default',
-  centerLabel = 'το κέντρο',
+  centerLabel,
   onClose,
   onMakeOffer,
 }: {
@@ -353,6 +363,9 @@ export function TaskDetailModal({
   onClose: () => void;
   onMakeOffer: (task: MockTask) => void;
 }) {
+  const t = useT();
+  const { locale } = useLocale();
+  const resolvedCenterLabel = centerLabel ?? t('tasknow.feed.centerDefault');
   const [confirming, setConfirming] = useState<MockOffer | null>(null);
   const [licenceAck, setLicenceAck] = useState(false);
   const [ackError, setAckError] = useState(false);
@@ -364,28 +377,28 @@ export function TaskDetailModal({
   const km = center && coords ? distanceKm(center, coords) : null;
   const alreadyOffered = task.offersList.some((o) => o.mine);
   const needsLicence = isLicensedCategory(task.category);
-  const licenceLabel = REQUIRED_LICENCE[task.category] ?? 'Επαγγελματική άδεια';
+  const licenceLabel = licenceLabelFor(locale, task.category) || t('tasknow.licence.generic');
   const decided = task.status !== 'open';
   const chosen = task.offersList.find((o) => o.id === task.chosenOfferId);
   const bothPaid = task.paidByOwner && task.paidByWorker;
 
   return (
-    <Modal open onClose={onClose} title={task.mine ? 'Η μικροδουλειά σου' : 'Μικροδουλειά'}>
+    <Modal open onClose={onClose} title={task.mine ? t('tasknow.detail.titleMine') : t('tasknow.detail.title')}>
       <div className="rounded-xl bg-gray-50 px-4 py-3">
         <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium text-gray-600">
           <span aria-hidden="true">{cat?.icon}</span>
-          {cat?.label} · {task.area}
+          {cat ? categoryLabelFor(locale, cat.key) : ''} · {task.area}
           {km !== null && (
-            <span className="text-gray-400">· {distanceLabel(km, centerSource, centerLabel)}</span>
+            <span className="text-gray-400">· {distanceLabel(km, centerSource, resolvedCenterLabel, locale)}</span>
           )}
           {task.urgent && (
             <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-700">
-              Επείγον
+              {t('tasknow.common.urgent')}
             </span>
           )}
           {needsLicence && (
             <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">
-              θέλει άδεια
+              {t('tasknow.common.needsLicence')}
             </span>
           )}
         </div>
@@ -400,7 +413,7 @@ export function TaskDetailModal({
                 task.postedByName.trim().charAt(0).toUpperCase()
               )}
             </span>
-            {posterLabel(task.postedByName, task.postedByRole)}
+            {posterLabel(task.postedByName, task.postedByRole, locale)}
           </p>
         )}
         <div className="mt-1.5 flex flex-wrap items-center gap-x-4 text-xs text-gray-500">
@@ -408,7 +421,7 @@ export function TaskDetailModal({
           <span className="font-semibold text-gray-900">
             {task.budget}€ {task.budgetNote ? `(${task.budgetNote})` : ''}
           </span>
-          <span>{task.postedAgo}</span>
+          <span>{formatPostedAgo(task.postedMinutesAgo, locale)}</span>
         </div>
 
         {task.description && (
@@ -432,7 +445,7 @@ export function TaskDetailModal({
       {/* Καταστάσεις που τερματίζουν τη ροή */}
       {task.status === 'cancelled' && (
         <div className="mt-4 rounded-xl border border-gray-300 bg-gray-50 px-4 py-3">
-          <p className="text-sm font-semibold text-gray-900">Η μικροδουλειά ακυρώθηκε</p>
+          <p className="text-sm font-semibold text-gray-900">{t('tasknow.detail.cancelled')}</p>
           <p className="mt-1 text-xs leading-relaxed text-gray-600">{task.cancelReason}</p>
         </div>
       )}
@@ -440,15 +453,16 @@ export function TaskDetailModal({
       {task.status === 'disputed' && (
         <div className="mt-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3">
           <p className="text-sm font-semibold text-red-900">
-            Σε διαφωνία — το κοιτάει το StaffNow
+            {t('tasknow.detail.disputed')}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-red-800">
-            Δηλώθηκε από {task.disputeBy === 'owner' ? 'τον πελάτη' : 'τον εκτελεστή'}:{' '}
-            {task.disputeReason}
+            {t('tasknow.detail.disputedBy', {
+              who: task.disputeBy === 'owner' ? t('tasknow.detail.client') : t('tasknow.detail.worker'),
+              reason: task.disputeReason ?? '',
+            })}
           </p>
           <p className="mt-2 text-[11px] leading-relaxed text-red-700">
-            Δεν κρίνουμε ποιος έχει δίκιο και δεν αποζημιώνουμε. Κοιτάμε αν παραβιάστηκαν
-            οι όροι και παίρνουμε μέτρα στον λογαριασμό. Η διαφορά σας λύνεται μεταξύ σας.
+            {t('tasknow.detail.disputeNote')}
           </p>
         </div>
       )}
@@ -458,28 +472,28 @@ export function TaskDetailModal({
         <div className="mt-5">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-bold text-gray-900">
-              Προσφορές ({task.offersList.length})
+              {t('tasknow.detail.offersHeading', { n: task.offersList.length })}
             </h4>
             {task.status === 'assigned' && (
               <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-                Ανατέθηκε
+                {t('tasknow.detail.assigned')}
               </span>
             )}
             {task.status === 'paused' && (
               <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
-                Σε παύση
+                {t('tasknow.detail.paused')}
               </span>
             )}
             {task.status === 'done' && (
               <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                Ολοκληρώθηκε
+                {t('tasknow.detail.done')}
               </span>
             )}
           </div>
 
           {task.offersList.length === 0 ? (
             <p className="mt-3 rounded-xl border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500">
-              Καμία προσφορά ακόμη.
+              {t('tasknow.detail.noOffers')}
             </p>
           ) : (
             <div className="mt-3 space-y-3">
@@ -499,13 +513,12 @@ export function TaskDetailModal({
           {confirming && (
             <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4">
               <p className="text-sm font-semibold text-gray-900">
-                Επιβεβαιώνεις την επιλογή: {confirming.name} για {confirming.amount}€;
+                {t('tasknow.detail.confirmChoice', { name: confirming.name, amount: confirming.amount })}
               </p>
               <p className="mt-2 text-xs leading-relaxed text-amber-900">
-                Την επιλογή την κάνεις <strong>εσύ, με δική σου ευθύνη</strong>. Το
-                StaffNow σου έδειξε βαθμολογία, ιστορικό και τι έχει επαληθευτεί — δεν
-                εγγυάται την εκτέλεση, δεν είναι εργοδότης και δεν κρατά χρήματα. Η
-                συμφωνία και η πληρωμή είναι ανάμεσα στους δυο σας.
+                {t('tasknow.detail.resp1')}
+                <strong>{t('tasknow.detail.respStrong')}</strong>
+                {t('tasknow.detail.resp2')}
               </p>
 
               {needsLicence && (
@@ -520,20 +533,20 @@ export function TaskDetailModal({
                     className="mt-0.5 h-4 w-4 shrink-0 accent-amber-500"
                   />
                   <span className="text-xs leading-relaxed text-gray-800">
-                    Η εργασία απαιτεί <strong>{licenceLabel.toLowerCase()}</strong>.
+                    {t('tasknow.detail.licenceAck1')}<strong>{licenceLabel.toLowerCase()}</strong>.
                     {confirming.licence?.verified
-                      ? ' Η άδεια έχει ελεγχθεί από το StaffNow.'
-                      : ' Η άδεια είναι ΔΗΛΩΜΕΝΗ και δεν έχει ελεγχθεί από το StaffNow.'}{' '}
-                    Αναλαμβάνω να ελέγξω ο ίδιος την άδεια και την καταλληλότητα του
-                    προσώπου, με <strong>δική μου αποκλειστική ευθύνη</strong>. Το
-                    StaffNow δεν φέρει καμία ευθύνη για την εκτέλεση αυτής της εργασίας.
+                      ? t('tasknow.detail.licenceVerifiedNote')
+                      : t('tasknow.detail.licenceDeclaredNote')}{' '}
+                    {t('tasknow.detail.licenceAck2')}
+                    <strong>{t('tasknow.detail.licenceAckStrong')}</strong>
+                    {t('tasknow.detail.licenceAck3')}
                   </span>
                 </label>
               )}
 
               {ackError && (
                 <p className="mt-2 text-xs font-semibold text-red-700">
-                  Χρειάζεται να το αποδεχτείς για να προχωρήσεις.
+                  {t('tasknow.detail.ackError')}
                 </p>
               )}
 
@@ -552,7 +565,7 @@ export function TaskDetailModal({
                   }}
                   className="flex-1 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-600"
                 >
-                  Ναι, επιβεβαιώνω την επιλογή
+                  {t('tasknow.detail.confirmYes')}
                 </button>
                 <button
                   type="button"
@@ -563,7 +576,7 @@ export function TaskDetailModal({
                   }}
                   className="flex-1 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 ring-1 ring-gray-300 transition hover:bg-gray-50"
                 >
-                  Άκυρο
+                  {t('tasknow.common.cancel')}
                 </button>
               </div>
             </div>
@@ -578,8 +591,7 @@ export function TaskDetailModal({
             <div className="mt-4 rounded-xl border border-gray-200 p-3">
               {task.status === 'paused' && (
                 <p className="mb-2 rounded-lg bg-gray-100 px-3 py-2 text-xs text-gray-600">
-                  Σε παύση — δεν τη βλέπει κανείς αυτή τη στιγμή. Οι προσφορές που έχεις
-                  ήδη πάρει μένουν στη θέση τους.
+                  {t('tasknow.detail.pausedNote')}
                 </p>
               )}
 
@@ -590,7 +602,7 @@ export function TaskDetailModal({
                     onClick={() => pauseTask(task.id)}
                     className="rounded-lg bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-200"
                   >
-                    ⏸ Παύση
+                    {t('tasknow.detail.pause')}
                   </button>
                 ) : (
                   <button
@@ -598,7 +610,7 @@ export function TaskDetailModal({
                     onClick={() => resumeTask(task.id)}
                     className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700"
                   >
-                    ▶ Ενεργοποίησέ την ξανά
+                    {t('tasknow.detail.resume')}
                   </button>
                 )}
 
@@ -607,7 +619,7 @@ export function TaskDetailModal({
                   onClick={() => setAsking(asking === 'cancel' ? null : 'cancel')}
                   className="rounded-lg bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-200"
                 >
-                  Ακύρωση
+                  {t('tasknow.detail.cancel')}
                 </button>
 
                 <button
@@ -615,20 +627,19 @@ export function TaskDetailModal({
                   onClick={() => setConfirmDelete(true)}
                   className="ml-auto rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100"
                 >
-                  Διαγραφή
+                  {t('tasknow.detail.delete')}
                 </button>
               </div>
 
               {confirmDelete && (
                 <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3">
                   <p className="text-xs leading-relaxed text-red-900">
-                    Οριστική διαγραφή. Φεύγει η δουλειά και{' '}
+                    {t('tasknow.detail.deleteWarn1')}{' '}
                     <strong>
                       {task.offersList.length}{' '}
-                      {task.offersList.length === 1 ? 'προσφορά' : 'προσφορές'}
+                      {task.offersList.length === 1 ? t('tasknow.common.offerOne') : t('tasknow.common.offerMany')}
                     </strong>{' '}
-                    μαζί της, χωρίς επιστροφή. Αν απλώς δεν τη θέλεις τώρα, βάλ' την σε
-                    παύση.
+                    {t('tasknow.detail.deleteWarn2')}
                   </p>
                   <div className="mt-2 flex gap-2">
                     <button
@@ -639,14 +650,14 @@ export function TaskDetailModal({
                       }}
                       className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
                     >
-                      Ναι, διάγραψέ την
+                      {t('tasknow.detail.deleteYes')}
                     </button>
                     <button
                       type="button"
                       onClick={() => setConfirmDelete(false)}
                       className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 ring-1 ring-gray-300"
                     >
-                      Άκυρο
+                      {t('tasknow.common.cancel')}
                     </button>
                   </div>
                 </div>
@@ -654,9 +665,9 @@ export function TaskDetailModal({
 
               {asking === 'cancel' && (
                 <ReasonBox
-                  title="Ακύρωση της μικροδουλειάς"
-                  hint="Θα ενημερωθούν όσοι έκαναν προσφορά. Γράψε γιατί — το βλέπουν."
-                  confirmLabel="Ακύρωσέ την"
+                  title={t('tasknow.detail.cancelTitle')}
+                  hint={t('tasknow.detail.cancelHint')}
+                  confirmLabel={t('tasknow.detail.cancelConfirm')}
                   tone="gray"
                   onConfirm={(r) => {
                     cancelTask(task.id, r);
@@ -678,14 +689,14 @@ export function TaskDetailModal({
                 onClick={() => completeTask(task.id)}
                 className="mt-4 w-full rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700"
               >
-                Η δουλειά ολοκληρώθηκε
+                {t('tasknow.detail.completed')}
               </button>
 
               {asking === 'dispute' ? (
                 <ReasonBox
-                  title="Κάτι πήγε στραβά"
-                  hint="Δεν ήρθε, δεν έγινε σωστά, ή κάτι άλλο. Το βλέπει το StaffNow."
-                  confirmLabel="Δήλωσε το πρόβλημα"
+                  title={t('tasknow.detail.wrongTitle')}
+                  hint={t('tasknow.detail.wrongHintOwner')}
+                  confirmLabel={t('tasknow.detail.wrongConfirm')}
                   tone="red"
                   onConfirm={(r) => {
                     openDispute(task.id, 'owner', r);
@@ -699,7 +710,7 @@ export function TaskDetailModal({
                   onClick={() => setAsking('dispute')}
                   className="mt-2 w-full text-xs font-medium text-red-500 underline hover:text-red-700"
                 >
-                  Κάτι πήγε στραβά
+                  {t('tasknow.detail.wrong')}
                 </button>
               )}
             </>
@@ -713,14 +724,15 @@ export function TaskDetailModal({
               <div className="rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-600">
                 <p>
                   <span className="font-semibold text-gray-900">{task.offersList.length}</span>{' '}
-                  {task.offersList.length === 1 ? 'προσφορά' : 'προσφορές'} μέχρι τώρα. Τα
-                  ποσά των άλλων δεν φαίνονται — γράφεις το δικό σου.
+                  {t('tasknow.detail.offersSoFar', {
+                    noun: task.offersList.length === 1 ? t('tasknow.common.offerOne') : t('tasknow.common.offerMany'),
+                  })}
                 </p>
               </div>
 
               {alreadyOffered ? (
                 <div className="rounded-xl bg-emerald-50 px-4 py-3 text-center text-sm font-medium text-emerald-800">
-                  ✓ Έχεις ήδη στείλει προσφορά για αυτή τη δουλειά
+                  {t('tasknow.detail.alreadyOffered')}
                 </div>
               ) : (
                 <button
@@ -728,7 +740,7 @@ export function TaskDetailModal({
                   onClick={() => onMakeOffer(task)}
                   className="w-full rounded-xl bg-amber-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-600"
                 >
-                  Κάνε προσφορά
+                  {t('tasknow.detail.makeOffer')}
                 </button>
               )}
             </>
@@ -737,14 +749,14 @@ export function TaskDetailModal({
           {task.status === 'assigned' && alreadyOffered && chosen?.mine && (
             <>
               <div className="rounded-xl bg-emerald-50 px-4 py-3 text-center text-sm font-semibold text-emerald-800">
-                ✓ Σε διάλεξαν για αυτή τη δουλειά
+                {t('tasknow.detail.chosenYou')}
               </div>
               <Chat task={task} />
               {asking === 'dispute' ? (
                 <ReasonBox
-                  title="Κάτι πήγε στραβά"
-                  hint="Δεν με άφησε να μπω, άλλαξε τη δουλειά, δεν πλήρωσε. Το βλέπει το StaffNow."
-                  confirmLabel="Δήλωσε το πρόβλημα"
+                  title={t('tasknow.detail.wrongTitle')}
+                  hint={t('tasknow.detail.wrongHintWorker')}
+                  confirmLabel={t('tasknow.detail.wrongConfirm')}
                   tone="red"
                   onConfirm={(r) => {
                     openDispute(task.id, 'worker', r);
@@ -758,15 +770,14 @@ export function TaskDetailModal({
                   onClick={() => setAsking('dispute')}
                   className="w-full text-xs font-medium text-red-500 underline hover:text-red-700"
                 >
-                  Κάτι πήγε στραβά
+                  {t('tasknow.detail.wrong')}
                 </button>
               )}
             </>
           )}
 
           <p className="text-center text-[11px] leading-relaxed text-gray-500">
-            Το StaffNow δεν είναι εργοδότης και δεν κρατά χρήματα. Η συμφωνία είναι
-            ανάμεσα σε εσένα και σε αυτόν που ανέβασε τη δουλειά.
+            {t('tasknow.detail.notEmployer')}
           </p>
         </div>
       )}
@@ -775,11 +786,9 @@ export function TaskDetailModal({
       {task.status === 'done' && (
         <div className="mt-4 space-y-3">
           <div className="rounded-xl border border-gray-200 p-4">
-            <p className="text-sm font-bold text-gray-900">Πληρώθηκε;</p>
+            <p className="text-sm font-bold text-gray-900">{t('tasknow.detail.paidTitle')}</p>
             <p className="mt-1 text-xs leading-relaxed text-gray-600">
-              Το StaffNow δεν κρατάει και δεν στέλνει χρήματα. Η δήλωση εδώ είναι απλώς
-              η επιβεβαίωση των δύο πλευρών — χτίζει ιστορικό, ώστε να φαίνεται όποιος
-              συστηματικά δεν πληρώνει.
+              {t('tasknow.detail.paidNote')}
             </p>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <button
@@ -793,7 +802,7 @@ export function TaskDetailModal({
                     : 'bg-gray-900 text-white hover:bg-gray-800')
                 }
               >
-                {task.paidByOwner ? '✓ Ο πελάτης δήλωσε πληρωμή' : 'Πλήρωσα (πελάτης)'}
+                {task.paidByOwner ? t('tasknow.detail.paidOwnerDone') : t('tasknow.detail.paidOwner')}
               </button>
               <button
                 type="button"
@@ -806,28 +815,26 @@ export function TaskDetailModal({
                     : 'bg-gray-900 text-white hover:bg-gray-800')
                 }
               >
-                {task.paidByWorker ? '✓ Ο εκτελεστής επιβεβαίωσε' : 'Πληρώθηκα (εκτελεστής)'}
+                {task.paidByWorker ? t('tasknow.detail.paidWorkerDone') : t('tasknow.detail.paidWorker')}
               </button>
             </div>
             {bothPaid && (
               <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
-                ✓ Και οι δύο επιβεβαίωσαν την πληρωμή. Η αξιολόγηση ανοίγει τώρα.
+                {t('tasknow.detail.bothPaid')}
               </p>
             )}
           </div>
 
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs leading-relaxed text-emerald-900">
-            <strong>Μην ξεχάσετε το παραστατικό.</strong> Στην πραγματική έκδοση εδώ
-            ανοίγει και η αμοιβαία αξιολόγηση — δεν βλέπεις τη δική του πριν γράψεις τη
-            δική σου.
+            <strong>{t('tasknow.detail.invoiceStrong')}</strong>
+            {t('tasknow.detail.invoiceNote')}
           </div>
         </div>
       )}
 
       <div className="mt-5">
         <MockNote>
-          όλα όσα βλέπεις εδώ ζουν μόνο σε αυτόν τον browser και σβήνονται με το
-          «καθάρισε τη μακέτα».
+          {t('tasknow.detail.mockNote')}
         </MockNote>
       </div>
     </Modal>

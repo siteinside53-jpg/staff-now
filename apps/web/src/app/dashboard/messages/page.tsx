@@ -17,6 +17,7 @@ import { useCallCenter } from '@/components/video/call-center';
 // και όταν δοκιμάζαμε τοπικά, οι κλήσεις έφευγαν στον ΖΩΝΤΑΝΟ server. Στην
 // παραγωγή η τιμή είναι ακριβώς η ίδια, άρα δεν αλλάζει τίποτα εκεί.
 import { API_URL } from '@/lib/config';
+import { useT, useLocale } from '@/i18n/locale-provider';
 
 // Στο κινητό η συνομιλία πιάνει όλη την οθόνη, οπότε η μπάρα γραφής ακουμπά
 // στο κάτω άκρο. Το env(safe-area-inset-bottom) την κρατά πάνω από τη γραμμή
@@ -41,7 +42,7 @@ function ChatMenuItem({ icon, label, onClick, color = 'text-gray-900' }: { icon:
  *   declined  → μένει ως ιστορικό, χωρίς κουμπιά
  */
 function HireCard({
-  hire, isWorker, busy, onAnswer, onCloseJob, onRate, timeStr,
+  hire, isWorker, busy, onAnswer, onCloseJob, onRate, timeStr, t,
 }: {
   hire: any;
   isWorker: boolean;
@@ -50,28 +51,29 @@ function HireCard({
   onCloseJob: (jobId: string) => void;
   onRate: (hire: any) => void;
   timeStr: string;
+  t: (k: string, p?: Record<string, string | number>) => string;
 }) {
   const shell = 'w-full max-w-sm rounded-2xl border px-4 py-3 shadow-sm';
 
   if (!hire) {
     return (
       <div className={`${shell} border-gray-200 bg-white text-center text-sm text-gray-400`}>
-        🤝 Δήλωση πρόσληψης
+        {t('messagesPage.hire.card')}
       </div>
     );
   }
 
-  const jobLine = hire.job_title ? ` για «${hire.job_title}»` : '';
+  const jobLine = hire.job_title ? t('messagesPage.hire.forJob', { title: hire.job_title }) : '';
   /*
     Δύο εκδοχές γιατί το όνομα μπαίνει άλλοτε ως υποκείμενο («Ο Γιάννης
     επιβεβαίωσε») κι άλλοτε ως αντικείμενο («προσέλαβες τον Γιάννη»). Όταν το
     προφίλ δεν έχει όνομα, χωρίς αυτό βγαίνει «προσέλαβες Ο/Η εργαζόμενος/η».
   */
-  const who = isWorker ? (hire.business_name || 'Η επιχείρηση') : (hire.worker_name || 'Ο/Η εργαζόμενος/η');
+  const who = isWorker ? (hire.business_name || t('messagesPage.hire.theBusiness')) : (hire.worker_name || t('messagesPage.hire.theWorker'));
   /** Με άρθρο, για προτάσεις τύπου «Δήλωσες ότι προσέλαβες …». */
-  const whoAcc = isWorker ? (hire.business_name || 'την επιχείρηση') : (hire.worker_name || 'τον/την εργαζόμενο/η');
+  const whoAcc = isWorker ? (hire.business_name || t('messagesPage.hire.theBusinessAcc')) : (hire.worker_name || t('messagesPage.hire.theWorkerAcc'));
   /** ΧΩΡΙΣ άρθρο, για προτάσεις που έχουν ήδη δικό τους («Ξεκίνησες στην …»). */
-  const whoBare = isWorker ? (hire.business_name || 'επιχείρηση') : (hire.worker_name || 'εργαζόμενο/η');
+  const whoBare = isWorker ? (hire.business_name || t('messagesPage.hire.businessBare')) : (hire.worker_name || t('messagesPage.hire.workerBare'));
   /**
    * ΠΡΟΣΟΧΗ στο `busy !== null` — χωρίς αυτό τα κουμπιά ήταν ΜΟΝΙΜΑ κλειδωμένα.
    *
@@ -90,11 +92,13 @@ function HireCard({
     const iDeclared = Number(hire.i_declared) > 0;
     return (
       <div className={`${shell} border-emerald-200 bg-emerald-50`}>
-        <p className="text-sm font-semibold text-emerald-900">🤝 Δήλωση πρόσληψης</p>
+        <p className="text-sm font-semibold text-emerald-900">{t('messagesPage.hire.card')}</p>
         {!iDeclared ? (
           <>
             <p className="mt-1 text-sm text-emerald-800">
-              {who} δηλώνει ότι {isWorker ? 'σε προσέλαβε' : `τον/την προσέλαβες`}{jobLine}. Επιβεβαίωσε για να μετρήσει.
+              {isWorker
+                ? t('messagesPage.hire.declaresHiredYou', { who, job: jobLine })
+                : t('messagesPage.hire.declaresYouHired', { who, job: jobLine })}
             </p>
             <div className="mt-3 flex gap-2">
               <button
@@ -102,14 +106,14 @@ function HireCard({
                 onClick={() => onAnswer(hire.id, 'confirm')}
                 className="flex-1 rounded-xl bg-emerald-600 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
               >
-                {isWorker ? 'Ναι, ξεκίνησα' : 'Ναι, τον/την προσέλαβα'}
+                {isWorker ? t('messagesPage.hire.yesStarted') : t('messagesPage.hire.yesHired')}
               </button>
               <button
                 disabled={working}
                 onClick={() => onAnswer(hire.id, 'decline')}
                 className="flex-1 rounded-xl border border-emerald-300 bg-white py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-50"
               >
-                Όχι
+                {t('messagesPage.hire.no')}
               </button>
             </div>
           </>
@@ -119,9 +123,9 @@ function HireCard({
                 επιχείρηση» βγαίνει σε λάθος πτώση, και το όνομα φαίνεται ήδη
                 στην κορυφή της συνομιλίας. */}
             {isWorker
-              ? `Δήλωσες ότι σε προσέλαβαν${jobLine}.`
-              : `Δήλωσες ότι προσέλαβες ${whoAcc}${jobLine}.`}{' '}
-            Περιμένουμε την επιβεβαίωσή του/της.
+              ? t('messagesPage.hire.youDeclaredHired', { job: jobLine })
+              : t('messagesPage.hire.youDeclaredYouHired', { who: whoAcc, job: jobLine })}{' '}
+            {t('messagesPage.hire.awaitingConfirm')}
           </p>
         )}
         {timeStr && <p className="mt-2 text-right text-[10px] text-emerald-600">{timeStr}</p>}
@@ -137,7 +141,7 @@ function HireCard({
     const iRated = Number(hire.i_rated) > 0;
     return (
       <div className={`${shell} border-emerald-300 bg-emerald-50`}>
-        <p className="text-sm font-semibold text-emerald-900">✅ Η πρόσληψη επιβεβαιώθηκε</p>
+        <p className="text-sm font-semibold text-emerald-900">{t('messagesPage.hire.confirmed')}</p>
         <p className="mt-1 text-sm text-emerald-800">
           {/*
             «στην επιχείρηση <όνομα>» και όχι «στη <όνομα>»: το άρθρο δεν μπορεί
@@ -145,22 +149,22 @@ function HireCard({
           */}
           {/* «στην επιχείρηση ${who}» έβγαζε «στην επιχείρηση Η επιχείρηση» όταν
               έλειπε το όνομα. Το `whoAcc` κουβαλάει ήδη το σωστό άρθρο. */}
-          {isWorker ? `Ξεκίνησες στην ${whoBare}${jobLine}.` : `${who} επιβεβαίωσε${jobLine}.`}
+          {isWorker ? t('messagesPage.hire.youStartedAt', { who: whoBare, job: jobLine }) : t('messagesPage.hire.theyConfirmed', { who, job: jobLine })}
         </p>
         {!isWorker && hire.job_id && (
           <>
             <p className="mt-2 text-sm font-medium text-emerald-900">
-              Καλύφθηκαν {done} από {target} {target === 1 ? 'θέση' : 'θέσεις'}.
+              {t('messagesPage.hire.filled', { done, target, noun: target === 1 ? t('messagesPage.hire.positionOne') : t('messagesPage.hire.positionMany') })}
             </p>
             {isFilled ? (
-              <p className="mt-1 text-xs text-emerald-700">Η αγγελία είναι κλειστή («Καλύφθηκε»).</p>
+              <p className="mt-1 text-xs text-emerald-700">{t('messagesPage.hire.jobClosed')}</p>
             ) : (
               <button
                 disabled={working}
                 onClick={() => onCloseJob(hire.job_id)}
                 className="mt-2 w-full rounded-xl bg-emerald-600 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
               >
-                {done >= target ? 'Κλείσε την αγγελία' : 'Κλείσε την αγγελία τώρα'}
+                {done >= target ? t('messagesPage.hire.closeJob') : t('messagesPage.hire.closeJobNow')}
               </button>
             )}
           </>
@@ -174,11 +178,11 @@ function HireCard({
             onClick={() => onRate(hire)}
             className="mt-3 w-full rounded-xl border border-amber-300 bg-amber-50 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100"
           >
-            {iRated ? '⭐ Δες τις αξιολογήσεις' : '⭐ Γράψε αξιολόγηση'}
+            {iRated ? t('messagesPage.hire.viewRatings') : t('messagesPage.hire.writeRating')}
           </button>
         ) : (
           <p className="mt-2 text-xs text-emerald-700">
-            Σε 15 μέρες θα μπορείτε να αξιολογήσετε ο ένας τον άλλον.
+            {t('messagesPage.hire.ratingIn15')}
           </p>
         )}
         {timeStr && <p className="mt-1 text-right text-[10px] text-emerald-600">{timeStr}</p>}
@@ -190,8 +194,8 @@ function HireCard({
     <div className={`${shell} border-gray-200 bg-white text-center`}>
       <p className="text-sm text-gray-500">
         {hire.status === 'declined'
-          ? 'Η πρόσληψη δεν επιβεβαιώθηκε — η αγγελία μένει ανοιχτή.'
-          : 'Η δήλωση πρόσληψης ακυρώθηκε.'}
+          ? t('messagesPage.hire.declined')
+          : t('messagesPage.hire.cancelled')}
       </p>
       {timeStr && <p className="mt-1 text-[10px] text-gray-400">{timeStr}</p>}
     </div>
@@ -213,19 +217,24 @@ function Avatar({ name, src, className = '' }: { name: string; src?: string | nu
 /** Πρόθεμα του μηνύματος-κάρτας της πρόσληψης, ίδιο μοτίβο με το «📹». */
 const HIRE_PREFIX = '🤝 Πρόσληψη:';
 
-function formatMessagePreview(content: string | undefined): string {
+function formatMessagePreview(
+  content: string | undefined,
+  t: (k: string, p?: Record<string, string | number>) => string,
+): string {
   if (!content) return '';
-  if (content.startsWith(HIRE_PREFIX)) return '🤝 Δήλωση πρόσληψης';
-  if (content.startsWith('📹')) return '📹 Video κλήση';
-  if (content.startsWith('📷')) return '📷 Φωτογραφία';
+  if (content.startsWith(HIRE_PREFIX)) return t('messagesPage.hire.card');
+  if (content.startsWith('📹')) return t('messagesPage.preview.videoCall');
+  if (content.startsWith('📷')) return t('messagesPage.preview.photo');
   if (content.startsWith('📎')) {
     const match = content.match(/\[([^\]]+)\]/);
-    return match ? `📎 ${match[1]}` : '📎 Αρχείο';
+    return match ? `📎 ${match[1]}` : t('messagesPage.preview.file');
   }
   return content;
 }
 
 function MessagesInner() {
+  const t = useT();
+  const { locale } = useLocale();
   const { user } = useAuth();
   const callCenter = useCallCenter();
   const searchParams = useSearchParams();
@@ -479,7 +488,7 @@ function MessagesInner() {
       const tempMsg = {
         id: tempId,
         sender_id: user?.id,
-        content: isImage ? `📷 Ανέβασμα φωτογραφίας...` : `📎 Ανέβασμα ${file.name}...`,
+        content: isImage ? t('messagesPage.upload.photo') : t('messagesPage.upload.file', { name: file.name }),
         created_at: new Date().toISOString(),
         status: 'sending',
       };
@@ -495,7 +504,7 @@ function MessagesInner() {
         });
         const uploadData = await uploadRes.json() as any;
         if (uploadData.success && uploadData.data?.url) {
-          const content = isImage ? `📷 [Φωτογραφία](${uploadData.data.url})` : `📎 [${file.name}](${uploadData.data.url})`;
+          const content = isImage ? `📷 [${t('messagesPage.upload.photoLabel')}](${uploadData.data.url})` : `📎 [${file.name}](${uploadData.data.url})`;
           const res = await api.conversations.sendMessage(selectedConv, { content }) as any;
           if (res.success) {
             const m = res.data?.message || res.data;
@@ -504,7 +513,7 @@ function MessagesInner() {
             m.status = 'sent';
             setMessages((prev) => prev.map((msg) => msg.id === tempId ? m : msg));
           } else {
-            const why = res?.error?.message || 'Αποτυχία αποστολής';
+            const why = res?.error?.message || t('messagesPage.upload.sendFailed');
             toast.error(`${file.name}: ${why}`);
             setMessages((prev) => prev.map((msg) => msg.id === tempId ? { ...msg, status: 'failed', content: `❌ ${file.name}: ${why}` } : msg));
           }
@@ -516,7 +525,7 @@ function MessagesInner() {
           setMessages((prev) => prev.map((msg) => msg.id === tempId ? { ...msg, status: 'failed', content: `❌ ${file.name}: ${why}` } : msg));
         }
       } catch (err: any) {
-        const why = err?.message || 'Σφάλμα δικτύου';
+        const why = err?.message || t('messagesPage.upload.networkError');
         toast.error(`${file.name}: ${why}`);
         setMessages((prev) => prev.map((msg) => msg.id === tempId ? { ...msg, status: 'failed', content: `❌ ${file.name}: ${why}` } : msg));
       }
@@ -553,12 +562,12 @@ function MessagesInner() {
       const data = await res.json() as any;
       if (data.success) {
         setMessages((prev) => prev.filter((m) => m.id !== msgId));
-        toast.success(forAll ? 'Το μήνυμα διαγράφηκε για όλους' : 'Το μήνυμα κρύφτηκε');
+        toast.success(forAll ? t('messagesPage.toasts.deletedForAll') : t('messagesPage.toasts.hidden'));
       } else {
-        toast.error('Αποτυχία διαγραφής');
+        toast.error(t('messagesPage.toasts.deleteFailed'));
       }
     } catch {
-      toast.error('Σφάλμα διαγραφής');
+      toast.error(t('messagesPage.toasts.deleteError'));
     }
   };
 
@@ -572,20 +581,27 @@ function MessagesInner() {
       if (action === 'archive' || action === 'restore') {
         res = await fetch(`${base}/conversations/${convId}`, { method: 'PATCH', headers, body: JSON.stringify({ action }) });
       } else if (action === 'delete') {
-        if (!confirm('Σίγουρα θέλεις να διαγράψεις αυτή τη συνομιλία;')) return;
+        if (!confirm(t('messagesPage.confirm.delete'))) return;
         res = await fetch(`${base}/conversations/${convId}`, { method: 'DELETE', headers });
       } else if (action === 'block') {
-        if (!confirm('Σίγουρα θέλεις να μπλοκάρεις αυτόν τον χρήστη; Δεν θα μπορείτε πλέον να επικοινωνήσετε.')) return;
+        if (!confirm(t('messagesPage.confirm.block'))) return;
         res = await fetch(`${base}/conversations/${convId}/block`, { method: 'POST', headers });
       } else if (action === 'report') {
         res = await fetch(`${base}/conversations/${convId}/report`, { method: 'POST', headers, body: JSON.stringify({ reason: 'inappropriate', description: reportDesc || '' }) });
       } else if (action === 'clear_messages') {
-        if (!confirm('Σίγουρα θέλεις να διαγράψεις όλα τα μηνύματα;')) return;
+        if (!confirm(t('messagesPage.confirm.clear'))) return;
         res = await fetch(`${base}/conversations/${convId}/clear-messages`, { method: 'POST', headers });
       }
       const data = await res?.json() as any;
       if (data?.success) {
-        const msgs: Record<string, string> = { archive: 'Αρχειοθετήθηκε', restore: 'Επαναφέρθηκε', delete: 'Διαγράφηκε', block: 'Μπλοκαρίστηκε', report: 'Η αναφορά στάλθηκε', clear_messages: 'Τα μηνύματα διαγράφηκαν' };
+        const msgs: Record<string, string> = {
+          archive: t('messagesPage.toasts.archived'),
+          restore: t('messagesPage.toasts.restored'),
+          delete: t('messagesPage.toasts.deleted'),
+          block: t('messagesPage.toasts.blocked'),
+          report: t('messagesPage.toasts.reported'),
+          clear_messages: t('messagesPage.toasts.cleared'),
+        };
         toast.success(msgs[action]);
         if (action === 'delete') {
           setConversations((prev) => prev.filter((c) => c.id !== convId));
@@ -601,8 +617,8 @@ function MessagesInner() {
         } else if (action === 'clear_messages') {
           if (selectedConv === convId) setMessages([]);
         }
-      } else { toast.error('Σφάλμα'); }
-    } catch { toast.error('Σφάλμα σύνδεσης'); }
+      } else { toast.error(t('messagesPage.toasts.error')); }
+    } catch { toast.error(t('messagesPage.toasts.connectionError')); }
     setConvMenuId(null);
     setReportModal(null);
   };
@@ -629,16 +645,16 @@ function MessagesInner() {
       }
       if (res?.data?.hire) {
         setPickJob(null);
-        toast.success('Δηλώθηκε. Περιμένουμε την επιβεβαίωσή του/της.');
+        toast.success(t('messagesPage.toasts.hireDeclared'));
         await refreshHires();
         const r = (await api.conversations.getMessages(selectedConv)) as any;
         const msgs = r?.data || [];
         setMessages(Array.isArray(msgs) ? [...msgs].reverse() : []);
       } else {
-        toast.error(res?.error?.message || 'Δεν έγινε η δήλωση');
+        toast.error(res?.error?.message || t('messagesPage.toasts.hireFailed'));
       }
     } catch (e: any) {
-      toast.error(e?.message || 'Σφάλμα σύνδεσης');
+      toast.error(e?.message || t('messagesPage.toasts.connectionError'));
     }
     await refreshPrompts();
     setHireBusy(null);
@@ -652,12 +668,12 @@ function MessagesInner() {
       const res = (await api.hires.snoozePrompt(selectedConv)) as any;
       const d = res?.data;
       if (d) {
-        toast.success(d.stopped ? 'Εντάξει, δεν θα ξαναρωτήσουμε.' : `Θα ξαναρωτήσουμε σε ${d.days} μέρες.`);
+        toast.success(d.stopped ? t('messagesPage.toasts.snoozeStopped') : t('messagesPage.toasts.snoozeDays', { days: d.days }));
       } else {
-        toast.error(res?.error?.message || 'Σφάλμα');
+        toast.error(res?.error?.message || t('messagesPage.toasts.error'));
       }
     } catch (e: any) {
-      toast.error(e?.message || 'Σφάλμα σύνδεσης');
+      toast.error(e?.message || t('messagesPage.toasts.connectionError'));
     }
     await refreshPrompts();
     setHireBusy(null);
@@ -670,13 +686,13 @@ function MessagesInner() {
     try {
       const res = (await (answer === 'confirm' ? api.hires.confirm(hireId) : api.hires.decline(hireId))) as any;
       if (res?.data?.hire) {
-        toast.success(answer === 'confirm' ? 'Επιβεβαιώθηκε!' : 'Καταγράφηκε');
+        toast.success(answer === 'confirm' ? t('messagesPage.toasts.confirmed') : t('messagesPage.toasts.recorded'));
         await refreshHires();
       } else {
-        toast.error(res?.error?.message || 'Σφάλμα');
+        toast.error(res?.error?.message || t('messagesPage.toasts.error'));
       }
     } catch (e: any) {
-      toast.error(e?.message || 'Σφάλμα σύνδεσης');
+      toast.error(e?.message || t('messagesPage.toasts.connectionError'));
     }
     setHireBusy(null);
   };
@@ -688,13 +704,13 @@ function MessagesInner() {
     try {
       const res = (await api.jobs.fill(jobId)) as any;
       if (res?.data?.filled) {
-        toast.success('Η αγγελία έκλεισε — δεν θα δέχεσαι άλλα μηνύματα για αυτή.');
+        toast.success(t('messagesPage.toasts.jobClosed'));
         await refreshHires();
       } else {
-        toast.error(res?.error?.message || 'Σφάλμα');
+        toast.error(res?.error?.message || t('messagesPage.toasts.error'));
       }
     } catch (e: any) {
-      toast.error(e?.message || 'Σφάλμα σύνδεσης');
+      toast.error(e?.message || t('messagesPage.toasts.connectionError'));
     }
     setHireBusy(null);
   };
@@ -702,7 +718,7 @@ function MessagesInner() {
   if (loading) return <div className="flex justify-center py-20"><Spinner className="h-8 w-8" /></div>;
 
   const activeConv = conversations.find((c) => c.id === selectedConv);
-  const activeName = activeConv?.otherParty?.name || 'Συνομιλία';
+  const activeName = activeConv?.otherParty?.name || t('messagesPage.conversation');
 
   // Κλείσιμο της συνομιλίας (κουμπί «πίσω» στο κινητό)
   const closeChat = () => {
@@ -719,10 +735,10 @@ function MessagesInner() {
 
   return (
     <div>
-      <div className="mb-6"><h1 className="text-2xl font-bold text-gray-900">💬 Συνομιλίες</h1></div>
+      <div className="mb-6"><h1 className="text-2xl font-bold text-gray-900">{t('messagesPage.title')}</h1></div>
 
       {conversations.length === 0 && !selectedConv ? (
-        <EmptyState title="Δεν έχεις μηνύματα ακόμα" description="Κάνε match για να ξεκινήσεις συνομιλία!" />
+        <EmptyState title={t('messagesPage.emptyTitle')} description={t('messagesPage.emptyDesc')} />
       ) : (
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Conversation List — στο κινητό κρύβεται όσο είναι ανοιχτή μια
@@ -731,9 +747,9 @@ function MessagesInner() {
             {/* Καρτέλες σε ίδιο ύφος με τα Matches: στρογγυλά «χάπια» με εικονίδιο. */}
             <div className="mb-3 flex rounded-full bg-gray-100 p-1">
               {[
-                { key: 'active' as const, icon: '💬', label: 'Ενεργές', count: conversations.filter((c) => c.matchStatus !== 'archived' && !c.isBlocked).length },
-                { key: 'archived' as const, icon: '📦', label: 'Αρχείο', count: conversations.filter((c) => c.matchStatus === 'archived' && !c.isBlocked).length },
-                { key: 'blocked' as const, icon: '🚫', label: 'Blocked', count: conversations.filter((c) => c.isBlocked).length },
+                { key: 'active' as const, icon: '💬', label: t('messagesPage.tabs.active'), count: conversations.filter((c) => c.matchStatus !== 'archived' && !c.isBlocked).length },
+                { key: 'archived' as const, icon: '📦', label: t('messagesPage.tabs.archived'), count: conversations.filter((c) => c.matchStatus === 'archived' && !c.isBlocked).length },
+                { key: 'blocked' as const, icon: '🚫', label: t('messagesPage.tabs.blocked'), count: conversations.filter((c) => c.isBlocked).length },
               ].map((tab) => (
                 <button key={tab.key} onClick={() => setConvTab(tab.key)}
                   className={`min-w-0 flex-1 rounded-full py-2 text-xs font-bold transition-all ${convTab === tab.key ? 'bg-white text-gray-900 shadow' : 'text-gray-500 hover:text-gray-700'}`}>
@@ -747,8 +763,8 @@ function MessagesInner() {
               return c.matchStatus !== 'archived' && !c.isBlocked;
             }).map((c: any) => {
               const isActive = selectedConv === c.id;
-              const otherName = c.otherParty?.name || (user?.role === 'worker' ? 'Επιχείρηση' : 'Εργαζόμενος');
-              const lastMsg = formatMessagePreview(c.lastMessage?.content || c.lastMessage?.text);
+              const otherName = c.otherParty?.name || (user?.role === 'worker' ? t('messagesPage.business') : t('messagesPage.worker'));
+              const lastMsg = formatMessagePreview(c.lastMessage?.content || c.lastMessage?.text, t);
               const dateStr = c.updatedAt || c.createdAt;
               return (
                 <div key={c.id} className={`flex items-center ${c.matchStatus === 'archived' ? 'opacity-60' : ''}`}>
@@ -761,18 +777,18 @@ function MessagesInner() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className={`truncate text-sm ${c.unreadCount > 0 && !isActive ? 'font-bold text-gray-900' : 'font-semibold text-gray-900'}`}>{otherName}</p>
-                        {c.matchStatus === 'archived' && <span className="text-[10px] text-amber-600 font-medium">Αρχείο</span>}
+                        {c.matchStatus === 'archived' && <span className="text-[10px] text-amber-600 font-medium">{t('messagesPage.archivedTag')}</span>}
                         {/*
                           🤝 = «αυτή η συζήτηση περιμένει απάντηση στο έγινε
                           πρόσληψη;». Έτσι φαίνεται ποια είναι, χωρίς να την
                           ανοίξεις. Ίδια λίστα με τη λωρίδα μέσα στη συνομιλία.
                         */}
                         {hirePrompts.has(c.id) && (
-                          <span title="Έγινε πρόσληψη;" className="flex-shrink-0 text-sm">🤝</span>
+                          <span title={t('messagesPage.hirePromptTitle')} className="flex-shrink-0 text-sm">🤝</span>
                         )}
                       </div>
                       {lastMsg && <p className={`text-xs truncate ${c.unreadCount > 0 && !isActive ? 'font-semibold text-gray-700' : 'text-gray-500'}`}>{lastMsg}</p>}
-                      {dateStr && (() => { const d = new Date(dateStr); return !isNaN(d.getTime()) ? <p className="text-xs text-gray-400">{d.toLocaleDateString('el-GR')}</p> : null; })()}
+                      {dateStr && (() => { const d = new Date(dateStr); return !isNaN(d.getTime()) ? <p className="text-xs text-gray-400">{d.toLocaleDateString(locale === 'en' ? 'en-GB' : 'el-GR')}</p> : null; })()}
                     </div>
                     {c.unreadCount > 0 && !isActive && (
                       <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white animate-pulse">{c.unreadCount}</span>
@@ -785,7 +801,7 @@ function MessagesInner() {
                   */}
                   <div className={`relative flex-shrink-0 ${convMenuId === c.id ? 'z-30' : ''}`}>
                     <button onClick={(e) => { e.stopPropagation(); setConvMenuId(convMenuId === c.id ? null : c.id); }}
-                      aria-label="Επιλογές"
+                      aria-label={t('messagesPage.options')}
                       className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" /></svg>
                     </button>
@@ -805,34 +821,34 @@ function MessagesInner() {
                           }
                         }}
                           className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-blue-700 hover:bg-blue-50">
-                          <span>👤</span> Προβολή Προφίλ
+                          <span>👤</span> {t('messagesPage.menu.viewProfile')}
                         </button>
                         {c.matchStatus !== 'archived' ? (
                           <button onClick={(e) => { e.stopPropagation(); convAction(c.id, 'archive'); }}
                             className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
-                            <span>📦</span> Αρχειοθέτηση
+                            <span>📦</span> {t('messagesPage.menu.archive')}
                           </button>
                         ) : (
                           <button onClick={(e) => { e.stopPropagation(); convAction(c.id, 'restore'); }}
                             className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-emerald-700 hover:bg-emerald-50">
-                            <span>↩️</span> Επαναφορά
+                            <span>↩️</span> {t('messagesPage.menu.restore')}
                           </button>
                         )}
                         <button onClick={(e) => { e.stopPropagation(); convAction(c.id, 'clear_messages'); }}
                           className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-orange-600 hover:bg-orange-50 border-t border-gray-100">
-                          <span>🧹</span> Διαγραφή μηνυμάτων
+                          <span>🧹</span> {t('messagesPage.menu.clear')}
                         </button>
                         <button onClick={(e) => { e.stopPropagation(); convAction(c.id, 'delete'); }}
                           className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 border-t border-gray-100">
-                          <span>🗑️</span> Διαγραφή συνομιλίας
+                          <span>🗑️</span> {t('messagesPage.menu.delete')}
                         </button>
                         <button onClick={(e) => { e.stopPropagation(); setConvMenuId(null); setReportModal(c.id); }}
                           className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-amber-700 hover:bg-amber-50 border-t border-gray-100">
-                          <span>⚠️</span> Αναφορά
+                          <span>⚠️</span> {t('messagesPage.menu.report')}
                         </button>
                         <button onClick={(e) => { e.stopPropagation(); convAction(c.id, 'block'); }}
                           className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-red-700 hover:bg-red-50 border-t border-gray-100">
-                          <span>🚫</span> Αποκλεισμός
+                          <span>🚫</span> {t('messagesPage.menu.block')}
                         </button>
                       </div>
                     </>
@@ -854,7 +870,7 @@ function MessagesInner() {
                 {/* Chat header — clickable to view profile */}
                 <div className="flex flex-shrink-0 items-center gap-2 border-b border-gray-100 bg-white px-3 py-2.5">
                   {/* Πίσω — μόνο στο κινητό, όπου το chat καλύπτει τη λίστα */}
-                  <button onClick={closeChat} className="-ml-1.5 p-1.5 lg:hidden" title="Πίσω">
+                  <button onClick={closeChat} className="-ml-1.5 p-1.5 lg:hidden" title={t('messagesPage.back')}>
                     <svg className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" d="M15 19l-7-7 7-7" />
                     </svg>
@@ -873,9 +889,9 @@ function MessagesInner() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold text-gray-900">{activeName}</p>
                       {isTyping ? (
-                        <p className="animate-pulse text-[11px] text-blue-500">Πληκτρολογεί...</p>
+                        <p className="animate-pulse text-[11px] text-blue-500">{t('messagesPage.typing')}</p>
                       ) : (
-                        <p className="text-[11px] text-gray-400">Πάτα για προβολή προφίλ</p>
+                        <p className="text-[11px] text-gray-400">{t('messagesPage.tapForProfile')}</p>
                       )}
                     </div>
                   </button>
@@ -887,19 +903,19 @@ function MessagesInner() {
                         if (callCenter.busy) return;
                         callCenter.startCall(
                           selectedConv,
-                          activeConv?.otherParty?.name || 'Χρήστης',
+                          activeConv?.otherParty?.name || t('messagesPage.userFallback'),
                           activeConv?.otherParty?.avatar || null,
                         );
                       }}
                       disabled={callCenter.busy}
                       className="flex-shrink-0 rounded-full bg-emerald-50 p-2 text-emerald-600 transition-colors hover:bg-emerald-100 disabled:opacity-50"
-                      title="Βιντεοκλήση"
+                      title={t('messagesPage.videoCall')}
                     >
                       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
                     </button>
                   )}
                   {/* Μενού συνομιλίας */}
-                  <button onClick={() => setShowChatMenu(true)} className="flex-shrink-0 rounded-full p-2 hover:bg-gray-100" title="Επιλογές">
+                  <button onClick={() => setShowChatMenu(true)} className="flex-shrink-0 rounded-full p-2 hover:bg-gray-100" title={t('messagesPage.options')}>
                     <svg className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" />
                     </svg>
@@ -916,13 +932,13 @@ function MessagesInner() {
                       <div>
                         <p className="text-sm font-bold text-emerald-900">
                           {user?.role === 'worker'
-                            ? `Σε προσέλαβε ${activeName};`
-                            : `Προσέλαβες ${activeName};`}
+                            ? t('messagesPage.prompt.hiredYou', { name: activeName })
+                            : t('messagesPage.prompt.youHired', { name: activeName })}
                         </p>
                         <p className="text-xs text-emerald-700">
                           {user?.role === 'worker'
-                            ? 'Δήλωσέ το — μετράει στο προφίλ σου.'
-                            : 'Δήλωσέ το για να κλείσει η θέση.'}
+                            ? t('messagesPage.prompt.workerHint')
+                            : t('messagesPage.prompt.businessHint')}
                         </p>
                       </div>
                     </div>
@@ -932,14 +948,14 @@ function MessagesInner() {
                         disabled={hireBusy !== null}
                         className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50"
                       >
-                        {user?.role === 'worker' ? 'Ναι, με προσέλαβαν' : 'Ναι, τον/την προσέλαβα'}
+                        {user?.role === 'worker' ? t('messagesPage.prompt.yesHiredMe') : t('messagesPage.prompt.yesHired')}
                       </button>
                       <button
                         onClick={snoozeHirePrompt}
                         disabled={hireBusy !== null}
                         className="rounded-full border border-emerald-300 bg-white px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100 disabled:opacity-50"
                       >
-                        Όχι ακόμη
+                        {t('messagesPage.prompt.notYet')}
                       </button>
                     </div>
                   </div>
@@ -952,13 +968,13 @@ function MessagesInner() {
                   ) : messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-gray-400">
                       <p className="text-4xl mb-2">👋</p>
-                      <p className="text-sm">Ξεκίνα τη συνομιλία!</p>
+                      <p className="text-sm">{t('messagesPage.startChat')}</p>
                     </div>
                   ) : (
                     messages.map((m: any) => {
                       const isMine = m.sender_id === user?.id;
                       const msgDate = m.created_at ? new Date(m.created_at) : null;
-                      const timeStr = msgDate && !isNaN(msgDate.getTime()) ? msgDate.toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit' }) : '';
+                      const timeStr = msgDate && !isNaN(msgDate.getTime()) ? msgDate.toLocaleTimeString(locale === 'en' ? 'en-GB' : 'el-GR', { hour: '2-digit', minute: '2-digit' }) : '';
                       const isFailed = m.status === 'failed';
                       const isSending = m.status === 'sending';
                       const isHire = m.content?.startsWith(HIRE_PREFIX);
@@ -977,6 +993,7 @@ function MessagesInner() {
                               onCloseJob={closeJob}
                               onRate={setRatingHire}
                               timeStr={timeStr}
+                              t={t}
                             />
                           </div>
                         );
@@ -1004,7 +1021,7 @@ function MessagesInner() {
                               /* Image — no bubble, just image */
                               <div className={isFailed ? 'opacity-60' : ''}>
                                 <a href={m.content.match(/\((https?:\/\/[^)]+)\)/)?.[1] || '#'} target="_blank" rel="noopener noreferrer">
-                                  <img src={m.content.match(/\((https?:\/\/[^)]+)\)/)?.[1] || ''} alt="Φωτογραφία" className="max-w-[220px] rounded-xl shadow-sm" />
+                                  <img src={m.content.match(/\((https?:\/\/[^)]+)\)/)?.[1] || ''} alt={t('messagesPage.upload.photoLabel')} className="max-w-[220px] rounded-xl shadow-sm" />
                                 </a>
                               </div>
                             ) : m.content?.startsWith('📎') && m.content.includes('](') ? (
@@ -1012,7 +1029,7 @@ function MessagesInner() {
                               <div className={`rounded-xl border border-gray-200 bg-white p-3 shadow-sm ${isFailed ? 'opacity-60' : ''}`}>
                                 <a href={m.content.match(/\((https?:\/\/[^)]+)\)/)?.[1] || '#'} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-blue-600 hover:underline">
                                   <svg className="h-5 w-5 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
-                                  {m.content.match(/\[([^\]]+)\]/)?.[1] || 'Αρχείο'}
+                                  {m.content.match(/\[([^\]]+)\]/)?.[1] || t('messagesPage.fileFallback')}
                                 </a>
                               </div>
                             ) : (
@@ -1041,19 +1058,19 @@ function MessagesInner() {
                             {/* Failed message actions */}
                             {isFailed && (
                               <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[10px] text-red-500">❌ Αποτυχία</span>
-                                <button onClick={() => retryMessage(m.id)} className="text-[10px] text-blue-600 hover:underline font-medium">Ξαναστείλε</button>
+                                <span className="text-[10px] text-red-500">{t('messagesPage.failed')}</span>
+                                <button onClick={() => retryMessage(m.id)} className="text-[10px] text-blue-600 hover:underline font-medium">{t('messagesPage.resend')}</button>
                               </div>
                             )}
 
                             {/* Delete option on hover */}
                             {isMine && !isFailed && !isSending && (
                               <div className="absolute -top-2 right-0 hidden group-hover:flex bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
-                                <button onClick={() => deleteMessage(m.id, false)} className="px-2 py-1 text-[10px] text-gray-500 hover:bg-gray-50 whitespace-nowrap" title="Διαγραφή για μένα">
+                                <button onClick={() => deleteMessage(m.id, false)} className="px-2 py-1 text-[10px] text-gray-500 hover:bg-gray-50 whitespace-nowrap" title={t('messagesPage.deleteForMe')}>
                                   🗑️
                                 </button>
-                                <button onClick={() => deleteMessage(m.id, true)} className="px-2 py-1 text-[10px] text-red-500 hover:bg-red-50 whitespace-nowrap border-l" title="Διαγραφή για όλους">
-                                  🗑️ Όλοι
+                                <button onClick={() => deleteMessage(m.id, true)} className="px-2 py-1 text-[10px] text-red-500 hover:bg-red-50 whitespace-nowrap border-l" title={t('messagesPage.deleteForAll')}>
+                                  {t('messagesPage.everyone')}
                                 </button>
                               </div>
                             )}
@@ -1074,7 +1091,7 @@ function MessagesInner() {
                         <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '150ms' }} />
                         <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '300ms' }} />
                       </div>
-                      Πληκτρολογεί...
+                      {t('messagesPage.typing')}
                     </div>
                   </div>
                 )}
@@ -1084,7 +1101,7 @@ function MessagesInner() {
                   <div className="flex-shrink-0 border-t border-gray-200 bg-blue-50 px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-                      <p className="text-sm font-medium text-blue-700">Ανέβασμα αρχείων...</p>
+                      <p className="text-sm font-medium text-blue-700">{t('messagesPage.uploading')}</p>
                     </div>
                   </div>
                 )}
@@ -1092,12 +1109,12 @@ function MessagesInner() {
                 {/* Input or Blocked message */}
                 {activeConv?.blockedByThem && (
                   <div className="flex-shrink-0 border-t border-gray-200 bg-red-50 p-4" style={SAFE_BOTTOM}>
-                    <p className="text-center text-sm font-medium text-red-600">🚫 Αυτός ο χρήστης σας έχει αποκλείσει</p>
+                    <p className="text-center text-sm font-medium text-red-600">{t('messagesPage.blockedByThem')}</p>
                   </div>
                 )}
                 {activeConv?.blockedByMe && !activeConv?.blockedByThem && (
                   <div className="flex-shrink-0 border-t border-gray-200 bg-amber-50 p-4" style={SAFE_BOTTOM}>
-                    <p className="text-center text-sm font-medium text-amber-700">🚫 Αποκλείστηκε</p>
+                    <p className="text-center text-sm font-medium text-amber-700">{t('messagesPage.blockedByMe')}</p>
                   </div>
                 )}
                 {!activeConv?.isBlocked && (
@@ -1107,11 +1124,11 @@ function MessagesInner() {
                 {messages.length > 0 && (
                   <div className="flex flex-shrink-0 gap-1.5 overflow-x-auto border-t border-gray-100 bg-white px-3 py-2">
                     {[
-                      'Είσαι διαθέσιμος σήμερα;',
-                      'Πόσο ζητάς;',
-                      'Μπορείς να ξεκινήσεις άμεσα;',
-                      'Έχεις εμπειρία;',
-                      'Στείλε μου το βιογραφικό σου',
+                      t('messagesPage.quickReplies.q1'),
+                      t('messagesPage.quickReplies.q2'),
+                      t('messagesPage.quickReplies.q3'),
+                      t('messagesPage.quickReplies.q4'),
+                      t('messagesPage.quickReplies.q5'),
                     ].map((q) => (
                       <button key={q} onClick={() => sendQuickReply(q)}
                         className="flex-shrink-0 whitespace-nowrap rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs text-gray-700 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700">
@@ -1126,7 +1143,7 @@ function MessagesInner() {
                   <input ref={fileInputRef} type="file" accept="application/pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" multiple className="sr-only" onChange={(e) => { if (e.target.files) handleFilesUpload(e.target.files); e.target.value = ''; }} />
 
                   <button onClick={() => photoInputRef.current?.click()} disabled={uploadingFiles}
-                    className="flex-shrink-0 p-2 text-gray-500 transition-colors hover:text-blue-600 disabled:opacity-50" title="Φωτογραφία (έως 5)">
+                    className="flex-shrink-0 p-2 text-gray-500 transition-colors hover:text-blue-600 disabled:opacity-50" title={t('messagesPage.photoUpTo5')}>
                     {uploadingFiles ? (
                       <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
                     ) : (
@@ -1136,7 +1153,7 @@ function MessagesInner() {
                     )}
                   </button>
                   <button onClick={() => fileInputRef.current?.click()} disabled={uploadingFiles}
-                    className="flex-shrink-0 p-2 text-gray-500 transition-colors hover:text-blue-600 disabled:opacity-50" title="Αρχείο (έως 5)">
+                    className="flex-shrink-0 p-2 text-gray-500 transition-colors hover:text-blue-600 disabled:opacity-50" title={t('messagesPage.fileUpTo5')}>
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                       <path strokeLinecap="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.122 2.122l7.81-7.81" />
                     </svg>
@@ -1146,7 +1163,7 @@ function MessagesInner() {
                     value={newMsg}
                     onChange={(e) => setNewMsg(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-                    placeholder="Μήνυμα..."
+                    placeholder={t('messagesPage.placeholder')}
                     className="min-w-0 flex-1 rounded-full bg-gray-100 px-4 py-2.5 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/30"
                   />
                   <button onClick={() => sendMessage()} disabled={sending || !newMsg.trim()}
@@ -1169,25 +1186,25 @@ function MessagesInner() {
                     <div className="absolute inset-0 bg-black/50" />
                     <div className="relative z-10 w-full space-y-1 rounded-t-3xl bg-white p-4" onClick={(e) => e.stopPropagation()} style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}>
                       <div className="mb-2 flex justify-center"><div className="h-1.5 w-10 rounded-full bg-gray-300" /></div>
-                      <ChatMenuItem icon="👤" label="Προβολή προφίλ" onClick={() => { setShowChatMenu(false); openOtherProfile(); }} />
+                      <ChatMenuItem icon="👤" label={t('messagesPage.menu.viewProfile')} onClick={() => { setShowChatMenu(false); openOtherProfile(); }} />
                       {/* Βήμα 1 της πρόσληψης — μόνο η επιχείρηση τη δηλώνει. */}
                       {user?.role === 'business' && (
                         <ChatMenuItem
                           icon="🤝"
-                          label="Τον/την προσέλαβα"
+                          label={t('messagesPage.menu.hired')}
                           color="text-emerald-700"
                           onClick={() => { setShowChatMenu(false); declareHire(); }}
                         />
                       )}
                       {activeConv?.matchStatus === 'archived' ? (
-                        <ChatMenuItem icon="↩️" label="Επαναφορά" color="text-emerald-700" onClick={() => { setShowChatMenu(false); convAction(selectedConv!, 'restore'); }} />
+                        <ChatMenuItem icon="↩️" label={t('messagesPage.menu.restore')} color="text-emerald-700" onClick={() => { setShowChatMenu(false); convAction(selectedConv!, 'restore'); }} />
                       ) : (
-                        <ChatMenuItem icon="📦" label="Αρχειοθέτηση" onClick={() => { setShowChatMenu(false); convAction(selectedConv!, 'archive'); }} />
+                        <ChatMenuItem icon="📦" label={t('messagesPage.menu.archive')} onClick={() => { setShowChatMenu(false); convAction(selectedConv!, 'archive'); }} />
                       )}
-                      <ChatMenuItem icon="🧹" label="Διαγραφή μηνυμάτων" color="text-orange-600" onClick={() => { setShowChatMenu(false); convAction(selectedConv!, 'clear_messages'); }} />
-                      <ChatMenuItem icon="🗑️" label="Διαγραφή συνομιλίας" color="text-red-600" onClick={() => { setShowChatMenu(false); convAction(selectedConv!, 'delete'); }} />
-                      <ChatMenuItem icon="⚠️" label="Αναφορά" color="text-amber-700" onClick={() => { setShowChatMenu(false); setReportModal(selectedConv); }} />
-                      <ChatMenuItem icon="🚫" label="Αποκλεισμός" color="text-red-700" onClick={() => { setShowChatMenu(false); convAction(selectedConv!, 'block'); }} />
+                      <ChatMenuItem icon="🧹" label={t('messagesPage.menu.clear')} color="text-orange-600" onClick={() => { setShowChatMenu(false); convAction(selectedConv!, 'clear_messages'); }} />
+                      <ChatMenuItem icon="🗑️" label={t('messagesPage.menu.delete')} color="text-red-600" onClick={() => { setShowChatMenu(false); convAction(selectedConv!, 'delete'); }} />
+                      <ChatMenuItem icon="⚠️" label={t('messagesPage.menu.report')} color="text-amber-700" onClick={() => { setShowChatMenu(false); setReportModal(selectedConv); }} />
+                      <ChatMenuItem icon="🚫" label={t('messagesPage.menu.block')} color="text-red-700" onClick={() => { setShowChatMenu(false); convAction(selectedConv!, 'block'); }} />
                     </div>
                   </div>
                 )}
@@ -1197,7 +1214,7 @@ function MessagesInner() {
               <Card className="hidden h-[550px] items-center justify-center lg:flex">
                 <div className="text-center text-gray-400">
                   <p className="mb-2 text-4xl">💬</p>
-                  <p className="text-sm">Επίλεξε μια συνομιλία</p>
+                  <p className="text-sm">{t('messagesPage.selectConversation')}</p>
                 </div>
               </Card>
             )}
@@ -1210,23 +1227,23 @@ function MessagesInner() {
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={() => setReportModal(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-              <h3 className="text-lg font-bold text-gray-900 mb-2">⚠️ Αναφορά χρήστη</h3>
-              <p className="text-sm text-gray-500 mb-4">Περίγραψε τον λόγο της αναφοράς</p>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">{t('messagesPage.report.title')}</h3>
+              <p className="text-sm text-gray-500 mb-4">{t('messagesPage.report.desc')}</p>
               <textarea
                 value={reportReason}
                 onChange={(e) => setReportReason(e.target.value)}
                 rows={3}
-                placeholder="π.χ. Ανάρμοστη συμπεριφορά..."
+                placeholder={t('messagesPage.report.placeholder')}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 mb-4"
               />
               <div className="flex gap-3">
                 <button onClick={() => setReportModal(null)}
                   className="flex-1 rounded-lg border border-gray-300 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                  Ακύρωση
+                  {t('messagesPage.report.cancel')}
                 </button>
                 <button onClick={() => { convAction(reportModal, 'report', reportReason); setReportReason(''); }}
                   className="flex-1 rounded-lg bg-amber-600 py-2.5 text-sm font-semibold text-white hover:bg-amber-700">
-                  Αποστολή αναφοράς
+                  {t('messagesPage.report.send')}
                 </button>
               </div>
             </div>
@@ -1248,10 +1265,9 @@ function MessagesInner() {
       {pickJob && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
           <div className="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-xl sm:rounded-2xl">
-            <h3 className="text-base font-bold text-gray-900">Για ποια θέση;</h3>
+            <h3 className="text-base font-bold text-gray-900">{t('messagesPage.pickJob.title')}</h3>
             <p className="mt-1 text-sm text-gray-500">
-              Έχεις {pickJob.length} ανοιχτές αγγελίες. Διάλεξε σε ποια αφορά η πρόσληψη,
-              ώστε να μετρήσει στις θέσεις της.
+              {t('messagesPage.pickJob.desc', { n: pickJob.length })}
             </p>
             <div className="mt-4 space-y-2">
               {pickJob.map((j) => (
@@ -1269,7 +1285,7 @@ function MessagesInner() {
               onClick={() => setPickJob(null)}
               className="mt-4 w-full rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
-              Άκυρο
+              {t('messagesPage.pickJob.cancel')}
             </button>
           </div>
         </div>
@@ -1280,7 +1296,7 @@ function MessagesInner() {
           hireId={ratingHire.id}
           isWorker={user?.role === 'worker'}
           otherName={
-            (user?.role === 'worker' ? ratingHire.business_name : ratingHire.worker_name) || 'τον/την συνεργάτη'
+            (user?.role === 'worker' ? ratingHire.business_name : ratingHire.worker_name) || t('messagesPage.partnerFallback')
           }
           onClose={() => setRatingHire(null)}
           onSaved={refreshHires}

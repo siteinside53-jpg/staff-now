@@ -18,6 +18,7 @@ import { api } from '@/lib/api';
 import { Spinner } from '@/components/ui/spinner';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LABELS, ReadOnlyRating, RatingModal } from '@/components/dashboard/rating-modal';
+import { useT, useLocale } from '@/i18n/locale-provider';
 
 interface RatingRow {
   overall: number;
@@ -45,14 +46,17 @@ interface Item {
 
 type Tab = 'received' | 'given';
 
-function greekDate(iso?: string | null): string {
+function formatDate(iso: string | null | undefined, locale: 'el' | 'en'): string {
   if (!iso) return '';
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return '';
-  return new Date(t).toLocaleDateString('el-GR', { day: 'numeric', month: 'long', year: 'numeric' });
+  return new Date(t).toLocaleDateString(locale === 'en' ? 'en-GB' : 'el-GR', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 export default function RatingsPage() {
+  const t = useT();
+  const { locale } = useLocale();
+  const greekDate = (iso?: string | null) => formatDate(iso, locale);
   const { user } = useAuth();
   const isWorker = user?.role !== 'business';
 
@@ -89,7 +93,7 @@ export default function RatingsPage() {
 
   const receivedAvg = avg(received.map((i) => i.theirs!));
 
-  const other = (i: Item) => i.other_name || (isWorker ? 'Επιχείρηση' : 'Εργαζόμενος/η');
+  const other = (i: Item) => i.other_name || (isWorker ? t('ratingsPage.business') : t('ratingsPage.worker'));
 
   const card = (i: Item, which: Tab) => {
     const r = which === 'received' ? i.theirs : i.mine;
@@ -107,13 +111,13 @@ export default function RatingsPage() {
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold text-gray-900">{other(i)}</p>
             <p className="truncate text-xs text-gray-500">
-              {i.job_title ? `«${i.job_title}»` : 'Συνεργασία'}
+              {i.job_title ? `«${i.job_title}»` : t('ratingsPage.collaboration')}
               {r.created_at ? ` · ${greekDate(r.created_at)}` : ''}
             </p>
           </div>
         </div>
         <ReadOnlyRating
-          title={which === 'received' ? `Τι έγραψε ${other(i)}` : 'Η αξιολόγησή σου'}
+          title={which === 'received' ? t('ratingsPage.whatTheyWrote', { name: other(i) }) : t('ratingsPage.yourRating')}
           rating={r}
           labels={which === 'received' ? theirLabels : myLabels}
         />
@@ -126,10 +130,9 @@ export default function RatingsPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Αξιολογήσεις</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('ratingsPage.title')}</h1>
         <p className="mt-1 text-sm text-gray-600">
-          Ανοίγουν 15 μέρες μετά την έναρξη της συνεργασίας. Βλέπεις τι σου έγραψαν
-          μόλις γράψεις κι εσύ τη δική σου.
+          {t('ratingsPage.subtitle')}
         </p>
       </div>
 
@@ -138,14 +141,14 @@ export default function RatingsPage() {
       ) : failed ? (
         <EmptyState
           icon={<span className="text-2xl">⚠️</span>}
-          title="Δεν φόρτωσαν οι αξιολογήσεις"
-          description="Κάτι πήγε στραβά με τη σύνδεση. Δοκίμασε ξανά."
+          title={t('ratingsPage.loadFailedTitle')}
+          description={t('ratingsPage.loadFailedDesc')}
           action={
             <button
               onClick={() => { setLoading(true); load(); }}
               className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700"
             >
-              Δοκίμασε ξανά
+              {t('ratingsPage.tryAgain')}
             </button>
           }
         />
@@ -155,7 +158,7 @@ export default function RatingsPage() {
           {pendingMine.length > 0 && (
             <div className="mb-6 rounded-2xl border-2 border-yellow-300 bg-yellow-50/70 p-4">
               <p className="mb-3 text-sm font-bold text-gray-900">
-                ⭐ Περιμένουν την αξιολόγησή σου ({pendingMine.length})
+                {t('ratingsPage.awaitingYours', { count: pendingMine.length })}
               </p>
               <div className="space-y-2">
                 {pendingMine.map((i) => (
@@ -168,7 +171,7 @@ export default function RatingsPage() {
                       onClick={() => setRating({ id: i.hire_id, name: other(i) })}
                       className="rounded-lg bg-yellow-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-yellow-600"
                     >
-                      Γράψε αξιολόγηση
+                      {t('ratingsPage.writeRating')}
                     </button>
                   </div>
                 ))}
@@ -186,7 +189,7 @@ export default function RatingsPage() {
                   <span className="text-gray-300">{'★'.repeat(Math.max(0, 5 - Math.round(receivedAvg)))}</span>
                 </p>
                 <p className="mt-1 text-xs text-gray-500">
-                  Μέσος όρος από {received.length} {received.length === 1 ? 'αξιολόγηση' : 'αξιολογήσεις'}
+                  {received.length === 1 ? t('ratingsPage.avgOne', { count: received.length }) : t('ratingsPage.avgMany', { count: received.length })}
                 </p>
               </div>
             </div>
@@ -202,7 +205,7 @@ export default function RatingsPage() {
                   tab === k ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'
                 }`}
               >
-                {k === 'received' ? `Πήρα (${received.length})` : `Έδωσα (${given.length})`}
+                {k === 'received' ? t('ratingsPage.tabReceived', { count: received.length }) : t('ratingsPage.tabGiven', { count: given.length })}
               </button>
             ))}
           </div>
@@ -210,18 +213,14 @@ export default function RatingsPage() {
           {list.length === 0 ? (
             <EmptyState
               icon={<span className="text-2xl">⭐</span>}
-              title={tab === 'received' ? 'Καμία αξιολόγηση ακόμη' : 'Δεν έχεις γράψει αξιολόγηση'}
-              description={
-                tab === 'received'
-                  ? 'Θα εμφανιστούν εδώ μόλις αξιολογηθείς — και αφού γράψεις κι εσύ τη δική σου.'
-                  : 'Οι αξιολογήσεις ανοίγουν 15 μέρες μετά την έναρξη μιας επιβεβαιωμένης πρόσληψης.'
-              }
+              title={tab === 'received' ? t('ratingsPage.emptyReceivedTitle') : t('ratingsPage.emptyGivenTitle')}
+              description={tab === 'received' ? t('ratingsPage.emptyReceivedDesc') : t('ratingsPage.emptyGivenDesc')}
               action={
                 <Link
                   href="/dashboard/hires"
                   className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700"
                 >
-                  Δες τις προσλήψεις
+                  {t('ratingsPage.seeHires')}
                 </Link>
               }
             />

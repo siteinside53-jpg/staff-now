@@ -3,6 +3,7 @@ import { PublicJobsList } from '@/components/marketing/public-jobs-list';
 import { BrowseHero } from '@/components/marketing/browse-hero';
 import { RedirectIfAuthed } from '@/components/marketing/redirect-if-authed';
 import { AllJobsIndex } from '@/components/marketing/all-jobs-index';
+import { Tr } from '@/i18n/locale-provider';
 
 export const metadata = {
   title: 'Διαθέσιμες Θέσεις Εργασίας',
@@ -19,22 +20,23 @@ export default function FindJobPage() {
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <nav className="text-xs text-gray-500 mb-3" aria-label="breadcrumb">
             <Link href="/" className="hover:text-gray-700">
-              Αρχική
+              <Tr k="findJob.breadcrumbHome" />
             </Link>{' '}
             <span aria-hidden="true">/</span>{' '}
-            <span className="text-gray-700">Διαθέσιμες θέσεις εργασίας</span>
+            <span className="text-gray-700"><Tr k="findJob.breadcrumbCurrent" /></span>
           </nav>
 
           <BrowseHero
             accent="emerald"
             metric="jobs"
             icon="💼"
-            noun={['θέση εργασίας', 'θέσεις εργασίας']}
-            headline="Διαθέσιμες θέσεις εργασίας"
-            subtitle="Δες ελεύθερα τις πιο πρόσφατες αγγελίες. Για να κάνεις αίτηση χρειάζεσαι δωρεάν λογαριασμό εργαζομένου."
+            nounOneKey="findJob.nounOne"
+            nounManyKey="findJob.nounMany"
+            headlineKey="findJob.headline"
+            subtitleKey="findJob.subtitle"
           />
 
-          <h1 className="sr-only">Θέσεις εργασίας κοντά σου</h1>
+          <h1 className="sr-only"><Tr k="findJob.h1" /></h1>
 
           {/* ΛΩΡΙΔΑ ΜΙΚΡΟΔΟΥΛΕΙΩΝ: επιστρέφει με δύο γραμμές όταν υπάρχουν
               αληθινές — `import { TaskNowBanner } from
@@ -48,21 +50,21 @@ export default function FindJobPage() {
 
           <div className="mt-10 rounded-2xl bg-white border border-gray-100 p-6 sm:p-8 text-center shadow-sm">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-              Θες πρόσβαση σε όλες τις αγγελίες;
+              <Tr k="findJob.ctaTitle" />
             </h2>
             <p className="mt-2 text-sm sm:text-base text-gray-600 max-w-xl mx-auto">
-              Φτιάξε προφίλ εργαζομένου δωρεάν, κάνε swipe και match σε λεπτά.
+              <Tr k="findJob.ctaText" />
             </p>
             <Link
               href="/auth/register?role=worker&next=/dashboard/discover"
               className="mt-6 inline-flex items-center justify-center rounded-xl bg-emerald-600 px-8 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/25 hover:bg-emerald-700 transition"
             >
-              Δωρεάν εγγραφή εργαζομένου →
+              <Tr k="findJob.ctaRegister" />
             </Link>
             <p className="mt-3 text-xs text-gray-400">
-              Έχεις ήδη λογαριασμό;{' '}
+              <Tr k="findJob.hasAccount" />{' '}
               <Link href="/auth/login" className="text-emerald-600 hover:underline">
-                Σύνδεση
+                <Tr k="findJob.login" />
               </Link>
             </p>
           </div>

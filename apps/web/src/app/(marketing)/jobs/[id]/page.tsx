@@ -7,11 +7,12 @@ import {
   jobLocation,
   employmentGreek,
   employmentSchemaType,
-  roleLabel,
   type PublicJob,
 } from '@/lib/seo-data';
 import { ShareJob } from '@/components/share-job';
 import { JobApplyCta } from '@/components/job-apply-cta';
+import { JobFacts } from '@/components/marketing/job-facts';
+import { Tr } from '@/i18n/locale-provider';
 
 export const dynamic = 'force-static';
 
@@ -146,9 +147,9 @@ export default async function JobPage({ params }: Params) {
 
       <article className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
         <nav className="text-xs text-gray-500 mb-4" aria-label="breadcrumb">
-          <Link href="/" className="hover:text-gray-700">Αρχική</Link>{' '}
+          <Link href="/" className="hover:text-gray-700"><Tr k="jobPage.breadcrumbHome" /></Link>{' '}
           <span aria-hidden="true">/</span>{' '}
-          <Link href="/find-job" className="hover:text-gray-700">Θέσεις εργασίας</Link>{' '}
+          <Link href="/find-job" className="hover:text-gray-700"><Tr k="jobPage.breadcrumbJobs" /></Link>{' '}
           <span aria-hidden="true">/</span>{' '}
           <span className="text-gray-700">{job.title}</span>
         </nav>
@@ -173,42 +174,21 @@ export default async function JobPage({ params }: Params) {
             </div>
           </div>
 
-          <dl className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="rounded-xl bg-gray-50 p-3">
-              <dt className="text-xs text-gray-500">Αμοιβή</dt>
-              <dd className="text-sm font-bold text-gray-900">{salaryText(job)}</dd>
-            </div>
-            <div className="rounded-xl bg-gray-50 p-3">
-              <dt className="text-xs text-gray-500">Τύπος</dt>
-              <dd className="text-sm font-bold text-gray-900">{employmentGreek(job.employment_type)}</dd>
-            </div>
-            <div className="rounded-xl bg-gray-50 p-3">
-              <dt className="text-xs text-gray-500">Στέγη</dt>
-              <dd className="text-sm font-bold text-gray-900">{job.housing_provided ? '🏠 Ναι' : '—'}</dd>
-            </div>
-            <div className="rounded-xl bg-gray-50 p-3">
-              <dt className="text-xs text-gray-500">Φαγητό</dt>
-              <dd className="text-sm font-bold text-gray-900">{job.meals_provided ? '🍽️ Ναι' : '—'}</dd>
-            </div>
-          </dl>
-
-          {job.roles && job.roles.length > 0 && (
-            <div className="mt-5">
-              <h2 className="text-xs text-gray-500 mb-1.5">Ειδικότητες</h2>
-              <div className="flex flex-wrap gap-2">
-                {job.roles.map((r) => (
-                  <span key={r} className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-                    {roleLabel(r)}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="mt-6">
-            <h2 className="text-sm font-bold text-gray-900 mb-2">Περιγραφή θέσης</h2>
-            <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{description}</p>
-          </div>
+          <JobFacts
+            job={{
+              title: job.title,
+              company,
+              location: loc,
+              employmentType: job.employment_type,
+              salaryMin: job.salary_min,
+              salaryMax: job.salary_max,
+              salaryType: job.salary_type,
+              housingProvided: !!job.housing_provided,
+              mealsProvided: !!job.meals_provided,
+              roleKeys: job.roles,
+              customDescription: job.description,
+            }}
+          />
 
           {/* Το κουμπί της αίτησης ξέρει ποιος το βλέπει — επιχείρηση δεν κάνει
               αίτηση σε αγγελία, οπότε δεν της εμφανίζεται καθόλου. */}
@@ -220,9 +200,9 @@ export default async function JobPage({ params }: Params) {
         </header>
 
         <p className="mt-6 text-center text-sm text-gray-500">
-          Ψάχνεις κι άλλες θέσεις;{' '}
+          <Tr k="jobPage.lookingForMore" />{' '}
           <Link href="/find-job" className="text-emerald-600 font-medium hover:underline">
-            Δες όλες τις αγγελίες
+            <Tr k="jobPage.seeAllJobs" />
           </Link>
         </p>
       </article>

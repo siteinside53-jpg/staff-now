@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Share2, Facebook, Link2, Check, MessageCircle } from 'lucide-react';
+import { useT } from '@/i18n/locale-provider';
 
 /**
  * «Κοινοποίηση» για μια μικροδουλειά — ίδια λογική με την κοινοποίηση των
@@ -38,6 +39,7 @@ export function ShareTask({
   /** Μικρό κουμπί χωρίς λεζάντα. */
   compact?: boolean;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -51,8 +53,8 @@ export function ShareTask({
   const hasOwnPage = !taskId.startsWith('my-');
   const url = hasOwnPage ? `${SITE_URL}/tasknow/${taskId}` : `${SITE_URL}/tasknow?task=${taskId}`;
   const text = MOCK
-    ? `[ΜΑΚΕΤΑ — παράδειγμα, όχι αληθινή αγγελία] ${title} · ${budget}€ · ${area} — TaskNow`
-    : `${title} · ${budget}€ · ${area} — δες τη μικροδουλειά στο TaskNow`;
+    ? t('tasknow.share.mockText', { title, budget, area })
+    : t('tasknow.share.text', { title, budget, area });
 
   useEffect(() => {
     if (!open) return;
@@ -114,7 +116,7 @@ export function ShareTask({
       <button
         type="button"
         onClick={handleClick}
-        aria-label={`Κοινοποίηση μικροδουλειάς: ${title}`}
+        aria-label={t('tasknow.share.aria', { title })}
         className={
           compact
             ? 'inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-800 transition hover:bg-amber-100'
@@ -122,7 +124,7 @@ export function ShareTask({
         }
       >
         <Share2 className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
-        Κοινοποίηση
+        {t('tasknow.share.share')}
       </button>
 
       {open && (
@@ -134,9 +136,8 @@ export function ShareTask({
         >
           {MOCK && (
             <p className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-900">
-              <strong className="font-bold">ΜΑΚΕΤΑ.</strong> Ο σύνδεσμος οδηγεί σε
-              παράδειγμα, όχι σε αληθινή αγγελία — και αυτό γράφεται μέσα στο μήνυμα που
-              φεύγει.
+              <strong className="font-bold">{t('tasknow.share.mockStrong')}</strong>{' '}
+              {t('tasknow.share.mockNote')}
             </p>
           )}
 
@@ -181,12 +182,12 @@ export function ShareTask({
             {copied ? (
               <>
                 <Check className="h-4 w-4 text-emerald-600" />
-                Αντιγράφηκε
+                {t('tasknow.share.copied')}
               </>
             ) : (
               <>
                 <Link2 className="h-4 w-4 text-amber-600" />
-                Αντιγραφή συνδέσμου
+                {t('tasknow.share.copyLink')}
               </>
             )}
           </button>
