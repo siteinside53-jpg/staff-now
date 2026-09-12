@@ -137,7 +137,7 @@ export function AboutContent() {
             <p className="text-sm font-semibold uppercase tracking-wider text-blue-600">{t('about.values.eyebrow')}</p>
             <h2 className="mt-3 text-3xl font-bold text-gray-900 sm:text-4xl">{t('about.values.title')}</h2>
           </div>
-          <div className="mt-16 mx-auto grid max-w-sm gap-8">
+          <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             {VALUE_KEYS.map((key) => (
               <div
                 key={key}
@@ -162,7 +162,7 @@ export function AboutContent() {
             <h2 className="mt-3 text-3xl font-bold text-gray-900 sm:text-4xl">{t('about.team.title')}</h2>
             <p className="mt-4 mx-auto max-w-2xl text-gray-600">{t('about.team.subtitle')}</p>
           </div>
-          <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-16 mx-auto grid max-w-sm gap-8">
             {TEAM.map((member) => (
               <div
                 key={member.name}

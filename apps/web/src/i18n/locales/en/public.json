@@ -17,7 +17,7 @@
       },
       "goal": {
         "title": "Goal",
-        "description": "100,000+ successful matches by the end of 2026."
+        "description": "Every listing finds its person in days, not weeks."
       },
       "value": {
         "title": "Values",
@@ -30,7 +30,7 @@
       "p1": "In the summer of 2024, a team with experience in staffing and technology met in Thessaloniki with a simple observation: hiring still runs through generic <strong>listings platforms</strong> — tools that treat every profession the same way, without understanding the real needs of either businesses or workers.",
       "p2": "The business owner posts a listing and <strong>waits blindly</strong>: not knowing who will see it, when, or whether it fits their needs. Dozens of irrelevant CVs pile up in their inbox, and the listing gets buried among thousands of others. Meanwhile, the worker <strong>sends ten CVs and hears back from two</strong> — if that. A position that needs covering <em>now</em> ends up filled weeks later. Or never.",
       "p3": "<strong>StaffNow</strong> was created to close that gap. Instead of static listings and blind applications, workers and businesses discover each other through <strong>swipe-based matching</strong>: you «like» the ones you're interested in, and as soon as there's mutual interest, the chat opens. No waiting, no blind applications — just real matches, in real time, with AI that suggests candidates and jobs based on the profile.",
-      "p4": "Today, less than a year after launch, businesses across every industry and all of Greece trust StaffNow with their hiring — from food service and hospitality to retail, services, logistics and manual trades. With <strong>over 10,000 registered workers</strong> and<strong> 1,000+ active businesses</strong>, we keep improving the platform every day — with one goal: hiring should happen as fast as it truly needs to."
+      "p4": "Today StaffNow is open to businesses and workers from every industry — from food service and hospitality to retail, services, logistics and manual trades — starting in Thessaloniki and expanding across Greece. We keep improving the platform every day, with one goal: hiring should happen as fast as it truly needs to."
     },
     "values": {
       "eyebrow": "Our values",
@@ -200,7 +200,7 @@
       "eyebrow": "Careers at StaffNow",
       "titleLead": "We're building the future of",
       "titleHighlight": "work",
-      "subtitle": "Join a team that's changing the way hiring works in Greece. Remote-first, mission-driven, fast-growing.",
+      "subtitle": "StaffNow is built by a small team with one mission: to change how hiring works in Greece. If you want to help, we want to know you.",
       "cta": "See open positions"
     },
     "why": {
@@ -256,7 +256,7 @@
     "positions": {
       "eyebrow": "Open positions",
       "title": "Join the team",
-      "subtitle": "Here are our current open positions. If one interests you, get in touch.",
+      "subtitle": "There are no open positions right now. When one opens, it will appear here.",
       "apply": "Apply now",
       "locationThessRemote": "Thessaloniki / Remote",
       "locationThess": "Thessaloniki",
@@ -266,7 +266,7 @@
         "fullstack": "We're looking for an experienced full-stack engineer to help build and scale our platform. Next.js, TypeScript, PostgreSQL.",
         "backend": "You'll build and scale the APIs and infrastructure that power the platform. Node.js/TypeScript, databases, cloud.",
         "mobile": "You'll develop and maintain our iOS and Android apps, so workers and businesses can connect from anywhere.",
-        "designer": "We're looking for a product designer with experience in B2B/B2C platforms. You'll design the user experience for thousands of users.",
+        "designer": "We're looking for a product designer with experience in B2B/B2C platforms. You'll design the user experience for our users.",
         "growth": "We need a growth marketer to drive our expansion. Performance marketing, SEO, content strategy and partnerships.",
         "content": "You'll create content and manage our social media. Tell StaffNow's story to workers and businesses across Greece.",
         "sales": "You'll bring new businesses onto the platform. Present StaffNow, build relationships and close deals in hospitality, tourism and retail.",
@@ -275,7 +275,8 @@
         "support": "You'll support workers and businesses every day. Answer questions, solve problems and ensure an excellent experience.",
         "community": "You'll build and nurture the community of StaffNow workers and businesses. Engagement, feedback and events.",
         "hr": "You'll help us build the team as we grow. Recruiting, onboarding and culture for a fast-growing startup."
-      }
+      },
+      "empty": "No open positions at the moment."
     },
     "openCta": {
       "title": "Don't see something that fits you?",
@@ -1141,7 +1142,7 @@
         "badge": "Worker Premium",
         "priceUnit": "one-off",
         "note": "<strong>Pay once</strong> · forever, no subscription",
-        "description": "Stand out from thousands of candidates — priority + AI tools.",
+        "description": "Stand out from the other candidates — priority + AI tools.",
         "features": {
           "0": "Everything in Free",
           "1": "Blue ✓ Premium badge on your profile",

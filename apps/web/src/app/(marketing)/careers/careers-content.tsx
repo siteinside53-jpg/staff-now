@@ -47,20 +47,10 @@ interface PositionDef {
   type: string;
 }
 
-const POSITIONS: PositionDef[] = [
-  { key: 'fullstack', title: 'Senior Full-Stack Engineer', department: 'Engineering', location: 'thessRemote', type: 'Full-time' },
-  { key: 'backend', title: 'Backend Engineer', department: 'Engineering', location: 'thessRemote', type: 'Full-time' },
-  { key: 'mobile', title: 'Mobile Engineer (iOS & Android)', department: 'Engineering', location: 'thessRemote', type: 'Full-time' },
-  { key: 'designer', title: 'Product Designer', department: 'Design', location: 'thessRemote', type: 'Full-time' },
-  { key: 'growth', title: 'Growth Marketing Manager', department: 'Marketing', location: 'thessRemote', type: 'Full-time' },
-  { key: 'content', title: 'Content & Social Media Manager', department: 'Marketing', location: 'thessRemote', type: 'Full-time' },
-  { key: 'sales', title: 'B2B Sales Representative', department: 'Sales', location: 'thessRemote', type: 'Full-time' },
-  { key: 'regional', title: 'Regional Expansion Manager', department: 'Sales', location: 'nationwide', type: 'Full-time' },
-  { key: 'csLead', title: 'Customer Success Lead', department: 'Operations', location: 'thess', type: 'Full-time' },
-  { key: 'support', title: 'Customer Support Agent', department: 'Operations', location: 'thessRemote', type: 'Full-time' },
-  { key: 'community', title: 'Community Manager', department: 'Operations', location: 'remote', type: 'Full-time' },
-  { key: 'hr', title: 'People & Talent (HR)', department: 'People', location: 'thess', type: 'Full-time' },
-];
+// ΜΟΝΟ αληθινές θέσεις. Οι δώδεκα επινοημένες αγγελίες αφαιρέθηκαν (12/09/2026):
+// σε πλατφόρμα προσλήψεων, μια ψεύτικη «ανοιχτή θέση» είναι ό,τι χειρότερο.
+// Όταν ανοίξει πραγματική θέση, μπαίνει εδώ (τα κείμενα στο careers.positions.list).
+const POSITIONS: PositionDef[] = [];
 
 export function CareersContent() {
   const t = useT();
@@ -184,6 +174,11 @@ export function CareersContent() {
             <h2 className="mt-3 text-3xl font-bold text-gray-900 sm:text-4xl">{t('careers.positions.title')}</h2>
             <p className="mt-4 mx-auto max-w-2xl text-gray-600">{t('careers.positions.subtitle')}</p>
           </div>
+          {POSITIONS.length === 0 && (
+            <p className="mt-12 rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-500">
+              {t('careers.positions.empty')}
+            </p>
+          )}
           <div className="mt-12 space-y-4">
             {POSITIONS.map((position) => (
               <div
