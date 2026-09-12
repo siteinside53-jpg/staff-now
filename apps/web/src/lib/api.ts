@@ -10,14 +10,19 @@ const apiClient = new ApiClient({
   // Το ανώνυμο αναγνωριστικό επισκέπτη (αν συμφώνησε στα cookies) ταξιδεύει
   // μαζί με κάθε κλήση, ώστε στην εγγραφή να δένει το «από πού ήρθε» με τον
   // νέο λογαριασμό. Μόνο το αναγνωριστικό — τίποτα άλλο.
+  // Και η γλώσσα του επισκέπτη (X-Locale): στα αγγλικά ο server στέλνει τις
+  // αγγελίες με μεταφρασμένο τίτλο και περιγραφή.
   getHeaders: (): Record<string, string> => {
     if (typeof window === 'undefined') return {};
+    const h: Record<string, string> = {};
     try {
       const v = localStorage.getItem('staffnow_visitor_id');
-      return v ? { 'X-Visitor-Id': v } : {};
+      if (v) h['X-Visitor-Id'] = v;
+      h['X-Locale'] = localStorage.getItem('staffnow_locale') === 'en' ? 'en' : 'el';
     } catch {
-      return {};
+      /* χωρίς localStorage: ελληνικά */
     }
+    return h;
   },
   // Κάθε αποτυχημένη κλήση γράφεται στο ιστορικό του χρήστη, ώστε στον πίνακα
   // διαχειριστή να φαίνεται ΤΙ σφάλμα είδε πριν φύγει. Το ίδιο το σφάλμα
@@ -37,4 +42,14 @@ const apiClient = new ApiClient({
 });
 
 export const api = new StaffNowApi(apiClient);
+
+/** Για τις λίγες κλήσεις που γίνονται με σκέτο fetch(): η ίδια κεφαλίδα γλώσσας. */
+export function localeHeaders(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  try {
+    return { 'X-Locale': localStorage.getItem('staffnow_locale') === 'en' ? 'en' : 'el' };
+  } catch {
+    return {};
+  }
+}
 export { apiClient };

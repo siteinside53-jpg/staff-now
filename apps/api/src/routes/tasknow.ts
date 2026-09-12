@@ -28,6 +28,7 @@ import { success, error } from '../lib/response';
 import { generateId } from '../lib/id';
 import { displayInfoFor } from '../lib/display-name';
 import { notifyUser } from '../lib/notify';
+import { localizeRows } from '../lib/translate';
 
 const tasknow = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
 
@@ -581,7 +582,8 @@ tasknow.get('/feed', async (c) => {
     ),
   );
   void messages;
-  return success(c, { tasks });
+  // Στα αγγλικά: τίτλος/περιγραφή μεταφρασμένα (τα δείγματα μένουν όπως είναι).
+  return success(c, { tasks: await localizeRows(c, 'task', tasks as any[]) });
 });
 
 // ── GET /state — ό,τι χρειάζεται ο συνδεδεμένος χρήστης, με μία κλήση ──────

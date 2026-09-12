@@ -12,6 +12,7 @@ import {
 import { ShareJob } from '@/components/share-job';
 import { JobApplyCta } from '@/components/job-apply-cta';
 import { JobFacts } from '@/components/marketing/job-facts';
+import { LocalizedJobTitle } from '@/components/marketing/job-localized';
 import { Tr } from '@/i18n/locale-provider';
 
 export const dynamic = 'force-static';
@@ -151,7 +152,7 @@ export default async function JobPage({ params }: Params) {
           <span aria-hidden="true">/</span>{' '}
           <Link href="/find-job" className="hover:text-gray-700"><Tr k="jobPage.breadcrumbJobs" /></Link>{' '}
           <span aria-hidden="true">/</span>{' '}
-          <span className="text-gray-700">{job.title}</span>
+          <span className="text-gray-700"><LocalizedJobTitle jobId={String(job.id)} fallback={job.title} /></span>
         </nav>
 
         <header className="rounded-2xl bg-white p-6 sm:p-8 shadow-sm border border-gray-100">
@@ -169,13 +170,14 @@ export default async function JobPage({ params }: Params) {
               </div>
             )}
             <div className="min-w-0">
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900">{job.title}</h1>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900"><LocalizedJobTitle jobId={String(job.id)} fallback={job.title} /></h1>
               <p className="mt-1 text-gray-600">{company} · 📍 {loc}</p>
             </div>
           </div>
 
           <JobFacts
             job={{
+              jobId: String(job.id),
               title: job.title,
               company,
               location: loc,

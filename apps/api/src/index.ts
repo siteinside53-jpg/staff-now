@@ -29,6 +29,7 @@ import { errorHandler } from './middleware/error-handler';
 import { globalRateLimiter } from './middleware/rate-limiter';
 import { requireAuth, optionalAuth } from './middleware/auth';
 import { sendEmail, emailLayout } from './lib/email';
+import { localizeRows, translateBacklog } from './lib/translate';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -48,7 +49,7 @@ app.use('*', async (c, next) => {
     origin: origin.includes(',') ? origin.split(',') : origin,
     credentials: true,
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization', 'X-Visitor-Id'],
+    allowHeaders: ['Content-Type', 'Authorization', 'X-Visitor-Id', 'X-Locale'],
     maxAge: 86400,
   })(c, next);
 });
@@ -658,7 +659,8 @@ app.get('/public/jobs', async (c) => {
     roles: roles_csv ? String(roles_csv).split(',') : [],
   }));
 
-  return c.json({ success: true, data: jobs });
+  // Στα αγγλικά ο τίτλος και η περιγραφή έρχονται μεταφρασμένα (X-Locale: en).
+  return c.json({ success: true, data: await localizeRows(c, 'job', jobs) });
 });
 
 // GET /public/jobs/:id — μία αγγελία, για τη ζωντανή εφεδρική σελίδα.
@@ -688,7 +690,8 @@ app.get('/public/jobs/:id', async (c) => {
     return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Η αγγελία δεν βρέθηκε ή έκλεισε.' } }, 404);
   }
   const { roles_csv, status: _status, ...job } = row;
-  return c.json({ success: true, data: { ...job, roles: roles_csv ? String(roles_csv).split(',') : [] } });
+  const [localized] = await localizeRows(c, 'job', [{ ...job, id: String(job.id) } as any]);
+  return c.json({ success: true, data: { ...localized, roles: roles_csv ? String(roles_csv).split(',') : [] } });
 });
 
 // GET /public/shifts — έκτακτες βάρδιες που δεν έχουν ξεκινήσει ακόμα.
@@ -725,7 +728,7 @@ app.get('/public/shifts', async (c) => {
     roles: roles_csv ? String(roles_csv).split(',') : [],
   }));
 
-  return c.json({ success: true, data: shifts });
+  return c.json({ success: true, data: await localizeRows(c, 'job', shifts, ['title']) });
 });
 
 // GET /public/businesses — browse businesses without auth (for workers)
@@ -1045,6 +1048,14 @@ async function scheduled(event: ScheduledEvent, env: Env, _ctx: ExecutionContext
     console.log('[cron] archived started shifts:', (res.meta as any)?.changes ?? 0);
   } catch (err) {
     console.error('[cron] shift archive failed', err);
+  }
+
+  // Ωριαίο: αγγλικές μεταφράσεις για αγγελίες/μικροδουλειές που δεν έχουν ακόμη.
+  try {
+    const n = await translateBacklog(env);
+    if (n) console.log('[cron] translated listings:', n);
+  } catch (err) {
+    console.error('[cron] translate backlog failed', err);
   }
 
   /*

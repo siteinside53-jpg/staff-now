@@ -20,6 +20,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
+import { localeHeaders } from '@/lib/api';
 import Link from 'next/link';
 import { API_URL } from '@/lib/config';
 import { Spinner } from '@/components/ui/spinner';
@@ -340,7 +341,7 @@ export function AllListings({
   heading?: boolean;
 } = {}) {
   const t = useT();
-  useLocale();
+  const { locale } = useLocale();
   const labels = useLabels();
   const state = useMockTasks();
 
@@ -359,10 +360,10 @@ export function AllListings({
 
     async function load() {
       const results = await Promise.allSettled([
-        fetch(`${API_URL}/public/jobs?limit=100`, { signal: controller.signal }).then((r) =>
+        fetch(`${API_URL}/public/jobs?limit=100`, { signal: controller.signal, headers: localeHeaders() }).then((r) =>
           r.ok ? r.json() : Promise.reject(new Error('jobs')),
         ),
-        fetch(`${API_URL}/public/shifts?limit=50`, { signal: controller.signal }).then((r) =>
+        fetch(`${API_URL}/public/shifts?limit=50`, { signal: controller.signal, headers: localeHeaders() }).then((r) =>
           r.ok ? r.json() : Promise.reject(new Error('shifts')),
         ),
       ]);
@@ -396,7 +397,8 @@ export function AllListings({
       clearTimeout(timeout);
       controller.abort();
     };
-  }, []);
+    // Αλλαγή γλώσσας → ξαναζητάμε τη λίστα (ο server τη στέλνει μεταφρασμένη).
+  }, [locale]);
 
   const items = useMemo<Item[]>(() => {
     const out: Item[] = [];

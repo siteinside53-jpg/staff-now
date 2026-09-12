@@ -12,7 +12,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { API_URL } from '@/lib/config';
-import { useT } from '@/i18n/locale-provider';
+import { useT, useLocale } from '@/i18n/locale-provider';
 
 interface LiveJob {
   id: string;
@@ -43,6 +43,7 @@ const EMPLOYMENT_KEYS = ['full_time', 'part_time', 'seasonal', 'freelancer', 'co
 
 export default function NotFound() {
   const t = useT();
+  const { locale } = useLocale();
   const [job, setJob] = useState<LiveJob | null>(null);
   const [checking, setChecking] = useState(true);
 
@@ -52,14 +53,14 @@ export default function NotFound() {
       setChecking(false);
       return;
     }
-    fetch(`${API_URL}/public/jobs/${encodeURIComponent(m[1]!)}`)
+    fetch(`${API_URL}/public/jobs/${encodeURIComponent(m[1]!)}`, { headers: { 'X-Locale': locale } })
       .then((r) => (r.ok ? r.json() : null))
       .then((j: any) => {
         if (j?.success && j.data) setJob(j.data as LiveJob);
       })
       .catch(() => {})
       .finally(() => setChecking(false));
-  }, []);
+  }, [locale]);
 
   if (checking) {
     return (

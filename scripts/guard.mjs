@@ -1194,6 +1194,26 @@ function checkMapTilesNoKey() {
   }
 }
 
+function checkListingsLocalized() {
+  const idx = stripComments(read('apps/api/src/index.ts'));
+  const jobsRoute = stripComments(read('apps/api/src/routes/jobs.ts'));
+  const webApi = stripComments(read('apps/web/src/lib/api.ts'));
+  const jobPage = stripComments(read('apps/web/src/app/(marketing)/jobs/[id]/page.tsx'));
+  const problems = [];
+  const pub = idx.slice(idx.indexOf("app.get('/public/jobs'"), idx.indexOf("app.get('/public/shifts'"));
+  if ((pub.match(/localizeRows\(/g) || []).length < 2) problems.push('/public/jobs και /public/jobs/:id δεν περνούν από localizeRows()');
+  if (!/allowHeaders:.*'X-Locale'/.test(idx)) problems.push('το CORS δεν επιτρέπει την κεφαλίδα X-Locale');
+  if (!/queueJobTranslation\(c, jobId\)/.test(jobsRoute)) problems.push('η δημοσίευση/αλλαγή αγγελίας δεν ζητά μετάφραση');
+  if (!/'X-Locale'/.test(webApi)) problems.push('η ιστοσελίδα δεν στέλνει τη γλώσσα (X-Locale) στον server');
+  if (!/LocalizedJobTitle/.test(jobPage)) problems.push('η δημόσια σελίδα αγγελίας δεν αλλάζει τίτλο στα αγγλικά');
+  if (!read('.github/workflows/deploy-api.yml').includes('0065_content_translations.sql')) problems.push('η migration 0065 δεν είναι στο deploy');
+  if (problems.length) {
+    fail('Οι αγγελίες δεν μεταφράζονται στα αγγλικά', problems.join(' · '));
+  } else {
+    ok('Αγγελίες: τίτλος/περιγραφή μεταφρασμένα όταν ο επισκέπτης διαλέξει αγγλικά');
+  }
+}
+
 // ───────────────────────────────────────────────────────────────────────────
 // 5. Το πραγματικό site (μόνο με --live)
 // ───────────────────────────────────────────────────────────────────────────
@@ -1250,6 +1270,7 @@ checkCreditsNeedPayment();
 checkRegisterRoleParam();
 checkTrackerRespectsConsent();
 checkMapTilesNoKey();
+checkListingsLocalized();
 if (LIVE) await checkLive();
 
 console.log('');

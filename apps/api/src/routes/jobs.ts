@@ -10,6 +10,7 @@ import { generateId } from '../lib/id';
 import { recordActivity, getRequestIp, getGeoFromRequest, recordDataChange, computeDiff } from '../lib/activity';
 import { notifyUser } from '../lib/notify';
 import { athensWallClockToD1Utc, nowD1Utc } from '../lib/shift-time';
+import { localizeRows, queueJobTranslation } from '../lib/translate';
 
 const jobs = new Hono<{ Bindings: Env; Variables: { user: AuthUser } }>();
 
@@ -167,7 +168,10 @@ jobs.get('/', requireAuth, async (c) => {
     })
   );
 
-  return paginated(c, jobsWithRoles, total, page, limit);
+  // Ο εργαζόμενος που διάλεξε αγγλικά βλέπει τίτλο/περιγραφή μεταφρασμένα.
+  // Η επιχείρηση βλέπει τις δικές της αγγελίες όπως τις έγραψε.
+  const localized = user.role === 'business' ? jobsWithRoles : await localizeRows(c, 'job', jobsWithRoles as any[]);
+  return paginated(c, localized, total, page, limit);
 });
 
 // GET /favorites/list — list saved jobs (MUST be before /:id routes)
@@ -454,6 +458,9 @@ jobs.post(
       );
     }
 
+    // Αγγλική μετάφραση στο παρασκήνιο, ώστε να είναι έτοιμη πριν τη ζητήσει κανείς.
+    queueJobTranslation(c, jobId);
+
     return success(
       c,
       {
@@ -500,8 +507,9 @@ jobs.get('/:id', requireAuth, async (c) => {
     .bind(jobId)
     .all();
 
+  const [localizedJob] = isOwner ? [job] : await localizeRows(c, 'job', [job as any]);
   return success(c, {
-    job,
+    job: localizedJob,
     roles: roles.results.map((r: { role: string }) => r.role),
   });
 });
@@ -731,6 +739,9 @@ jobs.patch(
       );
     }
 
+    // Άλλαξε το κείμενο → ξαναμεταφράζεται (η παλιά μετάφραση αγνοείται από το αποτύπωμα).
+    queueJobTranslation(c, jobId);
+
     return success(c, {
       job: updated,
       roles: updatedRoles.results.map((r: { role: string }) => r.role),
@@ -795,6 +806,7 @@ jobs.post('/:id/publish', requireAuth, requireRole('business'), async (c) => {
     .bind(now, jobId)
     .run();
 
+  queueJobTranslation(c, jobId);
   return success(c, { published: true, jobId });
 });
 

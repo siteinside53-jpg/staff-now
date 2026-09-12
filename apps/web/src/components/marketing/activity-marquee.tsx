@@ -38,7 +38,13 @@ export function ActivityMarquee() {
   const t = useT();
   // Production: ξεκινά άδειο, δείχνει μόνο πραγματικά activities.
   // Dev: ξεκινά με demo ώστε το localhost να δείχνει κίνηση όπως το staffnow.gr.
-  const [items, setItems] = useState<string[]>(DEV_DEMO_ITEMS);
+  /*
+    Κρατάμε τα ΩΜΑ δεδομένα και φτιάχνουμε τα κείμενα την ώρα του ζωγραφίσματος.
+    Πριν, τα κείμενα φτιάχνονταν μία φορά μέσα στο fetch με τη γλώσσα εκείνης
+    της στιγμής — και όταν ο επισκέπτης άλλαζε γλώσσα, η λωρίδα έμενε στην
+    παλιά («55 days ago» ενώ όλα τα άλλα ήταν ελληνικά).
+  */
+  const [raw, setRaw] = useState<any[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,28 +55,23 @@ export function ActivityMarquee() {
         const json = await res.json();
         const activities = json?.data?.activity;
         if (!Array.isArray(activities) || activities.length === 0) return;
-
-        const realItems = activities.map((a: any) => {
-          const time = a.createdAt ? timeAgo(a.createdAt, t) : '';
-          const location = a.location ? ` · ${a.location}` : '';
-          if (a.type === 'signup') {
-            return `🟢 ${a.text}${location} · ${time}`;
-          }
-          if (a.type === 'job') {
-            return `💼 ${a.text}${location} · ${time}`;
-          }
-          return `🟢 ${a.text}${location}`;
-        });
-
-        if (!cancelled && realItems.length > 0) {
-          setItems(realItems);
-        }
+        if (!cancelled) setRaw(activities);
       } catch {
         // κανένα fake — μένει κρυφό μέχρι να έρθουν πραγματικά
       }
     })();
     return () => { cancelled = true; };
   }, []);
+
+  const items: string[] = raw
+    ? raw.map((a: any) => {
+        const time = a.createdAt ? timeAgo(a.createdAt, t) : '';
+        const location = a.location ? ` · ${a.location}` : '';
+        if (a.type === 'signup') return `🟢 ${a.text}${location} · ${time}`;
+        if (a.type === 'job') return `💼 ${a.text}${location} · ${time}`;
+        return `🟢 ${a.text}${location}`;
+      })
+    : DEV_DEMO_ITEMS;
 
   // Κρύβεται τελείως αν δεν υπάρχουν πραγματικά activities
   if (items.length === 0) return null;

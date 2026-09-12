@@ -81,10 +81,13 @@ function Header() {
             <Link
               key={link.href}
               href={link.href}
+              // Τα ελληνικά είναι μακρύτερα: τίποτα δεν σπάει σε δύο γραμμές, και το
+              // «Κατέβασε το App» κρύβεται σε στενές οθόνες υπολογιστή (κάτω από 1280px).
               className={
-                link.accent
-                  ? 'inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1.5 text-sm font-extrabold tracking-tight ring-1 ring-amber-200/70 transition-colors hover:bg-amber-100'
-                  : 'rounded-md px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900'
+                (link.href === '/#download-app' ? 'hidden xl:inline-flex ' : '') +
+                (link.accent
+                  ? 'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-amber-50 px-3 py-1.5 text-sm font-extrabold tracking-tight ring-1 ring-amber-200/70 transition-colors hover:bg-amber-100'
+                  : 'whitespace-nowrap rounded-md px-2.5 py-2 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900')
               }
             >
               {link.accent ? (
@@ -103,20 +106,22 @@ function Header() {
         </nav>
 
         {/* Desktop Actions */}
-        <div className="hidden items-center gap-3 lg:flex">
+        <div className="hidden items-center gap-2 lg:flex">
           <ThemeToggle />
           <LanguageToggle />
           {isAuthenticated ? (
             <>
               <Link
                 href="/dashboard"
-                className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+                className="whitespace-nowrap rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
               >
                 {t('header.dashboard')}
               </Link>
               <button
                 onClick={() => logout()}
-                className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                // Σε στενές οθόνες υπολογιστή (1024–1279px) δεν χωράει· η αποσύνδεση
+                // υπάρχει ούτως ή άλλως μέσα στον πίνακα ελέγχου.
+                className="hidden whitespace-nowrap rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors xl:inline-flex"
               >
                 {t('header.logout')}
               </button>
@@ -125,13 +130,13 @@ function Header() {
             <>
               <button
                 onClick={() => loginModal.open('login')}
-                className="text-sm font-medium text-gray-600 hover:text-gray-900"
+                className="whitespace-nowrap text-sm font-medium text-gray-600 hover:text-gray-900"
               >
                 {t('header.login')}
               </button>
               <button
                 onClick={() => loginModal.open('register')}
-                className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+                className="whitespace-nowrap rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
               >
                 {t('header.startFree')}
               </button>

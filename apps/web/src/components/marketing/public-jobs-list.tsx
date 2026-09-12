@@ -132,7 +132,7 @@ export function PublicJobsList() {
     let active = true;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 6000);
-    fetch(`${API_URL}/public/jobs?limit=200`, { signal: controller.signal })
+    fetch(`${API_URL}/public/jobs?limit=200`, { signal: controller.signal, headers: { 'X-Locale': locale } })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d: { success: boolean; data: any[] }) => {
         if (!active) return;

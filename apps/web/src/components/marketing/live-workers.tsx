@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { localeHeaders } from '@/lib/api';
 import { resolveCityName } from '@/lib/location';
 import { roleLabelFor, employmentLabelFor } from '@/i18n/labels';
 import { useT, useLocale } from '@/i18n/locale-provider';
@@ -148,7 +149,7 @@ export function LiveWorkersHeroCard({ compact = false }: { compact?: boolean } =
       try {
         const [wRes, jRes] = await Promise.all([
           fetch(`${API_BASE}/public/workers?limit=20`),
-          fetch(`${API_BASE}/public/jobs?limit=20`),
+          fetch(`${API_BASE}/public/jobs?limit=20`, { headers: localeHeaders() }),
         ]);
 
         if (wRes.ok) {
@@ -203,7 +204,7 @@ export function LiveWorkersHeroCard({ compact = false }: { compact?: boolean } =
       } catch { /* κανένα fake — μένει άδειο μέχρι να έρθουν πραγματικά */ }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [locale]);
 
   // Auto-rotate tabs every 8s
   useEffect(() => {
@@ -412,7 +413,7 @@ function useLiveLists() {
       try {
         const [wRes, jRes] = await Promise.all([
           fetch(`${API_BASE}/public/workers?limit=12`),
-          fetch(`${API_BASE}/public/jobs?limit=12`),
+          fetch(`${API_BASE}/public/jobs?limit=12`, { headers: localeHeaders() }),
         ]);
         if (wRes.ok) {
           const data = (await wRes.json())?.data;
@@ -455,7 +456,7 @@ function useLiveLists() {
       } catch { /* κανένα fake — μένει άδειο */ }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [locale]);
 
   return { workers, jobs };
 }

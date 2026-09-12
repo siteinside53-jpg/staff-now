@@ -13,8 +13,11 @@
 
 import { useLabels } from '@/i18n/labels';
 import { useT } from '@/i18n/locale-provider';
+import { useJobTranslation } from './job-localized';
 
 export type JobFactsData = {
+  /** Με αναγνωριστικό, η περιγραφή έρχεται μεταφρασμένη όταν ο επισκέπτης διαλέξει αγγλικά. */
+  jobId?: string;
   title: string;
   company: string;
   location: string;
@@ -45,6 +48,7 @@ export function JobFacts({ job }: { job: JobFactsData }) {
   const t = useT();
   const labels = useLabels();
   const salary = useSalaryText(job);
+  const translated = useJobTranslation(job.jobId);
   const employmentLabel = job.employmentType ? labels.employment(job.employmentType) : '';
   const roleKeys = job.roleKeys ?? [];
 
@@ -53,9 +57,10 @@ export function JobFacts({ job }: { job: JobFactsData }) {
     job.mealsProvided ? t('jobPage.perkMeals') : '',
   ].filter(Boolean);
 
+  const customDescription = translated?.description || job.customDescription;
   const description =
-    job.customDescription && job.customDescription.trim().length > 0
-      ? job.customDescription.trim()
+    customDescription && customDescription.trim().length > 0
+      ? customDescription.trim()
       : t('jobPage.autoDescription', {
           company: job.company,
           title: job.title,

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { localeHeaders } from '@/lib/api';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { WORKER_JOB_ROLE_LABELS_EL } from '@staffnow/config';
 import { useT } from '@/i18n/locale-provider';
@@ -233,7 +234,7 @@ export function SwipeTeaser() {
     let cancelled = false;
     (async () => {
       const [jobsRes, workersRes] = await Promise.allSettled([
-        fetch(`${API_BASE}/public/jobs?limit=30`).then((r) => (r.ok ? r.json() : null)),
+        fetch(`${API_BASE}/public/jobs?limit=30`, { headers: localeHeaders() }).then((r) => (r.ok ? r.json() : null)),
         fetch(`${API_BASE}/public/workers?limit=30`).then((r) => (r.ok ? r.json() : null)),
       ]);
       if (cancelled) return;
